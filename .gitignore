@@ -1,0 +1,46 @@
+# .NET / WPF 빌드 결과 (모든 하위 프로젝트 포함)
+[Bb]in/
+[Oo]bj/
+*_wpftmp.csproj
+
+# NuGet 복원 패키지 / 패키징 결과
+# NuGet.Config와 프로젝트 파일은 추적합니다.
+.packages/
+*.nupkg
+*.snupkg
+
+# 실행 / 배포 / 벤치마크 / 대용량 이미지 및 캐시 생성물
+# 재현용 소스, scripts/, docs/, licenses/는 추적합니다.
+artifacts/
+BenchmarkDotNet.Artifacts/
+
+# 테스트 결과 / 커버리지
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Visual Studio / Rider 개인 설정과 캐시
+.vs/
+.idea/
+_ReSharper*/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.DotSettings.user
+
+# 로컬 환경 설정 (공유 예제는 추적)
+.env
+.env.*
+!.env.example
+!.env.template
+
+# 운영체제 메타데이터 / 임시 파일
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.temp
+~$*

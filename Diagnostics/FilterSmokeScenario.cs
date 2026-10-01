@@ -1,0 +1,37 @@
+using TeachingToolWpf.Controls;
+using TeachingToolWpf.Imaging.Filters;
+using TeachingToolWpf.Presentation;
+
+namespace TeachingToolWpf.Diagnostics;
+
+internal static class FilterSmokeScenario
+{
+    private static void Require(bool value, string description)
+    { if (!value) throw new InvalidOperationException("Filter smoke assertion: " + description); }
+
+    public static async Task Run(EditorViewModel model, Dx12Viewport viewport)
+    {
+        var before = model.Session.State;
+        model.Filters.SelectedFilter = RoiFilterKind.Binarize;
+        Require(model.Filters.Result is null, "choosing a filter does not activate it");
+        model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
+        Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
+        model.SelectAll.Execute(null); await model.Filters.WhenIdle;
+        Require(model.Filters.Result?.Regions.Count == before.Rois.Count, "multi-selection updates preview");
+        model.Filters.SelectedFilter = RoiFilterKind.Edge; await model.Filters.WhenIdle;
+        Require(model.Filters.Result?.Regions.Count == before.Rois.Count, model.Filters.Status);
+        await Task.Delay(500); viewport.Capture("artifacts/filter-smoke.png"); await Task.Delay(500);
+        model.Filters.Stop.Execute(null); Require(model.Filters.Result is null, "original view clears preview");
+        await model.Images.ReplaceAsync(new("sample:24576:32768", "24K", 24576, 32768));
+        Require(model.Session.State.Rois.Count == 0 && model.Session.State.Selection.Count == 0, "image replacement clears ROI");
+        await model.Images.HistoryAsync(false);
+        Require(model.Session.State.Rois.Count == before.Rois.Count && model.Images.Image?.Width == 8192, "image undo restores ROI and source");
+        await model.StartLive.ExecuteAsync();
+        Require(model.Live.IsRunning && model.Session.State.Image?.Width == 7680 && model.Session.State.Rois.Count == 0, "live switch resets ROI and image bounds");
+        await Task.Delay(800);
+        model.AddRoi.Execute(null); model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
+        Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
+        await Task.Delay(600);
+        Require(model.Filters.Result?.Regions.Count == 1, "periodic live filter refresh");
+    }
+}

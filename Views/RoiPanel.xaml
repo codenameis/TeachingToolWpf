@@ -1,0 +1,35 @@
+<UserControl x:Class="TeachingToolWpf.Views.RoiPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="White">
+        <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <DockPanel Margin="16,0" VerticalAlignment="Center">
+            <Border DockPanel.Dock="Right" Background="{StaticResource Shell}" CornerRadius="5" Padding="7,3"><TextBlock Text="{Binding RoiCount}" FontSize="11" Foreground="{StaticResource TextSecondary}"/></Border>
+            <TextBlock Text="영역" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </DockPanel>
+        <ListBox x:Name="RoiList" Grid.Row="1" SelectionMode="Extended" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="ROI 계층 목록">
+            <ListBox.ItemTemplate><DataTemplate><DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding Kind}" Foreground="{StaticResource TextSecondary}" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <Border DockPanel.Dock="Left" Width="{Binding IndentWidth}"/>
+                <Path DockPanel.Dock="Left" Data="{StaticResource DrawIcon}" Width="13" Height="13" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" StrokeThickness="1.3" Margin="0,0,9,0"/>
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}"/>
+            </DockPanel></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Row="1" Margin="22,64,22,0" VerticalAlignment="Top">
+            <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasRois}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+            <Border Width="44" Height="44" Background="{StaticResource AccentSoft}" CornerRadius="12" HorizontalAlignment="Left" Margin="0,0,0,16"><Path Data="{StaticResource DrawIcon}" Width="20" Height="20" Stretch="Uniform" Stroke="{StaticResource Accent}" StrokeThickness="1.5"/></Border>
+            <TextBlock Text="첫 영역을 만들어 보세요" FontWeight="SemiBold" Margin="0,0,0,8"/>
+            <TextBlock Text="ROI를 바로 추가하거나, 그리기 도구로 이미지 위에 원하는 범위를 지정하세요." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" FontSize="11" LineHeight="19"/>
+            <Button Content="ROI 추가" Tag="{StaticResource AddIcon}" Command="{Binding AddRoi}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,16,0,0"/>
+        </StackPanel>
+        <Border Grid.Row="2" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="12">
+            <StackPanel>
+                <Button Content="모두 선택" Command="{Binding SelectAll}" HorizontalAlignment="Left"/>
+                <WrapPanel Margin="0,6,0,4">
+                    <Button Tag="{StaticResource GroupIcon}" Command="{Binding Group}" ToolTip="새 부모로 그룹화 · Ctrl+G" AutomationProperties.Name="부모로 그룹화" Style="{StaticResource IconButton}"/>
+                    <Button Tag="{StaticResource UngroupIcon}" Command="{Binding Ungroup}" ToolTip="그룹 해제 · 자식은 유지 · Ctrl+Shift+G" AutomationProperties.Name="그룹 해제" Style="{StaticResource IconButton}"/>
+                    <Button Tag="{StaticResource DeleteIcon}" Command="{Binding Delete}" ToolTip="선택과 모든 자손 삭제 · Delete" AutomationProperties.Name="ROI 삭제" Style="{StaticResource IconButton}"/>
+                </WrapPanel>
+                <TextBlock Text="Ctrl / Shift로 여러 영역 선택" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="2,6,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

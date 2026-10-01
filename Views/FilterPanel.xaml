@@ -1,0 +1,25 @@
+<UserControl x:Class="TeachingToolWpf.Views.FilterPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <DockPanel Margin="0,0,0,12">
+            <Border DockPanel.Dock="Right" Background="#EBF1FF" CornerRadius="4" Padding="6,3"><TextBlock Text="OpenCV" Foreground="#2463EB" FontSize="9" FontWeight="SemiBold"/></Border>
+            <TextBlock Text="ROI 필터" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </DockPanel>
+        <ComboBox ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Kind" SelectedValue="{Binding SelectedFilter}" AutomationProperties.Name="ROI 필터 선택"/>
+        <StackPanel Visibility="{Binding IsBinarize, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <TextBlock Text="이진화 임계값 · 0–255" Style="{StaticResource Caption}"/>
+            <TextBox Text="{Binding Threshold, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="이진화 임계값"/>
+        </StackPanel>
+        <Grid Visibility="{Binding IsEdge, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel><TextBlock Text="Edge 하한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeLow, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Edge 하한"/></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="Edge 상한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeHigh, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Edge 상한"/></StackPanel>
+        </Grid>
+        <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Button Content="미리보기" Command="{Binding Preview}" Style="{StaticResource PrimaryButton}" ToolTip="선택 영역에 필터 표시 · 라이브 필터는 최대 5회/초 갱신"/>
+            <Button Grid.Column="2" Content="원본 보기" Command="{Binding Stop}" Style="{StaticResource SecondaryButton}"/>
+        </Grid>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="10" LineHeight="17" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,0"/>
+        <TextBlock Text="선택 변경 시 자동 갱신 · 원본 보존&#x0a;최대 1,024 px · 라이브 최대 5회/초" TextWrapping="Wrap" FontSize="10" LineHeight="17" Foreground="{StaticResource TextSecondary}" Margin="0,8,0,0"/>
+        <Border Height="1" Background="{StaticResource Stroke}" Margin="0,20"/>
+    </StackPanel>
+</UserControl>

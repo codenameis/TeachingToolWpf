@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="TeachingToolWpf.csproj" />
+  <Project Path="src/TeachingToolWpf.Core/TeachingToolWpf.Core.csproj" />
+  <Project Path="tests/TeachingToolWpf.Core.Tests/TeachingToolWpf.Core.Tests.csproj" />
+  <Project Path="tests/TeachingToolWpf.Imaging.Tests/TeachingToolWpf.Imaging.Tests.csproj" />
+  <Project Path="benchmarks/TeachingToolWpf.Benchmarks/TeachingToolWpf.Benchmarks.csproj" />
+</Solution>
