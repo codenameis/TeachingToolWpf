@@ -43,7 +43,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public string SelectionTitle => Session.State.Selection.Count switch { 0 => "선택한 영역 없음", 1 => "영역 속성", _ => "여러 영역 선택" };
     public string ToolHint => Input.Tool switch
     {
-        EditorTool.Draw => "이미지 위를 드래그해 ROI를 그리세요. Esc로 취소할 수 있습니다.",
+        EditorTool.Draw => "ROI를 그리면 선택 도구로 돌아갑니다. 다시 그리기: R · 취소: Esc",
         EditorTool.Pan => "드래그해 화면을 이동하세요. 휠로 확대·축소합니다.",
         _ => "클릭으로 선택 · Ctrl로 다중 선택 · 휠로 확대·축소"
     };
@@ -154,7 +154,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     }
     public void Guard(Action action) { try { action(); } catch (Exception ex) { Fail(ex); } }
     public void Fail(Exception ex) => Status = ex.Message;
-    private void SetTool(EditorTool tool) { Input.Tool = tool; Status = tool == EditorTool.Draw ? "드래그로 ROI를 그립니다. Esc: 취소 · V: 선택" : tool == EditorTool.Pan ? "드래그로 화면을 이동합니다. 휠: 확대/축소" : "Ctrl+클릭: 다중 선택 · 빈 곳 드래그: 범위 선택 · Shift: 이동 축/회전 15° 고정"; }
+    private void SetTool(EditorTool tool) { Input.Tool = tool; Status = tool == EditorTool.Draw ? "ROI 한 개를 그리면 선택 도구로 돌아갑니다. 다시 그리기: R · 취소: Esc" : tool == EditorTool.Pan ? "드래그로 화면을 이동합니다. 휠: 확대/축소" : "Ctrl+클릭: 다중 선택 · 빈 곳 드래그: 범위 선택 · Shift: 이동 축/회전 15° 고정"; }
     private void InputChanged() { Notify(nameof(ToolName)); Notify(nameof(ToolHint)); Notify(nameof(IsSelect)); Notify(nameof(IsPan)); Notify(nameof(IsDraw)); RefreshCommands(); Publish(); }
     private void SessionChanged(object? sender, EventArgs e)
     {

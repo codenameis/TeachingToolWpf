@@ -28,14 +28,22 @@ internal static class EditingSmokeScenario
         Require(editor.State.Rois.Count == 1 && editor.State.Selection.Count == 1, "one-click ROI creation");
         model.Undo.Execute(null);
         Require(editor.State.Rois.Count == 0, "one-click creation uses edit history");
-        model.DrawTool.Execute(null);
         void Draw(PointD a, PointD b)
         {
+            model.DrawTool.Execute(null);
             var view = editor.State.Viewport;
             Pointer(viewport, 0x201, view.ImageToScreen(a)); Pointer(viewport, 0x200, view.ImageToScreen(b)); Pointer(viewport, 0x202, view.ImageToScreen(b));
+            Require(model.IsSelect && !model.Input.IsDragging, "completed drawing returns to selection mode");
         }
         Draw(new(1000, 1000), new(1800, 1700)); Draw(new(2600, 1200), new(3500, 1800));
         Require(editor.State.Rois.Count == 2, "native HWND pointer input creates two ROIs");
+        foreach (var roi in editor.State.Rois.Values.OrderBy(r => r.Order).ToArray())
+        {
+            var center = editor.State.Viewport.ImageToScreen(roi.Geometry.Center);
+            Pointer(viewport, 0x201, center); Pointer(viewport, 0x202, center);
+            Require(editor.State.Selection.SetEquals([roi.Id]), "click switches to another ROI immediately after drawing");
+            Require(editor.State.Rois[roi.Id].Geometry == roi.Geometry, "selection click preserves ROI geometry");
+        }
         model.SelectTool.Execute(null); model.SelectAll.Execute(null); model.Group.Execute(null);
         var parent = editor.State.Selection.Single();
         Require(editor.State.Rois.Count == 3 && editor.State.Rois.Values.Count(r => r.ParentId == parent) == 2, "group creates enclosing parent");

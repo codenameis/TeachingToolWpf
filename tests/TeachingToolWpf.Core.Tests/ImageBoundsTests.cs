@@ -37,6 +37,7 @@ public class ImageBoundsTests
         input.Down(new(40, 30)); input.Up(new(170, 190));
         var roi = editor.State.Rois.Values.Single();
         Assert.Equal(new RotatedRect(new(70, 65), 60, 70, 0), roi.Geometry);
+        input.Tool = EditorTool.Draw;
         input.Down(new(120, 120)); input.Up(new(190, 180)); Assert.Single(editor.State.Rois);
     }
     [Fact] public void GroupTranslationStopsAtBoundaryWithoutChangingSpacing()

@@ -73,7 +73,12 @@ internal sealed class DrawGesture(InteractionController controller, PointD start
             : new((a + b) / 2, Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y), 0);
         controller.Show(new(Draft: draft));
     }
-    public void Complete() { if (draft is not null) controller.Editor.Add(draft); }
+    public void Complete()
+    {
+        if (draft is null) return;
+        controller.Editor.Add(draft);
+        controller.Tool = EditorTool.Select;
+    }
     public void Cancel() { }
 }
 internal sealed class MarqueeGesture(InteractionController controller, PointD start, bool additive) : IGesture
