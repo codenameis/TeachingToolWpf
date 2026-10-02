@@ -1,0 +1,1001 @@
+{
+  "date": "2026-10-02",
+  "configuration": "Release",
+  "note": "Single diagnostic runs, not formal sustained p95/p99 benchmark. Final runs include DX12 debug layer and a 16 ms UI Dispatcher heartbeat.",
+  "before": {
+    "pcb": {
+      "stage": "complete",
+      "layout": "pcb",
+      "timings": [
+        {
+          "name": "create",
+          "milliseconds": 255.6216,
+          "count": 7000,
+          "selected": 0
+        },
+        {
+          "name": "marquee",
+          "milliseconds": 75.6613,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "copy",
+          "milliseconds": 20.5607,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "paste",
+          "milliseconds": 385.9561,
+          "count": 14000,
+          "selected": 778
+        },
+        {
+          "name": "undo",
+          "milliseconds": 90.4404,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "redo",
+          "milliseconds": 84.2825,
+          "count": 14000,
+          "selected": 778
+        },
+        {
+          "name": "pan",
+          "milliseconds": 3.5223,
+          "count": 14000,
+          "selected": 778
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False"
+    },
+    "flat": {
+      "stage": "complete",
+      "layout": "flat",
+      "timings": [
+        {
+          "name": "create",
+          "milliseconds": 222.8932,
+          "count": 7000,
+          "selected": 0
+        },
+        {
+          "name": "marquee",
+          "milliseconds": 76.455,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "copy",
+          "milliseconds": 20.4902,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "paste",
+          "milliseconds": 370.4666,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "undo",
+          "milliseconds": 73.8529,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "redo",
+          "milliseconds": 87.0033,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "pan",
+          "milliseconds": 23.4764,
+          "count": 14000,
+          "selected": 7000
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False"
+    },
+    "filter": {
+      "stage": "pan",
+      "layout": "flat",
+      "timings": [
+        {
+          "name": "create",
+          "milliseconds": 217.175,
+          "count": 7000,
+          "selected": 0
+        },
+        {
+          "name": "marquee",
+          "milliseconds": 71.0034,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "copy",
+          "milliseconds": 19.0733,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "register-filter",
+          "milliseconds": 60.9796,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "paste",
+          "milliseconds": 333.3507,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "undo",
+          "milliseconds": 93.5674,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "redo",
+          "milliseconds": 116.4853,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "pan",
+          "milliseconds": 27.1045,
+          "count": 14000,
+          "selected": 7000
+        }
+      ],
+      "error": "System.InvalidOperationException: 렌더 오류: GPU 타일 슬롯이 소진되었습니다.\r\n   at TeachingToolWpf.Diagnostics.ClipboardRun.<>c__DisplayClass0_0.<<Attach>b__3>d.MoveNext() in C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\Diagnostics\\ClipboardRun.cs:line 66",
+      "GpuStatus": "렌더 오류: GPU 타일 슬롯이 소진되었습니다."
+    },
+    "overlap": {
+      "stage": "complete",
+      "layout": "overlap",
+      "timings": [
+        {
+          "name": "create",
+          "milliseconds": 209.2572,
+          "count": 7000,
+          "selected": 0
+        },
+        {
+          "name": "marquee",
+          "milliseconds": 71.3694,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "copy",
+          "milliseconds": 20.1937,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "paste",
+          "milliseconds": 2167.7305,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "undo",
+          "milliseconds": 63.9551,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "redo",
+          "milliseconds": 83.5144,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "pan",
+          "milliseconds": 22.9596,
+          "count": 14000,
+          "selected": 7000
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False"
+    }
+  },
+  "afterHierarchy": {
+    "overlap": {
+      "stage": "complete",
+      "layout": "overlap",
+      "timings": [
+        {
+          "name": "create",
+          "milliseconds": 198.3251,
+          "count": 7000,
+          "selected": 0
+        },
+        {
+          "name": "marquee",
+          "milliseconds": 73.9908,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "copy",
+          "milliseconds": 19.4063,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "paste",
+          "milliseconds": 309.4868,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "undo",
+          "milliseconds": 78.3013,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "redo",
+          "milliseconds": 91.1703,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "pan",
+          "milliseconds": 22.7785,
+          "count": 14000,
+          "selected": 7000
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False"
+    }
+  },
+  "final": {
+    "pcb": {
+      "stage": "complete",
+      "layout": "pcb",
+      "timings": [
+        {
+          "name": "create",
+          "dispatchMs": 54.2518,
+          "milliseconds": 89.0038,
+          "maxDispatcherGapMs": 88.9557,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 0
+        },
+        {
+          "name": "select-300",
+          "dispatchMs": 24.9765,
+          "milliseconds": 30.2418,
+          "maxDispatcherGapMs": 30.226,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 300
+        },
+        {
+          "name": "copy-300",
+          "dispatchMs": 4.5577,
+          "milliseconds": 5.9172,
+          "maxDispatcherGapMs": 5.9011,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 300
+        },
+        {
+          "name": "paste-300",
+          "dispatchMs": 11.4264,
+          "milliseconds": 48.7823,
+          "maxDispatcherGapMs": 35.7399,
+          "dispatcherTicks": 1,
+          "count": 600,
+          "selected": 34
+        },
+        {
+          "name": "select-600",
+          "dispatchMs": 7.7069,
+          "milliseconds": 11.2532,
+          "maxDispatcherGapMs": 11.235,
+          "dispatcherTicks": 0,
+          "count": 600,
+          "selected": 600
+        },
+        {
+          "name": "copy-600",
+          "dispatchMs": 1.7293,
+          "milliseconds": 2.7731,
+          "maxDispatcherGapMs": 2.7604,
+          "dispatcherTicks": 0,
+          "count": 600,
+          "selected": 600
+        },
+        {
+          "name": "paste-600",
+          "dispatchMs": 2.49,
+          "milliseconds": 52.9594,
+          "maxDispatcherGapMs": 52.9469,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 68
+        },
+        {
+          "name": "select-1200",
+          "dispatchMs": 19.4106,
+          "milliseconds": 22.9145,
+          "maxDispatcherGapMs": 22.8956,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 1200
+        },
+        {
+          "name": "copy-1200",
+          "dispatchMs": 2.5569,
+          "milliseconds": 3.5721,
+          "maxDispatcherGapMs": 3.5547,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 1200
+        },
+        {
+          "name": "paste-1200",
+          "dispatchMs": 5.3321,
+          "milliseconds": 95.7533,
+          "maxDispatcherGapMs": 51.3893,
+          "dispatcherTicks": 2,
+          "count": 2400,
+          "selected": 136
+        },
+        {
+          "name": "select-2400",
+          "dispatchMs": 38.3581,
+          "milliseconds": 42.4996,
+          "maxDispatcherGapMs": 42.4791,
+          "dispatcherTicks": 0,
+          "count": 2400,
+          "selected": 2400
+        },
+        {
+          "name": "copy-2400",
+          "dispatchMs": 8.6808,
+          "milliseconds": 9.9115,
+          "maxDispatcherGapMs": 9.9013,
+          "dispatcherTicks": 0,
+          "count": 2400,
+          "selected": 2400
+        },
+        {
+          "name": "paste-2400",
+          "dispatchMs": 3.903,
+          "milliseconds": 202.378,
+          "maxDispatcherGapMs": 62.088,
+          "dispatcherTicks": 5,
+          "count": 4800,
+          "selected": 272
+        },
+        {
+          "name": "select-4800",
+          "dispatchMs": 37.3196,
+          "milliseconds": 41.0819,
+          "maxDispatcherGapMs": 41.0655,
+          "dispatcherTicks": 0,
+          "count": 4800,
+          "selected": 4800
+        },
+        {
+          "name": "copy-4800",
+          "dispatchMs": 10.5059,
+          "milliseconds": 11.6842,
+          "maxDispatcherGapMs": 11.6652,
+          "dispatcherTicks": 0,
+          "count": 4800,
+          "selected": 4800
+        },
+        {
+          "name": "paste-4800",
+          "dispatchMs": 6.2265,
+          "milliseconds": 489.8565,
+          "maxDispatcherGapMs": 70.6197,
+          "dispatcherTicks": 16,
+          "count": 9600,
+          "selected": 544
+        },
+        {
+          "name": "marquee",
+          "dispatchMs": 74.206,
+          "milliseconds": 77.3866,
+          "maxDispatcherGapMs": 77.3744,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "copy",
+          "dispatchMs": 17.1226,
+          "milliseconds": 18.2384,
+          "maxDispatcherGapMs": 18.2208,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "cancel-paste",
+          "dispatchMs": 13.6708,
+          "milliseconds": 52.2017,
+          "maxDispatcherGapMs": 33.5248,
+          "dispatcherTicks": 1,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "paste",
+          "dispatchMs": 5.9127,
+          "milliseconds": 1587.6852,
+          "maxDispatcherGapMs": 83.2236,
+          "dispatcherTicks": 61,
+          "count": 19200,
+          "selected": 1088
+        },
+        {
+          "name": "undo",
+          "dispatchMs": 121.0227,
+          "milliseconds": 143.0138,
+          "maxDispatcherGapMs": 142.9972,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "redo",
+          "dispatchMs": 75.6903,
+          "milliseconds": 83.2909,
+          "maxDispatcherGapMs": 83.2745,
+          "dispatcherTicks": 0,
+          "count": 19200,
+          "selected": 1088
+        },
+        {
+          "name": "pan",
+          "dispatchMs": 1.652,
+          "milliseconds": 1.6726,
+          "maxDispatcherGapMs": 1.6592,
+          "dispatcherTicks": 0,
+          "count": 19200,
+          "selected": 1088
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True"
+    },
+    "flat": {
+      "stage": "complete",
+      "layout": "flat",
+      "timings": [
+        {
+          "name": "create",
+          "dispatchMs": 59.0387,
+          "milliseconds": 84.7135,
+          "maxDispatcherGapMs": 84.6714,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 0
+        },
+        {
+          "name": "select-300",
+          "dispatchMs": 20.35,
+          "milliseconds": 25.221,
+          "maxDispatcherGapMs": 25.1957,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 300
+        },
+        {
+          "name": "copy-300",
+          "dispatchMs": 3.6641,
+          "milliseconds": 4.9789,
+          "maxDispatcherGapMs": 4.9627,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 300
+        },
+        {
+          "name": "paste-300",
+          "dispatchMs": 15.4912,
+          "milliseconds": 45.5822,
+          "maxDispatcherGapMs": 28.4872,
+          "dispatcherTicks": 1,
+          "count": 600,
+          "selected": 300
+        },
+        {
+          "name": "select-600",
+          "dispatchMs": 17.5521,
+          "milliseconds": 21.1591,
+          "maxDispatcherGapMs": 21.138,
+          "dispatcherTicks": 0,
+          "count": 600,
+          "selected": 600
+        },
+        {
+          "name": "copy-600",
+          "dispatchMs": 1.6778,
+          "milliseconds": 2.8945,
+          "maxDispatcherGapMs": 2.8688,
+          "dispatcherTicks": 0,
+          "count": 600,
+          "selected": 600
+        },
+        {
+          "name": "paste-600",
+          "dispatchMs": 2.1049,
+          "milliseconds": 41.5412,
+          "maxDispatcherGapMs": 37.4545,
+          "dispatcherTicks": 1,
+          "count": 1200,
+          "selected": 600
+        },
+        {
+          "name": "select-1200",
+          "dispatchMs": 26.5925,
+          "milliseconds": 29.943,
+          "maxDispatcherGapMs": 29.9213,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 1200
+        },
+        {
+          "name": "copy-1200",
+          "dispatchMs": 3.3228,
+          "milliseconds": 4.2526,
+          "maxDispatcherGapMs": 4.2199,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 1200
+        },
+        {
+          "name": "paste-1200",
+          "dispatchMs": 3.1599,
+          "milliseconds": 82.3902,
+          "maxDispatcherGapMs": 51.5745,
+          "dispatcherTicks": 1,
+          "count": 2400,
+          "selected": 1200
+        },
+        {
+          "name": "select-2400",
+          "dispatchMs": 92.3093,
+          "milliseconds": 95.0856,
+          "maxDispatcherGapMs": 95.0706,
+          "dispatcherTicks": 0,
+          "count": 2400,
+          "selected": 2400
+        },
+        {
+          "name": "copy-2400",
+          "dispatchMs": 5.4759,
+          "milliseconds": 6.5944,
+          "maxDispatcherGapMs": 6.575,
+          "dispatcherTicks": 0,
+          "count": 2400,
+          "selected": 2400
+        },
+        {
+          "name": "paste-2400",
+          "dispatchMs": 5.3054,
+          "milliseconds": 128.5056,
+          "maxDispatcherGapMs": 66.5146,
+          "dispatcherTicks": 3,
+          "count": 4800,
+          "selected": 2400
+        },
+        {
+          "name": "select-4800",
+          "dispatchMs": 47.0541,
+          "milliseconds": 49.2664,
+          "maxDispatcherGapMs": 49.2525,
+          "dispatcherTicks": 0,
+          "count": 4800,
+          "selected": 4800
+        },
+        {
+          "name": "copy-4800",
+          "dispatchMs": 14.6773,
+          "milliseconds": 15.5896,
+          "maxDispatcherGapMs": 15.5748,
+          "dispatcherTicks": 0,
+          "count": 4800,
+          "selected": 4800
+        },
+        {
+          "name": "paste-4800",
+          "dispatchMs": 5.325,
+          "milliseconds": 234.1437,
+          "maxDispatcherGapMs": 78.9692,
+          "dispatcherTicks": 6,
+          "count": 9600,
+          "selected": 4800
+        },
+        {
+          "name": "marquee",
+          "dispatchMs": 76.7542,
+          "milliseconds": 78.9514,
+          "maxDispatcherGapMs": 78.9377,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "copy",
+          "dispatchMs": 24.7637,
+          "milliseconds": 25.6013,
+          "maxDispatcherGapMs": 25.5853,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "cancel-paste",
+          "dispatchMs": 11.372,
+          "milliseconds": 57.8356,
+          "maxDispatcherGapMs": 33.365,
+          "dispatcherTicks": 2,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "paste",
+          "dispatchMs": 5.3857,
+          "milliseconds": 425.2729,
+          "maxDispatcherGapMs": 99.0582,
+          "dispatcherTicks": 13,
+          "count": 19200,
+          "selected": 9600
+        },
+        {
+          "name": "undo",
+          "dispatchMs": 74.8679,
+          "milliseconds": 85.2636,
+          "maxDispatcherGapMs": 85.2448,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "redo",
+          "dispatchMs": 93.4573,
+          "milliseconds": 109.1016,
+          "maxDispatcherGapMs": 109.0835,
+          "dispatcherTicks": 0,
+          "count": 19200,
+          "selected": 9600
+        },
+        {
+          "name": "pan",
+          "dispatchMs": 3.8889,
+          "milliseconds": 4.0587,
+          "maxDispatcherGapMs": 4.0265,
+          "dispatcherTicks": 0,
+          "count": 19200,
+          "selected": 9600
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True"
+    },
+    "filter": {
+      "stage": "complete",
+      "layout": "flat",
+      "timings": [
+        {
+          "name": "create",
+          "dispatchMs": 190.0484,
+          "milliseconds": 223.3522,
+          "maxDispatcherGapMs": 223.3083,
+          "dispatcherTicks": 0,
+          "count": 7000,
+          "selected": 0
+        },
+        {
+          "name": "marquee",
+          "dispatchMs": 74.532,
+          "milliseconds": 79.5488,
+          "maxDispatcherGapMs": 79.5285,
+          "dispatcherTicks": 0,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "copy",
+          "dispatchMs": 18.3422,
+          "milliseconds": 19.4891,
+          "maxDispatcherGapMs": 19.4763,
+          "dispatcherTicks": 0,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "register-filter",
+          "dispatchMs": 55.3594,
+          "milliseconds": 64.5589,
+          "maxDispatcherGapMs": 64.5437,
+          "dispatcherTicks": 0,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "cancel-paste",
+          "dispatchMs": 15.8434,
+          "milliseconds": 47.4906,
+          "maxDispatcherGapMs": 22.7202,
+          "dispatcherTicks": 2,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "paste",
+          "dispatchMs": 9.5603,
+          "milliseconds": 314.9816,
+          "maxDispatcherGapMs": 84.9808,
+          "dispatcherTicks": 9,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "undo",
+          "dispatchMs": 74.9701,
+          "milliseconds": 88.2901,
+          "maxDispatcherGapMs": 88.2672,
+          "dispatcherTicks": 0,
+          "count": 7000,
+          "selected": 7000
+        },
+        {
+          "name": "redo",
+          "dispatchMs": 80.475,
+          "milliseconds": 92.5019,
+          "maxDispatcherGapMs": 92.4876,
+          "dispatcherTicks": 0,
+          "count": 14000,
+          "selected": 7000
+        },
+        {
+          "name": "pan",
+          "dispatchMs": 5.9898,
+          "milliseconds": 6.0162,
+          "maxDispatcherGapMs": 5.9976,
+          "dispatcherTicks": 0,
+          "count": 14000,
+          "selected": 7000
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True"
+    },
+    "overlap": {
+      "stage": "complete",
+      "layout": "overlap",
+      "timings": [
+        {
+          "name": "create",
+          "dispatchMs": 48.4397,
+          "milliseconds": 75.6358,
+          "maxDispatcherGapMs": 75.6046,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 0
+        },
+        {
+          "name": "select-300",
+          "dispatchMs": 22.5195,
+          "milliseconds": 27.3265,
+          "maxDispatcherGapMs": 27.3068,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 300
+        },
+        {
+          "name": "copy-300",
+          "dispatchMs": 3.9311,
+          "milliseconds": 5.2701,
+          "maxDispatcherGapMs": 5.2495,
+          "dispatcherTicks": 0,
+          "count": 300,
+          "selected": 300
+        },
+        {
+          "name": "paste-300",
+          "dispatchMs": 11.5654,
+          "milliseconds": 49.588,
+          "maxDispatcherGapMs": 36.3619,
+          "dispatcherTicks": 1,
+          "count": 600,
+          "selected": 300
+        },
+        {
+          "name": "select-600",
+          "dispatchMs": 12.2302,
+          "milliseconds": 14.9089,
+          "maxDispatcherGapMs": 14.8956,
+          "dispatcherTicks": 0,
+          "count": 600,
+          "selected": 600
+        },
+        {
+          "name": "copy-600",
+          "dispatchMs": 1.5473,
+          "milliseconds": 2.659,
+          "maxDispatcherGapMs": 2.6451,
+          "dispatcherTicks": 0,
+          "count": 600,
+          "selected": 600
+        },
+        {
+          "name": "paste-600",
+          "dispatchMs": 5.0687,
+          "milliseconds": 46.9401,
+          "maxDispatcherGapMs": 46.9279,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 600
+        },
+        {
+          "name": "select-1200",
+          "dispatchMs": 28.5785,
+          "milliseconds": 34.8757,
+          "maxDispatcherGapMs": 34.8561,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 1200
+        },
+        {
+          "name": "copy-1200",
+          "dispatchMs": 2.5689,
+          "milliseconds": 3.6411,
+          "maxDispatcherGapMs": 3.6259,
+          "dispatcherTicks": 0,
+          "count": 1200,
+          "selected": 1200
+        },
+        {
+          "name": "paste-1200",
+          "dispatchMs": 6.8902,
+          "milliseconds": 68.3465,
+          "maxDispatcherGapMs": 53.2951,
+          "dispatcherTicks": 1,
+          "count": 2400,
+          "selected": 1200
+        },
+        {
+          "name": "select-2400",
+          "dispatchMs": 86.172,
+          "milliseconds": 88.9448,
+          "maxDispatcherGapMs": 88.9301,
+          "dispatcherTicks": 0,
+          "count": 2400,
+          "selected": 2400
+        },
+        {
+          "name": "copy-2400",
+          "dispatchMs": 5.0629,
+          "milliseconds": 6.2719,
+          "maxDispatcherGapMs": 6.2575,
+          "dispatcherTicks": 0,
+          "count": 2400,
+          "selected": 2400
+        },
+        {
+          "name": "paste-2400",
+          "dispatchMs": 3.3588,
+          "milliseconds": 110.6111,
+          "maxDispatcherGapMs": 63.9893,
+          "dispatcherTicks": 2,
+          "count": 4800,
+          "selected": 2400
+        },
+        {
+          "name": "select-4800",
+          "dispatchMs": 34.4027,
+          "milliseconds": 37.079,
+          "maxDispatcherGapMs": 37.0658,
+          "dispatcherTicks": 0,
+          "count": 4800,
+          "selected": 4800
+        },
+        {
+          "name": "copy-4800",
+          "dispatchMs": 13.5381,
+          "milliseconds": 14.5225,
+          "maxDispatcherGapMs": 14.509,
+          "dispatcherTicks": 0,
+          "count": 4800,
+          "selected": 4800
+        },
+        {
+          "name": "paste-4800",
+          "dispatchMs": 4.9018,
+          "milliseconds": 211.078,
+          "maxDispatcherGapMs": 88.4231,
+          "dispatcherTicks": 5,
+          "count": 9600,
+          "selected": 4800
+        },
+        {
+          "name": "marquee",
+          "dispatchMs": 72.9749,
+          "milliseconds": 75.7335,
+          "maxDispatcherGapMs": 75.7183,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "copy",
+          "dispatchMs": 20.1947,
+          "milliseconds": 21.2885,
+          "maxDispatcherGapMs": 21.2701,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "cancel-paste",
+          "dispatchMs": 12.4419,
+          "milliseconds": 54.9223,
+          "maxDispatcherGapMs": 30.5209,
+          "dispatcherTicks": 2,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "paste",
+          "dispatchMs": 5.4908,
+          "milliseconds": 357.249,
+          "maxDispatcherGapMs": 76.0472,
+          "dispatcherTicks": 12,
+          "count": 19200,
+          "selected": 9600
+        },
+        {
+          "name": "undo",
+          "dispatchMs": 79.9034,
+          "milliseconds": 90.4712,
+          "maxDispatcherGapMs": 90.4563,
+          "dispatcherTicks": 0,
+          "count": 9600,
+          "selected": 9600
+        },
+        {
+          "name": "redo",
+          "dispatchMs": 95.9487,
+          "milliseconds": 112.0214,
+          "maxDispatcherGapMs": 112.009,
+          "dispatcherTicks": 0,
+          "count": 19200,
+          "selected": 9600
+        },
+        {
+          "name": "pan",
+          "dispatchMs": 7.3411,
+          "milliseconds": 7.3722,
+          "maxDispatcherGapMs": 7.3491,
+          "dispatcherTicks": 0,
+          "count": 19200,
+          "selected": 9600
+        }
+      ],
+      "error": null,
+      "GpuStatus": "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True"
+    }
+  }
+}

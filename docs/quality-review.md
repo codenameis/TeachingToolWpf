@@ -109,3 +109,26 @@ State 패턴의 전환 보정이며 별도 모드/전역 상태/추상화를 추
 MVVM과 Command/Memento를 재사용하고 클립보드는 값 스냅샷으로 구현했다. 별도 글로벌 서비스나 OS 클립보드 프로토콜은 추가하지 않았다. 독립 리뷰에서 발견한 숫자 한 글자마다 쌓이는 Undo와 혼합 선택의 등록 해제 경로를 각각 LostFocus 확정/명시적 해제 명령으로 보완했다.
 
 회귀 시험의 유효성은 등록 ROI만 고르는 조건을 일시 반전했을 때 재선택 테스트가 실패함을 확인한 뒤 원복/재실행했다. 원칙 예외와 검증 완화는 없다. 메모리 측정에서는 지속 누수 원인을 찾지 못했으며, 진단 시점 외에 강제 GC를 도입하지 않았다. 실제 Windows/GPU 검증과 미검증 범위는 [실행 검증](runtime-validation.md), 측정은 [메모리 검증](memory-replacement-validation.md)을 따른다.
+
+## 대량 붙여넣기·미니맵 검토
+
+| 원칙 | 이번 변경의 근거 |
+|---|---|
+| SRP | `RoiPaste`는 불변 결과 준비, Session은 확정/이력, `FilterAtlas`는 패킹, `GpuFilterPreview`는 GPU 소유권, 미니맵 기하/제스처/표시를 분리 |
+| OCP | 기존 제스처·프레임 준비 계약을 재사용하며 Core에 그래픽 API 분기를 추가하지 않음 |
+| LSP | 취소/실패 시 문서·Redo 보존, 제스처 취소 복원, 기존 atlas 표시 순서/픽셀 계약 검증 |
+| ISP | 미니맵 때문에 소스나 렌더 계약에 불필요한 도메인 편집 메서드를 추가하지 않음 |
+| DIP | Core의 미니맵과 붙여넣기는 WPF/DX12 비의존. 앱 조립과 기존 프레임 준비 어댑터 유지 |
+| Information Expert | 레이아웃이 좌표/가시 영역, 계층이 정확한 부모 판정, atlas가 배치와 UV를 계산 |
+| Creator | Session이 새 ROI 확정과 이력을 소유하며 각 GPU 컴포넌트가 자신이 생성한 texture를 해제 |
+| Controller | 버튼/키 명령은 동일 PasteAsync 경로, 미니맵은 입력 제스처를 통해 viewport만 갱신 |
+| Low Coupling | 작업 스레드는 불변 값만 받고 UI 컬렉션/이력에 접근하지 않음. GPU는 미니맵 Core 값만 사용 |
+| High Cohesion | 준비·패킹·개요 texture·입력 책임을 별도 작은 타입으로 유지. MainWindow에는 기하 계산 없음 |
+| Polymorphism | `IGesture`의 완료/취소와 `IFramePreparer`의 기존 형식/수명 계약 사용 |
+| Pure Fabrication | 패킹과 GPU 개요 수명을 도메인 ROI에서 분리 |
+| Indirection | GPU 표시/Win32 입력이 공통 Core 레이아웃을 소비. 비동기 결과는 Session 확정을 경유 |
+| Protected Variations | 필터 atlas와 DX12 리소스 변경이 ROI 데이터/이력 형식을 바꾸지 않음 |
+
+Command/Memento와 제스처 State/Strategy를 유지했다. 성능상 원칙 예외·의존성 추가·ROI 생략은 없다. 독립 모델의 읽기 전용 리뷰에서 비동기 결과 유효성, fence 수명, UV/그리기 순서, 미니맵 입력, 캡처 버전 경합에 대한 확정 결함이 없었다. 캡처는 첫 프레임/타일이 오지 않으면 보류되므로 진단 호출측 timeout을 유지한다.
+
+미니맵 클릭/드래그 구분 조건을 반전한 mutation은 해당 테스트를 실패시켰으며 복원 후 Core 60개가 통과했다. 실제 GPU와 응답 간격·남은 UI 지연은 [검증 기록](clipboard-minimap-validation.md)에 구분했다.
