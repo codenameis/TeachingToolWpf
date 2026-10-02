@@ -11,7 +11,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class InspectorSmokeScenario
 {
-    public static void Run(Window window, EditorViewModel model)
+    public static async Task Run(Window window, EditorViewModel model)
     {
         var editor = model.Session;
         editor.AddRange(Enumerable.Range(0, 4600).Select(i => new RotatedRect(new(50 + i % 80 * 80, 50 + i / 80 * 80), 30, 30, 0)));
@@ -35,9 +35,9 @@ internal static class InspectorSmokeScenario
         Require(model.Properties.Name == "한글 부품 검사", "typing updates the bound property draft");
         Keyboard.ClearFocus(); model.ApplyProperties.Execute(null);
         Require(editor.State.Rois[rois[0].Id].Name == "한글 부품 검사", "Apply commits the inspector value");
-        model.Undo.Execute(null);
+        await model.Undo.ExecuteAsync();
         Require(field.Value == rois[0].Name, "Undo refreshes the inactive displayed field");
-        editor.Select(editor.State.Rois.Keys); model.Delete.Execute(null);
+        editor.Select(editor.State.Rois.Keys); await model.Delete.ExecuteAsync();
         Require(editor.State.Rois.Count == 0, "smoke fixture cleanup");
     }
     private static void Require(bool value, string description)

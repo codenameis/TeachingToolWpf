@@ -44,7 +44,7 @@ internal static class ClipboardRun
                     try
                     {
                         action(); dispatchMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-                        await model.PasteCompletion; window.UpdateLayout(); RecordGap();
+                        await model.EditCompletion; await model.PasteCompletion; window.UpdateLayout(); RecordGap();
                     }
                     finally { heartbeat.Stop(); }
                     timings.Add(new { name, dispatchMs, milliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds, maxDispatcherGapMs, dispatcherTicks, count = model.RoiCount, selected = model.Session.State.Selection.Count });

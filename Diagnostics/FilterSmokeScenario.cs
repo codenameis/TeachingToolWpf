@@ -19,7 +19,7 @@ internal static class FilterSmokeScenario
         Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
         VerifyThresholdEdit(model, viewport);
         await model.Filters.WhenIdle;
-        model.SelectAll.Execute(null); await model.Filters.WhenIdle;
+        await model.SelectAll.ExecuteAsync(); await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == 1, "unregistered ROI stays original in multi-selection");
         model.Filters.SelectedFilter = RoiFilterKind.Edge; await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == before.Rois.Count, model.Filters.Status);

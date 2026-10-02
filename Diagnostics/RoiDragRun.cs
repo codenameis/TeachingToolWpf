@@ -51,7 +51,7 @@ internal static class RoiDragRun
                 double commitMs = 0;
                 if (interior)
                 {
-                    var start = Stopwatch.GetTimestamp(); model.Input.Up(target); window.UpdateLayout();
+                    var start = Stopwatch.GetTimestamp(); model.Input.Up(target); await model.EditCompletion; window.UpdateLayout();
                     commitMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
                     var after = model.Session.State;
                     if (ReferenceEquals(before.Rois, after.Rois)) throw new InvalidOperationException("Drag did not commit.");

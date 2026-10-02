@@ -21,7 +21,7 @@ namespace TeachingToolWpf
             model = new(Viewport, loader, live, new Imaging.Filters.RoiFilterPreview(loader, Viewport.RetainFrame));
             live.Failed += ex => Dispatcher.BeginInvoke(() => model.Fail(ex));
             DataContext = model;
-            Viewport.Input = model.Input; Viewport.InputEnabled = () => model.CanEdit; Viewport.KeyAction = model.HandleKey;
+            Viewport.Input = model.Input; Viewport.InputEnabled = () => model.CanNavigate; Viewport.KeyAction = model.HandleKey;
             Viewport.InputFailed += model.Fail;
             Viewport.RendererStatusChanged += status => model.GpuStatus = status;
             Viewport.MetricsChanged += value => model.Performance = $"CPU {value.CpuMilliseconds:F1} ms · GPU {value.GpuMilliseconds:F1} ms · 표시 드롭 {value.Dropped}";
@@ -32,7 +32,8 @@ namespace TeachingToolWpf
                 if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase || args.OriginalSource is TextBox) return;
                 args.Handled = model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             };
-            if (Environment.GetCommandLineArgs().Contains("--roi-drag-benchmark")) Diagnostics.RoiDragRun.Attach(this, Viewport, model);
+            if (Environment.GetCommandLineArgs().Contains("--responsive-editing")) Diagnostics.ResponsiveEditingRun.Attach(this, Viewport, model);
+            else if (Environment.GetCommandLineArgs().Contains("--roi-drag-benchmark")) Diagnostics.RoiDragRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--roi-render-benchmark")) Diagnostics.RoiRenderRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--clipboard-check")) Diagnostics.ClipboardRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--roi-benchmark")) Diagnostics.RoiInteractionRun.Attach(this, Viewport, model);

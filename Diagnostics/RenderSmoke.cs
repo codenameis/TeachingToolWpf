@@ -21,7 +21,7 @@ internal static class RenderSmoke
             {
             await model.InitializeAsync();
             await EditingSmokeScenario.Run(model, viewport);
-            InspectorSmokeScenario.Run(window, model);
+            await InspectorSmokeScenario.Run(window, model);
             File.AppendAllText("artifacts/smoke.log", "Paged list selection, pan, focused inspector editing and Korean value undo passed" + Environment.NewLine);
             File.AppendAllText("artifacts/smoke.log", "Native input, toolbar, history, grouping and renderer restart passed" + Environment.NewLine);
             var session = model.Session;
