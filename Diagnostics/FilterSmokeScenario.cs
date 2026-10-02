@@ -27,6 +27,7 @@ internal static class FilterSmokeScenario
         model.Filters.Stop.Execute(null); Require(model.Filters.Result is null, "original view clears preview");
         await model.Images.ReplaceAsync(new("sample:24576:32768", "24K", 24576, 32768));
         Require(model.Session.State.Rois.Count == 0 && model.Session.State.Selection.Count == 0, "image replacement clears ROI");
+        await MinimapSmokeScenario.Run(model, viewport, "24k");
         await model.Images.HistoryAsync(false);
         Require(model.Session.State.Rois.Count == before.Rois.Count && model.Images.Image?.Width == 8192, "image undo restores ROI and source");
         await model.StartLive.ExecuteAsync();
@@ -36,6 +37,7 @@ internal static class FilterSmokeScenario
         Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
         await Task.Delay(600);
         Require(model.Filters.Result?.Regions.Count == 1, "periodic live filter refresh");
+        await MinimapSmokeScenario.Run(model, viewport, "live");
     }
     private static void VerifyThresholdEdit(EditorViewModel model, Dx12Viewport viewport)
     {

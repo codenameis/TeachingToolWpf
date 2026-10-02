@@ -35,9 +35,19 @@ internal static class ClipboardRun
                 async Task Measure(string name, Action action)
                 {
                     stage = name; Save(); var start = Stopwatch.GetTimestamp();
-                    action(); var dispatchMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-                    await model.PasteCompletion; window.UpdateLayout();
-                    timings.Add(new { name, dispatchMs, milliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds, count = model.RoiCount, selected = model.Session.State.Selection.Count });
+                    var previousTick = start; var maxDispatcherGapMs = 0d; var dispatcherTicks = 0;
+                    void RecordGap() { var now = Stopwatch.GetTimestamp(); maxDispatcherGapMs = Math.Max(maxDispatcherGapMs, Stopwatch.GetElapsedTime(previousTick, now).TotalMilliseconds); previousTick = now; }
+                    var heartbeat = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(16) };
+                    heartbeat.Tick += (_, _) => { RecordGap(); dispatcherTicks++; };
+                    double dispatchMs;
+                    heartbeat.Start();
+                    try
+                    {
+                        action(); dispatchMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+                        await model.PasteCompletion; window.UpdateLayout(); RecordGap();
+                    }
+                    finally { heartbeat.Stop(); }
+                    timings.Add(new { name, dispatchMs, milliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds, maxDispatcherGapMs, dispatcherTicks, count = model.RoiCount, selected = model.Session.State.Selection.Count });
                     Save(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); await Task.Delay(100);
                 }
                 var count = args.Contains("--clipboard-repeat") ? 300 : 7000;
@@ -65,7 +75,10 @@ internal static class ClipboardRun
                     model.HandleKey(Key.C, true, false);
                 }
                 var original = model.Session.State;
-                await Measure("cancel-paste", () => { model.HandleKey(Key.V, true, false); model.HandleKey(Key.Escape, false, false); });
+                async Task CancelPaste() { await Task.Delay(20); model.HandleKey(Key.Escape, false, false); }
+                Task cancellation = Task.CompletedTask;
+                await Measure("cancel-paste", () => { model.HandleKey(Key.V, true, false); cancellation = CancelPaste(); });
+                await cancellation;
                 if (!ReferenceEquals(original.Rois, model.Session.State.Rois) || !model.CanEdit) throw new InvalidOperationException("Cancelled paste changed the document or left editing disabled.");
                 await Measure("paste", () => model.HandleKey(Key.V, true, false));
                 if (model.RoiCount != count * 2) throw new InvalidOperationException("Paste failed: " + model.Status);

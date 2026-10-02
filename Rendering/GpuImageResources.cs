@@ -10,20 +10,22 @@ internal sealed class GpuImageResources(Dx12Device gpu, SpritePipeline pipeline,
     private readonly Dictionary<TileKey, GpuTexture> tiles = [];
     private readonly Dictionary<TileKey, long> lastUsed = [];
     private readonly GpuTexture?[] video = new GpuTexture?[2];
+    private readonly GpuLiveOverview overview = new();
     private long generation = -1;
     private VideoFrame? preparedIdentity;
     private (ViewportTransform View, double Width, double Height, double Dpi) preparedView;
     public BoundsD LiveBounds { get; private set; }
     public IReadOnlyDictionary<TileKey, GpuTexture> Tiles => tiles;
     public GpuTexture? Live { get; private set; }
-    public long Bytes => tiles.Values.Sum(t => t.Bytes) + video.Where(t => t is not null).Sum(t => t!.Bytes);
+    public GpuTexture? LiveOverview => overview.Texture;
+    public long Bytes => tiles.Values.Sum(t => t.Bytes) + video.Where(t => t is not null).Sum(t => t!.Bytes) + overview.Bytes;
 
     public bool Update(RenderScene scene, VideoFrame? frame, Dx12Surface surface, long frameNumber)
     {
         if (generation != scene.Generation)
         {
             foreach (var texture in tiles.Values) surface.Retire(texture);
-            tiles.Clear(); lastUsed.Clear(); generation = scene.Generation;
+            tiles.Clear(); lastUsed.Clear(); generation = scene.Generation; overview.Clear(surface);
         }
         var count = 0;
         while (count < 16 && source.TryTake(out var ready))
@@ -34,6 +36,8 @@ internal sealed class GpuImageResources(Dx12Device gpu, SpritePipeline pipeline,
             count++;
         }
         UpdateVideo(scene, frame, surface);
+        if (scene.IsLive && frame is not null) overview.Update(frame, pipeline, surface, preparer);
+        else if (!scene.IsLive && overview.Texture is not null) overview.Clear(surface);
         if (!scene.IsLive && scene.Image is { } image) UpdateTiles(image, scene, surface, frameNumber);
         return count == 16;
     }
@@ -80,6 +84,7 @@ internal sealed class GpuImageResources(Dx12Device gpu, SpritePipeline pipeline,
     }
     public void Dispose()
     {
+        overview.Dispose();
         foreach (var texture in tiles.Values) texture.Dispose();
         foreach (var texture in video) texture?.Dispose();
     }

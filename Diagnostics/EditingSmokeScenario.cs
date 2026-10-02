@@ -10,7 +10,7 @@ internal static class EditingSmokeScenario
     [DllImport("user32.dll")] private static extern nint SendMessage(nint hwnd, int message, nint wParam, nint lParam);
     [DllImport("user32.dll")] private static extern bool ClientToScreen(nint hwnd, ref NativeMethods.NativePoint point);
     private static void Require(bool value, string description) { if (!value) throw new InvalidOperationException("Smoke assertion: " + description); }
-    private static void Pointer(Dx12Viewport viewport, int message, PointD image)
+    internal static void Pointer(Dx12Viewport viewport, int message, PointD image)
     {
         var point = viewport.Input is not null ? image : throw new InvalidOperationException("Missing input controller");
         var packed = (uint)(ushort)Math.Round(point.X * viewport.Dpi) | ((uint)(ushort)Math.Round(point.Y * viewport.Dpi) << 16);

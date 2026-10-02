@@ -12,6 +12,14 @@ public sealed class InteractionController(EditorSession editor)
 {
     private IGesture? gesture;
     private EditorTool tool;
+    private double viewWidth, viewHeight;
+    public MinimapLayout? Minimap => editor.State.Image is { } image ? MinimapLayout.Create(image.Width, image.Height, viewWidth, viewHeight) : null;
+    public void SetViewportSize(double width, double height)
+    {
+        if (width == viewWidth && height == viewHeight) return;
+        viewWidth = width; viewHeight = height;
+        if (gesture is MinimapGesture) Cancel();
+    }
     public EditorTool Tool { get => tool; set { Cancel(); tool = value; Changed?.Invoke(); } }
     public InteractionOverlay Overlay { get; private set; } = new();
     public bool IsDragging => gesture is not null;
@@ -22,7 +30,9 @@ public sealed class InteractionController(EditorSession editor)
     public void Down(PointD screen, InputModifiers modifiers = InputModifiers.None, bool middle = false)
     {
         Cancel();
-        if (middle || Tool == EditorTool.Pan) gesture = new PanGesture(editor, screen);
+        if (!middle && Minimap is { } map && map.Panel.Contains(screen))
+            gesture = map.ImageBounds.Contains(screen) ? new MinimapGesture(editor, map, screen) : new NoGesture();
+        else if (middle || Tool == EditorTool.Pan) gesture = new PanGesture(editor, screen);
         else if (Tool == EditorTool.Draw) gesture = new DrawGesture(this, screen);
         else gesture = StartSelection(screen, modifiers);
         Changed?.Invoke();
@@ -71,9 +81,14 @@ public sealed class InteractionController(EditorSession editor)
     }
     public void Cancel() { var active = gesture; gesture = null; active?.Cancel(); Show(new()); }
     public void Wheel(PointD screen, double notches)
-    { if (gesture is null) editor.SetViewport(editor.State.Viewport.ZoomAt(screen, Math.Pow(1.2, notches))); }
+    {
+        if (gesture is not null) return;
+        var anchor = Minimap is { } map && map.Panel.Contains(screen) ? new PointD(viewWidth / 2, viewHeight / 2) : screen;
+        editor.SetViewport(editor.State.Viewport.ZoomAt(anchor, Math.Pow(1.2, notches)));
+    }
     private Guid? Hit(PointD screen, bool cycle = false)
     {
+        if (Minimap is { } map && map.Panel.Contains(screen)) return null;
         var point = editor.State.Viewport.ScreenToImage(screen);
         var tolerance = 3 / editor.State.Viewport.Scale;
         var margin = tolerance * Math.Sqrt(2);

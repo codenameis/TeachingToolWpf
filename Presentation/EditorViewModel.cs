@@ -252,7 +252,11 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         if (dialog.ShowDialog() == true) await Images.ReplaceAsync(new(dialog.FileName, "", 0, 0, DiskPyramidSource.Version(dialog.FileName)));
     }
     private Task LoadSampleAsync(int width, int height) => Images.ReplaceAsync(new($"sample:{width}:{height}", "", width, height));
-    public void Publish() => viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result));
+    public void Publish()
+    {
+        Input.SetViewportSize(viewport.ViewWidth, viewport.ViewHeight);
+        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result));
+    }
     public void SelectRows(IEnumerable<Guid> ids) { if (CanEdit && !Input.IsDragging) Session.Select(ids); }
     public bool HandleKey(Key key, bool control, bool shift)
     {

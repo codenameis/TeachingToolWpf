@@ -11,7 +11,7 @@ internal sealed class ScenePainter
     private readonly RoiVisibility visible = new(), selectedVisible = new();
     private static readonly Vector4 Accent = new(.22f, .52f, 1, 1);
     private static readonly Vector4 Outline = new(.66f, .73f, .84f, 1);
-    public SpriteMesh Build(RenderScene scene, GpuTexture white, IReadOnlyDictionary<TileKey, GpuTexture> tiles, Func<string, GpuTexture> label, GpuTexture? live, BoundsD liveBounds, GpuFilterPreview filters)
+    public SpriteMesh Build(RenderScene scene, GpuTexture white, IReadOnlyDictionary<TileKey, GpuTexture> tiles, Func<string, GpuTexture> label, GpuTexture? live, BoundsD liveBounds, GpuFilterPreview filters, GpuTexture? liveOverview)
     {
         mesh.Begin(scene.Width, scene.Height);
         var view = scene.Document.Viewport;
@@ -86,6 +86,8 @@ internal sealed class ScenePainter
             mesh.Rectangle(white, new(8, 8, 20 + text.Width / scene.Dpi, 16 + text.Height / scene.Dpi), new(.13f, .16f, .22f, .94f));
             mesh.Rectangle(text, new(14, 12, 14 + text.Width / scene.Dpi, 12 + text.Height / scene.Dpi), Vector4.One);
         }
+        var minimapImage = scene.IsLive ? liveOverview : scene.Image is { } source ? tiles.GetValueOrDefault(new(source.Levels - 1, 0, 0)) : null;
+        MinimapPainter.Draw(mesh, scene, white, minimapImage, label);
         return mesh;
         void Summary(BoundsD bounds, Vector4 color)
         {

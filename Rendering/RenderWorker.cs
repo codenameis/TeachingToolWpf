@@ -15,8 +15,11 @@ public sealed class RenderWorker : IDisposable
     private readonly ITextRasterizer textRasterizer;
     private readonly LatestFrameMailbox frames;
     private readonly IFramePreparer framePreparer;
-    private RenderScene? scene;
-    private string? capturePath;
+    private sealed record Submission(long Version, RenderScene Scene);
+    private sealed record CaptureRequest(long Version, string Path);
+    private Submission? scene;
+    private CaptureRequest? captureRequest;
+    private long sceneVersion;
     private volatile bool stopping;
     private int width = 1, height = 1;
     public event Action<string>? StatusChanged;
@@ -42,8 +45,8 @@ public sealed class RenderWorker : IDisposable
         try { wake.Set(); }
         catch (ObjectDisposedException) when (stopping) { /* A producer captured this callback just before unsubscription. */ }
     }
-    public void Submit(RenderScene value) { Volatile.Write(ref scene, value); Invalidate(); }
-    public void Capture(string path) { Interlocked.Exchange(ref capturePath, path); Invalidate(); }
+    public void Submit(RenderScene value) { Volatile.Write(ref scene, new(Interlocked.Increment(ref sceneVersion), value)); Invalidate(); }
+    public void Capture(string path) { Interlocked.Exchange(ref captureRequest, new(Volatile.Read(ref scene)?.Version ?? 0, path)); Invalidate(); }
     private void Run()
     {
         try
@@ -70,9 +73,10 @@ public sealed class RenderWorker : IDisposable
                     if (stopping) break;
                     var w = Volatile.Read(ref width); var h = Volatile.Read(ref height);
                     if (w <= 0 || h <= 0) continue;
-                    var current = Volatile.Read(ref scene);
+                    var submission = Volatile.Read(ref scene);
+                    var current = submission?.Scene;
                     if (ReferenceEquals(current, presentedScene) && w == surface.Width && h == surface.Height &&
-                        !frames.HasPending && !tiles.HasReady && Volatile.Read(ref capturePath) is null && white is not null) continue;
+                        !frames.HasPending && !tiles.HasReady && Volatile.Read(ref captureRequest) is null && white is not null) continue;
                     var cpuStart = Stopwatch.GetTimestamp();
                     surface.Resize(w, h); surface.Begin(); frame++;
                     var gpuElapsed = gpuTimer.Begin(surface);
@@ -91,10 +95,14 @@ public sealed class RenderWorker : IDisposable
                         if (images.Update(current, retainedFrame, surface, frame)) Invalidate();
                         filters.Update(current.FilterPreview, pipeline, surface);
                         labels.Begin();
-                        pipeline.Draw(painter.Build(current, white, images.Tiles, text => labels.Get(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters), surface);
+                        pipeline.Draw(painter.Build(current, white, images.Tiles, text => labels.Get(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview), surface);
                         labels.End(surface);
                     }
-                    var capture = Interlocked.Exchange(ref capturePath, null);
+                    // A request arriving while an older scene is being painted must not capture that old frame.
+                    var request = Volatile.Read(ref captureRequest);
+                    var overviewReady = current?.Image is not { } image || (current.IsLive ? images.LiveOverview is not null : images.Tiles.ContainsKey(new(image.Levels - 1, 0, 0)));
+                    var capture = request is not null && (submission?.Version ?? 0) >= request.Version && overviewReady &&
+                        ReferenceEquals(Interlocked.CompareExchange(ref captureRequest, null, request), request) ? request.Path : null;
                     using var readback = capture is null ? null : new FrameReadback(gpu, surface);
                     gpuTimer.End(surface);
                     var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;

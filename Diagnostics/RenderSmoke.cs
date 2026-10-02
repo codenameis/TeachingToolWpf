@@ -28,6 +28,8 @@ internal static class RenderSmoke
             var parent = session.Add(new(new(4096, 4096), 4400, 4200, 12));
             session.Rename(parent, "메인 검사 영역");
             session.Add(new(new(4000, 4000), 1500, 900, 25));
+            await MinimapSmokeScenario.Run(model, viewport, "8k");
+            File.AppendAllText("artifacts/smoke.log", "8K minimap native click/drag, capture cancellation and history preservation passed" + Environment.NewLine);
             await Task.Delay(2500);
             viewport.Capture("artifacts/viewport-smoke.png");
             await Task.Delay(1500);
