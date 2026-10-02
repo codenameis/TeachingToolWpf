@@ -5,9 +5,11 @@ using TeachingToolWpf.Diagnostics;
 
 namespace TeachingToolWpf.Rendering;
 
-/// <summary>Single owner of GPU objects. UI requests are coalesced, never queued without bounds.</summary>
+/// <summary>GPU 자원의 단일 소유 스레드. UI 장면과 영상 요청은 최신 값 하나로 합친다.</summary>
 public sealed class RenderWorker : IDisposable
 {
+    private const double BytesPerGibibyte = 1024d * 1024 * 1024;
+    private const int MetricsNotificationFrameInterval = 30;
     private readonly AutoResetEvent wake = new(false);
     private readonly Thread thread;
     private readonly nint hwnd;
@@ -17,17 +19,21 @@ public sealed class RenderWorker : IDisposable
     private readonly IFramePreparer framePreparer;
     private sealed record Submission(long Version, RenderScene Scene);
     private sealed record CaptureRequest(long Version, string Path);
-    private Submission? scene;
+    private Submission? latestSubmission;
     private CaptureRequest? captureRequest;
     private long sceneVersion;
     private volatile bool stopping;
-    private int width = 1, height = 1;
+    private int width = 1;
+    private int height = 1;
     public event Action<string>? StatusChanged;
     public event Action<RenderMetrics>? MetricsChanged;
 
     public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames, IFramePreparer framePreparer)
     {
-        this.hwnd = hwnd; this.tiles = tiles; this.textRasterizer = textRasterizer; this.frames = frames;
+        this.hwnd = hwnd;
+        this.tiles = tiles;
+        this.textRasterizer = textRasterizer;
+        this.frames = frames;
         this.framePreparer = framePreparer;
         tiles.TileReady += Invalidate;
         frames.Available += Invalidate;
@@ -37,16 +43,37 @@ public sealed class RenderWorker : IDisposable
     public void Start() => thread.Start();
     public void Resize(int width, int height)
     {
-        Volatile.Write(ref this.width, width); Volatile.Write(ref this.height, height); wake.Set();
+        Volatile.Write(ref this.width, width);
+        Volatile.Write(ref this.height, height);
+        wake.Set();
     }
     public void Invalidate()
     {
-        if (stopping) return;
-        try { wake.Set(); }
-        catch (ObjectDisposedException) when (stopping) { /* A producer captured this callback just before unsubscription. */ }
+        if (stopping)
+            return;
+        try
+        {
+            wake.Set();
+        }
+        catch (ObjectDisposedException) when (stopping)
+        {
+            // 구독 해제 직전에 생산자가 이미 가져간 콜백은 종료 이후 도착할 수 있다.
+        }
     }
-    public void Submit(RenderScene value) { Volatile.Write(ref scene, new(Interlocked.Increment(ref sceneVersion), value)); Invalidate(); }
-    public void Capture(string path) { Interlocked.Exchange(ref captureRequest, new(Volatile.Read(ref scene)?.Version ?? 0, path)); Invalidate(); }
+
+    public void Submit(RenderScene value)
+    {
+        var submission = new Submission(Interlocked.Increment(ref sceneVersion), value);
+        Volatile.Write(ref latestSubmission, submission);
+        Invalidate();
+    }
+
+    public void Capture(string path)
+    {
+        var minimumSceneVersion = Volatile.Read(ref latestSubmission)?.Version ?? 0;
+        Interlocked.Exchange(ref captureRequest, new(minimumSceneVersion, path));
+        Invalidate();
+    }
     private void Run()
     {
         try
@@ -66,36 +93,58 @@ public sealed class RenderWorker : IDisposable
             VideoFrame? retainedFrame = null;
             long frame = 0;
             RenderScene? presentedScene = null;
-            StatusChanged?.Invoke($"DX12 · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / 1073741824d:F1} GiB · Budget {gpu.LocalMemoryBudget / 1073741824d:F1} GiB · Debug: {gpu.DebugEnabled}");
+            StatusChanged?.Invoke($"DX12 · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
             try
             {
                 while (!stopping)
                 {
                     wake.WaitOne();
-                    if (stopping) break;
-                    var w = Volatile.Read(ref width); var h = Volatile.Read(ref height);
-                    if (w <= 0 || h <= 0) continue;
-                    var submission = Volatile.Read(ref scene);
+                    if (stopping)
+                        break;
+                    var targetWidth = Volatile.Read(ref width);
+                    var targetHeight = Volatile.Read(ref height);
+                    if (targetWidth <= 0 || targetHeight <= 0)
+                        continue;
+                    var submission = Volatile.Read(ref latestSubmission);
                     var current = submission?.Scene;
-                    if (ReferenceEquals(current, presentedScene) && w == surface.Width && h == surface.Height &&
-                        !frames.HasPending && !tiles.HasReady && !labels.HasPending && Volatile.Read(ref captureRequest) is null && white is not null) continue;
+                    var nothingChanged = ReferenceEquals(current, presentedScene)
+                        && targetWidth == surface.Width && targetHeight == surface.Height
+                        && !frames.HasPending && !tiles.HasReady && !labels.HasPending
+                        && Volatile.Read(ref captureRequest) is null && white is not null;
+                    if (nothingChanged)
+                        continue;
+
+                    // Begin은 프레임 슬롯의 GPU 완료를 기다린다. 이후에만 그 슬롯의 업로드 공간을 재사용한다.
                     var cpuStart = Stopwatch.GetTimestamp();
                     var allocationStart = profile.Enabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
-                    surface.Resize(w, h); surface.Begin(); frame++;
+                    surface.Resize(targetWidth, targetHeight);
+                    surface.Begin();
+                    frame++;
                     var gpuElapsed = gpuTimer.Begin(surface);
                     pipeline.BeginFrame(surface);
                     if (white is null)
                     {
-                        using var pixel = new PixelBuffer(1, 1, PixelKind.Rgba32); pixel.Span.Fill(255);
+                        using var pixel = new PixelBuffer(1, 1, PixelKind.Rgba32);
+                        pixel.Span.Fill(255);
                         white = pipeline.Upload(pixel, surface);
                     }
                     var videoFrame = frames.Take();
-                    if (videoFrame is not null) { retainedFrame?.Dispose(); retainedFrame = videoFrame; }
-                    if (current?.IsLive == true && retainedFrame is null) retainedFrame = frames.RetainLatest();
-                    if (current?.IsLive != true) { retainedFrame?.Dispose(); retainedFrame = null; }
+                    if (videoFrame is not null)
+                    {
+                        retainedFrame?.Dispose();
+                        retainedFrame = videoFrame;
+                    }
+                    if (current?.IsLive == true && retainedFrame is null)
+                        retainedFrame = frames.RetainLatest();
+                    if (current?.IsLive != true)
+                    {
+                        retainedFrame?.Dispose();
+                        retainedFrame = null;
+                    }
                     if (current is not null && current.Width > 0 && current.Height > 0)
                     {
-                        if (images.Update(current, retainedFrame, surface, frame)) Invalidate();
+                        if (images.Update(current, retainedFrame, surface, frame))
+                            Invalidate();
                         filters.Update(current.FilterPreview, pipeline, surface);
                         labels.Begin();
                         var paintStart = Stopwatch.GetTimestamp();
@@ -105,13 +154,10 @@ public sealed class RenderWorker : IDisposable
                         pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () => roiPipeline.Draw(current, surface));
                         profile.Record(current, cpuStart, paintStart, submitStart, Stopwatch.GetTimestamp(), allocationStart, mesh, roiPipeline, labels);
                         labels.End(surface);
-                        if (labels.HasPending) Invalidate();
+                        if (labels.HasPending)
+                            Invalidate();
                     }
-                    // A request arriving while an older scene is being painted must not capture that old frame.
-                    var request = Volatile.Read(ref captureRequest);
-                    var overviewReady = current?.Image is not { } image || (current.IsLive ? images.LiveOverview is not null : images.Tiles.ContainsKey(new(image.Levels - 1, 0, 0)));
-                    var capture = request is not null && (submission?.Version ?? 0) >= request.Version && overviewReady && !labels.HasPending &&
-                        ReferenceEquals(Interlocked.CompareExchange(ref captureRequest, null, request), request) ? request.Path : null;
+                    var capture = TryTakeReadyCapture(submission, images, labels);
                     using var readback = capture is null ? null : new FrameReadback(gpu, surface);
                     gpuTimer.End(surface);
                     var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
@@ -120,25 +166,57 @@ public sealed class RenderWorker : IDisposable
                     presentedScene = current;
                     var measurement = metrics.Record(cpuElapsed, gpuElapsed, Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds, videoFrame?.Timestamp,
                         frames.Dropped, images.Bytes, videoFrame?.Sequence);
-                    if (frame % 30 == 0) MetricsChanged?.Invoke(measurement);
-                    foreach (var message in gpu.ReadDebugMessages()) StatusChanged?.Invoke("D3D12 " + message);
-                    if (readback is not null) { gpu.Flush(); readback.Save(capture!); }
+                    if (frame % MetricsNotificationFrameInterval == 0)
+                        MetricsChanged?.Invoke(measurement);
+                    foreach (var message in gpu.ReadDebugMessages())
+                        StatusChanged?.Invoke("D3D12 " + message);
+                    if (readback is not null)
+                    {
+                        gpu.Flush();
+                        readback.Save(capture!);
+                    }
                 }
             }
             finally
             {
-                try { gpu.Flush(); }
-                finally { white?.Dispose(); retainedFrame?.Dispose(); }
+                try
+                {
+                    gpu.Flush();
+                }
+                finally
+                {
+                    white?.Dispose();
+                    retainedFrame?.Dispose();
+                }
             }
         }
         catch (Exception ex) { StatusChanged?.Invoke($"렌더 오류: {ex.Message}"); }
     }
+
+    private string? TryTakeReadyCapture(Submission? submission, GpuImageResources images, GpuLabelCache labels)
+    {
+        var request = Volatile.Read(ref captureRequest);
+        var current = submission?.Scene;
+        var overviewReady = current?.Image is not { } image
+            || (current.IsLive ? images.LiveOverview is not null : images.Tiles.ContainsKey(new(image.Levels - 1, 0, 0)));
+
+        // 이전 장면을 그리던 중 들어온 캡처 요청에 이전 화면을 저장하면 안 된다.
+        if (request is null || (submission?.Version ?? 0) < request.Version || !overviewReady || labels.HasPending)
+            return null;
+
+        // 준비 중 새 캡처가 도착했다면 새 요청을 지우지 않고 다음 프레임에 처리한다.
+        var claimedRequest = Interlocked.CompareExchange(ref captureRequest, null, request);
+        return ReferenceEquals(claimedRequest, request) ? request.Path : null;
+    }
+
     public void Dispose()
     {
         tiles.TileReady -= Invalidate;
         frames.Available -= Invalidate;
-        stopping = true; wake.Set();
-        if (thread.IsAlive) thread.Join();
+        stopping = true;
+        wake.Set();
+        if (thread.IsAlive)
+            thread.Join();
         wake.Dispose();
     }
 }
