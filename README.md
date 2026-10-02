@@ -102,6 +102,8 @@ OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255�
 
 대량 ROI에서는 왼쪽 목록은 4,096개까지 한 가상화 목록으로, 그 이상은 512개씩 표시합니다. 캔버스에서 하나를 새로 선택하면 해당 페이지로 이동합니다. 목록 페이지 이동은 전체 선택을 보존하며, 일반 클릭으로 선택을 교체하고 Ctrl로 추가/해제합니다. 축소 화면의 매우 작은 ROI 집합은 요약 표시되고 확대하면 개별 윤곽이 나타납니다. 이름·숫자 필드는 클릭/Tab으로 그대로 편집할 수 있습니다. 실제 100만·200만 ROI 조건과 초기 구축 비용은 [대량 ROI 성능](docs/roi-scalability.md)을 참고하세요.
 
+ROI 윤곽은 DX12 instance buffer를 재사용하고, 전체 이동 중에는 이동량만 전달합니다. 조밀한 이름표는 화면 밀도에 맞춰 겹침을 줄이고 새 텍스처를 점진적으로 준비합니다. 단일 선택 이름표는 바로 표시합니다. 32,940개에서 반복 렌더와 드래그를 크게 줄였지만 대량 변형 확정·목록 페이지 전환·전체 이력 복원에는 지연이 남습니다. 조건별 수치와 100만 개 요약 표시의 범위는 [최신 ROI 성능 기록](docs/retained-roi-performance.md)을 참고하세요.
+
 ```powershell
 dotnet test .\tests\TeachingToolWpf.Core.Tests -c Release --no-restore
 dotnet test .\tests\TeachingToolWpf.Imaging.Tests -c Release --no-restore

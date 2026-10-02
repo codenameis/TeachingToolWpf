@@ -1,5 +1,32 @@
 # 구현 품질 검토
 
+## GPU ROI 재사용·이동 preview 후속 검토
+
+2026-10-02. [ADR-008](decisions/0008-retained-roi-rendering.md), [전후 측정](retained-roi-performance.md). 새 패키지는 없고 원칙 예외를 사용하지 않았다.
+
+| 원칙 | 이번 변경의 근거 |
+|---|---|
+| SRP | `RoiPipeline`은 GPU 블록 수명/제출, `RoiLabelPainter`는 태그 배치, `RoiTranslationSelection`은 영향 집합/이동 제약 담당 |
+| OCP | 기존 source/filter/text 어댑터를 유지하고 ROI 파이프라인을 이미지 파이프라인과 합성 |
+| LSP | 정확한 회전 hit를 전수 조회와 비교. 필터의 취소/늦은 결과 폐기와 이동/복귀 계약 회귀 검증 |
+| ISP | Core는 공간 블록/기하 조회만 제공. DX12 리소스·WPF 바인딩을 Core로 노출하지 않음 |
+| DIP | 플랫폼 없는 Core 유지, 렌더가 Core 스냅샷을 소비. OpenCV 작업은 기존 `IRoiFilterPreview` 뒤에 유지 |
+| Information Expert | 이미지 경계 제한은 도메인 bounds, hit 우선순위/표시 후보 가지치기는 공간 색인 담당 |
+| Creator | 편집 세션이 immutable preview/이력을, GPU 파이프라인이 자신의 buffer/PSO를 생성·해제 |
+| Controller | 포인터는 MoveGesture를 거쳐 EditorSession에 요청. UI에서 ROI 기하를 변경하지 않음 |
+| Low Coupling | `TranslationPreview`는 불변 데이터. 렌더는 변경 중인 UI 컬렉션/객체를 읽지 않음 |
+| High Cohesion | 이름표 래스터화와 ROI instance 수명을 분리. 선택 통계는 한 캐시에 응집 |
+| Polymorphism | 기존 Gesture/이미지/필터/텍스트 변형 계약 유지. 사용처 없는 범용 엔진 도입 없음 |
+| Pure Fabrication | GPU 캐시·label 캐시·selection facts가 반복 기술 비용을 관리 |
+| Indirection | 상대좌표 instance와 image/source/filter 어댑터로 그래픽·영상 API를 격리 |
+| Protected Variations | 정확한 도메인 geometry는 GPU LOD·텍스트 생성 예산과 독립. 이전 snapshot/Undo 값 보존 |
+
+독립 리뷰에서 노드 record의 재귀 해시, committed GPU buffer 최소 할당량 누락, 이름표 경계 위치, no-op 이동 종료 알림, 필터의 매 샘플 복제, 이동 이름표 후보 무효화 문제를 발견해 수정했다. 재검토에서 추가 확정 결함은 없었다.
+
+Core 68 + Imaging/WPF 38 테스트를 통과했다. HitTest 가지치기 비교를 의도적으로 반전하자 전수 조회 비교 테스트가 실패했고, 복원 후 전체 106개가 다시 통과했다. 회귀 테스트를 약화하거나 제거하지 않았다. 1만 필터 ROI의 반복 preview UI 할당 상한과 종료 버튼 알림, 부모/자손 단일 이동, no-op의 Redo 보존, 원자적 Undo/Redo, 큰 좌표 instance 정밀도, 레이블 진입/이탈/취소도 포함한다.
+
+실제 RTX/DX12 debug 연속 줌/장면 전환에서 이름표 보류가 최종 완료되고 캡처가 성공했다. 캐시는 프레임 생성 직후 최대 514개에서 정리 후 512개/32MiB로 돌아왔고 254회 제거 후에도 프레임/캡처가 정상 진행됐다. 이동 preview 32,940개 확정·Undo·Redo·취소 및 GPU 캡처, 기존 미니맵/필터/라이브/렌더 재연결 smoke를 통과했다. 모든 경로의 물리 포인터 E2E·장시간 안정성을 검증한 것으로 표현하지 않는다.
+
 ## 수백만 PCB ROI 후속 검토
 
 2026-10-02. [ADR-006](decisions/0006-large-roi-interaction.md)에 따라 원칙을 유지하면서 순회·할당·색인 재구축을 줄였다.

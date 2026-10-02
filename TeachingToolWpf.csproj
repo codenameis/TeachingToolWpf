@@ -24,7 +24,7 @@
   <ItemGroup>
     <None Update="Shaders\*.hlsl" CopyToOutputDirectory="PreserveNewest" />
     <None Update="README.md;AGENTS.md;Agent.MD;THIRD-PARTY-NOTICES.md;licenses\**\*;docs\**\*.md;tasks\*.md;scripts\Summarize-Benchmark.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Update="docs\data\*.json;docs\data\*.csv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="docs\data\*.json;docs\data\*.csv;docs\data\*.zip;scripts\Summarize-RoiPerformance.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

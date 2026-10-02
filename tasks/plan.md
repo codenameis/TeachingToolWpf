@@ -302,6 +302,8 @@ WPF 버튼은 ViewModel의 `ICommand`/`CanExecute`를 통해 응용 명령을 �
 
 ## 8. 성능 목표 초안과 측정법
 
+2026-10-02 반복 렌더/입력 경로는 [ADR-008](../docs/decisions/0008-retained-roi-rendering.md)대로 GPU instance buffer 재사용, 불변 이동 preview, BVH 클릭 우선순위, 선택 요약 캐시를 적용했다. 이름표는 화면 밀도 후보와 최대 256개 겹침 제거를 사용하고 단일 선택을 제외한 새 텍스처는 프레임당 2개/누적 2ms 예산으로 나누어 준비한다. 확정 명령과 회전/resize의 비용은 별도다. [전후 실측](../docs/retained-roi-performance.md)을 기존 목표의 통과 선언으로 대체하지 않는다.
+
 Ryzen 5 5600H / RAM 32 GB / RTX 3060 Laptop 6 GB를 기준으로 측정할 **협의용 목표**다. 실제 이미지 형식·실시간 FPS와 드라이버·전원·모니터 조건은 아직 미정이다. 하드웨어 사양만으로 통과를 약속하거나 가장 빠른 구현이라고 표현하지 않는다.
 
 | 시나리오 | 고정 시험 입력 | 초기 목표 |

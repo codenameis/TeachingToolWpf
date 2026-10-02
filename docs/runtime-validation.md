@@ -1,5 +1,11 @@
 # 실행 검증 · 2026-10-02
 
+## ROI GPU 재사용·이동 preview 후속
+
+Core 68 + Imaging/WPF 38 테스트와 Release 빌드(경고/오류 0)를 통과했다. 1만/32,940개 평면·PCB·완전 중첩의 CPU/GPU 전후 로그, 32,940개 작은 pan/큰 pan/zoom 각 3회, 10만/100만 전체 보기 탐색, 경계 이동과 실제 위치가 계속 바뀌는 다중 이동을 측정했다. [조건·수치·남은 지연](retained-roi-performance.md)을 따른다.
+
+실제 RTX3060 / DPI150% / DX12 debug에서 새 instance pipeline, 이름표 준비 완료·캐시 제거, 32,940개 이동 확정/Undo/Redo/취소와 GPU 캡처를 확인했다. 최종 publish 폴더를 작업 디렉터리로 실행한 한글 태그·선택 핸들·이미지 교체·OpenCV·미니맵·8K 라이브·렌더 재연결 smoke도 종료 0, DX12 warning/error 없이 통과했다. 물리 포인터 전체 E2E와 혼합 DPI·장시간 부하는 별도 미검증이다.
+
 ## 대량 복제 프리징·미니맵 후속
 
 Core 60개와 Imaging/WPF 32개 통과, Release 솔루션 빌드 경고/오류 0. 300개부터 마퀴·복사·붙여넣기를 반복해 평면/PCB 계층/완전 중첩 각각 19,200개까지 확인했다. 별도로 7,000개 필터 ROI 복제에서 발생하던 GPU descriptor 고갈을 수정하고 14,000개로 복제·Undo/Redo·렌더 캡처를 완료했다. 비동기 준비 중 UI timer와 지연 취소도 검증했다. 전체 완료 시간과 남은 UI 지연은 [실측 기록](clipboard-minimap-validation.md)을 따른다.
