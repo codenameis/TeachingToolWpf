@@ -6,4 +6,8 @@ using TeachingToolWpf.Core.Interaction;
 namespace TeachingToolWpf.Rendering;
 
 public sealed record RenderScene(DocumentState Document, ImageInfo? Image, long Generation, double Width, double Height, double Dpi,
-    InteractionOverlay Overlay, bool PointSampling = false, bool IsLive = false, Imaging.Filters.FilterPreviewResult? FilterPreview = null, RoiTransformPreview? Transform = null);
+    InteractionOverlay Overlay, bool PointSampling = false, bool IsLive = false, Imaging.Filters.FilterPreviewResult? FilterPreview = null, RoiTransformPreview? Transform = null,
+    RoiStylePalette? Styles = null)
+{
+    public RoiStylePalette RoiStyles => Styles ?? RoiStylePalette.Standard;
+}
