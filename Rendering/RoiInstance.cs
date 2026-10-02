@@ -45,15 +45,17 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
 /// <summary>Hierarchy metadata changes independently of retained geometry and palette constants.</summary>
 internal sealed class RoiRoleCache
 {
-    private object? hierarchyVersion;
+    // An off-screen block must not keep an entire historical document's hierarchy alive.
+    private WeakReference<object>? hierarchyVersion;
     public uint[] Values { get; private set; } = [];
     public bool Refresh(RoiSpatialBlock block, double aggregateSize, DocumentState document, int instanceCount)
     {
         var version = document.Snapshot.Children;
-        if (ReferenceEquals(hierarchyVersion, version)) return false;
+        if (hierarchyVersion is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, version)) return false;
         var next = RoiInstance.ResolveRoles(block, aggregateSize, document);
         if (next.Length != instanceCount) throw new InvalidOperationException("ROI 역할과 형상 인스턴스 개수가 다릅니다.");
-        hierarchyVersion = version;
+        if (hierarchyVersion is null) hierarchyVersion = new(version);
+        else hierarchyVersion.SetTarget(version);
         if (Values.AsSpan().SequenceEqual(next)) return false;
         Values = next;
         return true;

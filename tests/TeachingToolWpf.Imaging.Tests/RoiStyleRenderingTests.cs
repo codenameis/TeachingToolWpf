@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Rendering;
@@ -9,6 +10,25 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiStyleRenderingTests
 {
+    [Fact] public void RetainedRoleCacheDoesNotKeepOldDocumentHierarchyAlive()
+    {
+        var (cache, hierarchy) = CreateDetachedCache();
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        Assert.False(hierarchy.TryGetTarget(out _));
+        Assert.Contains((uint)RoiRole.Parent, cache.Values);
+        GC.KeepAlive(cache);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (RoiRoleCache Cache, WeakReference<object> Hierarchy) CreateDetachedCache()
+    {
+        var parent = Roi("parent", new(100, 100), 100);
+        var state = State(parent, Roi("child", new(100, 100), 10, parent.Id));
+        var block = Block(state); var cache = new RoiRoleCache();
+        cache.Refresh(block, 0, state, RoiInstance.Pack(block, 0).Length);
+        return (cache, new(state.Snapshot.Children));
+    }
+
     [Fact] public void MetadataOnlyDetachmentRefreshesRolesWithSameGeometryBlock()
     {
         var parent = Roi("parent", new(100, 100), 100);
