@@ -4,7 +4,7 @@ using TeachingToolWpf.Core.Geometry;
 namespace TeachingToolWpf.Core.Editing;
 
 /// <summary>Application controller: validates and commits edits; geometry/history own their rules.</summary>
-public sealed class EditorSession
+public sealed partial class EditorSession
 {
     private readonly EditHistory history = new();
     private DocumentState? previewStart;
@@ -19,6 +19,8 @@ public sealed class EditorSession
     public string? RedoName => history.RedoName;
     public long HistoryBytes => history.Bytes;
     public bool IsPreviewing => previewStart is not null;
+    public bool HasPreviewChanges => previewStart is { } before &&
+        (TranslationPreview is { Delta: var delta } && delta != default || !ReferenceEquals(State.Rois, before.Rois));
 
     public Guid Add(RotatedRect geometry)
     {
@@ -56,16 +58,10 @@ public sealed class EditorSession
     {
         token.ThrowIfCancellationRequested();
         if (!clipboard.HasContent || State.Image is null) return;
-        var before = State; var order = nextOrder;
-        var templates = clipboard.Place(before.Image, new(20 / before.Viewport.Scale, 20 / before.Viewport.Scale));
-        var prepared = await Task.Run(() => RoiPaste.Prepare(before, templates, order, token), token);
+        var prepared = await PreparePasteAsync(clipboard, token);
         token.ThrowIfCancellationRequested();
-        if (!ReferenceEquals(State.Rois, before.Rois) || State.Image != before.Image || nextOrder != order)
-            throw new InvalidOperationException("붙여넣기 준비 중 문서가 변경되었습니다. 다시 시도하세요.");
         // The caller's synchronization context owns commit. Navigation may continue during preparation.
-        Commit("ROI 붙여넣기", prepared with { Viewport = State.Viewport }, rebuild: false);
-        nextOrder += templates.Length;
-        clipboard.Pasted();
+        CommitPreparedPaste(prepared);
     }
     public void SetViewport(ViewportTransform view) => Publish(State with { Viewport = view });
     public void SetImage(ImageReference image, ViewportTransform view) => Commit("이미지 교체", State with
@@ -90,7 +86,8 @@ public sealed class EditorSession
     public void DeleteSelection()
     {
         var ids = RoiHierarchy.Subtree(State, RoiHierarchy.EffectiveRoots(State));
-        Commit("선택 ROI 삭제", State.WithRois(State.Rois.RemoveRange(ids), ids) with { Selection = State.Selection.Except(ids) });
+        // Removing complete subtrees cannot change a surviving ROI's smallest containing parent.
+        Commit("선택 ROI 삭제", State.WithRois(State.Rois.RemoveRange(ids), ids) with { Selection = State.Selection.Except(ids) }, rebuild: false);
     }
     public void SetFilters(FilterSettings settings)
     {
@@ -102,7 +99,8 @@ public sealed class EditorSession
     public void TranslateSelection(PointD delta)
     {
         var selection = new RoiTranslationSelection(State);
-        Commit("ROI 이동", selection.Apply(selection.Constrain(delta)), rebuild: selection.Affected.Count != State.Rois.Count);
+        var constrained = selection.Constrain(delta);
+        Commit("ROI 이동", selection.Apply(constrained), rebuild: !selection.PreservesHierarchy(constrained));
     }
     public void RotateSelection(double delta, PointD pivot) => Transform("ROI 회전", r => r.Geometry.RotateAround(pivot, delta));
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));
@@ -134,7 +132,7 @@ public sealed class EditorSession
     public void Undo() { if (CanUndo) Publish(history.Undo(State)); }
     public void Redo() { if (CanRedo) Publish(history.Redo(State)); }
 
-    public void BeginPreview() { CancelPreview(); previewStart = State; }
+    public void BeginPreview() { CancelPreview(); previewEpoch++; previewStart = State; }
     public void PreviewTranslation(PointD delta)
     {
         if (previewStart is null) throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
@@ -143,6 +141,7 @@ public sealed class EditorSession
         var constrained = translationSelection.Constrain(delta);
         if (TranslationPreview?.Delta == constrained) return;
         TranslationPreview = new(translationSelection, constrained);
+        mutationRevision++;
         Changed?.Invoke(this, EventArgs.Empty);
     }
     public void PreviewTransform(Func<Roi, RotatedRect> transform)
@@ -169,9 +168,9 @@ public sealed class EditorSession
         var displayedPreview = translation is not null || !ReferenceEquals(State, before);
         var next = translation is { } translated ? translated.Selection.Apply(translated.Delta) : State;
         TranslationPreview = null; translationSelection = null;
-        previewStart = null;
+        previewStart = null; previewEpoch++;
         State = before;
-        try { Commit(name, next, rebuild: translation?.Selection.Affected.Count != before.Rois.Count); }
+        try { Commit(name, next, rebuild: translation is null || !translation.Selection.PreservesHierarchy(translation.Delta)); }
         catch { Publish(before); throw; }
         finally { if (displayedPreview && ReferenceEquals(State, before)) Changed?.Invoke(this, EventArgs.Empty); }
     }
@@ -180,8 +179,8 @@ public sealed class EditorSession
         if (previewStart is not { } before) return;
         var translated = TranslationPreview is not null;
         TranslationPreview = null; translationSelection = null;
-        previewStart = null;
-        Publish(before);
+        previewStart = null; previewEpoch++;
+        Publish(before.Viewport == State.Viewport ? before : before with { Viewport = State.Viewport });
         if (translated) Changed?.Invoke(this, EventArgs.Empty);
     }
     private void Commit(string name, DocumentState next, bool rebuild = true, bool replacesImage = false)
@@ -198,6 +197,7 @@ public sealed class EditorSession
     {
         if (ReferenceEquals(next.Rois, State.Rois) && ReferenceEquals(next.Selection, State.Selection) &&
             next.Image == State.Image && next.Viewport == State.Viewport) return;
+        if (!ReferenceEquals(next.Rois, State.Rois) || !ReferenceEquals(next.Selection, State.Selection) || next.Image != State.Image) mutationRevision++;
         State = next; Changed?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -5,6 +5,19 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class TranslationPreviewTests
 {
+    [Fact] public async Task GlobalTranslationRechecksParentWhenCoordinateToleranceChanges()
+    {
+        var editor = new EditorSession();
+        var parent = editor.Add(new(new(1000, 1000), 100, 100, 0));
+        var child = editor.Add(new(new(1000, 1000), 99.9999, 100, 0));
+        Assert.Equal(parent, editor.State.Rois[child].ParentId);
+        editor.Select(editor.State.Rois.Keys); var before = editor.State;
+        var prepared = await editor.PrepareTranslationAsync(new(1e9, 0)); editor.CommitPrepared(prepared);
+        Assert.Null(editor.State.Rois[child].ParentId);
+        Assert.False(editor.State.Rois[parent].Geometry.Contains(editor.State.Rois[child].Geometry));
+        editor.Undo(); Assert.Equal(before.Rois, editor.State.Rois);
+        editor.TranslateSelection(new(1e9, 0)); Assert.Null(editor.State.Rois[child].ParentId);
+    }
     [Fact] public void PreviewRetainsDocumentAndMovesDescendantsOnceThenCommitsOneHistoryEntry()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);

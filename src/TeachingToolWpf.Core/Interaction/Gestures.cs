@@ -24,15 +24,16 @@ internal sealed class PanGesture(EditorSession editor, PointD start) : IGesture
 }
 internal abstract class EditGesture : IGesture
 {
+    private readonly InteractionController controller;
     protected EditorSession Editor { get; }
     protected ViewportTransform View { get; }
-    protected EditGesture(EditorSession editor) { Editor = editor; View = editor.State.Viewport; editor.BeginPreview(); }
+    protected EditGesture(InteractionController controller) { this.controller = controller; Editor = controller.Editor; View = Editor.State.Viewport; Editor.BeginPreview(); }
     public abstract void Move(PointD screen, InputModifiers modifiers);
     protected abstract string Name { get; }
-    public void Complete() => Editor.CommitPreview(Name);
+    public void Complete() => controller.CommitPreview(Name);
     public void Cancel() => Editor.CancelPreview();
 }
-internal sealed class MoveGesture(EditorSession editor, PointD start) : EditGesture(editor)
+internal sealed class MoveGesture(InteractionController controller, PointD start) : EditGesture(controller)
 {
     protected override string Name => "ROI 이동";
     public override void Move(PointD screen, InputModifiers modifiers)
@@ -43,13 +44,13 @@ internal sealed class MoveGesture(EditorSession editor, PointD start) : EditGest
         Editor.PreviewTranslation(delta);
     }
 }
-internal sealed class ResizeGesture(EditorSession editor, Roi original, int handle) : EditGesture(editor)
+internal sealed class ResizeGesture(InteractionController controller, Roi original, int handle) : EditGesture(controller)
 {
     protected override string Name => "ROI 크기 조절";
     public override void Move(PointD screen, InputModifiers modifiers)
         => Editor.PreviewResize(original.Id, HandleGeometry.Resize(original.Geometry, handle, View.ScreenToImage(screen)));
 }
-internal sealed class RotateGesture(EditorSession editor, PointD start, PointD pivot) : EditGesture(editor)
+internal sealed class RotateGesture(InteractionController controller, PointD start, PointD pivot) : EditGesture(controller)
 {
     protected override string Name => "ROI 회전";
     public override void Move(PointD screen, InputModifiers modifiers)
@@ -96,7 +97,7 @@ internal sealed class MarqueeGesture(InteractionController controller, PointD st
         var b = baseline.Viewport.ScreenToImage(new(bounds.Right, bounds.Bottom));
         var ids = baseline.Snapshot.Spatial.Intersecting(new(a.X, a.Y, b.X, b.Y))
             .Where(r => r.Geometry.Corners.All(p => bounds.Contains(baseline.Viewport.ImageToScreen(p)))).Select(r => r.Id);
-        controller.Editor.Select(additive ? baseline.Selection.Union(ids) : ids);
+        controller.Select(additive ? baseline.Selection.Union(ids) : ids);
     }
     public void Cancel() { }
 }

@@ -8,7 +8,7 @@ public enum EditorTool { Select, Pan, Draw }
 public sealed record InteractionOverlay(Guid? Hover = null, RotatedRect? Draft = null, BoundsD? Marquee = null);
 
 /// <summary>Chooses an input state; each gesture owns its preview and commit/cancel behavior.</summary>
-public sealed class InteractionController(EditorSession editor)
+public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null)
 {
     private IGesture? gesture;
     private EditorTool tool;
@@ -23,8 +23,11 @@ public sealed class InteractionController(EditorSession editor)
     public EditorTool Tool { get => tool; set { Cancel(); tool = value; Changed?.Invoke(); } }
     public InteractionOverlay Overlay { get; private set; } = new();
     public bool IsDragging => gesture is not null;
+    public bool NavigationOnly { get; set; }
     public event Action? Changed;
     internal EditorSession Editor => editor;
+    internal void CommitPreview(string name) { if (commitPreview is null) editor.CommitPreview(name); else commitPreview(name); }
+    internal void Select(IEnumerable<Guid> ids) { if (selectRois is null) editor.Select(ids); else selectRois(ids); }
     internal void Show(InteractionOverlay overlay) { Overlay = overlay; Changed?.Invoke(); }
 
     public void Down(PointD screen, InputModifiers modifiers = InputModifiers.None, bool middle = false)
@@ -33,6 +36,7 @@ public sealed class InteractionController(EditorSession editor)
         if (!middle && Minimap is { } map && map.Panel.Contains(screen))
             gesture = map.ImageBounds.Contains(screen) ? new MinimapGesture(editor, map, screen) : new NoGesture();
         else if (middle || Tool == EditorTool.Pan) gesture = new PanGesture(editor, screen);
+        else if (NavigationOnly) gesture = new NoGesture();
         else if (Tool == EditorTool.Draw) gesture = new DrawGesture(this, screen);
         else gesture = StartSelection(screen, modifiers);
         Changed?.Invoke();
@@ -44,15 +48,15 @@ public sealed class InteractionController(EditorSession editor)
         {
             var selected = state.Rois[state.Selection.Single()];
             if ((HandleGeometry.RotationHandle(selected.Geometry, state.Viewport) - screen).Length < 10)
-                return new RotateGesture(editor, screen, selected.Geometry.Center);
+                return new RotateGesture(this, screen, selected.Geometry.Center);
             var handles = HandleGeometry.ResizeHandles(selected.Geometry, state.Viewport);
-            for (var i = 0; i < handles.Count; i++) if ((handles[i] - screen).Length < 9) return new ResizeGesture(editor, selected, i);
+            for (var i = 0; i < handles.Count; i++) if ((handles[i] - screen).Length < 9) return new ResizeGesture(this, selected, i);
         }
         else if (state.Selection.Count > 1)
         {
             var bounds = SelectionBounds(state);
             if ((state.Viewport.ImageToScreen(new(bounds.Center.X, bounds.Top)) + new PointD(0, -28) - screen).Length < 10)
-                return new RotateGesture(editor, screen, bounds.Center);
+                return new RotateGesture(this, screen, bounds.Center);
         }
         var hit = Hit(screen, modifiers.HasFlag(InputModifiers.Alt));
         if (hit is { } id)
@@ -63,14 +67,14 @@ public sealed class InteractionController(EditorSession editor)
                 return new NoGesture();
             }
             if (!state.Selection.Contains(id)) editor.Select(modifiers.HasFlag(InputModifiers.Shift) ? state.Selection.Add(id) : [id]);
-            return new MoveGesture(editor, screen);
+            return new MoveGesture(this, screen);
         }
         return new MarqueeGesture(this, screen, modifiers != InputModifiers.None);
     }
     public void Move(PointD screen, InputModifiers modifiers = InputModifiers.None)
     {
         if (gesture is { } active) active.Move(screen, modifiers);
-        else { var hit = Hit(screen); if (Overlay.Hover != hit) Show(Overlay with { Hover = hit }); }
+        else if (!NavigationOnly) { var hit = Hit(screen); if (Overlay.Hover != hit) Show(Overlay with { Hover = hit }); }
     }
     public void Up(PointD screen, InputModifiers modifiers = InputModifiers.None)
     {
