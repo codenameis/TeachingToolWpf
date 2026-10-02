@@ -7,6 +7,22 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class FilterPreviewSessionTests
 {
+    [Fact] public async Task MixedSelectionCanClearAllRegistrationsEvenWhenFirstRoiHasNone()
+    {
+        var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
+        var first = editor.Add(new(new(20, 20), 10, 10, 0));
+        var second = editor.Add(new(new(60, 60), 10, 10, 0)); editor.SetFilters(new(RoiFilterKind.Edge));
+        editor.Select([first, second]);
+        var processor = new Processor(); processor.Release.SetResult();
+        using var model = new FilterPreviewViewModel(processor, editor); model.Update(editor.State, false);
+        await model.WhenIdle;
+        Assert.True(model.HasMixedFilters); Assert.Equal(RoiFilterKind.None, model.SelectedFilter);
+        Assert.Equal(second, Assert.Single(model.Result!.Regions).Id);
+        Assert.True(model.ClearRegistration.CanExecute(null)); model.ClearRegistration.Execute(null); await model.WhenIdle;
+        Assert.Null(model.Result); Assert.False(model.HasMixedFilters);
+        editor.Undo(); model.Update(editor.State, false); await model.WhenIdle;
+        Assert.Equal(second, Assert.Single(model.Result!.Regions).Id);
+    }
     [Fact] public async Task ReselectingRegisteredRoiRestoresFilterWhileUnregisteredRoiStaysOriginal()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);

@@ -5,15 +5,17 @@
             <TextBlock Text="ROI 필터" FontWeight="SemiBold" VerticalAlignment="Center"/>
         </DockPanel>
         <ComboBox ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Kind" SelectedValue="{Binding SelectedFilter}" AutomationProperties.Name="ROI 필터 선택"/>
+        <TextBlock Text="서로 다른 설정 · 각 ROI 필터로 표시 중" Visibility="{Binding HasMixedFilters, Converter={StaticResource BoolVisibility}}" TextWrapping="Wrap" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
         <StackPanel Visibility="{Binding IsBinarize, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
             <TextBlock Text="이진화 임계값 · 0–255" Style="{StaticResource Caption}"/>
-            <TextBox Text="{Binding Threshold, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="이진화 임계값"/>
+            <TextBox x:Name="ThresholdInput" Text="{Binding Threshold, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="이진화 임계값"/>
         </StackPanel>
         <Grid Visibility="{Binding IsEdge, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
-            <StackPanel><TextBlock Text="Edge 하한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeLow, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Edge 하한"/></StackPanel>
-            <StackPanel Grid.Column="2"><TextBlock Text="Edge 상한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeHigh, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Edge 상한"/></StackPanel>
+            <StackPanel><TextBlock Text="Edge 하한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeLow, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Edge 하한"/></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="Edge 상한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeHigh, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Edge 상한"/></StackPanel>
         </Grid>
+        <Button Content="등록 해제" Command="{Binding ClearRegistration}" HorizontalAlignment="Left" ToolTip="선택된 모든 ROI의 필터 등록 해제 · Undo 가능" Margin="0,6,0,0"/>
         <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
             <Button Content="미리보기" Command="{Binding Preview}" Style="{StaticResource PrimaryButton}" ToolTip="선택 ROI에 설정 등록 및 미리보기 · 재선택 시 자동 표시"/>
             <Button Grid.Column="2" Content="원본 보기" Command="{Binding Stop}" Style="{StaticResource SecondaryButton}"/>

@@ -30,6 +30,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public string EdgeHigh { get => edgeHigh; set { if (Set(ref edgeHigh, value)) DraftChanged(); } }
     public bool IsBinarize => SelectedFilter == RoiFilterKind.Binarize;
     public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
+    public bool HasMixedFilters => document.Selection.Select(id => document.Rois[id].Filter).Distinct().Skip(1).Any();
     public bool IsActive { get => active; private set => Set(ref active, value); }
     public bool IsBusy { get => busy; private set => Set(ref busy, value); }
     public string Status { get => status; private set => Set(ref status, value); }
@@ -37,6 +38,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public event Action? Changed;
     public RelayCommand Preview { get; }
     public RelayCommand Stop { get; }
+    public RelayCommand ClearRegistration { get; }
     public Task WhenIdle => pump ?? Task.CompletedTask;
     public void RefreshLiveFrame() { if (IsActive && live && !IsBusy) Schedule(force: true, keepVisible: true); }
 
@@ -45,12 +47,15 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         this.processor = processor; this.editor = editor;
         Preview = new(Register, () => SelectedFilter != RoiFilterKind.None && document.Selection.Count > 0 && !editor.IsPreviewing);
         Stop = new(StopPreview, () => IsActive);
+        ClearRegistration = new(() => { editor.SetFilters(new(RoiFilterKind.None)); Update(editor.State, live); },
+            () => !editor.IsPreviewing && document.Selection.Any(id => document.Rois[id].Filter.Kind != RoiFilterKind.None));
     }
     public void Update(DocumentState state, bool isLive)
     {
         var selectionChanged = document.Image != state.Image || !document.Selection.SetEquals(state.Selection);
         var settingsChanged = state.Selection.Any(id => !document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
         document = state; live = isLive;
+        Notify(nameof(HasMixedFilters));
         if (selectionChanged || settingsChanged)
         {
             suppressed = false;
@@ -83,7 +88,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
         { Status = "임계값을 확인하세요. 0–255 숫자와 Edge 하한 < 상한이 필요합니다."; }
     }
-    private void RefreshCommands() { Preview?.Refresh(); Stop?.Refresh(); }
+    private void RefreshCommands() { Preview?.Refresh(); Stop?.Refresh(); ClearRegistration?.Refresh(); }
     private void ClearResult() { result = null; Changed?.Invoke(); }
     public void StopPreview()
     {

@@ -17,6 +17,8 @@ internal static class FilterSmokeScenario
         Require(model.Filters.Result is null, "choosing a filter does not activate it");
         model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
+        VerifyThresholdEdit(model, viewport);
+        await model.Filters.WhenIdle;
         model.SelectAll.Execute(null); await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == 1, "unregistered ROI stays original in multi-selection");
         model.Filters.SelectedFilter = RoiFilterKind.Edge; await model.Filters.WhenIdle;
@@ -34,5 +36,31 @@ internal static class FilterSmokeScenario
         Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
         await Task.Delay(600);
         Require(model.Filters.Result?.Regions.Count == 1, "periodic live filter refresh");
+    }
+    private static void VerifyThresholdEdit(EditorViewModel model, Dx12Viewport viewport)
+    {
+        var window = System.Windows.Window.GetWindow(viewport);
+        var panel = Descendants(window).OfType<Views.FilterPanel>().Single();
+        var input = (System.Windows.Controls.TextBox)panel.FindName("ThresholdInput");
+        var property = System.Windows.Controls.TextBox.TextProperty;
+        var binding = input.GetBindingExpression(property)!;
+        Require(binding.ParentBinding.UpdateSourceTrigger == System.Windows.Data.UpdateSourceTrigger.LostFocus, "numeric edits commit on leaving the field");
+        var id = model.Session.State.Selection.Single();
+        var original = model.Session.State.Rois[id].Filter.Threshold;
+        foreach (var value in new[] { "2", "20", "200" }) input.SetCurrentValue(property, value);
+        Require(model.Session.State.Rois[id].Filter.Threshold == original, "intermediate numeric input does not add edits");
+        binding.UpdateSource();
+        Require(model.Session.State.Rois[id].Filter.Threshold == 200, "completed numeric edit registers its final value");
+        model.Session.Undo();
+        Require(model.Session.State.Rois[id].Filter.Threshold == original, "one undo restores the whole numeric edit");
+    }
+    private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject parent)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            yield return child;
+            foreach (var descendant in Descendants(child)) yield return descendant;
+        }
     }
 }
