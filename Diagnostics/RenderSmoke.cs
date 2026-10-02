@@ -24,6 +24,8 @@ internal static class RenderSmoke
             await InspectorSmokeScenario.Run(window, model);
             File.AppendAllText("artifacts/smoke.log", "Paged list selection, pan, focused inspector editing and Korean value undo passed" + Environment.NewLine);
             File.AppendAllText("artifacts/smoke.log", "Native input, toolbar, history, grouping and renderer restart passed" + Environment.NewLine);
+            await RoiStyleSmokeScenario.Run(window, model, viewport);
+            File.AppendAllText("artifacts/smoke.log", "ROI role colors, independent widths, native child detach, Undo/Redo and style reset passed" + Environment.NewLine);
             var session = model.Session;
             var parent = session.Add(new(new(4096, 4096), 4400, 4200, 12));
             session.Rename(parent, "메인 검사 영역");
