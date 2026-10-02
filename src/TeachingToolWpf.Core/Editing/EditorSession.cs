@@ -22,18 +22,20 @@ public sealed class EditorSession
     {
         geometry = RoiImageBounds.ClipNew(geometry, State.Image);
         var roi = new Roi(Guid.NewGuid(), $"ROI {++nextOrder:000}", geometry, null, false, nextOrder);
-        Commit("ROI 추가", State with { Rois = State.Rois.Add(roi.Id, roi), Selection = [roi.Id] });
+        Commit("ROI 추가", State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with { Selection = [roi.Id] });
         return roi.Id;
     }
     public void AddRange(IEnumerable<RotatedRect> geometries)
     {
         var rois = State.Rois.ToBuilder();
+        var added = new List<Guid>();
         foreach (var geometry in geometries)
         {
             var roi = new Roi(Guid.NewGuid(), $"ROI {++nextOrder:000}", RoiImageBounds.ClipNew(geometry, State.Image), null, false, nextOrder);
             rois.Add(roi.Id, roi);
+            added.Add(roi.Id);
         }
-        Commit("ROI 일괄 추가", State with { Rois = rois.ToImmutable() });
+        Commit("ROI 일괄 추가", State.WithRois(rois.ToImmutable(), added));
     }
     public void Select(IEnumerable<Guid> ids)
     {
@@ -54,7 +56,7 @@ public sealed class EditorSession
             rois.Add(id, template with { Id = id, ParentId = null, Order = ++nextOrder,
                 Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사" });
         }
-        Commit("ROI 붙여넣기", State with { Rois = rois.ToImmutable(), Selection = roots.ToImmutable() });
+        Commit("ROI 붙여넣기", State.WithRois(rois.ToImmutable(), ids.Values) with { Selection = roots.ToImmutable() });
         clipboard.Pasted();
     }
     public void SetViewport(ViewportTransform view) => Publish(State with { Viewport = view });
@@ -69,24 +71,25 @@ public sealed class EditorSession
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 256) throw new ArgumentException("이름은 1–256자여야 합니다.");
         var next = RoiTransforms.Apply(State, [id], _ => geometry);
-        Commit("ROI 속성 변경", next with { Rois = next.Rois.SetItem(id, next.Rois[id] with { Name = name.Trim() }) });
+        Commit("ROI 속성 변경", next.WithRoisFrom(State, next.Rois.SetItem(id, next.Rois[id] with { Name = name.Trim() }),
+            ReferenceEquals(next, State) ? [id] : next.Snapshot.ChangedIds.Append(id)));
     }
     public void Rename(Guid id, string name)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 256) throw new ArgumentException("이름은 1–256자여야 합니다.", nameof(name));
-        Commit("이름 변경", State with { Rois = State.Rois.SetItem(id, State.Rois[id] with { Name = name.Trim() }) }, rebuild: false);
+        Commit("이름 변경", State.WithRois(State.Rois.SetItem(id, State.Rois[id] with { Name = name.Trim() }), [id]), rebuild: false);
     }
     public void DeleteSelection()
     {
         var ids = RoiHierarchy.Subtree(State, RoiHierarchy.EffectiveRoots(State));
-        Commit("선택 ROI 삭제", State with { Rois = State.Rois.RemoveRange(ids), Selection = State.Selection.Except(ids) });
+        Commit("선택 ROI 삭제", State.WithRois(State.Rois.RemoveRange(ids), ids) with { Selection = State.Selection.Except(ids) });
     }
     public void SetFilters(FilterSettings settings)
     {
         settings.Validate();
         var rois = State.Rois.ToBuilder();
         foreach (var id in State.Selection) rois[id] = rois[id] with { Filter = settings };
-        Commit("ROI 필터 등록", State with { Rois = rois.ToImmutable() }, rebuild: false);
+        Commit("ROI 필터 등록", State.WithRois(rois.ToImmutable(), State.Selection), rebuild: false);
     }
     public void TranslateSelection(PointD delta) => Transform("ROI 이동", r => r.Geometry.Translate(delta));
     public void RotateSelection(double delta, PointD pivot) => Transform("ROI 회전", r => r.Geometry.RotateAround(pivot, delta));
@@ -102,7 +105,7 @@ public sealed class EditorSession
         var padding = Math.Max(1, Math.Max(Math.Abs(bounds.Center.X), Math.Abs(bounds.Center.Y)) * 1e-10);
         var group = new Roi(Guid.NewGuid(), $"그룹 {++nextOrder:000}",
             RoiImageBounds.ClipNew(new(bounds.Center, bounds.Width + padding * 2, bounds.Height + padding * 2, 0), State.Image), null, true, nextOrder);
-        var next = State with { Rois = RoiHierarchy.Rebuild(State.Rois.Add(group.Id, group)), Selection = [group.Id] };
+        var next = RoiHierarchy.Rebuild(State, State.WithRois(State.Rois.Add(group.Id, group), [group.Id]) with { Selection = [group.Id] });
         if (roots.Any(id => !RoiHierarchy.IsDescendant(next, id, group.Id)))
             throw new InvalidOperationException("기존 부모와 충돌합니다. 해당 부모 ROI까지 선택한 뒤 그룹화하세요.");
         Commit("부모 ROI로 그룹화", next, rebuild: false);
@@ -111,8 +114,8 @@ public sealed class EditorSession
     public void UngroupSelection()
     {
         var groups = State.Selection.Where(id => State.Rois[id].IsGroup).ToHashSet();
-        var children = State.Rois.Values.Where(r => r.ParentId is { } id && groups.Contains(id)).Select(r => r.Id).ToImmutableHashSet();
-        Commit("그룹 해제", State with { Rois = State.Rois.RemoveRange(groups), Selection = children.Except(groups) });
+        var children = groups.SelectMany(id => State.Snapshot.Children.GetValueOrDefault(id, [])).ToImmutableHashSet();
+        Commit("그룹 해제", State.WithRois(State.Rois.RemoveRange(groups), groups) with { Selection = children.Except(groups) });
     }
     public DocumentState PreviewUndo() => history.PreviewUndo(State);
     public DocumentState PreviewRedo() => history.PreviewRedo(State);
@@ -156,11 +159,16 @@ public sealed class EditorSession
     {
         if (previewStart is not null) throw new InvalidOperationException("진행 중인 편집을 먼저 완료하세요.");
         if (!replacesImage && ReferenceEquals(State.Rois, next.Rois) && State.Image == next.Image) return;
-        if (rebuild) next = next with { Rois = RoiHierarchy.Rebuild(next.Rois) };
+        if (rebuild) next = RoiHierarchy.Rebuild(State, next);
         var edit = new DocumentEdit(name, State, next, replacesImage);
         if (edit.IsEmpty) return;
         history.Push(edit);
         Publish(next);
     }
-    private void Publish(DocumentState next) { if (next == State) return; State = next; Changed?.Invoke(this, EventArgs.Empty); }
+    private void Publish(DocumentState next)
+    {
+        if (ReferenceEquals(next.Rois, State.Rois) && ReferenceEquals(next.Selection, State.Selection) &&
+            next.Image == State.Image && next.Viewport == State.Viewport) return;
+        State = next; Changed?.Invoke(this, EventArgs.Empty);
+    }
 }

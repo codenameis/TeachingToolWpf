@@ -14,7 +14,8 @@ public static class RoiTransforms
             return new RotatedRect(rect.Center, rect.Width, rect.Height, 0);
         });
         var reset = ApplyCore(state, targets);
-        if (state.Image is not { } image || RoiImageBounds.ContainsAll(reset)) return reset;
+        if (ReferenceEquals(reset, state)) return state;
+        if (state.Image is not { } image || RoiImageBounds.Contains(reset, reset.Snapshot.ChangedIds)) return reset;
         // Zero is an exact command: fit the transformed subtree as one unit if zero would cross an edge.
         var affected = RoiHierarchy.Subtree(state, roots);
         var bounds = BoundsD.FromPoints(affected.SelectMany(id => reset.Rois[id].Geometry.Corners));
@@ -28,7 +29,7 @@ public static class RoiTransforms
             var roi = rois[id]; var rect = roi.Geometry;
             rois[id] = roi with { Geometry = new(center + (rect.Center - bounds.Center) * scale, rect.Width * scale, rect.Height * scale, rect.Angle) };
         }
-        return reset with { Rois = rois.ToImmutable() };
+        return state.WithRois(rois.ToImmutable(), affected);
     }
     public static DocumentState Apply(DocumentState state, IEnumerable<Guid> roots, Func<Roi, RotatedRect> transform)
     {
@@ -36,7 +37,7 @@ public static class RoiTransforms
             .Where(target => target.Geometry != state.Rois[target.Id].Geometry).ToDictionary(target => target.Id, target => target.Geometry);
         if (targets.Count == 0) return state;
         var requested = ApplyCore(state, targets);
-        if (state.Image is null || RoiImageBounds.ContainsAll(requested)) return requested;
+        if (state.Image is null || RoiImageBounds.Contains(requested, requested.Snapshot.ChangedIds)) return requested;
         // One fraction for the entire edit preserves multi-selection and descendant relationships.
         var low = 0d; var high = 1d; var accepted = state;
         for (var iteration = 0; iteration < 40; iteration++)
@@ -45,7 +46,7 @@ public static class RoiTransforms
             var partial = targets.ToDictionary(pair => pair.Key,
                 pair => RoiImageBounds.Interpolate(state.Rois[pair.Key].Geometry, pair.Value, fraction));
             var candidate = ApplyCore(state, partial);
-            if (RoiImageBounds.ContainsAll(candidate)) { low = fraction; accepted = candidate; }
+            if (ReferenceEquals(candidate, state) || RoiImageBounds.Contains(candidate, candidate.Snapshot.ChangedIds)) { low = fraction; accepted = candidate; }
             else high = fraction;
         }
         return accepted;
@@ -53,6 +54,7 @@ public static class RoiTransforms
     private static DocumentState ApplyCore(DocumentState state, IReadOnlyDictionary<Guid, RotatedRect> targets)
     {
         var result = state.Rois.ToBuilder();
+        var changed = new HashSet<Guid>();
         foreach (var (rootId, target) in targets)
         {
             var root = state.Rois[rootId];
@@ -62,9 +64,10 @@ public static class RoiTransforms
             {
                 var roi = state.Rois[id];
                 var geometry = id == rootId ? target : roi.Geometry.RotateAround(root.Geometry.Center, rotation).Translate(translation);
-                result[id] = roi with { Geometry = geometry };
+                if (roi.Geometry == geometry) continue;
+                result[id] = roi with { Geometry = geometry }; changed.Add(id);
             }
         }
-        return state with { Rois = result.ToImmutable() };
+        return state.WithRois(result.ToImmutable(), changed);
     }
 }

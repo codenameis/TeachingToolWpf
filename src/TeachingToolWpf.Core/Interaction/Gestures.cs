@@ -92,7 +92,10 @@ internal sealed class MarqueeGesture(InteractionController controller, PointD st
     }
     public void Complete()
     {
-        var ids = baseline.Rois.Values.Where(r => r.Geometry.Corners.All(p => bounds.Contains(baseline.Viewport.ImageToScreen(p)))).Select(r => r.Id);
+        var a = baseline.Viewport.ScreenToImage(new(bounds.Left, bounds.Top));
+        var b = baseline.Viewport.ScreenToImage(new(bounds.Right, bounds.Bottom));
+        var ids = baseline.Snapshot.Spatial.Intersecting(new(a.X, a.Y, b.X, b.Y))
+            .Where(r => r.Geometry.Corners.All(p => bounds.Contains(baseline.Viewport.ImageToScreen(p)))).Select(r => r.Id);
         controller.Editor.Select(additive ? baseline.Selection.Union(ids) : ids);
     }
     public void Cancel() { }

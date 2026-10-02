@@ -1,0 +1,33 @@
+using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
+using TeachingToolWpf.Core.Editing;
+
+namespace TeachingToolWpf.Core.Tests;
+
+public class RoiSnapshotLifetimeTests
+{
+    [Fact] public void DeferredIndexesDoNotRetainUnboundedRenameHistory()
+    {
+        var editor = new EditorSession(); var id = editor.Add(new(new(100, 100), 20, 20, 0));
+        var oldMap = RenameAndObserve(editor, id);
+        for (var i = 0; i < 2000; i++) editor.Rename(id, $"R{i}");
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        Assert.False(oldMap.TryGetTarget(out _));
+        Assert.Empty(editor.State.Snapshot.Children);
+        Assert.Equal("R1999", Assert.Single(editor.State.Snapshot.Spatial.At(new(100, 100))).Name);
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference<ImmutableDictionary<Guid, Roi>> RenameAndObserve(EditorSession editor, Guid id)
+    { editor.Rename(id, "first"); return new(editor.State.Rois); }
+
+    [Fact] public void ParentChangingUndoRedoKeepsIndexesCurrentWithoutDeferredChains()
+    {
+        var editor = new EditorSession(); var parent = editor.Add(new(new(100, 100), 100, 100, 0));
+        var child = editor.Add(new(new(100, 100), 10, 10, 0));
+        editor.TranslateSelection(new(200, 0));
+        for (var i = 0; i < 2000; i++) { editor.Undo(); editor.Redo(); }
+        Assert.Null(editor.State.Rois[child].ParentId); Assert.Empty(editor.State.Snapshot.Children);
+        editor.Undo(); Assert.Equal(child, Assert.Single(editor.State.Snapshot.Children[parent]));
+        Assert.Contains(child, editor.State.Snapshot.Spatial.At(new(100, 100)).Select(r => r.Id));
+    }
+}

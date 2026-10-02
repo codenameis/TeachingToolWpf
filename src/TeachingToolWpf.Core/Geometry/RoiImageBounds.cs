@@ -8,8 +8,9 @@ public static class RoiImageBounds
     public static PointD Clamp(PointD point, ImageReference? image) => image is null ? point
         : new(Math.Clamp(point.X, 0, image.Width), Math.Clamp(point.Y, 0, image.Height));
 
-    public static bool ContainsAll(DocumentState state) => state.Image is not { } image ||
-        state.Rois.Values.All(r => r.Geometry.Corners.All(p =>
+    public static bool ContainsAll(DocumentState state) => Contains(state, state.Rois.Keys);
+    public static bool Contains(DocumentState state, IEnumerable<Guid> ids) => state.Image is not { } image ||
+        ids.All(id => state.Rois[id].Geometry.Corners.All(p =>
             p.X >= -1e-7 && p.Y >= -1e-7 && p.X <= image.Width + 1e-7 && p.Y <= image.Height + 1e-7));
 
     public static RotatedRect ClipNew(RotatedRect rect, ImageReference? image)

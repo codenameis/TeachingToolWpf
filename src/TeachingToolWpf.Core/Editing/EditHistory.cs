@@ -17,13 +17,13 @@ public sealed class DocumentEdit
     private readonly ViewportTransform afterView;
     private readonly bool changesImage;
     public bool IsEmpty => Changes.IsEmpty && !changesImage;
-    public long EstimatedBytes => 256 + Changes.Sum(c => 320L + ((c.Before?.Name.Length ?? 0) + (c.After?.Name.Length ?? 0)) * 2)
-        + (beforeSelection.Count + afterSelection.Count) * 32L;
+    public long EstimatedBytes { get; }
 
     public DocumentEdit(string name, DocumentState before, DocumentState after, bool replacesImage = false)
     {
         Name = name;
-        Changes = before.Rois.Keys.Union(after.Rois.Keys)
+        var candidates = ReferenceEquals(before.Rois, after.Snapshot.PreviousRois) ? (IEnumerable<Guid>)after.Snapshot.ChangedIds : before.Rois.Keys.Union(after.Rois.Keys);
+        Changes = candidates
             .Select(id => new RoiChange(id, before.Rois.GetValueOrDefault(id), after.Rois.GetValueOrDefault(id)))
             .Where(c => c.Before != c.After).ToImmutableArray();
         beforeSelection = before.Selection;
@@ -33,6 +33,8 @@ public sealed class DocumentEdit
         beforeView = before.Viewport;
         afterView = after.Viewport;
         changesImage = replacesImage || before.Image != after.Image;
+        EstimatedBytes = 256 + Changes.Sum(c => 320L + ((c.Before?.Name.Length ?? 0) + (c.After?.Name.Length ?? 0)) * 2)
+            + (beforeSelection.Count + afterSelection.Count) * 32L;
     }
 
     public DocumentState Apply(DocumentState state, bool forward)
@@ -44,16 +46,16 @@ public sealed class DocumentEdit
             if (value is null) rois.Remove(change.Id);
             else rois[change.Id] = value;
         }
-        return state with
+        return state.WithRois(rois.ToImmutable(), Changes.Select(c => c.Id)) with
         {
-            Rois = rois.ToImmutable(), Selection = forward ? afterSelection : beforeSelection,
+            Selection = forward ? afterSelection : beforeSelection,
             Image = changesImage ? (forward ? afterImage : beforeImage) : state.Image,
             Viewport = changesImage ? (forward ? afterView : beforeView) : state.Viewport
         };
     }
 }
 
-public sealed class EditHistory(int maxCount = 200, long byteBudget = 64L * 1024 * 1024)
+public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 1024 * 1024)
 {
     private readonly List<DocumentEdit> edits = [];
     private int cursor;

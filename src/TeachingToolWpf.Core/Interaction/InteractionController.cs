@@ -75,7 +75,10 @@ public sealed class InteractionController(EditorSession editor)
     private Guid? Hit(PointD screen, bool cycle = false)
     {
         var point = editor.State.Viewport.ScreenToImage(screen);
-        var hits = editor.State.Rois.Values.Where(r => r.Geometry.Contains(point, 3 / editor.State.Viewport.Scale))
+        var tolerance = 3 / editor.State.Viewport.Scale;
+        var margin = tolerance * Math.Sqrt(2);
+        var hits = editor.State.Snapshot.Spatial.Intersecting(new(point.X - margin, point.Y - margin, point.X + margin, point.Y + margin))
+            .Where(r => r.Geometry.Contains(point, tolerance))
             .OrderBy(r => r.Geometry.Width * r.Geometry.Height).ThenByDescending(r => r.Order).Select(r => r.Id).ToArray();
         if (hits.Length == 0) return null;
         if (cycle && editor.State.Selection.Count == 1)
@@ -86,5 +89,5 @@ public sealed class InteractionController(EditorSession editor)
         return hits[0];
     }
     internal static BoundsD SelectionBounds(DocumentState state)
-        => BoundsD.FromPoints(state.Selection.SelectMany(id => state.Rois[id].Geometry.Corners));
+        => state.SelectedSpatial.Bounds;
 }
