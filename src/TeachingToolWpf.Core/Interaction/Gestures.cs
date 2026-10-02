@@ -40,7 +40,7 @@ internal sealed class MoveGesture(EditorSession editor, PointD start) : EditGest
         var delta = (screen - start) / View.Scale;
         if ((screen - start).Length < 2) delta = new();
         if (modifiers.HasFlag(InputModifiers.Shift)) delta = Math.Abs(delta.X) > Math.Abs(delta.Y) ? new(delta.X, 0) : new(0, delta.Y);
-        Editor.PreviewTransform(roi => roi.Geometry.Translate(delta));
+        Editor.PreviewTranslation(delta);
     }
 }
 internal sealed class ResizeGesture(EditorSession editor, Roi original, int handle) : EditGesture(editor)

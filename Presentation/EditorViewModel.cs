@@ -129,7 +129,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
             var count = RoiHierarchy.Subtree(Session.State, [id]).Count - 1;
             Status = $"새 부모를 만들었습니다. 포함 ROI {count}개 · 선택 {before}개";
         }, () => RoiHierarchy.EffectiveRoots(Session.State).Skip(1).Any());
-        Ungroup = Command(Session.UngroupSelection, () => Session.State.Selection.Any(id => Session.State.Rois[id].IsGroup));
+        Ungroup = Command(Session.UngroupSelection, () => Session.State.SelectionFacts.HasGroup);
         ResetAngle = Command(Session.ResetAngles, HasSelection);
         RotateLeft = Command(() => Rotate(-15), HasSelection); RotateRight = Command(() => Rotate(15), HasSelection);
         ApplyProperties = Command(Properties.Apply, () => Properties.HasSingleSelection);
@@ -215,7 +215,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     }
     private void Refresh()
     {
-        Filters.Update(Session.State, Live.Image is not null);
+        Filters.Update(Session.State, Live.Image is not null, Session.TranslationPreview);
         Notify(nameof(CanEdit)); Notify(nameof(SelectionSummary)); Notify(nameof(ImageTitle)); Notify(nameof(ImageDetails)); Notify(nameof(UndoHint)); Notify(nameof(RedoHint));
         Notify(nameof(RoiCount)); Notify(nameof(HasRois)); Notify(nameof(SelectionTitle)); Notify(nameof(IsLiveRunning));
         RefreshCommands(); Publish();
@@ -255,7 +255,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public void Publish()
     {
         Input.SetViewportSize(viewport.ViewWidth, viewport.ViewHeight);
-        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result));
+        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TranslationPreview));
     }
     public void SelectRows(IEnumerable<Guid> ids) { if (CanEdit && !Input.IsDragging) Session.Select(ids); }
     public bool HandleKey(Key key, bool control, bool shift)

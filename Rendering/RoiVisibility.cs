@@ -17,7 +17,7 @@ internal sealed class RoiVisibility
         index = spatial; view = transform; width = w; height = h;
         Rois.Clear(); Summaries.Clear();
         var a = view.ScreenToImage(new(-50, -50)); var b = view.ScreenToImage(new(w + 50, h + 50));
-        foreach (var item in index.Visible(new(a.X, a.Y, b.X, b.Y), 6 / view.Scale))
+        foreach (var item in index.LabelCandidates(new(a.X, a.Y, b.X, b.Y), 6 / view.Scale, 120 / view.Scale, 32 / view.Scale))
         {
             if (item.Roi is { } roi) Rois.Add(roi);
             else Summaries.Add(item.Bounds);

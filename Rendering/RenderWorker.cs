@@ -54,10 +54,12 @@ public sealed class RenderWorker : IDisposable
             using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"));
             using var surface = new Dx12Surface(gpu, hwnd, width, height);
             using var pipeline = new SpritePipeline(gpu);
+            using var roiPipeline = new RoiPipeline(gpu);
             using var gpuTimer = new GpuTimer(gpu);
             using var metrics = new FrameMetrics();
+            using var profile = new RenderProfile();
             var painter = new ScenePainter();
-            using var labels = new GpuLabelCache(textRasterizer);
+            using var labels = new GpuLabelCache(textRasterizer, gpu);
             using var images = new GpuImageResources(gpu, pipeline, tiles, framePreparer);
             using var filters = new GpuFilterPreview();
             GpuTexture? white = null;
@@ -76,8 +78,9 @@ public sealed class RenderWorker : IDisposable
                     var submission = Volatile.Read(ref scene);
                     var current = submission?.Scene;
                     if (ReferenceEquals(current, presentedScene) && w == surface.Width && h == surface.Height &&
-                        !frames.HasPending && !tiles.HasReady && Volatile.Read(ref captureRequest) is null && white is not null) continue;
+                        !frames.HasPending && !tiles.HasReady && !labels.HasPending && Volatile.Read(ref captureRequest) is null && white is not null) continue;
                     var cpuStart = Stopwatch.GetTimestamp();
+                    var allocationStart = profile.Enabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
                     surface.Resize(w, h); surface.Begin(); frame++;
                     var gpuElapsed = gpuTimer.Begin(surface);
                     pipeline.BeginFrame(surface);
@@ -95,13 +98,19 @@ public sealed class RenderWorker : IDisposable
                         if (images.Update(current, retainedFrame, surface, frame)) Invalidate();
                         filters.Update(current.FilterPreview, pipeline, surface);
                         labels.Begin();
-                        pipeline.Draw(painter.Build(current, white, images.Tiles, text => labels.Get(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview), surface);
+                        var paintStart = Stopwatch.GetTimestamp();
+                        var mesh = painter.Build(current, white, images.Tiles, text => labels.Get(text, current.Dpi, pipeline, surface),
+                            text => labels.TryGet(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview);
+                        var submitStart = Stopwatch.GetTimestamp();
+                        pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () => roiPipeline.Draw(current, surface));
+                        profile.Record(current, cpuStart, paintStart, submitStart, Stopwatch.GetTimestamp(), allocationStart, mesh, roiPipeline, labels);
                         labels.End(surface);
+                        if (labels.HasPending) Invalidate();
                     }
                     // A request arriving while an older scene is being painted must not capture that old frame.
                     var request = Volatile.Read(ref captureRequest);
                     var overviewReady = current?.Image is not { } image || (current.IsLive ? images.LiveOverview is not null : images.Tiles.ContainsKey(new(image.Levels - 1, 0, 0)));
-                    var capture = request is not null && (submission?.Version ?? 0) >= request.Version && overviewReady &&
+                    var capture = request is not null && (submission?.Version ?? 0) >= request.Version && overviewReady && !labels.HasPending &&
                         ReferenceEquals(Interlocked.CompareExchange(ref captureRequest, null, request), request) ? request.Path : null;
                     using var readback = capture is null ? null : new FrameReadback(gpu, surface);
                     gpuTimer.End(surface);

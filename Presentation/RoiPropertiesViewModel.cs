@@ -22,7 +22,7 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
         id = editor.State.Selection.Count == 1 ? editor.State.Selection.Single() : null;
         Notify(nameof(HasSingleSelection));
         if (id is not { } value) { Name = X = Y = Width = Height = Angle = ""; RelativeAngle = "—"; return; }
-        var roi = editor.State.Rois[value]; var geometry = roi.Geometry;
+        var roi = editor.State.Rois[value]; var geometry = editor.TranslationPreview?.Geometry(roi) ?? roi.Geometry;
         Name = roi.Name; X = Format(geometry.Center.X); Y = Format(geometry.Center.Y);
         Width = Format(geometry.Width); Height = Format(geometry.Height); Angle = Format(geometry.Angle);
         RelativeAngle = roi.ParentId is { } parent ? Format(RotatedRect.NormalizeAngle(geometry.Angle - editor.State.Rois[parent].Geometry.Angle)) + "°" : "루트 ROI";

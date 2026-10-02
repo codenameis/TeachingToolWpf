@@ -98,9 +98,9 @@ internal sealed class SpritePipeline : IDisposable
         surface.Commands.ResourceBarrierTransition(texture.Resource, ResourceStates.CopyDest, ResourceStates.PixelShaderResource);
         texture.HasPixels = true;
     }
-    public unsafe void Draw(SpriteMesh mesh, Dx12Surface surface)
+    public unsafe void Draw(SpriteMesh mesh, Dx12Surface surface, int middleBatch = -1, Action? middle = null)
     {
-        if (mesh.Vertices.Count == 0) return;
+        if (mesh.Vertices.Count == 0) { middle?.Invoke(); return; }
         var index = surface.FrameIndex;
         var size = checked(mesh.Vertices.Count * 32);
         if (capacities[index] < size)
@@ -113,16 +113,23 @@ internal sealed class SpritePipeline : IDisposable
         CollectionsMarshal.AsSpan(mesh.Vertices).CopyTo(new Span<SpriteVertex>(buffer.Map<SpriteVertex>(0), mesh.Vertices.Count));
         buffer.Unmap(0);
         var commands = surface.Commands;
-        commands.SetDescriptorHeaps(heap);
-        commands.SetGraphicsRootSignature(root); commands.SetPipelineState(pipeline);
-        commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-        commands.IASetVertexBuffers(0, new VertexBufferView(buffer.GPUVirtualAddress, (uint)size, 32));
-        foreach (var batch in mesh.Batches)
+        Bind();
+        for (var i = 0; i < mesh.Batches.Count; i++)
         {
+            if (i == middleBatch) { middle?.Invoke(); Bind(); }
+            var batch = mesh.Batches[i];
             commands.SetGraphicsRootDescriptorTable(0, Gpu(batch.Texture.Slot));
             commands.SetGraphicsRoot32BitConstant(1, batch.Texture.Kind is PixelKind.Gray8 or PixelKind.Gray16 ? 1u : 0u, 0);
             commands.SetGraphicsRoot32BitConstant(1, batch.PointSampling ? 1u : 0u, 1);
             commands.DrawInstanced((uint)batch.Count, 1, (uint)batch.Start, 0);
+        }
+        if (middleBatch == mesh.Batches.Count) middle?.Invoke();
+        void Bind()
+        {
+            commands.SetDescriptorHeaps(heap);
+            commands.SetGraphicsRootSignature(root); commands.SetPipelineState(pipeline);
+            commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+            commands.IASetVertexBuffers(0, new VertexBufferView(buffer.GPUVirtualAddress, (uint)size, 32));
         }
     }
     public void Dispose()

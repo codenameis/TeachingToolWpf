@@ -7,6 +7,41 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class FilterPreviewSessionTests
 {
+    [Fact] public async Task NoOpDragReenablesFilterCommandsAndRegisteredDragKeepsRequestAllocationBounded()
+    {
+        var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100000, 100), ViewportTransform.Identity);
+        editor.AddRange(Enumerable.Range(0, 10000).Select(i => new RotatedRect(new(i * 8 + 10, 30), 5, 5, 0)));
+        editor.Select(editor.State.Rois.Keys); editor.SetFilters(new(RoiFilterKind.Edge));
+        var processor = new Processor(); processor.Release.SetResult();
+        using var model = new FilterPreviewViewModel(processor, editor);
+        editor.Changed += (_, _) => model.Update(editor.State, false, editor.TranslationPreview);
+        model.Update(editor.State, false); await model.WhenIdle;
+        editor.BeginPreview(); editor.PreviewTranslation(new(1, 1));
+        var bytes = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 2; i < 52; i++) editor.PreviewTranslation(new(i, 1));
+        Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - bytes, 0, 1024 * 1024);
+        Assert.False(model.Preview.CanExecute(null)); Assert.False(model.ClearRegistration.CanExecute(null));
+        var ended = 0; model.Preview.CanExecuteChanged += (_, _) => { if (model.Preview.CanExecute(null)) ended++; };
+        editor.PreviewTranslation(default); editor.CommitPreview("이동");
+        Assert.True(ended > 0); Assert.True(model.ClearRegistration.CanExecute(null));
+        await model.WhenIdle;
+        Assert.Equal(editor.State.Rois.Count, model.Result!.Regions.Count);
+        Assert.All(model.Result.Regions, r => Assert.Equal(editor.State.Rois[r.Id].Geometry, r.Geometry));
+    }
+    [Fact] public async Task TranslationPreviewUsesMovedPixelsAndCancelRestoresOriginalRegion()
+    {
+        var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
+        var id = editor.Add(new(new(30, 30), 10, 10, 0)); editor.SetFilters(new(RoiFilterKind.Edge));
+        var processor = new Processor(); processor.Release.SetResult();
+        using var model = new FilterPreviewViewModel(processor, editor); model.Update(editor.State, false); await model.WhenIdle;
+        var before = editor.State.Rois[id].Geometry;
+        editor.BeginPreview(); editor.PreviewTranslation(new(20, 15));
+        model.Update(editor.State, false, editor.TranslationPreview); await model.WhenIdle;
+        Assert.Equal(before.Translate(new(20, 15)), Assert.Single(model.Result!.Regions).Geometry);
+        Assert.Equal(before, editor.State.Rois[id].Geometry);
+        editor.CancelPreview(); model.Update(editor.State, false); await model.WhenIdle;
+        Assert.Equal(before, Assert.Single(model.Result!.Regions).Geometry);
+    }
     [Fact] public async Task NavigationRetainsPreviewAndDoesNotNotifyFilterBindings()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
@@ -64,7 +99,7 @@ public class FilterPreviewSessionTests
         {
             Calls++;
             if (Calls == 1) { Started.SetResult(); await Release.Task; } // Deliberately ignore cancellation like a native operation.
-            return new(request.Rois.Select(r => new FilteredRoi(r.Id, r.Geometry, 1, 1, [255])).ToArray(), 1);
+            return new(request.Rois.Select(r => new FilteredRoi(r.Id, request.Geometry(r), 1, 1, [255])).ToArray(), 1);
         }
     }
     [Fact] public async Task PreviewIsExplicitAndSelectionChangesDiscardStaleNativeResult()

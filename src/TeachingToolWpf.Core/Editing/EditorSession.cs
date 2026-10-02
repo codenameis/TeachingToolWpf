@@ -8,6 +8,8 @@ public sealed class EditorSession
 {
     private readonly EditHistory history = new();
     private DocumentState? previewStart;
+    private RoiTranslationSelection? translationSelection;
+    public RoiTranslationPreview? TranslationPreview { get; private set; }
     private long nextOrder;
     public DocumentState State { get; private set; } = DocumentState.Empty;
     public event EventHandler? Changed;
@@ -97,7 +99,11 @@ public sealed class EditorSession
         foreach (var id in State.Selection) rois[id] = rois[id] with { Filter = settings };
         Commit("ROI 필터 등록", State.WithRois(rois.ToImmutable(), State.Selection), rebuild: false);
     }
-    public void TranslateSelection(PointD delta) => Transform("ROI 이동", r => r.Geometry.Translate(delta));
+    public void TranslateSelection(PointD delta)
+    {
+        var selection = new RoiTranslationSelection(State);
+        Commit("ROI 이동", selection.Apply(selection.Constrain(delta)), rebuild: selection.Affected.Count != State.Rois.Count);
+    }
     public void RotateSelection(double delta, PointD pivot) => Transform("ROI 회전", r => r.Geometry.RotateAround(pivot, delta));
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));
     public void SetGeometry(Guid id, RotatedRect geometry) => Commit("ROI 속성 변경", RoiTransforms.Apply(State, [id], _ => geometry));
@@ -129,6 +135,16 @@ public sealed class EditorSession
     public void Redo() { if (CanRedo) Publish(history.Redo(State)); }
 
     public void BeginPreview() { CancelPreview(); previewStart = State; }
+    public void PreviewTranslation(PointD delta)
+    {
+        if (previewStart is null) throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
+        if (delta == default && translationSelection is null) return;
+        translationSelection ??= new(previewStart);
+        var constrained = translationSelection.Constrain(delta);
+        if (TranslationPreview?.Delta == constrained) return;
+        TranslationPreview = new(translationSelection, constrained);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
     public void PreviewTransform(Func<Roi, RotatedRect> transform)
     {
         if (previewStart is null) throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
@@ -149,17 +165,24 @@ public sealed class EditorSession
     {
         if (previewStart is null) return;
         var before = previewStart;
-        var next = State;
+        var translation = TranslationPreview;
+        var displayedPreview = translation is not null || !ReferenceEquals(State, before);
+        var next = translation is { } translated ? translated.Selection.Apply(translated.Delta) : State;
+        TranslationPreview = null; translationSelection = null;
         previewStart = null;
         State = before;
-        try { Commit(name, next); }
+        try { Commit(name, next, rebuild: translation?.Selection.Affected.Count != before.Rois.Count); }
         catch { Publish(before); throw; }
+        finally { if (displayedPreview && ReferenceEquals(State, before)) Changed?.Invoke(this, EventArgs.Empty); }
     }
     public void CancelPreview()
     {
         if (previewStart is not { } before) return;
+        var translated = TranslationPreview is not null;
+        TranslationPreview = null; translationSelection = null;
         previewStart = null;
         Publish(before);
+        if (translated) Changed?.Invoke(this, EventArgs.Empty);
     }
     private void Commit(string name, DocumentState next, bool rebuild = true, bool replacesImage = false)
     {

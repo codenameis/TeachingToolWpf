@@ -1,0 +1,134 @@
+using System.IO;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using TeachingToolWpf.Core.Geometry;
+using Vortice.Direct3D;
+using Vortice.Direct3D12;
+using Vortice.D3DCompiler;
+using Vortice.DXGI;
+
+namespace TeachingToolWpf.Rendering;
+
+/// <summary>Retained, geometry-only GPU blocks. Navigation changes constants, not instance contents.</summary>
+internal sealed class RoiPipeline : IDisposable
+{
+    private sealed class KeyComparer : IEqualityComparer<(object Identity, int Level)>
+    {
+        public bool Equals((object Identity, int Level) a, (object Identity, int Level) b) => ReferenceEquals(a.Identity, b.Identity) && a.Level == b.Level;
+        public int GetHashCode((object Identity, int Level) key) => HashCode.Combine(RuntimeHelpers.GetHashCode(key.Identity), key.Level);
+    }
+    private sealed record Block(ID3D12Resource Buffer, PointD Origin, int Count, int SourceCount, long AllocationBytes) : IDisposable
+    {
+        public long LastUsed { get; set; }
+        public long Bytes => (long)Count * 32;
+        public long CacheCost => AllocationBytes + (long)SourceCount * 256;
+        public void Dispose() => Buffer.Dispose();
+    }
+    private readonly Dx12Device gpu;
+    private readonly ID3D12RootSignature root;
+    private readonly ID3D12PipelineState pipeline;
+    private readonly FrameUploadArena[] uploads;
+    private readonly Dictionary<(object Identity, int Level), Block> blocks = new(new KeyComparer());
+    private long frame, bytes;
+    public long UploadedBytes { get; private set; }
+    public long InstanceCount { get; private set; }
+    public long CacheBytes => bytes;
+    public RoiPipeline(Dx12Device gpu)
+    {
+        this.gpu = gpu; uploads = [new(gpu), new(gpu)];
+        root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
+            [new(RootParameterType.ShaderResourceView, new RootDescriptor1(0, 0), ShaderVisibility.Vertex),
+             new(new RootConstants(0, 0, 12), ShaderVisibility.All)]));
+        var shader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Shaders", "Roi.hlsl"));
+        pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
+        {
+            RootSignature = root,
+            VertexShader = Compiler.Compile(shader, "VSMain", "Roi.hlsl", "vs_5_1"),
+            PixelShader = Compiler.Compile(shader, "PSMain", "Roi.hlsl", "ps_5_1"),
+            PrimitiveTopologyType = PrimitiveTopologyType.Triangle, RasterizerState = RasterizerDescription.CullNone,
+            BlendState = BlendDescription.NonPremultiplied, DepthStencilState = DepthStencilDescription.None,
+            RenderTargetFormats = [Format.B8G8R8A8_UNorm], SampleDescription = new(1, 0)
+        });
+    }
+    public void Draw(RenderScene scene, Dx12Surface surface)
+    {
+        frame++; UploadedBytes = InstanceCount = 0; uploads[surface.FrameIndex].Reset();
+        var view = scene.Document.Viewport;
+        var a = view.ScreenToImage(new(-8, -8)); var b = view.ScreenToImage(new(scene.Width + 8, scene.Height + 8));
+        var visible = new BoundsD(a.X, a.Y, b.X, b.Y);
+        var level = (int)Math.Floor(Math.Log2(6 / view.Scale));
+        surface.Commands.SetGraphicsRootSignature(root); surface.Commands.SetPipelineState(pipeline);
+        surface.Commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
+        if (scene.Translation is { } translation)
+        {
+            DrawIndex(translation.Selection.Stationary, false, default);
+            if (translation.Selection.Affected.Count != scene.Document.Selection.Count) DrawIndex(translation.Selection.Moving, false, translation.Delta);
+            DrawIndex(scene.Document.SelectedSpatial, true, translation.Delta);
+        }
+        else
+        {
+            if (scene.Document.Selection.Count != scene.Document.Rois.Count) DrawIndex(scene.Document.Snapshot.Spatial, false, default);
+            if (scene.Document.Selection.Count > 0) DrawIndex(scene.Document.SelectedSpatial, true, default);
+        }
+        // Keep recent geometry for pan/zoom/undo, but bound retired and inactive cache growth.
+        if (bytes > 128L * 1024 * 1024)
+            foreach (var pair in blocks.Where(p => p.Value.LastUsed != frame).OrderBy(p => p.Value.LastUsed).ToArray())
+            {
+                if (bytes <= 128L * 1024 * 1024) break;
+                blocks.Remove(pair.Key); bytes -= pair.Value.CacheCost; surface.Retire(pair.Value);
+            }
+        void DrawIndex(RoiSpatialIndex index, bool selected, PointD translation)
+        {
+            var query = new BoundsD(visible.Left - translation.X, visible.Top - translation.Y, visible.Right - translation.X, visible.Bottom - translation.Y);
+            foreach (var region in index.Blocks(query))
+            {
+                var key = (region.Identity, level);
+                if (!blocks.TryGetValue(key, out var block))
+                {
+                    var instances = RoiInstance.Pack(region, Math.Pow(2, level));
+                    block = Upload(region, instances, surface); blocks.Add(key, block); bytes += block.CacheCost;
+                }
+                block.LastUsed = frame; InstanceCount += block.Count;
+                DrawBlock(block, scene, surface, selected ? 3 : 2, new(0, 0, 0, .22f), true, selected, translation);
+                DrawBlock(block, scene, surface, selected ? 1.5f : 1, selected ? new(.22f, .52f, 1, 1) : new(.66f, .73f, .84f, 1), false, selected, translation);
+            }
+        }
+    }
+    private unsafe Block Upload(RoiSpatialBlock region, RoiInstance[] instances, Dx12Surface surface)
+    {
+        var size = checked((ulong)instances.Length * 32);
+        var description = ResourceDescription.Buffer(Math.Max(size, 32));
+        var allocation = gpu.Device.GetResourceAllocationInfo(0, description).SizeInBytes;
+        var buffer = gpu.Device.CreateCommittedResource(HeapType.Default, description, ResourceStates.Common);
+        try
+        {
+            surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.Common, ResourceStates.CopyDest);
+            if (size > 0)
+            {
+                var upload = uploads[surface.FrameIndex].Allocate(size);
+                instances.AsSpan().CopyTo(new Span<RoiInstance>((void*)upload.Pointer, instances.Length));
+                surface.Commands.CopyBufferRegion(buffer, 0, upload.Buffer, upload.Offset, size);
+            }
+            surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
+            UploadedBytes += (long)size;
+            return new(buffer, region.Bounds.Center, instances.Length, region.Count, checked((long)allocation));
+        }
+        catch { buffer.Dispose(); throw; }
+    }
+    private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, float thickness, Vector4 color, bool shadow, bool selected, PointD translation)
+    {
+        var origin = scene.Document.Viewport.ImageToScreen(block.Origin + translation);
+        Span<float> constants = stackalloc float[12] { (float)(2 / scene.Width), (float)(-2 / scene.Height), (float)scene.Document.Viewport.Scale, thickness,
+            (float)origin.X, (float)origin.Y, shadow ? 1 : 0, selected ? 1 : .5f, color.X, color.Y, color.Z, color.W };
+        fixed (float* pointer = constants) surface.Commands.SetGraphicsRoot32BitConstants(1, 12, pointer, 0);
+        surface.Commands.SetGraphicsRootShaderResourceView(0, block.Buffer.GPUVirtualAddress);
+        surface.Commands.DrawInstanced(24, (uint)block.Count, 0, 0);
+    }
+    public void Dispose()
+    {
+        foreach (var block in blocks.Values) block.Dispose();
+        foreach (var upload in uploads) upload.Dispose();
+        pipeline.Dispose(); root.Dispose();
+    }
+}

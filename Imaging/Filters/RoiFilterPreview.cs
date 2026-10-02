@@ -22,13 +22,14 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
             {
                 if (roi.Filter.Kind == RoiFilterKind.None) continue;
                 cancellationToken.ThrowIfCancellationRequested();
-                var scale = Math.Min(1, edge / Math.Max(roi.Geometry.Width, roi.Geometry.Height));
-                var width = Math.Max(1, (int)Math.Floor(roi.Geometry.Width * scale));
-                var height = Math.Max(1, (int)Math.Floor(roi.Geometry.Height * scale));
-                using var pixels = source is not null ? RoiPixelExtractor.FromTiles(source, roi.Geometry, width, height, cancellationToken)
-                    : RoiPixelExtractor.FromFrame(frame!.Pixels, roi.Geometry, width, height);
+                var geometry = request.Geometry(roi);
+                var scale = Math.Min(1, edge / Math.Max(geometry.Width, geometry.Height));
+                var width = Math.Max(1, (int)Math.Floor(geometry.Width * scale));
+                var height = Math.Max(1, (int)Math.Floor(geometry.Height * scale));
+                using var pixels = source is not null ? RoiPixelExtractor.FromTiles(source, geometry, width, height, cancellationToken)
+                    : RoiPixelExtractor.FromFrame(frame!.Pixels, geometry, width, height);
                 var bytes = OpenCvRoiFilter.Apply(pixels, source?.Info.Pixels ?? frame!.Pixels.Kind, roi.Filter);
-                output.Add(new(roi.Id, roi.Geometry, width, height, bytes));
+                output.Add(new(roi.Id, geometry, width, height, bytes));
             }
             cancellationToken.ThrowIfCancellationRequested();
             return new FilterPreviewResult(output, watch.Elapsed.TotalMilliseconds);

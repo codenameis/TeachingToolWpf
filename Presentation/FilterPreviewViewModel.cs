@@ -15,7 +15,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     private readonly IRoiFilterPreview processor;
     private readonly EditorSession editor;
     private DocumentState document = DocumentState.Empty;
-    private bool live, active, busy, disposed, suppressed;
+    private bool live, active, busy, disposed, suppressed, editing;
     private RoiFilterKind selectedFilter;
     private string threshold = "128", edgeLow = "50", edgeHigh = "150", status = "필터를 선택한 뒤 미리보기를 누르세요.";
     private FilterRequest? pending, requested;
@@ -23,6 +23,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     private long revision;
     private Task? pump;
     private FilterPreviewResult? result;
+    private RoiTranslationPreview? translation;
     public IReadOnlyList<FilterOption> Options { get; } = [new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화"), new(RoiFilterKind.Edge, "Edge · Canny")];
     public RoiFilterKind SelectedFilter { get => selectedFilter; set { if (Set(ref selectedFilter, value)) { Notify(nameof(IsBinarize)); Notify(nameof(IsEdge)); DraftChanged(); } } }
     public string Threshold { get => threshold; set { if (Set(ref threshold, value)) DraftChanged(); } }
@@ -30,7 +31,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public string EdgeHigh { get => edgeHigh; set { if (Set(ref edgeHigh, value)) DraftChanged(); } }
     public bool IsBinarize => SelectedFilter == RoiFilterKind.Binarize;
     public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
-    public bool HasMixedFilters => document.Selection.Select(id => document.Rois[id].Filter).Distinct().Skip(1).Any();
+    public bool HasMixedFilters => document.SelectionFacts.HasMixedFilters;
     public bool IsActive { get => active; private set => Set(ref active, value); }
     public bool IsBusy { get => busy; private set => Set(ref busy, value); }
     public string Status { get => status; private set => Set(ref status, value); }
@@ -48,20 +49,22 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         Preview = new(Register, () => SelectedFilter != RoiFilterKind.None && document.Selection.Count > 0 && !editor.IsPreviewing);
         Stop = new(StopPreview, () => IsActive);
         ClearRegistration = new(() => { editor.SetFilters(new(RoiFilterKind.None)); Update(editor.State, live); },
-            () => !editor.IsPreviewing && document.Selection.Any(id => document.Rois[id].Filter.Kind != RoiFilterKind.None));
+            () => !editor.IsPreviewing && !document.SelectionFacts.RegisteredFilters.IsEmpty);
     }
-    public void Update(DocumentState state, bool isLive)
+    public void Update(DocumentState state, bool isLive, RoiTranslationPreview? preview = null)
     {
-        if (ReferenceEquals(document.Rois, state.Rois) && ReferenceEquals(document.Selection, state.Selection) && document.Image == state.Image && live == isLive)
-        { document = state; return; } // View-only navigation cannot change image-local filter pixels.
+        var editingChanged = editing != editor.IsPreviewing; editing = editor.IsPreviewing;
+        if (ReferenceEquals(document.Rois, state.Rois) && ReferenceEquals(document.Selection, state.Selection) && document.Image == state.Image && live == isLive && translation == preview)
+        { document = state; if (editingChanged) RefreshCommands(); return; } // View-only navigation cannot change image-local filter pixels.
         var selectionChanged = document.Image != state.Image || !document.Selection.SetEquals(state.Selection);
-        var settingsChanged = state.Selection.Any(id => !document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
-        document = state; live = isLive;
+        var settingsChanged = !selectionChanged && !ReferenceEquals(document.Rois, state.Rois) &&
+            state.Selection.Any(id => !document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
+        document = state; live = isLive; translation = preview;
         Notify(nameof(HasMixedFilters));
         if (selectionChanged || settingsChanged)
         {
             suppressed = false;
-            var settings = state.Selection.Select(id => state.Rois[id]).OrderBy(r => r.Order).FirstOrDefault()?.Filter ?? new(RoiFilterKind.None);
+            var settings = state.SelectionFacts.First?.Filter ?? new(RoiFilterKind.None);
             Set(ref selectedFilter, settings.Kind, nameof(SelectedFilter));
             Set(ref threshold, settings.Threshold.ToString(CultureInfo.CurrentCulture), nameof(Threshold));
             Set(ref edgeLow, settings.EdgeLow.ToString(CultureInfo.CurrentCulture), nameof(EdgeLow));
@@ -101,7 +104,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     private void Schedule(bool force = false, bool keepVisible = false)
     {
         if (disposed) return;
-        var rois = document.Selection.Select(id => document.Rois[id]).Where(r => r.Filter.Kind != RoiFilterKind.None).OrderBy(r => r.Order).ToArray();
+        var rois = document.SelectionFacts.RegisteredFilters;
         IsActive = !suppressed && document.Image is not null && rois.Length > 0;
         if (!IsActive)
         {
@@ -110,8 +113,9 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         }
         try
         {
-            var next = new FilterRequest(document.Image!, live, rois);
-            if (!force && requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive && old.Rois.SequenceEqual(next.Rois)) return;
+            var next = new FilterRequest(document.Image!, live, rois, translation);
+            if (!force && requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive &&
+                old.Translation == next.Translation && old.Rois.SequenceEqual(next.Rois)) return;
             pending = requested = next; revision++; cancellation?.Cancel();
             if (!keepVisible) { ClearResult(); Status = "선택 영역을 처리하고 있습니다…"; }
             if (pump is null || pump.IsCompleted) pump = RunAsync();
