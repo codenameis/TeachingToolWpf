@@ -21,7 +21,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private object? rowVersion;
     private System.Collections.Immutable.ImmutableDictionary<Guid, Roi>? rowRois;
     private RoiRows rows = new([]);
-    private const int RowPageSize = 512;
+    // Small documents keep the virtualized list stable; paging bounds WPF's unresolved multi-selection scan at scale.
+    private int RowPageSize => Rows.Count <= 4096 ? 4096 : 512;
     private int rowPage;
     private RoiRows visibleRows = new([]);
     private object? rowSelection;

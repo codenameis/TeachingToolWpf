@@ -14,7 +14,7 @@ internal static class InspectorSmokeScenario
     public static void Run(Window window, EditorViewModel model)
     {
         var editor = model.Session;
-        editor.AddRange(Enumerable.Range(0, 600).Select(i => new RotatedRect(new(50 + i % 30 * 100, 50 + i / 30 * 100), 30, 30, 0)));
+        editor.AddRange(Enumerable.Range(0, 4600).Select(i => new RotatedRect(new(50 + i % 80 * 80, 50 + i / 80 * 80), 30, 30, 0)));
         var rois = editor.State.Rois.Values.OrderBy(r => r.Order).ToArray();
         editor.Select([rois[0].Id]);
         model.NextRowPage.Execute(null);

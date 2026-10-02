@@ -37,7 +37,9 @@ internal sealed class RoiListBinding : IDisposable
         try
         {
             if (!ReferenceEquals(list.ItemsSource, model.VisibleRows)) list.ItemsSource = model.VisibleRows;
-            list.ApplySelection(model.VisibleRows.Where(row => selected.Contains(row.Id)));
+            list.ApplySelection(selected.Count < model.VisibleRows.Count
+                ? selected.Select(model.VisibleRows.Find).OfType<RoiRow>()
+                : model.VisibleRows.Where(row => selected.Contains(row.Id)));
             previousSelection = selected;
         }
         finally { synchronizing = false; }
