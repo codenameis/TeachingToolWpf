@@ -15,6 +15,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private readonly List<RelayCommand> syncCommands = [];
     private readonly List<AsyncCommand> asyncCommands = [];
     private readonly RoiClipboard clipboard = new();
+    private CancellationTokenSource? pasteCancellation;
+    public Task PasteCompletion { get; private set; } = Task.CompletedTask;
     private readonly System.Windows.Threading.DispatcherTimer filterTimer;
     private string status = "이미지를 준비하고 있습니다…", gpuStatus = "DX12 초기화 중…", zoomText = "100";
     private bool pointSampling;
@@ -64,7 +66,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public bool IsSelect => Input.Tool == EditorTool.Select;
     public bool IsPan => Input.Tool == EditorTool.Pan;
     public bool IsDraw => Input.Tool == EditorTool.Draw;
-    public bool CanEdit => !Images.IsBusy;
+    public bool CanEdit => !Images.IsBusy && pasteCancellation is null;
     public bool PointSampling { get => pointSampling; set { if (Set(ref pointSampling, value)) Publish(); } }
     public string UndoHint => Session.CanUndo ? $"실행 취소: {Session.UndoName} (Ctrl+Z)" : "취소할 편집이 없습니다.";
     public string RedoHint => Session.CanRedo ? $"다시 실행: {Session.RedoName} (Ctrl+Y)" : "다시 실행할 편집이 없습니다.";
@@ -83,7 +85,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public RelayCommand Down { get; }
     public RelayCommand Delete { get; }
     public RelayCommand Copy { get; }
-    public RelayCommand Paste { get; }
+    public AsyncCommand Paste { get; }
     public RelayCommand Group { get; }
     public RelayCommand Ungroup { get; }
     public RelayCommand ResetAngle { get; }
@@ -119,7 +121,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         Left = Command(() => Pan(100, 0)); Right = Command(() => Pan(-100, 0)); Up = Command(() => Pan(0, 100)); Down = Command(() => Pan(0, -100));
         Delete = Command(Session.DeleteSelection, HasSelection);
         Copy = Command(() => { var count = clipboard.Copy(Session.State); Status = $"ROI {count}개 복사 · Ctrl+V로 붙여넣기"; RefreshCommands(); }, HasSelection);
-        Paste = Command(() => { Session.Paste(clipboard); SetTool(EditorTool.Select); Status = "ROI를 붙여넣었습니다. Ctrl+Z로 한 번에 취소할 수 있습니다."; }, () => HasImage() && clipboard.HasContent);
+        Paste = Async(() => PasteCompletion = PasteAsync(), () => HasImage() && clipboard.HasContent);
         Group = Command(() =>
         {
             var before = Session.State.Selection.Count;
@@ -146,6 +148,19 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         viewport.LayoutChanged += Publish;
     }
     public Task InitializeAsync() => LoadSampleAsync(8192, 8192);
+    private async Task PasteAsync()
+    {
+        using var cancellation = new CancellationTokenSource(); pasteCancellation = cancellation;
+        Status = $"ROI {clipboard.Count:N0}개 붙여넣기 준비 중… Esc로 취소"; Refresh();
+        try
+        {
+            if (clipboard.Count <= 256) Session.Paste(clipboard);
+            else await Session.PasteAsync(clipboard, cancellation.Token);
+            SetTool(EditorTool.Select); Status = "ROI를 붙여넣었습니다. Ctrl+Z로 한 번에 취소할 수 있습니다.";
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { Status = "붙여넣기를 취소했습니다."; }
+        finally { pasteCancellation = null; Refresh(); }
+    }
     private async Task HistoryAsync(bool redo)
     {
         var target = redo ? Session.PreviewRedo() : Session.PreviewUndo();
@@ -241,7 +256,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public void SelectRows(IEnumerable<Guid> ids) { if (CanEdit && !Input.IsDragging) Session.Select(ids); }
     public bool HandleKey(Key key, bool control, bool shift)
     {
-        if (key == Key.Escape) { Input.Cancel(); Images.Cancel(); return true; }
+        if (key == Key.Escape) { Input.Cancel(); Images.Cancel(); pasteCancellation?.Cancel(); return true; }
         ICommand? command = (control, shift, key) switch
         {
             (true, false, Key.Z) => Undo, (true, _, Key.Y) or (true, true, Key.Z) => Redo,
@@ -261,6 +276,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     }
     public void Dispose()
     {
+        pasteCancellation?.Cancel();
         filterTimer.Stop(); Filters.Changed -= Publish; Filters.Dispose();
         Live.Dispose(); Live.Changed -= Refresh; Images.Dispose(); viewport.LayoutChanged -= Publish; Session.Changed -= SessionChanged; Input.Changed -= InputChanged; Images.Changed -= Refresh;
     }

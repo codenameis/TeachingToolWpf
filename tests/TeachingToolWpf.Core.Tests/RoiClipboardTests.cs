@@ -65,4 +65,17 @@ public class RoiClipboardTests
         editor.Redo(); Assert.True(editor.State.Selection.SetEquals(pasted.Selection));
         Assert.All(pasted.Rois, pair => Assert.Equal(pair.Value, editor.State.Rois[pair.Key]));
     }
+    [Fact] public async Task AsyncPasteHasOneUndoAndCancelledPastePreservesRedo()
+    {
+        var editor = Create(); editor.AddRange(Enumerable.Repeat(new RotatedRect(new(200, 200), 30, 30, 0), 300));
+        editor.Select(editor.State.Rois.Keys); var original = editor.State;
+        var clipboard = new RoiClipboard(); clipboard.Copy(original);
+        await editor.PasteAsync(clipboard); Assert.Equal(600, editor.State.Rois.Count);
+        editor.Undo(); Assert.Equal(300, editor.State.Rois.Count); Assert.True(editor.CanRedo);
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        var before = editor.State;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => editor.PasteAsync(clipboard, cancellation.Token));
+        Assert.Same(before, editor.State); Assert.True(editor.CanRedo);
+        editor.Redo(); Assert.Equal(600, editor.State.Rois.Count);
+    }
 }

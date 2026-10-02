@@ -9,6 +9,7 @@ public sealed class RoiClipboard
     private ImmutableArray<Roi> entries = [];
     private int pastes;
     public bool HasContent => !entries.IsEmpty;
+    public int Count => entries.Length;
     public int Copy(DocumentState state)
     {
         var ids = RoiHierarchy.Subtree(state, RoiHierarchy.EffectiveRoots(state));

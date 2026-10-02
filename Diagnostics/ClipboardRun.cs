@@ -35,15 +35,26 @@ internal static class ClipboardRun
                 async Task Measure(string name, Action action)
                 {
                     stage = name; Save(); var start = Stopwatch.GetTimestamp();
-                    action(); window.UpdateLayout();
-                    timings.Add(new { name, milliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds, count = model.RoiCount, selected = model.Session.State.Selection.Count });
+                    action(); var dispatchMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+                    await model.PasteCompletion; window.UpdateLayout();
+                    timings.Add(new { name, dispatchMs, milliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds, count = model.RoiCount, selected = model.Session.State.Selection.Count });
                     Save(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); await Task.Delay(100);
                 }
+                var count = args.Contains("--clipboard-repeat") ? 300 : 7000;
                 await Measure("create", () => model.Session.AddRange(layout == "overlap"
-                    ? Enumerable.Repeat(new RotatedRect(new(4096, 4096), 100, 100, 0), 7000)
-                    : RoiInteractionRun.Fixture(7000, layout == "pcb")));
+                    ? Enumerable.Repeat(new RotatedRect(new(4096, 4096), 100, 100, 0), count)
+                    : RoiInteractionRun.Fixture(count, layout == "pcb")));
+                while (count < 7000)
+                {
+                    await Measure($"select-{count}", () => { model.Input.Down(new(0, 0)); model.Input.Move(new(viewport.ViewWidth, viewport.ViewHeight)); model.Input.Up(new(viewport.ViewWidth, viewport.ViewHeight)); });
+                    if (model.Session.State.Selection.Count != count) throw new InvalidOperationException("Repeated marquee selection mismatch.");
+                    await Measure($"copy-{count}", () => model.HandleKey(Key.C, true, false));
+                    await Measure($"paste-{count}", () => model.HandleKey(Key.V, true, false));
+                    count *= 2;
+                    if (model.RoiCount != count) throw new InvalidOperationException("Repeated paste mismatch: " + model.Status);
+                }
                 await Measure("marquee", () => { model.Input.Down(new(0, 0)); model.Input.Move(new(viewport.ViewWidth, viewport.ViewHeight)); model.Input.Up(new(viewport.ViewWidth, viewport.ViewHeight)); });
-                if (model.Session.State.Selection.Count != 7000) throw new InvalidOperationException("Marquee did not select all 7000 ROIs.");
+                if (model.Session.State.Selection.Count != count) throw new InvalidOperationException("Marquee did not select every ROI.");
                 await Measure("copy", () => model.HandleKey(Key.C, true, false));
                 if (args.Contains("--clipboard-filter"))
                 {
@@ -54,13 +65,15 @@ internal static class ClipboardRun
                     model.HandleKey(Key.C, true, false);
                 }
                 var original = model.Session.State;
+                await Measure("cancel-paste", () => { model.HandleKey(Key.V, true, false); model.HandleKey(Key.Escape, false, false); });
+                if (!ReferenceEquals(original.Rois, model.Session.State.Rois) || !model.CanEdit) throw new InvalidOperationException("Cancelled paste changed the document or left editing disabled.");
                 await Measure("paste", () => model.HandleKey(Key.V, true, false));
-                if (model.RoiCount != 14000) throw new InvalidOperationException("Paste failed: " + model.Status);
+                if (model.RoiCount != count * 2) throw new InvalidOperationException("Paste failed: " + model.Status);
                 var pasted = model.Session.State;
                 await Measure("undo", model.Session.Undo);
-                if (model.RoiCount != 7000 || !model.Session.State.Selection.SetEquals(original.Selection)) throw new InvalidOperationException("Undo mismatch.");
+                if (model.RoiCount != count || !model.Session.State.Selection.SetEquals(original.Selection)) throw new InvalidOperationException("Undo mismatch.");
                 await Measure("redo", model.Session.Redo);
-                if (model.RoiCount != 14000 || pasted.Rois.Any(pair => model.Session.State.Rois[pair.Key] != pair.Value)) throw new InvalidOperationException("Redo mismatch.");
+                if (model.RoiCount != count * 2 || pasted.Rois.Any(pair => model.Session.State.Rois[pair.Key] != pair.Value)) throw new InvalidOperationException("Redo mismatch.");
                 await Measure("pan", () => model.Session.SetViewport(model.Session.State.Viewport.Pan(new(10, 10))));
                 await model.Filters.WhenIdle;
                 if (renderError is not null) throw new InvalidOperationException(renderError);

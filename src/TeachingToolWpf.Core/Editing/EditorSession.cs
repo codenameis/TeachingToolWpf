@@ -46,17 +46,23 @@ public sealed class EditorSession
     {
         if (!clipboard.HasContent || State.Image is null) return;
         var templates = clipboard.Place(State.Image, new(20 / State.Viewport.Scale, 20 / State.Viewport.Scale));
-        var ids = templates.ToDictionary(r => r.Id, _ => Guid.NewGuid());
-        var rois = State.Rois.ToBuilder();
-        var roots = ImmutableHashSet.CreateBuilder<Guid>();
-        foreach (var template in templates)
-        {
-            var id = ids[template.Id];
-            if (template.ParentId is not { } parent || !ids.ContainsKey(parent)) roots.Add(id);
-            rois.Add(id, template with { Id = id, ParentId = null, Order = ++nextOrder,
-                Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사" });
-        }
-        Commit("ROI 붙여넣기", State.WithRois(rois.ToImmutable(), ids.Values) with { Selection = roots.ToImmutable() });
+        Commit("ROI 붙여넣기", RoiPaste.Prepare(State, templates, nextOrder, CancellationToken.None), rebuild: false);
+        nextOrder += templates.Length;
+        clipboard.Pasted();
+    }
+    public async Task PasteAsync(RoiClipboard clipboard, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!clipboard.HasContent || State.Image is null) return;
+        var before = State; var order = nextOrder;
+        var templates = clipboard.Place(before.Image, new(20 / before.Viewport.Scale, 20 / before.Viewport.Scale));
+        var prepared = await Task.Run(() => RoiPaste.Prepare(before, templates, order, token), token);
+        token.ThrowIfCancellationRequested();
+        if (!ReferenceEquals(State.Rois, before.Rois) || State.Image != before.Image || nextOrder != order)
+            throw new InvalidOperationException("붙여넣기 준비 중 문서가 변경되었습니다. 다시 시도하세요.");
+        // The caller's synchronization context owns commit. Navigation may continue during preparation.
+        Commit("ROI 붙여넣기", prepared with { Viewport = State.Viewport }, rebuild: false);
+        nextOrder += templates.Length;
         clipboard.Pasted();
     }
     public void SetViewport(ViewportTransform view) => Publish(State with { Viewport = view });
