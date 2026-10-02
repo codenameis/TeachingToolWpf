@@ -1,5 +1,28 @@
 # 구현 품질 검토
 
+## 수백만 PCB ROI 후속 검토
+
+2026-10-02. [ADR-006](decisions/0006-large-roi-interaction.md)에 따라 원칙을 유지하면서 순회·할당·색인 재구축을 줄였다.
+
+| 원칙 | 이번 변경의 검토 근거 |
+|---|---|
+| SRP | `RoiSnapshot`은 파생 색인, `RoiVisibility`는 화면 후보, `RoiRows`는 UI 목록, `ValueTextBox`는 값 표시/편집 수명만 담당 |
+| OCP | 라벨 Strategy 계약을 바꾸지 않았고 속성 컨트롤은 기존 WPF TextBox 계약과 MVVM 값 바인딩으로 확장 |
+| LSP | BVH를 전수 회전 포함과 비교하고 이전 스냅샷 조회도 검증. Value 패턴은 실제 값과 읽기 전용/disabled 계약을 유지 |
+| ISP | Core 색인에 UI/GPU 메서드를 추가하지 않음. 목록 페이지 선택 의도만 작은 이벤트로 전달 |
+| DIP | Core 외부 의존성 없음. `IViewportSurface`·`ITextRasterizer`·필터 계약 유지, 새 외부 패키지 없음 |
+| Information Expert | bounds·공간 탐색은 기하 색인, 부모 영향 집합은 계층, 목록 인덱스/페이지는 UI 표현 책임 |
+| Creator | 문서가 변경 ID와 불변 색인 스냅샷 생성, 목록이 자신의 페이지 복사본 생성 |
+| Controller | 포인터·목록·키보드 모두 `EditorSession` 선택/편집을 호출. 속성 Apply/Undo 경로 유지 |
+| Low Coupling | UI 전용 가변 행 캐시는 렌더로 전달하지 않음. 렌더는 불변 문서·색인만 소비 |
+| High Cohesion | 전체 계층 재구축을 선택 이벤트에서 분리. 표시 요약은 도메인 형상이나 편집 규칙을 변경하지 않음 |
+| Polymorphism | 기존 제스처·소스·라벨 계약 유지. 성능 개선 명목으로 사용처 없는 범용 플러그인 추가 없음 |
+| Pure Fabrication | 파생 색인·목록 캐시·표시 후보 캐시를 별도 책임으로 분리 |
+| Indirection | Win32/WPF 입력 경계가 선택 의도를 전달하고 색인은 GPU와 독립적으로 검증 |
+| Protected Variations | WPF의 unresolved 항목 순회·TSF 지연을 UI 어댑터 안에서 해결. DX12/필터/카메라 계약 유지 |
+
+검토에서 Lazy 팩터리 체인의 메모리 보존, 페이지 밖 선택 잔존, pan에 따른 페이지 되돌림을 수정했다. 큰 이동 변이를 기존 테스트가 놓쳐 회귀 검증을 보강하고 반전 조건이 실패함을 확인했다. 캐시 평가 전후의 문서 동등성·해시도 검증한다. 성능 원칙 예외, 전역 강제 GC, 비활성화된 Undo, 무시하는 예외는 없다. 세부 실측과 미검증 조건은 [성능 보고서](roi-scalability.md)를 따른다.
+
 2026-10-02. 샘플 소스의 책임, 소유권, 오류/취소, 이력, 실제 GPU 경로를 검토했다. 원칙의 성능 예외를 적용하거나 승인받은 기록은 없다. 아래는 현재 구현의 근거이며 추후 변경의 자동 준수를 보장하는 선언은 아니다.
 
 | SOLID | 구현 근거 |

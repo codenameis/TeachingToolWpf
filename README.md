@@ -64,7 +64,7 @@ OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255�
 
 부모 이동·회전은 자손에게 적용합니다. 부모 resize는 자식의 크기와 상대 위치를 유지하고, 부모 중심이 이동한 만큼 자식도 이동합니다. 편집 확정 후 포함에서 벗어나면 유효 부모 또는 루트로 재배치합니다. 그룹화는 실제 새 부모 사각형을 만들며, 선택하지 않은 ROI까지 포함되면 기존 포함 규칙이 적용됩니다.
 
-각 편집/드래그는 하나의 이력입니다. 이름, 그룹, 연쇄 삭제, 이미지 교체까지 복원합니다. 이력은 최대 200개·추정 64 MiB이며 ROI 변경 값과 이미지 참조만 보관합니다. 이미지 Undo 시 원본 파일이 삭제되거나 변경되었으면 현재 문서와 이력을 유지하고 오류를 표시합니다. 단순 선택·zoom/pan·라이브 프레임 도착은 이력에 넣지 않습니다.
+각 편집/드래그는 하나의 이력입니다. 이름, 그룹, 연쇄 삭제, 이미지 교체까지 복원합니다. 이력은 최대 200개·추정 1 GiB이며 ROI 변경 값과 이미지 참조만 보관합니다. 이미지 Undo 시 원본 파일이 삭제되거나 변경되었으면 현재 문서와 이력을 유지하고 오류를 표시합니다. 단순 선택·zoom/pan·라이브 프레임 도착은 이력에 넣지 않습니다.
 
 ## 8K 실시간과 대용량 이미지
 
@@ -95,12 +95,16 @@ OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255�
 
 ## 검증과 재현
 
+대량 ROI에서는 왼쪽 목록은 4,096개까지 한 가상화 목록으로, 그 이상은 512개씩 표시합니다. 캔버스에서 하나를 새로 선택하면 해당 페이지로 이동합니다. 목록 페이지 이동은 전체 선택을 보존하며, 일반 클릭으로 선택을 교체하고 Ctrl로 추가/해제합니다. 축소 화면의 매우 작은 ROI 집합은 요약 표시되고 확대하면 개별 윤곽이 나타납니다. 이름·숫자 필드는 클릭/Tab으로 그대로 편집할 수 있습니다. 실제 100만·200만 ROI 조건과 초기 구축 비용은 [대량 ROI 성능](docs/roi-scalability.md)을 참고하세요.
+
 ```powershell
 dotnet test .\tests\TeachingToolWpf.Core.Tests -c Release --no-restore
 dotnet test .\tests\TeachingToolWpf.Imaging.Tests -c Release --no-restore
 .\artifacts\publish\TeachingToolWpf.exe --smoke --gpu-debug
 .\artifacts\publish\TeachingToolWpf.exe --benchmark --format Bgra32 --rois 500 --seconds 70 --metrics artifacts\benchmark.csv
 .\artifacts\publish\TeachingToolWpf.exe --large-image --gpu-debug
+.\artifacts\publish\TeachingToolWpf.exe --roi-benchmark --roi-counts 3550 --roi-samples 50 --roi-distributed --roi-report artifacts\roi.json --metrics artifacts\roi-frames.csv
+.\artifacts\publish\TeachingToolWpf.exe --roi-benchmark --roi-counts 2000000 --roi-samples 30 --roi-distributed --roi-single-batch --roi-detail --roi-report artifacts\roi-detail.json
 .\artifacts\publish\TeachingToolWpf.exe --memory-check --gpu-debug --memory-cycles 300 --memory-report artifacts\memory-replacement.json --metrics artifacts\memory-replacement-frames.csv
 dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artifacts\core.json
 ```
