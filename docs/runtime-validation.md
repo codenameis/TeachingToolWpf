@@ -1,5 +1,14 @@
 # 실행 검증 · 2026-10-02
 
+## ROI별 필터 등록·복제·반복 교체 후속
+
+- Core 44개, Imaging 26개 자동 검증 통과. 필터 등록/해제 Undo, 재선택 자동 표시, ROI별 다른 임계값, 혼합 설정 해제, 자손 포함 복제·작은 이미지 보정·새 ID와 붙여넣기 Undo/Redo를 검사했다.
+- 실제 RTX/DX12 debug smoke에서 Ctrl+C/Ctrl+V에 대응하는 ViewModel 키 명령, HWND Del 메시지, 연쇄 삭제/붙여넣기 Undo, 원본/미등록/등록 ROI 필터와 이미지 교체·라이브 갱신을 확인했다.
+- 실제 WPF 필터 입력의 `2 → 20 → 200` 중간 문자열이 문서에 기록되지 않으며 바인딩 확정 뒤 한 번의 Undo로 기존 임계값이 복원되는지 검사했다. 포커스 상실 때 확정하는 바인딩도 단언했다.
+- 같은 8K RGBA / 24K Gray16 파일을 수정 전 120회, 수정 후 120회 및 600회 교체했다. 오류 없이 완료했으며 마지막 600회 시험에서 Private Bytes 약 307.48 MiB, 관리 힙 22.89 MiB, 핸들 1295였다. 지속 누수 징후를 발견하지 못했다. [조건·범위](memory-replacement-validation.md)를 따른다.
+
+새 기능은 실제 Windows/GPU 앱의 자동 smoke로 확인했다. 이번 변경의 전체 버튼/텍스트 단축키를 물리 입력으로 다시 수행한 E2E 시험은 하지 않았다. 아래 실제 포인터 관찰은 이전 변경 시점의 기록이며, 현재 필터 선택 동작은 [ADR-005](decisions/0005-filter-registration-and-roi-copy.md)를 따른다.
+
 ## 후속 수정과 실제 포인터 검증
 
 기존 `STATIC` 자식 창은 `SS_NOTIFY` 없이 `WM_NCHITTEST`에 HTTRANSPARENT를 반환해 실제 포인터를 받지 못했다. 직접 SendMessage를 보내는 이전 smoke만으로 이 문제를 발견하지 못했다. 전용 Win32 자식 창으로 교체했고 HTCLIENT 회귀 검사를 추가했다. 이전 기록의 “native input”은 직접 메시지 전달 시험이며 실제 마우스 E2E와 구분한다.
@@ -13,7 +22,7 @@
 - ROI 목록에서 다른 ROI 선택: 이전 영역은 원본, 새 선택에 필터 자동 적용. Edge 선택 시 Canny 결과로 자동 변경.
 - 8K → 24K 샘플 버튼: ROI 2개에서 0개, 필터 결과 제거. Undo 버튼으로 8K 이미지와 ROI 2개 및 선택 복원.
 
-OpenCV 테스트는 Gray8/Gray16/RGBA/BGRA의 입력 불변성·이진화·Canny, 회전 90°의 실제 픽셀 위치, 프레임 lease 유지, 24K 회전 영역의 제한된 출력, 선택 경쟁·취소 후 늦은 결과 폐기를 검사한다. 전체 테스트는 Core 36 + Imaging 22 = 58개다. 화면에서 관찰한 정적 ROI 처리 시간 약 16–38ms는 개별 관찰값이며 성능 보장이나 정식 반복 벤치마크가 아니다.
+OpenCV 테스트는 Gray8/Gray16/RGBA/BGRA의 입력 불변성·이진화·Canny, 회전 90°의 실제 픽셀 위치, 프레임 lease 유지, 24K 회전 영역의 제한된 출력, 선택 경쟁·취소 후 늦은 결과 폐기를 검사한다. 당시 전체 테스트는 Core 36 + Imaging 22 = 58개였다. 화면에서 관찰한 정적 ROI 처리 시간 약 16–38ms는 개별 관찰값이며 성능 보장이나 정식 반복 벤치마크가 아니다.
 
 `FilterSmokeScenario`는 다중 선택 필터, 소스 교체 초기화/Undo, 7680×4320 라이브 경계와 ROI 초기화, 라이브 필터 갱신을 추가 확인한다. `filter-smoke.png`는 앱 자체 DX12 readback 결과다. 최근 ROI/미리보기 변경으로 기존 8K 성능 수치를 재측정한 것으로 표현하지 않는다.
 
@@ -22,8 +31,8 @@ OpenCV 테스트는 Gray8/Gray16/RGBA/BGRA의 입력 불변성·이진화·Canny
 | 검증 | 결과 / 범위 |
 |---|---|
 | Release 솔루션 빌드 | 경고 0, 오류 0 |
-| Core xUnit | 36 passed / 0 failed / 0 skipped |
-| Imaging xUnit | 22 passed / 0 failed / 0 skipped |
+| Core xUnit | 44 passed / 0 failed / 0 skipped |
+| Imaging xUnit | 26 passed / 0 failed / 0 skipped |
 | 실제 WPF/DX12 smoke | 종료 코드 0, RTX 3060 Laptop, debug layer 활성 |
 | 최종 publish 폴더 실행 | 동일 smoke 종료 코드 0; 네이티브 DLL/셰이더 로딩 확인 |
 | DX12 진단 | smoke 로그에 warning/error/corruption 메시지 없음 |

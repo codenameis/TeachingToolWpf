@@ -63,3 +63,26 @@
 - GRASP: Information Expert·Controller는 생성 성공을 아는 `DrawGesture`와 도구를 소유한 `InteractionController`에 전환을 둔다. Creator는 기존 `EditorSession.Add`를 그대로 사용한다. Low Coupling·High Cohesion은 UI와 편집 규칙의 분리를 유지한다. Polymorphism은 기존 제스처 계약을 사용한다. Pure Fabrication·Indirection·Protected Variations는 이력 서비스와 HWND 입력 어댑터를 변경하지 않아 생성/선택 규칙이 외부 API와 분리된다.
 
 State 패턴의 전환 보정이며 별도 모드/전역 상태/추상화를 추가하지 않았다. 성능상 원칙 예외는 없다. 회귀 검증은 자동 도구 전환, 떨어진 ROI 선택, 선택 시 형상/이력 보존, Undo/Redo, R로 다시 그린 자식의 계층, 취소/빈 드래그를 포함한다.
+
+## 필터 등록·복사·메모리 후속 검토
+
+| 원칙 | 이번 변경의 근거 |
+|---|---|
+| SRP | ROI 설정 값, 복사 스냅샷, 미리보기 요청 조율, OpenCV 연산과 메모리 진단을 별도 책임으로 유지 |
+| OCP | 필터 처리는 기존 `IRoiFilterPreview` 구현에 맡기고 Core에 네이티브 분기를 추가하지 않음 |
+| LSP | 지연 fake와 실제 처리기의 취소/입력 보존/ROI별 설정 계약, `ITileSource` 종료 소유권을 검사 |
+| ISP | 클립보드에 이미지 소스/렌더 메서드를 요구하지 않으며 기존 작은 처리 계약 유지 |
+| DIP | Core의 `FilterSettings`는 값 타입 계약이며 OpenCV/WPF 참조 없음. 앱 조립 지점에서 처리기 주입 |
+| Information Expert | ROI가 필터 설정을 보관하고 복사 집합을 가진 클립보드가 배치를 계산. 최종 포함은 기존 계층 책임 사용 |
+| Creator | 새 ID·순서·이력은 EditorSession이 생성. 클립보드는 원본 GPU/이미지 자원을 복제하지 않음 |
+| Controller | 버튼/키보드가 같은 Copy/Paste/Delete 응용 명령을 사용하고 필터 등록은 EditorSession에 위임 |
+| Low Coupling | 파생 픽셀과 등록 설정을 분리하여 이력에 Mat/텍스처/작업 Task가 들어가지 않음 |
+| High Cohesion | 필터 선택 동기화는 FilterPreviewViewModel, 복사 값/배치는 RoiClipboard, 진단은 Diagnostics에 배치 |
+| Polymorphism | 기존 처리/소스 계약의 실제 구현과 검증용 구현을 사용. 클립보드에는 불필요한 대체 계층을 만들지 않음 |
+| Pure Fabrication | 클립보드와 메모리 진단을 도메인 ROI 데이터에서 분리 |
+| Indirection | UI 명령과 EditorSession/처리 어댑터 사이의 기존 경계 유지 |
+| Protected Variations | 필터 엔진/렌더러의 수명이 ROI 복제·설정 이력 형식을 침범하지 않음 |
+
+MVVM과 Command/Memento를 재사용하고 클립보드는 값 스냅샷으로 구현했다. 별도 글로벌 서비스나 OS 클립보드 프로토콜은 추가하지 않았다. 독립 리뷰에서 발견한 숫자 한 글자마다 쌓이는 Undo와 혼합 선택의 등록 해제 경로를 각각 LostFocus 확정/명시적 해제 명령으로 보완했다.
+
+회귀 시험의 유효성은 등록 ROI만 고르는 조건을 일시 반전했을 때 재선택 테스트가 실패함을 확인한 뒤 원복/재실행했다. 원칙 예외와 검증 완화는 없다. 메모리 측정에서는 지속 누수 원인을 찾지 못했으며, 진단 시점 외에 강제 GC를 도입하지 않았다. 실제 Windows/GPU 검증과 미검증 범위는 [실행 검증](runtime-validation.md), 측정은 [메모리 검증](memory-replacement-validation.md)을 따른다.

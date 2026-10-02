@@ -20,6 +20,8 @@ internal static class ImageReplacementRun
         window.ShowInTaskbar = false; window.Left = -10000; window.Top = -10000;
         var args = Environment.GetCommandLineArgs();
         var reportIndex = Array.IndexOf(args, "--memory-report");
+        var cyclesIndex = Array.IndexOf(args, "--memory-cycles");
+        var cycles = cyclesIndex >= 0 ? int.Parse(args[cyclesIndex + 1]) : 60;
         var report = Path.GetFullPath(reportIndex >= 0 ? args[reportIndex + 1] : "artifacts/memory-replacement.json");
         var samples = new List<Sample>();
         var rendererMessages = new List<string>();
@@ -31,7 +33,7 @@ internal static class ImageReplacementRun
             {
                 var sources = await Task.Run(CreateFixtures);
                 await model.InitializeAsync();
-                for (var cycle = 1; cycle <= 60; cycle++)
+                for (var cycle = 1; cycle <= cycles; cycle++)
                 {
                     foreach (var reference in sources)
                     {

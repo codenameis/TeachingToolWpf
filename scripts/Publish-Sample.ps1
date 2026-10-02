@@ -16,7 +16,7 @@ try {
                 Copy-Item -Destination $destination
         }
     }
-    foreach ($name in @('core-baseline.json','core-optimized.json','large-image-results.json','smoke.log','app-smoke.png','viewport-smoke.png','live-smoke.png','filter-smoke.png')) {
+    foreach ($name in @('core-baseline.json','core-optimized.json','large-image-results.json','memory-before.json','memory-after.json','memory-long.json','smoke.log','app-smoke.png','viewport-smoke.png','live-smoke.png','filter-smoke.png')) {
         $sourceFile = Join-Path 'artifacts' $name
         if (Test-Path -LiteralPath $sourceFile) { Copy-Item -LiteralPath $sourceFile -Destination $evidenceRoot }
     }

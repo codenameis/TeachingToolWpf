@@ -5,6 +5,7 @@
 - 확정 요건: 클린 코드·디자인 패턴·SOLID·GRASP 준수, 원칙의 성능 예외는 사용자 사전 승인, Undo/Redo 필수, 부모 삭제 시 전체 자손 연쇄 삭제.
 - 추가 확정: 뷰포트 밖 수동 조작 버튼 제공. 그룹화는 선택 ROI들을 감싸는 새 부모 ROI 생성.
 - 2026-10-02 후속: 이미지 교체 시 ROI 초기화/Undo 복원, 이미지 경계 제한, Figma/Fluent 방향 선택 표시, OpenCV Binarize/Canny ROI 미리보기. 상세 계약은 [ADR-004](../docs/decisions/0004-roi-bounds-and-filter-preview.md)를 따른다. 아래 초기 UX 초안과 충돌하면 이 후속 계약이 우선한다.
+- 같은 날 추가 요구: ROI별 필터 등록과 재선택 자동 표시, 자손/필터를 포함하는 복사·붙여넣기와 Del, 실제 8K/24K 이미지 반복 교체 메모리 시험. 최신 동작은 [ADR-005](../docs/decisions/0005-filter-registration-and-roi-copy.md), 측정은 [메모리 검증](../docs/memory-replacement-validation.md)을 따른다. ROI 미등록 상태는 명시적 미리보기로 등록하고 등록 이후에는 선택 시 자동 표시한다.
 - 지침: [AGENTS.md](../AGENTS.md)
 - 작업 목록: [todo.md](todo.md). 완료 여부는 이 목록 한 곳에서 관리한다.
 

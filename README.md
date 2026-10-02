@@ -35,12 +35,15 @@ dotnet run --project .\TeachingToolWpf.csproj -c Release --no-build
 | 각도 초기화 | 0° 초기화(0). 이미지 기준 절대 각도 |
 | 그룹화 | 2개 이상의 독립 ROI 선택 → 부모로 그룹화(Ctrl+G) |
 | 그룹 해제 | 생성된 그룹 부모 선택 → 그룹 해제(Ctrl+Shift+G). 자식은 보존 |
+| 복사 / 붙여넣기 | 왼쪽 복사 / 붙여넣기 버튼, Ctrl+C / Ctrl+V. 선택 ROI와 자손·필터 설정을 함께 복제 |
 | 삭제 | 삭제(Delete). 부모를 삭제하면 모든 자손도 삭제 |
 | Undo / Redo | 상단 버튼, Ctrl+Z / Ctrl+Y 또는 Ctrl+Shift+Z |
 | 편집 취소 | Esc 또는 포인터 캡처 상실. 진행 중 드래그만 취소 |
 | 정밀 이동 | 선택 후 방향키 1 이미지 px, Shift+방향키 10px |
 
 선택은 얇은 파란 윤곽·흰색 사각 핸들·원형 회전 핸들·각도 배지로 표시합니다. 확대율과 무관한 DIP 크기를 사용합니다. 왼쪽 목록에서도 다중 선택할 수 있습니다. 완전히 포함된 ROI만 자식이 되고 가장 작은 유효 부모를 찾습니다. 부모 이름표에 직접 자식 개수가 표시됩니다. 겹치는 태그는 일부 생략하지만 전체 이름은 목록에 남습니다.
+
+복사본은 새 ID를 가지며 붙여넣기마다 화면 기준 20 DIP씩 옮깁니다. 이미지 경계에서는 이동을 제한하고, 더 작은 이미지로 붙여넣으면 전체 복사 집합을 균일 축소합니다. 부모 관계는 기존 완전 포함 규칙으로 다시 계산하므로 원본 ROI와 겹치면 기존 ROI도 부모 후보가 됩니다. 앱 내부 클립보드를 사용하며 앱 종료 시 비워집니다. 이름·숫자 입력칸에서는 Ctrl+C/Ctrl+V/Del이 텍스트 편집으로 동작합니다.
 
 **이미지 교체에 성공하면 ROI와 선택이 초기화됩니다.** Undo로 이전 이미지·ROI·선택·뷰를 함께 복원할 수 있습니다. ROI 그리기가 이미지 밖으로 나가면 이미지와 겹치는 크기만 생성합니다. 이동·크기·회전·수치 편집도 이미지 경계에서 제한하며, 여러 ROI는 함께 가능한 범위까지만 움직입니다.
 
@@ -50,9 +53,12 @@ dotnet run --project .\TeachingToolWpf.csproj -c Release --no-build
 
 1. ROI를 하나 이상 선택합니다.
 2. 오른쪽 **ROI 필터**에서 **Binarize · 이진화** 또는 **Edge · Canny**를 선택하고 임계값을 입력합니다.
-3. **미리보기**를 누르면 선택한 ROI 내부에만 필터 결과를 표시합니다. 회전한 ROI도 해당 영역에 맞춰 표시합니다.
-4. 미리보기 중 다른 ROI 선택, 이동/회전/크기 변경, 필터·임계값 변경은 자동 갱신합니다. 다중 선택도 지원합니다.
-5. **원본 보기** 또는 **없음 · 원본**으로 종료합니다. 원본 파일과 Undo 이력은 필터로 변경하지 않습니다.
+3. **미리보기**를 누르면 선택 ROI에 설정을 등록하고 해당 영역에만 결과를 표시합니다. 회전한 ROI도 해당 영역에 맞춰 표시합니다.
+4. **등록된 ROI는 다시 선택하면 자동으로 필터를 표시합니다.** 미등록 ROI는 원본을 표시합니다. 다중 선택은 ROI마다 저장된 설정을 사용하며, 서로 다른 설정이면 안내 문구를 표시합니다.
+5. 미리보기 중 이동/회전/크기·필터 변경을 자동 반영합니다. 임계값은 입력칸을 벗어나면 확정하며 한 번의 Undo로 되돌립니다. 다중 선택에서 설정을 수정하면 선택 전체에 같은 설정을 등록합니다.
+6. **원본 보기**는 설정을 유지한 채 현재 표시만 끕니다. 다른 ROI를 선택했다가 돌아오면 다시 표시합니다. **등록 해제**는 선택 전체의 설정을 지웁니다. **없음 · 원본**도 설정을 해제합니다.
+
+필터 등록·변경·해제는 Undo/Redo 대상이며 복사·붙여넣기와 삭제/이미지 교체 Undo에서도 복원됩니다. 계산된 미리보기 픽셀은 이력에 저장하지 않으며 원본 파일을 변경하지 않습니다. 설정은 현재 문서 안에서 유지되며 파일로 레시피를 저장하는 기능은 아직 없습니다.
 
 OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255이며 Gray16은 0–65535를 0–255로 매핑합니다. 컬러는 회색조 변환 후 처리합니다. 대용량에서는 필요한 타일만 읽고, ROI당 긴 축 최대 **1,024px**, 선택 전체 약 **4Mpx** 범위의 미리보기로 계산합니다. 축소된 Edge 결과는 원본 해상도 검사 결과와 다를 수 있습니다. 라이브 필터는 최신 프레임으로 최대 **초당 5회** 갱신하며 처리 중 요청을 쌓지 않습니다. 라이브 영상 자체의 표시 주기와는 별개입니다.
 
@@ -95,9 +101,12 @@ dotnet test .\tests\TeachingToolWpf.Imaging.Tests -c Release --no-restore
 .\artifacts\publish\TeachingToolWpf.exe --smoke --gpu-debug
 .\artifacts\publish\TeachingToolWpf.exe --benchmark --format Bgra32 --rois 500 --seconds 70 --metrics artifacts\benchmark.csv
 .\artifacts\publish\TeachingToolWpf.exe --large-image --gpu-debug
+.\artifacts\publish\TeachingToolWpf.exe --memory-check --gpu-debug --memory-cycles 300 --memory-report artifacts\memory-replacement.json --metrics artifacts\memory-replacement-frames.csv
 dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artifacts\core.json
 ```
 
 진단 실행은 화면 밖 테스트 창을 사용하고 종료 후 `artifacts`에 결과를 남깁니다. `--gpu-debug`는 Windows Graphics Tools가 설치되어 있으면 DX12 debug layer를 켭니다. 벤치마크는 10초 워밍업 후 60초 구간을 비교합니다. `--large-image`는 디스크 캐시를 약 12 GiB 생성하므로 여유 공간을 확보하세요. 성능 목표를 측정 결과와 혼동하지 않도록 [실측 보고서](docs/performance-baseline.md)와 [검증 범위](docs/runtime-validation.md)를 함께 보세요.
+
+`--memory-check`는 8K RGBA PNG와 24K Gray16 TIFF를 번갈아 열고 매번 ROI 필터를 처리합니다. 300주기는 이미지 600회 교체이며, 이번 측정 약 219초 동안 지속 증가하는 누수 징후를 발견하지 못했습니다. 조건·수치·미검증 범위는 [이미지 교체 메모리 검증](docs/memory-replacement-validation.md)을 참고하세요.
 
 미검증/후속 항목은 혼합 DPI 모니터 이동, 실제 장치 제거, 실제 카메라·촬영 파일, 8192² 실시간, 장시간 부하, 분수 배율 타일 gutter입니다. ROI 저장/불러오기, 타원/다각형, 다중 ROI 일괄 resize는 이번 샘플에 포함하지 않았습니다. [품질 검토](docs/quality-review.md), [설계 결정](docs/decisions/0003-implementation-and-measured-optimization.md), [의존성 고지](THIRD-PARTY-NOTICES.md)를 참고하세요.

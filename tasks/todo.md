@@ -2,11 +2,11 @@
 
 ## 2026-10-02 필터 등록·복제·메모리 후속
 
-- [ ] M1: 실제 8K RGBA / 24K Gray16 파일을 각 60회 교체하는 메모리 진단과 수정 전 기준 측정. Private Bytes/managed heap/handles/이력 크기 및 DX12 오류 기록.
-- [ ] F1: 필터 설정을 ROI 값으로 저장하고 Undo/Redo에 포함. 등록된 ROI 재선택 시 자동 표시, 미등록 ROI는 원본, 다중 선택은 각각의 설정 적용.
-- [ ] C1: 부모/자손 포함 복사·붙여넣기, 새 ID·이미지 경계·이력 원자성, 버튼/Ctrl+C/Ctrl+V/Del 및 텍스트 편집 단축키 보존.
-- [ ] M2: 같은 조건으로 재측정, 누수 발견 시 원인 수정과 회귀 검증. 캐시·이력의 제한된 보유량과 지속 증가를 구분.
-- [ ] 문서·설계 원칙 검토, Release/자동 테스트/실제 GPU 검증.
+- [x] M1: 실제 8K RGBA / 24K Gray16 파일을 각 60회 교체하는 메모리 진단과 수정 전 기준 측정. Private Bytes/managed heap/handles/이력 크기 및 DX12 오류 기록.
+- [x] F1: 필터 설정을 ROI 값으로 저장하고 Undo/Redo에 포함. 등록된 ROI 재선택 시 자동 표시, 미등록 ROI는 원본, 다중 선택은 각각의 설정 적용. 숫자는 LostFocus 확정, 혼합 선택 등록 해제 지원.
+- [x] C1: 부모/자손 포함 복사·붙여넣기, 새 ID·이미지 경계·이력 원자성, 버튼/Ctrl+C/Ctrl+V/Del 및 텍스트 편집 단축키 보존. Core와 실제 WPF/DX12 명령·HWND 메시지 smoke 검증.
+- [x] M2: 같은 조건 120회 및 600회 교체 재측정. 지속 누수 징후 미관찰. 타일 큐 backpressure/100회 소스 교체의 정확히 한 번 해제 회귀 검증. 상세 수치와 한계는 [메모리 보고서](../docs/memory-replacement-validation.md).
+- [x] 문서·설계 원칙 14개 검토, Release 경고/오류 0, Core 44 + Imaging 26 통과, 최종 publish DX12 debug smoke 종료 코드 0. 물리 입력 전체 E2E 및 10분 이상 부하는 미검증으로 유지.
 
 기준: [구현 계획](plan.md), [작업 지침](../AGENTS.md). 상태: 2026-10-02 샘플 기능 구현 및 실제 RTX 검증. 체크된 항목만 해당 수용 범위 검증을 완료했고, 남은 항목은 아래에 구체적으로 기록한다. 실행/제약은 [README](../README.md), 근거는 [런타임 검증](../docs/runtime-validation.md)과 [성능 기록](../docs/performance-baseline.md)을 따른다.
 
