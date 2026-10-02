@@ -5,5 +5,5 @@ namespace TeachingToolWpf.Views;
 public partial class RoiPanel : UserControl
 {
     public RoiPanel() => InitializeComponent();
-    public ListBox List => RoiList;
+    public Controls.RoiListBox List => RoiList;
 }

@@ -18,10 +18,19 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private readonly System.Windows.Threading.DispatcherTimer filterTimer;
     private string status = "이미지를 준비하고 있습니다…", gpuStatus = "DX12 초기화 중…", zoomText = "100";
     private bool pointSampling;
-    private DocumentState? previous;
-    private IReadOnlyList<RoiRow> rows = [];
-    private IReadOnlyDictionary<Guid, RoiRow> rowsById = new Dictionary<Guid, RoiRow>();
-    public RoiRow? FindRow(Guid id) => rowsById.GetValueOrDefault(id);
+    private object? rowVersion;
+    private System.Collections.Immutable.ImmutableDictionary<Guid, Roi>? rowRois;
+    private RoiRows rows = new([]);
+    private const int RowPageSize = 512;
+    private int rowPage;
+    private RoiRows visibleRows = new([]);
+    private object? rowSelection;
+    public RoiRows VisibleRows => visibleRows;
+    public string RowPageLabel => $"{rowPage + 1:N0} / {Math.Max(1, (Rows.Count + RowPageSize - 1) / RowPageSize):N0} 페이지";
+    public event Action? RowPageChanged;
+    public RelayCommand PreviousRowPage { get; }
+    public RelayCommand NextRowPage { get; }
+    public RoiRow? FindRow(Guid id) => Rows.Find(id);
     public EditorSession Session { get; } = new();
     public InteractionController Input { get; }
     public ImageCoordinator Images { get; }
@@ -32,7 +41,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public AsyncCommand StartLive { get; }
     public AsyncCommand StopLive { get; }
     public RoiPropertiesViewModel Properties { get; }
-    public IReadOnlyList<RoiRow> Rows { get => rows; private set => Set(ref rows, value); }
+    public RoiRows Rows { get => rows; private set => Set(ref rows, value); }
     public string Status { get => status; set => Set(ref status, value); }
     public string GpuStatus { get => gpuStatus; set => Set(ref gpuStatus, value); }
     public string ZoomText { get => zoomText; set => Set(ref zoomText, value); }
@@ -100,6 +109,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         filterTimer = new(TimeSpan.FromMilliseconds(200), System.Windows.Threading.DispatcherPriority.Background,
             (_, _) => { if (Live.IsRunning) Filters.RefreshLiveFrame(); }, System.Windows.Threading.Dispatcher.CurrentDispatcher);
         Input = new(Session); Images = new(Session, viewport, loader, Live.CloseAsync); Properties = new(Session);
+        PreviousRowPage = Command(() => ChangeRowPage(rowPage - 1), () => rowPage > 0);
+        NextRowPage = Command(() => ChangeRowPage(rowPage + 1), () => (rowPage + 1) * RowPageSize < Rows.Count);
         SelectTool = Command(() => SetTool(EditorTool.Select)); PanTool = Command(() => SetTool(EditorTool.Pan)); DrawTool = Command(() => SetTool(EditorTool.Draw), HasImage);
         AddRoi = Command(AddRoiInView, HasImage);
         ZoomIn = Command(() => Zoom(1.25), HasImage); ZoomOut = Command(() => Zoom(.8), HasImage);
@@ -114,7 +125,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
             var id = Session.GroupSelection();
             var count = RoiHierarchy.Subtree(Session.State, [id]).Count - 1;
             Status = $"새 부모를 만들었습니다. 포함 ROI {count}개 · 선택 {before}개";
-        }, () => RoiHierarchy.EffectiveRoots(Session.State).Count() >= 2);
+        }, () => RoiHierarchy.EffectiveRoots(Session.State).Skip(1).Any());
         Ungroup = Command(Session.UngroupSelection, () => Session.State.Selection.Any(id => Session.State.Rois[id].IsGroup));
         ResetAngle = Command(Session.ResetAngles, HasSelection);
         RotateLeft = Command(() => Rotate(-15), HasSelection); RotateRight = Command(() => Rotate(15), HasSelection);
@@ -166,15 +177,25 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private void SessionChanged(object? sender, EventArgs e)
     {
         var state = Session.State;
-        if (!Session.IsPreviewing && !ReferenceEquals(previous?.Rois, state.Rois) &&
-            (previous is null || previous.Rois.Count != state.Rois.Count || state.Rois.Values.Any(r => !previous.Rois.TryGetValue(r.Id, out var old) || old.ParentId != r.ParentId || old.Name != r.Name)))
+        if (!Session.IsPreviewing && !ReferenceEquals(rowVersion, state.Snapshot.RowVersion))
         {
-            Rows = RoiRow.Build(state);
-            rowsById = Rows.ToDictionary(row => row.Id);
+            if (!Rows.TryRefreshMetadata(rowRois, state)) Rows = new(RoiRow.Build(state));
+            rowVersion = state.Snapshot.RowVersion;
+            ChangeRowPage(Math.Min(rowPage, Math.Max(0, (Rows.Count - 1) / RowPageSize)), force: true);
         }
-        previous = state;
+        if (!ReferenceEquals(rowSelection, state.Selection) && state.Selection.Count == 1 && Rows.IndexOf(state.Selection.First()) is var index && index >= 0)
+            ChangeRowPage(index / RowPageSize);
+        rowSelection = state.Selection;
+        if (!Session.IsPreviewing) rowRois = state.Rois;
         Properties.Refresh(); ZoomText = (state.Viewport.Scale * viewport.Dpi * 100).ToString("0.##");
         Refresh();
+    }
+    private void ChangeRowPage(int page, bool force = false)
+    {
+        if (!force && page == rowPage) return;
+        rowPage = page; visibleRows = Rows.Page(page, RowPageSize);
+        Notify(nameof(VisibleRows)); Notify(nameof(RowPageLabel));
+        RowPageChanged?.Invoke(); RefreshCommands();
     }
     private void Refresh()
     {
