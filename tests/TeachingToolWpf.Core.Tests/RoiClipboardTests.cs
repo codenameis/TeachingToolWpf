@@ -47,4 +47,22 @@ public class RoiClipboardTests
         Assert.Equal(new PointD(20, 20), second.Geometry.Center - first.Geometry.Center);
         Assert.NotEqual(first.Id, second.Id);
     }
+    [Fact] public void BulkOverlappingPastePreservesValuesAndAtomicHistory()
+    {
+        var editor = Create();
+        editor.AddRange(Enumerable.Repeat(new RotatedRect(new(200, 200), 100, 100, 0), 7000));
+        editor.Select(editor.State.Rois.Keys);
+        var original = editor.State;
+        var clipboard = new RoiClipboard(); Assert.Equal(7000, clipboard.Copy(original));
+        editor.Paste(clipboard);
+        var pasted = editor.State;
+        Assert.Equal(14000, pasted.Rois.Count); Assert.Equal(7000, pasted.Selection.Count);
+        Assert.All(pasted.Rois.Values, roi => Assert.Null(roi.ParentId));
+        Assert.All(original.Rois, pair => Assert.Equal(pair.Value, pasted.Rois[pair.Key]));
+        Assert.Empty(original.Selection.Intersect(pasted.Selection));
+        editor.Undo(); Assert.True(editor.State.Selection.SetEquals(original.Selection));
+        Assert.Equal(7000, editor.State.Rois.Count);
+        editor.Redo(); Assert.True(editor.State.Selection.SetEquals(pasted.Selection));
+        Assert.All(pasted.Rois, pair => Assert.Equal(pair.Value, editor.State.Rois[pair.Key]));
+    }
 }

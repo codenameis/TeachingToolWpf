@@ -1,4 +1,5 @@
 using TeachingToolWpf.Core.Imaging;
+using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Filters;
 
 namespace TeachingToolWpf.Rendering;
@@ -7,20 +8,22 @@ namespace TeachingToolWpf.Rendering;
 internal sealed class GpuFilterPreview : IDisposable
 {
     private FilterPreviewResult? identity;
-    private readonly List<(FilteredRoi Region, GpuTexture Texture)> regions = [];
-    public IReadOnlyList<(FilteredRoi Region, GpuTexture Texture)> Regions => regions;
+    private readonly List<GpuTexture> textures = [];
+    private (FilteredRoi Region, GpuTexture Texture, BoundsD Uv)[] regions = [];
+    public IReadOnlyList<(FilteredRoi Region, GpuTexture Texture, BoundsD Uv)> Regions => regions;
     public void Update(FilterPreviewResult? preview, SpritePipeline pipeline, Dx12Surface surface)
     {
         if (ReferenceEquals(identity, preview)) return;
-        foreach (var item in regions) surface.Retire(item.Texture);
-        regions.Clear(); identity = preview;
+        foreach (var texture in textures) surface.Retire(texture);
+        textures.Clear(); regions = []; identity = preview;
         if (preview is null) return;
-        foreach (var region in preview.Regions)
+        regions = new (FilteredRoi, GpuTexture, BoundsD)[preview.Regions.Count];
+        foreach (var page in FilterAtlas.Pack(preview.Regions))
         {
-            using var pixels = new PixelBuffer(region.Width, region.Height, PixelKind.Gray8);
-            region.Gray8.CopyTo(pixels.Span);
-            regions.Add((region, pipeline.Upload(pixels, surface)));
+            using var pixels = page.Pixels();
+            var texture = pipeline.Upload(pixels, surface); textures.Add(texture);
+            foreach (var p in page.Regions) regions[p.Index] = (p.Region, texture, page.Uv(p));
         }
     }
-    public void Dispose() { foreach (var item in regions) item.Texture.Dispose(); regions.Clear(); }
+    public void Dispose() { foreach (var texture in textures) texture.Dispose(); textures.Clear(); regions = []; }
 }

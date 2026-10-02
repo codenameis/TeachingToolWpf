@@ -7,6 +7,16 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class FilterPreviewSessionTests
 {
+    [Fact] public async Task NavigationRetainsPreviewAndDoesNotNotifyFilterBindings()
+    {
+        var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
+        editor.Add(new(new(30, 30), 10, 10, 0)); editor.SetFilters(new(RoiFilterKind.Edge));
+        var processor = new Processor(); processor.Release.SetResult();
+        using var model = new FilterPreviewViewModel(processor, editor); model.Update(editor.State, false); await model.WhenIdle;
+        var result = model.Result; var notifications = 0; model.PropertyChanged += (_, _) => notifications++;
+        editor.SetViewport(editor.State.Viewport.Pan(new(20, 0))); model.Update(editor.State, false); await model.WhenIdle;
+        Assert.Same(result, model.Result); Assert.Equal(1, processor.Calls); Assert.Equal(0, notifications);
+    }
     [Fact] public async Task MixedSelectionCanClearAllRegistrationsEvenWhenFirstRoiHasNone()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);

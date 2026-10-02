@@ -10,12 +10,14 @@ public static class RoiHierarchy
         if (!ReferenceEquals(next.Snapshot.PreviousRois, before.Rois)) return next with { Rois = Rebuild(next.Rois) };
         var changed = next.Snapshot.ChangedIds.ToHashSet();
         var index = next.Snapshot.Spatial;
-        var affected = new HashSet<Guid>(changed);
-        var allChanged = changed.Count >= next.Rois.Count && next.Rois.Keys.All(changed.Contains);
+        // A bulk paste can overlap every existing ROI. Querying descendants once per added
+        // ROI then becomes quadratic; a single full parent pass uses the same exact rule.
+        var evaluateAll = changed.Count > 64 && changed.Count > next.Rois.Count / 8;
+        var affected = evaluateAll ? new HashSet<Guid>(next.Rois.Keys) : new HashSet<Guid>(changed);
         foreach (var id in changed)
         {
+            if (evaluateAll) break;
             foreach (var child in before.Snapshot.Children.GetValueOrDefault(id, [])) affected.Add(child);
-            if (allChanged) continue;
             if (!next.Rois.TryGetValue(id, out var roi)) continue;
             if (before.Rois.TryGetValue(id, out var old) && old.Geometry == roi.Geometry) continue;
             foreach (var child in index.Intersecting(roi.Geometry.Bounds))

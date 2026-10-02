@@ -52,6 +52,8 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     }
     public void Update(DocumentState state, bool isLive)
     {
+        if (ReferenceEquals(document.Rois, state.Rois) && ReferenceEquals(document.Selection, state.Selection) && document.Image == state.Image && live == isLive)
+        { document = state; return; } // View-only navigation cannot change image-local filter pixels.
         var selectionChanged = document.Image != state.Image || !document.Selection.SetEquals(state.Selection);
         var settingsChanged = state.Selection.Any(id => !document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
         document = state; live = isLive;

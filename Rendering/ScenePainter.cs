@@ -36,10 +36,10 @@ internal sealed class ScenePainter
                 mesh.Rectangle(texture, new(a.X, a.Y, b.X, b.Y), Vector4.One, scene.PointSampling);
             }
         }
-        foreach (var (region, texture) in filters.Regions)
+        foreach (var (region, texture, uv) in filters.Regions)
         {
             var corners = region.Geometry.Corners.Select(view.ImageToScreen).ToArray();
-            mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true);
+            mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true, uv);
         }
         visible.Update(scene.Document.Snapshot.Spatial, view, scene.Width, scene.Height);
         selectedVisible.Update(scene.Document.SelectedSpatial, view, scene.Width, scene.Height);

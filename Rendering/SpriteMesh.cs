@@ -15,11 +15,12 @@ internal sealed class SpriteMesh
     private double width, height;
     public void Begin(double width, double height) { this.width = width; this.height = height; Vertices.Clear(); Batches.Clear(); }
     private Vector2 Ndc(PointD point) => new((float)(point.X * 2 / width - 1), (float)(1 - point.Y * 2 / height));
-    public void Quad(GpuTexture texture, PointD a, PointD b, PointD c, PointD d, Vector4 color, bool pointSampling = false)
+    public void Quad(GpuTexture texture, PointD a, PointD b, PointD c, PointD d, Vector4 color, bool pointSampling = false, BoundsD? uv = null)
     {
         var start = Vertices.Count;
-        var v0 = new SpriteVertex(Ndc(a), new(0, 0), color); var v1 = new SpriteVertex(Ndc(b), new(1, 0), color);
-        var v2 = new SpriteVertex(Ndc(c), new(1, 1), color); var v3 = new SpriteVertex(Ndc(d), new(0, 1), color);
+        var t = uv ?? new BoundsD(0, 0, 1, 1);
+        var v0 = new SpriteVertex(Ndc(a), new((float)t.Left, (float)t.Top), color); var v1 = new SpriteVertex(Ndc(b), new((float)t.Right, (float)t.Top), color);
+        var v2 = new SpriteVertex(Ndc(c), new((float)t.Right, (float)t.Bottom), color); var v3 = new SpriteVertex(Ndc(d), new((float)t.Left, (float)t.Bottom), color);
         Vertices.Add(v0); Vertices.Add(v1); Vertices.Add(v2); Vertices.Add(v0); Vertices.Add(v2); Vertices.Add(v3);
         if (Batches.Count > 0 && Batches[^1].Texture == texture && Batches[^1].PointSampling == pointSampling)
             Batches[^1] = Batches[^1] with { Count = Batches[^1].Count + 6 };
