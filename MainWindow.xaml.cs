@@ -32,7 +32,8 @@ namespace TeachingToolWpf
                 if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase || args.OriginalSource is TextBox) return;
                 args.Handled = model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             };
-            if (memoryCheck) Diagnostics.ImageReplacementRun.Attach(this, Viewport, model);
+            if (Environment.GetCommandLineArgs().Contains("--roi-benchmark")) Diagnostics.RoiInteractionRun.Attach(this, Viewport, model);
+            else if (memoryCheck) Diagnostics.ImageReplacementRun.Attach(this, Viewport, model);
             else if (largeImage) Diagnostics.LargeImageRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--benchmark")) Diagnostics.BenchmarkRun.Attach(this, Viewport, model);
             else if (smoke) Diagnostics.RenderSmoke.Attach(this, Viewport, model);
