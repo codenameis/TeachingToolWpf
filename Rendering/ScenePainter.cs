@@ -44,17 +44,22 @@ internal sealed class ScenePainter
         }
         RoiBatchBoundary = mesh.Split();
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
-            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Corners.Select(view.ImageToScreen).ToArray(), 1, Accent);
+        {
+            var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
+            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Corners.Select(view.ImageToScreen).ToArray(),
+                style.StrokeThickness(true), style.SelectedColor);
+        }
         if (scene.Document.Selection.Count == 1)
         {
             var roi = scene.Document.Rois[scene.Document.Selection.Single()];
+            var color = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, roi.Id)).SelectedColor;
             var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
             var points = geometry.Corners.Select(view.ImageToScreen).ToArray();
-            foreach (var point in HandleGeometry.ResizeHandles(geometry, view)) Handle(white, point, 6, Accent);
+            foreach (var point in HandleGeometry.ResizeHandles(geometry, view)) Handle(white, point, 6, color);
             var top = (points[0] + points[1]) / 2;
             var rotation = HandleGeometry.RotationHandle(geometry, view);
-            mesh.Line(white, top, rotation, 1, Accent);
-            RotationHandle(white, rotation);
+            mesh.Line(white, top, rotation, 1, color);
+            RotationHandle(white, rotation, color);
         }
         if (scene.Document.Selection.Count > 1)
         {
@@ -64,9 +69,10 @@ internal sealed class ScenePainter
             mesh.Outline(white, corners, 1, Accent);
             var top = (corners[0] + corners[1]) / 2;
             var rotation = top + transform.ApplyVector(new PointD(0, -28));
-            mesh.Line(white, top, rotation, 1, Accent); RotationHandle(white, rotation);
+            mesh.Line(white, top, rotation, 1, Accent); RotationHandle(white, rotation, Accent);
         }
-        if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.Corners.Select(view.ImageToScreen).ToArray(), 1.5, Accent);
+        if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.Corners.Select(view.ImageToScreen).ToArray(),
+            scene.RoiStyles.Default.StrokeThickness(true), scene.RoiStyles.Default.SelectedColor);
         if (scene.Overlay.Marquee is { } selection)
         {
             mesh.Rectangle(white, selection, Accent with { W = .08f });
@@ -91,9 +97,9 @@ internal sealed class ScenePainter
         mesh.Rectangle(white, new(point.X - size / 2 - 1, point.Y - size / 2 - 1, point.X + size / 2 + 1, point.Y + size / 2 + 1), color);
         mesh.Rectangle(white, new(point.X - size / 2, point.Y - size / 2, point.X + size / 2, point.Y + size / 2), Vector4.One);
     }
-    private void RotationHandle(GpuTexture white, PointD point)
+    private void RotationHandle(GpuTexture white, PointD point, Vector4 color)
     {
-        mesh.Circle(white, point, 5, Accent);
+        mesh.Circle(white, point, 5, color);
         mesh.Circle(white, point, 3.5, Vector4.One);
     }
 }

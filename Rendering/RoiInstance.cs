@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
 
 namespace TeachingToolWpf.Rendering;
@@ -25,5 +26,36 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
         }
         return result.ToArray();
     }
+    public static uint[] ResolveRoles(RoiSpatialBlock block, double aggregateSize, DocumentState document)
+    {
+        var result = new List<uint>(); var unique = new Dictionary<RotatedRect, int>();
+        // Match Pack's first-occurrence order exactly, including neutral summary slots.
+        foreach (var item in block.Detail(aggregateSize))
+        {
+            if (item.Roi is not { } roi) { result.Add((uint)RoiRole.Default); continue; }
+            var role = (uint)RoiStyleRoles.Resolve(document, roi.Id);
+            if (unique.TryGetValue(roi.Geometry, out var index)) result[index] = Math.Max(result[index], role);
+            else { unique.Add(roi.Geometry, result.Count); result.Add(role); }
+        }
+        return result.ToArray();
+    }
     private static Vector2 Vector(PointD point) => new((float)point.X, (float)point.Y);
+}
+
+/// <summary>Hierarchy metadata changes independently of retained geometry and palette constants.</summary>
+internal sealed class RoiRoleCache
+{
+    private object? hierarchyVersion;
+    public uint[] Values { get; private set; } = [];
+    public bool Refresh(RoiSpatialBlock block, double aggregateSize, DocumentState document, int instanceCount)
+    {
+        var version = document.Snapshot.Children;
+        if (ReferenceEquals(hierarchyVersion, version)) return false;
+        var next = RoiInstance.ResolveRoles(block, aggregateSize, document);
+        if (next.Length != instanceCount) throw new InvalidOperationException("ROI 역할과 형상 인스턴스 개수가 다릅니다.");
+        hierarchyVersion = version;
+        if (Values.AsSpan().SequenceEqual(next)) return false;
+        Values = next;
+        return true;
+    }
 }

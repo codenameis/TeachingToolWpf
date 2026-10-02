@@ -10,7 +10,7 @@ using Vortice.DXGI;
 
 namespace TeachingToolWpf.Rendering;
 
-/// <summary>Retained, geometry-only GPU blocks. Navigation changes constants, not instance contents.</summary>
+/// <summary>Retained geometry with independently updated role slots. Palette/navigation change draw constants.</summary>
 internal sealed class RoiPipeline : IDisposable
 {
     private sealed class KeyComparer : IEqualityComparer<(object Identity, int Level)>
@@ -18,11 +18,11 @@ internal sealed class RoiPipeline : IDisposable
         public bool Equals((object Identity, int Level) a, (object Identity, int Level) b) => ReferenceEquals(a.Identity, b.Identity) && a.Level == b.Level;
         public int GetHashCode((object Identity, int Level) key) => HashCode.Combine(RuntimeHelpers.GetHashCode(key.Identity), key.Level);
     }
-    private sealed record Block(ID3D12Resource Buffer, PointD Origin, int Count, int SourceCount, long AllocationBytes) : IDisposable
+    private sealed record Block(ID3D12Resource Buffer, PointD Origin, int Count, int SourceCount, long AllocationBytes, RoiRoleCache Roles) : IDisposable
     {
         public long LastUsed { get; set; }
-        public long Bytes => (long)Count * 32;
-        public long CacheCost => AllocationBytes + (long)SourceCount * 256;
+        public ulong RoleOffset => (ulong)Count * 32;
+        public long CacheCost => AllocationBytes + (long)SourceCount * 256 + (long)Count * 4;
         public void Dispose() => Buffer.Dispose();
     }
     private readonly Dx12Device gpu;
@@ -39,7 +39,8 @@ internal sealed class RoiPipeline : IDisposable
         this.gpu = gpu; uploads = [new(gpu), new(gpu)];
         root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
             [new(RootParameterType.ShaderResourceView, new RootDescriptor1(0, 0), ShaderVisibility.Vertex),
-             new(new RootConstants(0, 0, 16), ShaderVisibility.All)]));
+             new(new RootConstants(0, 0, 32), ShaderVisibility.All),
+             new(RootParameterType.ShaderResourceView, new RootDescriptor1(1, 0), ShaderVisibility.Vertex)]));
         var shader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Shaders", "Roi.hlsl"));
         pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
         {
@@ -87,18 +88,21 @@ internal sealed class RoiPipeline : IDisposable
                 if (!blocks.TryGetValue(key, out var block))
                 {
                     var instances = RoiInstance.Pack(region, Math.Pow(2, level));
-                    block = Upload(region, instances, surface); blocks.Add(key, block); bytes += block.CacheCost;
+                    var roles = new RoiRoleCache(); roles.Refresh(region, Math.Pow(2, level), scene.Document, instances.Length);
+                    block = Upload(region, instances, roles, surface); blocks.Add(key, block); bytes += block.CacheCost;
                 }
+                else if (block.Roles.Refresh(region, Math.Pow(2, level), scene.Document, block.Count)) UploadRoles(block, surface);
                 block.LastUsed = frame; InstanceCount += block.Count;
-                DrawBlock(block, scene, surface, selected ? 3 : 2, new(0, 0, 0, .22f), true, selected, transform);
-                DrawBlock(block, scene, surface, selected ? 1.5f : 1, selected ? new(.22f, .52f, 1, 1) : new(.66f, .73f, .84f, 1), false, selected, transform);
+                DrawBlock(block, scene, surface, true, selected, transform);
+                DrawBlock(block, scene, surface, false, selected, transform);
             }
         }
     }
-    private unsafe Block Upload(RoiSpatialBlock region, RoiInstance[] instances, Dx12Surface surface)
+    private unsafe Block Upload(RoiSpatialBlock region, RoiInstance[] instances, RoiRoleCache roles, Dx12Surface surface)
     {
         var size = checked((ulong)instances.Length * 32);
-        var description = ResourceDescription.Buffer(Math.Max(size, 32));
+        var roleSize = checked((ulong)roles.Values.Length * 4);
+        var description = ResourceDescription.Buffer(Math.Max(size + roleSize, 32));
         var allocation = gpu.Device.GetResourceAllocationInfo(0, description).SizeInBytes;
         var buffer = gpu.Device.CreateCommittedResource(HeapType.Default, description, ResourceStates.Common);
         try
@@ -109,23 +113,51 @@ internal sealed class RoiPipeline : IDisposable
                 var upload = uploads[surface.FrameIndex].Allocate(size);
                 instances.AsSpan().CopyTo(new Span<RoiInstance>((void*)upload.Pointer, instances.Length));
                 surface.Commands.CopyBufferRegion(buffer, 0, upload.Buffer, upload.Offset, size);
+                var roleUpload = uploads[surface.FrameIndex].Allocate(roleSize);
+                roles.Values.AsSpan().CopyTo(new Span<uint>((void*)roleUpload.Pointer, roles.Values.Length));
+                surface.Commands.CopyBufferRegion(buffer, size, roleUpload.Buffer, roleUpload.Offset, roleSize);
             }
             surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
-            UploadedBytes += (long)size;
-            return new(buffer, region.Bounds.Center, instances.Length, region.Count, checked((long)allocation));
+            UploadedBytes += (long)(size + roleSize);
+            return new(buffer, region.Bounds.Center, instances.Length, region.Count, checked((long)allocation), roles);
         }
         catch { buffer.Dispose(); throw; }
     }
-    private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, float thickness, Vector4 color, bool shadow, bool selected, RigidTransform2D transform)
+    private unsafe void UploadRoles(Block block, Dx12Surface surface)
+    {
+        var size = checked((ulong)block.Roles.Values.Length * 4);
+        if (size == 0) return;
+        var upload = uploads[surface.FrameIndex].Allocate(size);
+        block.Roles.Values.AsSpan().CopyTo(new Span<uint>((void*)upload.Pointer, block.Roles.Values.Length));
+        surface.Commands.ResourceBarrierTransition(block.Buffer, ResourceStates.NonPixelShaderResource, ResourceStates.CopyDest);
+        surface.Commands.CopyBufferRegion(block.Buffer, block.RoleOffset, upload.Buffer, upload.Offset, size);
+        surface.Commands.ResourceBarrierTransition(block.Buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
+        UploadedBytes += (long)size;
+    }
+    private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, bool shadow, bool selected, RigidTransform2D transform)
     {
         // Keep the large image origin in double. Only block-relative vectors reach the float shader.
         var origin = scene.Document.Viewport.ImageToScreen(transform.Apply(block.Origin));
-        Span<float> constants = stackalloc float[16] { (float)(2 / scene.Width), (float)(-2 / scene.Height), (float)scene.Document.Viewport.Scale, thickness,
-            (float)origin.X, (float)origin.Y, shadow ? 1 : 0, selected ? 1 : .5f, color.X, color.Y, color.Z, color.W,
-            (float)transform.Cosine, (float)transform.Sine, 0, 0 };
-        fixed (float* pointer = constants) surface.Commands.SetGraphicsRoot32BitConstants(1, 16, pointer, 0);
+        Span<float> constants = stackalloc float[32];
+        constants.Clear();
+        constants[0] = (float)(2 / scene.Width); constants[1] = (float)(-2 / scene.Height); constants[2] = (float)scene.Document.Viewport.Scale;
+        constants[4] = (float)origin.X; constants[5] = (float)origin.Y; constants[6] = shadow ? 1 : 0; constants[7] = selected ? 1 : .5f;
+        constants[11] = .22f; constants[12] = (float)transform.Cosine; constants[13] = (float)transform.Sine;
+        WriteRoleStyles(constants[16..], scene.RoiStyles, selected, shadow);
+        fixed (float* pointer = constants) surface.Commands.SetGraphicsRoot32BitConstants(1, 32, pointer, 0);
         surface.Commands.SetGraphicsRootShaderResourceView(0, block.Buffer.GPUVirtualAddress);
+        surface.Commands.SetGraphicsRootShaderResourceView(2, block.Buffer.GPUVirtualAddress + block.RoleOffset);
         surface.Commands.DrawInstanced(24, (uint)block.Count, 0, 0);
+    }
+    internal static void WriteRoleStyles(Span<float> constants, RoiStylePalette palette, bool selected, bool shadow)
+    {
+        for (var role = 0; role < 3; role++)
+        {
+            var style = palette.For((RoiRole)role); var color = style.StrokeColor(selected); var offset = role * 4;
+            constants[offset] = color.X; constants[offset + 1] = color.Y; constants[offset + 2] = color.Z; constants[offset + 3] = color.W;
+            constants[12 + role] = style.StrokeThickness(selected) + (shadow ? selected ? 1.5f : 1 : 0);
+        }
+        constants[15] = 0;
     }
     public void Dispose()
     {

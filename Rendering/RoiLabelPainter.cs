@@ -37,7 +37,8 @@ internal sealed class RoiLabelPainter
             var box = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + texture.Width / scene.Dpi + 12), anchor.Y + texture.Height / scene.Dpi + 8);
             if (Intersects(box)) continue;
             Occupy(box);
-            mesh.Rectangle(white, box, label.Selected ? new(.22f, .52f, 1, 1) : new(.13f, .16f, .22f, .90f));
+            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).SelectedColor : new Vector4(.13f, .16f, .22f, .90f);
+            mesh.Rectangle(white, box, background);
             mesh.Rectangle(texture, new(box.Left + 6, box.Top + 4, box.Left + 6 + texture.Width / scene.Dpi, box.Top + 4 + texture.Height / scene.Dpi), Vector4.One);
         }
     }
