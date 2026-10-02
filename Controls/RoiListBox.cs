@@ -33,6 +33,7 @@ public sealed class RoiListBox : ListBox
             SelectedIndex = source.IndexOf(selected[0]);
         }
         else if (selected.Length == 0) UnselectAll();
+        else if (selected.Length == Items.Count) SelectAll();
         else SetSelectedItems(selected);
     }
 }

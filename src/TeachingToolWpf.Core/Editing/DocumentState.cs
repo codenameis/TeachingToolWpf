@@ -19,9 +19,23 @@ public sealed record DocumentState(
     private RoiSnapshot snapshot = new(Rois);
     private ImmutableHashSet<Guid> selection = Selection;
     private Lazy<RoiSpatialIndex>? selectedSpatial;
-    public ImmutableHashSet<Guid> Selection { get => selection; init { selection = value; selectedSpatial = null; } }
-    public ImmutableDictionary<Guid, Roi> Rois { get => snapshot.Rois; init { snapshot = new(value); selectedSpatial = null; } }
+    private Lazy<RoiSelectionFacts>? selectionFacts;
+    public ImmutableHashSet<Guid> Selection { get => selection; init { selection = value; selectedSpatial = null; selectionFacts = null; } }
+    public ImmutableDictionary<Guid, Roi> Rois { get => snapshot.Rois; init { snapshot = new(value); selectedSpatial = null; selectionFacts = null; } }
     public RoiSnapshot Snapshot => snapshot;
+    public RoiSelectionFacts SelectionFacts
+    {
+        get
+        {
+            var value = Volatile.Read(ref selectionFacts);
+            if (value is null)
+            {
+                value = new(() => new(Rois, Selection));
+                value = Interlocked.CompareExchange(ref selectionFacts, value, null) ?? value;
+            }
+            return value.Value;
+        }
+    }
     public RoiSpatialIndex SelectedSpatial
     {
         get
@@ -38,9 +52,9 @@ public sealed record DocumentState(
     }
     /// <summary>changedIds must include every added, removed, geometric or metadata change.</summary>
     public DocumentState WithRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
-        => ReferenceEquals(Rois, rois) ? this : this with { snapshot = new(snapshot, rois, changedIds.Distinct().ToImmutableArray()), selectedSpatial = null };
+        => ReferenceEquals(Rois, rois) ? this : this with { snapshot = new(snapshot, rois, changedIds.Distinct().ToImmutableArray()), selectedSpatial = null, selectionFacts = null };
     internal DocumentState WithRoisFrom(DocumentState before, ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
-        => this with { snapshot = new(before.snapshot, rois, changedIds.Distinct().ToImmutableArray(), snapshot), selectedSpatial = null };
+        => this with { snapshot = new(before.snapshot, rois, changedIds.Distinct().ToImmutableArray(), snapshot), selectedSpatial = null, selectionFacts = null };
     public bool Equals(DocumentState? other) => other is not null && ReferenceEquals(Rois, other.Rois) &&
         ReferenceEquals(Selection, other.Selection) && Image == other.Image && Viewport == other.Viewport;
     public override int GetHashCode() => HashCode.Combine(Rois, Selection, Image, Viewport);

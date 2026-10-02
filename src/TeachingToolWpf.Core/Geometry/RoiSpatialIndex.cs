@@ -8,7 +8,7 @@ namespace TeachingToolWpf.Core.Geometry;
 public sealed class RoiSpatialIndex
 {
     private readonly record struct Entry(Roi Roi, BoundsD Bounds);
-    private sealed record Node(BoundsD Bounds, int Count, int Height, double MaxArea, Entry[]? Entries, Node? Left, Node? Right);
+    private sealed record Node(BoundsD Bounds, int Count, int Height, double MaxArea, Roi? FirstHit, Roi? Representative, Entry[]? Entries, Node? Left, Node? Right);
     private readonly Node root;
     private readonly ImmutableDictionary<Guid, ulong> locations;
     private readonly ImmutableDictionary<Guid, Roi>? values;
@@ -31,10 +31,21 @@ public sealed class RoiSpatialIndex
         var bounds = entries.Length == 0 ? default : entries[0].Bounds;
         var maxArea = 0d;
         foreach (var entry in entries) { bounds = Union(bounds, entry.Bounds); maxArea = Math.Max(maxArea, entry.Roi.Geometry.Area); }
-        return new(bounds, entries.Length, 0, maxArea, entries, null, null);
+        return new(bounds, entries.Length, 0, maxArea, entries.Select(e => e.Roi).MinBy(r => (r.Geometry.Area, -r.Order)),
+            entries.Select(e => e.Roi).MaxBy(r => (r.Geometry.Area, -r.Order)), entries, null, null);
     }
     private static Node Branch(Node left, Node right) => new(left.Count == 0 ? right.Bounds : right.Count == 0 ? left.Bounds : Union(left.Bounds, right.Bounds),
-        left.Count + right.Count, 1 + Math.Max(left.Height, right.Height), Math.Max(left.MaxArea, right.MaxArea), null, left, right);
+        left.Count + right.Count, 1 + Math.Max(left.Height, right.Height), Math.Max(left.MaxArea, right.MaxArea),
+        CompareHit(left.FirstHit, right.FirstHit) <= 0 ? left.FirstHit : right.FirstHit,
+        left.MaxArea > right.MaxArea || left.MaxArea == right.MaxArea && (left.Representative?.Order ?? long.MaxValue) <= (right.Representative?.Order ?? long.MaxValue)
+            ? left.Representative : right.Representative, null, left, right);
+    private static int CompareHit(Roi? a, Roi? b)
+    {
+        if (a is null) return b is null ? 0 : 1;
+        if (b is null) return -1;
+        var area = a.Geometry.Area.CompareTo(b.Geometry.Area);
+        return area != 0 ? area : b.Order.CompareTo(a.Order);
+    }
     private static Node Build(Entry[] entries, int start, int count, ulong path, ImmutableDictionary<Guid, ulong>.Builder paths)
     {
         if (count <= 8)
@@ -100,6 +111,31 @@ public sealed class RoiSpatialIndex
             ? Branch(Insert(left, entry, path << 1, paths), right) : Branch(left, Insert(right, entry, (path << 1) | 1, paths));
     }
     public IEnumerable<Roi> At(PointD point, double minimumArea = 0) => Intersecting(new(point.X, point.Y, point.X, point.Y), minimumArea);
+    /// <summary>Exact nearest editing priority without materializing/sorting every overlapping hit.</summary>
+    public Roi? HitTest(PointD point, double tolerance)
+    {
+        if (!point.IsFinite || !double.IsFinite(tolerance) || tolerance < 0) throw new ArgumentOutOfRangeException(nameof(tolerance));
+        var margin = tolerance * Math.Sqrt(2);
+        var bounds = new BoundsD(point.X - margin, point.Y - margin, point.X + margin, point.Y + margin);
+        Roi? best = null;
+        Visit(root);
+        return best;
+        void Visit(Node node)
+        {
+            if (node.Count == 0 || !node.Bounds.Intersects(bounds) || best is not null && CompareHit(node.FirstHit, best) >= 0) return;
+            if (node.Entries is { } entries)
+            {
+                foreach (var entry in entries)
+                {
+                    if (!entry.Bounds.Intersects(bounds) || !entry.Roi.Geometry.Contains(point, tolerance)) continue;
+                    var candidate = Value(entry);
+                    if (CompareHit(candidate, best) < 0) best = candidate;
+                }
+            }
+            else if (CompareHit(node.Left!.FirstHit, node.Right!.FirstHit) <= 0) { Visit(node.Left); Visit(node.Right); }
+            else { Visit(node.Right); Visit(node.Left); }
+        }
+    }
     public IEnumerable<Roi> Intersecting(BoundsD bounds, double minimumArea = 0)
     {
         var pending = new Stack<Node>(); pending.Push(root);
@@ -111,6 +147,25 @@ public sealed class RoiSpatialIndex
         }
     }
     public IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)> Visible(BoundsD bounds, double aggregateSize)
+        => Visible(root, bounds, aggregateSize).Select(item => item.Roi is { } roi && values is not null ? (values[roi.Id], item.Bounds, item.Count) : item);
+    /// <summary>Screen-density label candidates; exact geometry queries and editing remain independent.</summary>
+    public IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)> LabelCandidates(BoundsD bounds, double aggregateSize, double spacingX, double spacingY)
+    {
+        var pending = new Stack<Node>(); pending.Push(root);
+        while (pending.TryPop(out var node))
+        {
+            if (node.Count == 0 || !node.Bounds.Intersects(bounds)) continue;
+            if (node.Count > 1 && node.Bounds.Width <= aggregateSize && node.Bounds.Height <= aggregateSize)
+            { yield return (null, node.Bounds, node.Count); continue; }
+            // The largest ROI represents a dense cluster, so a containing parent wins over its children.
+            if (node.Count > 1 && node.Bounds.Width <= spacingX && node.Bounds.Height <= spacingY &&
+                node.Representative is { } representative && representative.Geometry.Bounds.Intersects(bounds))
+            { yield return (values is null ? representative : values[representative.Id], representative.Geometry.Bounds, 1); continue; }
+            if (node.Entries is not { } entries) { pending.Push(node.Right!); pending.Push(node.Left!); continue; }
+            foreach (var entry in entries) if (entry.Bounds.Intersects(bounds)) yield return (Value(entry), entry.Bounds, 1);
+        }
+    }
+    private static IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)> Visible(Node root, BoundsD bounds, double aggregateSize)
     {
         var pending = new Stack<Node>(); pending.Push(root);
         while (pending.TryPop(out var node))
@@ -119,7 +174,33 @@ public sealed class RoiSpatialIndex
             if (node.Count > 1 && node.Bounds.Width <= aggregateSize && node.Bounds.Height <= aggregateSize)
             { yield return (null, node.Bounds, node.Count); continue; }
             if (node.Entries is not { } entries) { pending.Push(node.Right!); pending.Push(node.Left!); continue; }
-            foreach (var entry in entries) if (entry.Bounds.Intersects(bounds)) yield return (Value(entry), entry.Bounds, 1);
+            foreach (var entry in entries) if (entry.Bounds.Intersects(bounds)) yield return (entry.Roi, entry.Bounds, 1);
         }
     }
+
+    /// <summary>Immutable spatial blocks retain identity across edits outside their subtree.</summary>
+    public IEnumerable<RoiSpatialBlock> Blocks(BoundsD bounds, int maximumCount = 2048)
+    {
+        if (maximumCount < 8) throw new ArgumentOutOfRangeException(nameof(maximumCount));
+        var pending = new Stack<Node>(); pending.Push(root);
+        while (pending.TryPop(out var node))
+        {
+            if (node.Count == 0 || !node.Bounds.Intersects(bounds)) continue;
+            if (node.Count <= maximumCount)
+            {
+                yield return new(node, node.Bounds, node.Count, size => Visible(node, node.Bounds, size));
+                continue;
+            }
+            pending.Push(node.Right!); pending.Push(node.Left!);
+        }
+    }
+}
+
+/// <summary>Geometry-only immutable block; metadata is read from the current document by ID.</summary>
+public sealed class RoiSpatialBlock(object identity, BoundsD bounds, int count, Func<double, IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)>> enumerate)
+{
+    public object Identity { get; } = identity;
+    public BoundsD Bounds { get; } = bounds;
+    public int Count { get; } = count;
+    public IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)> Detail(double aggregateSize) => enumerate(aggregateSize);
 }

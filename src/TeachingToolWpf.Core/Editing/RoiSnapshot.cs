@@ -33,7 +33,8 @@ public sealed class RoiSnapshot
         var oldRois = previous.Rois;
         var bulk = changedIds.Length > 4096 || changedIds.Length > 64 && changedIds.Length > rois.Count / 8;
         var seed = spatialSeed ?? previous;
-        var geometryChanges = changedIds.Where(id => seed.Rois.GetValueOrDefault(id)?.Geometry != rois.GetValueOrDefault(id)?.Geometry).ToArray();
+        var geometryChanges = changedIds.Where(id => seed.Rois.GetValueOrDefault(id)?.Geometry != rois.GetValueOrDefault(id)?.Geometry ||
+            seed.Rois.GetValueOrDefault(id)?.Order != rois.GetValueOrDefault(id)?.Order).ToArray();
         var rebuildSpatial = geometryChanges.Length > 4096 || geometryChanges.Length > 64 && geometryChanges.Length > rois.Count / 8;
         // Capture evaluated values, not previous factories: Undo/Redo must not retain a recursive lazy chain.
         var oldSpatial = rebuildSpatial ? null : seed.Spatial;

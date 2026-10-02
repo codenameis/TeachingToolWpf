@@ -33,6 +33,8 @@ public class RoiRowsTests
                 Assert.Single(list.SelectedItems.Cast<object>());
                 Assert.Equal(10, list.SelectedIndex);
                 list.ApplySelection([]); Assert.Empty(list.SelectedItems);
+                list.ApplySelection(rows); Assert.Equal(rows.Count, list.SelectedItems.Count);
+                list.ApplySelection([rows[500]]); Assert.Single(list.SelectedItems.Cast<object>()); Assert.Equal(500, list.SelectedIndex);
             }
             catch (Exception ex) { failure = ex; }
         });

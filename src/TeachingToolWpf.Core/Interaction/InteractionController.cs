@@ -91,6 +91,7 @@ public sealed class InteractionController(EditorSession editor)
         if (Minimap is { } map && map.Panel.Contains(screen)) return null;
         var point = editor.State.Viewport.ScreenToImage(screen);
         var tolerance = 3 / editor.State.Viewport.Scale;
+        if (!cycle) return editor.State.Snapshot.Spatial.HitTest(point, tolerance)?.Id;
         var margin = tolerance * Math.Sqrt(2);
         var hits = editor.State.Snapshot.Spatial.Intersecting(new(point.X - margin, point.Y - margin, point.X + margin, point.Y + margin))
             .Where(r => r.Geometry.Contains(point, tolerance))

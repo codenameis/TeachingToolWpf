@@ -28,7 +28,16 @@ public sealed record RotatedRect
         ToWorld(new(-Width / 2, -Height / 2)), ToWorld(new(Width / 2, -Height / 2)),
         ToWorld(new(Width / 2, Height / 2)), ToWorld(new(-Width / 2, Height / 2))
     ];
-    public BoundsD Bounds => BoundsD.FromPoints(Corners);
+    public BoundsD Bounds
+    {
+        get
+        {
+            var angle = Angle * Math.PI / 180;
+            var c = Math.Abs(Math.Cos(angle)); var s = Math.Abs(Math.Sin(angle));
+            var x = (Width * c + Height * s) / 2; var y = (Width * s + Height * c) / 2;
+            return new(Center.X - x, Center.Y - y, Center.X + x, Center.Y + y);
+        }
+    }
     public bool Contains(PointD world, double tolerance = 0)
     {
         var local = ToLocal(world);
