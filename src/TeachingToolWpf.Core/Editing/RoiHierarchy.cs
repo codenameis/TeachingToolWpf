@@ -5,9 +5,9 @@ namespace TeachingToolWpf.Core.Editing;
 
 public static class RoiHierarchy
 {
-    public static DocumentState Rebuild(DocumentState before, DocumentState next)
+    public static DocumentState Rebuild(DocumentState before, DocumentState next, CancellationToken token = default)
     {
-        if (!ReferenceEquals(next.Snapshot.PreviousRois, before.Rois)) return next with { Rois = Rebuild(next.Rois) };
+        if (!ReferenceEquals(next.Snapshot.PreviousRois, before.Rois)) return next with { Rois = Rebuild(next.Rois, token) };
         var changed = next.Snapshot.ChangedIds.ToHashSet();
         var index = next.Snapshot.Spatial;
         // A bulk paste can overlap every existing ROI. Querying descendants once per added
@@ -26,6 +26,7 @@ public static class RoiHierarchy
         var result = next.Rois.ToBuilder();
         foreach (var id in affected)
         {
+            token.ThrowIfCancellationRequested();
             if (!next.Rois.TryGetValue(id, out var child)) continue;
             var parent = index.At(child.Geometry.Center, child.Geometry.Area).Where(r => r.Geometry.Contains(child.Geometry))
                 .OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id).FirstOrDefault()?.Id;
@@ -34,12 +35,13 @@ public static class RoiHierarchy
         var rois = result.ToImmutable();
         return ReferenceEquals(rois, next.Rois) ? next : next.WithRoisFrom(before, rois, changed);
     }
-    public static ImmutableDictionary<Guid, Roi> Rebuild(ImmutableDictionary<Guid, Roi> rois)
+    public static ImmutableDictionary<Guid, Roi> Rebuild(ImmutableDictionary<Guid, Roi> rois, CancellationToken token = default)
     {
         var index = new RoiSpatialIndex(rois.Values);
         var result = rois.ToBuilder();
         foreach (var child in rois.Values)
         {
+            token.ThrowIfCancellationRequested();
             Guid? parent = null;
             foreach (var candidate in index.At(child.Geometry.Center, child.Geometry.Area).OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id))
             {
@@ -64,13 +66,14 @@ public static class RoiHierarchy
         return true;
     });
 
-    public static HashSet<Guid> Subtree(DocumentState state, IEnumerable<Guid> roots)
+    public static HashSet<Guid> Subtree(DocumentState state, IEnumerable<Guid> roots, CancellationToken token = default)
     {
         var children = state.Snapshot.Children;
         var result = new HashSet<Guid>();
         var queue = new Queue<Guid>(roots);
         while (queue.TryDequeue(out var id))
         {
+            token.ThrowIfCancellationRequested();
             if (!result.Add(id)) continue;
             foreach (var child in children.GetValueOrDefault(id, [])) queue.Enqueue(child);
         }
