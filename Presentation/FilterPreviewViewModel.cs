@@ -13,8 +13,9 @@ public sealed record FilterOption(RoiFilterKind Kind, string Label)
 public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
 {
     private readonly IRoiFilterPreview processor;
+    private readonly EditorSession editor;
     private DocumentState document = DocumentState.Empty;
-    private bool live, active, busy, disposed;
+    private bool live, active, busy, disposed, suppressed;
     private RoiFilterKind selectedFilter;
     private string threshold = "128", edgeLow = "50", edgeHigh = "150", status = "필터를 선택한 뒤 미리보기를 누르세요.";
     private FilterRequest? pending, requested;
@@ -23,10 +24,10 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     private Task? pump;
     private FilterPreviewResult? result;
     public IReadOnlyList<FilterOption> Options { get; } = [new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화"), new(RoiFilterKind.Edge, "Edge · Canny")];
-    public RoiFilterKind SelectedFilter { get => selectedFilter; set { if (Set(ref selectedFilter, value)) { Notify(nameof(IsBinarize)); Notify(nameof(IsEdge)); if (value == RoiFilterKind.None) StopPreview(); else Schedule(); RefreshCommands(); } } }
-    public string Threshold { get => threshold; set { if (Set(ref threshold, value)) Schedule(); } }
-    public string EdgeLow { get => edgeLow; set { if (Set(ref edgeLow, value)) Schedule(); } }
-    public string EdgeHigh { get => edgeHigh; set { if (Set(ref edgeHigh, value)) Schedule(); } }
+    public RoiFilterKind SelectedFilter { get => selectedFilter; set { if (Set(ref selectedFilter, value)) { Notify(nameof(IsBinarize)); Notify(nameof(IsEdge)); DraftChanged(); } } }
+    public string Threshold { get => threshold; set { if (Set(ref threshold, value)) DraftChanged(); } }
+    public string EdgeLow { get => edgeLow; set { if (Set(ref edgeLow, value)) DraftChanged(); } }
+    public string EdgeHigh { get => edgeHigh; set { if (Set(ref edgeHigh, value)) DraftChanged(); } }
     public bool IsBinarize => SelectedFilter == RoiFilterKind.Binarize;
     public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
     public bool IsActive { get => active; private set => Set(ref active, value); }
@@ -39,42 +40,71 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public Task WhenIdle => pump ?? Task.CompletedTask;
     public void RefreshLiveFrame() { if (IsActive && live && !IsBusy) Schedule(force: true, keepVisible: true); }
 
-    public FilterPreviewViewModel(IRoiFilterPreview processor)
+    public FilterPreviewViewModel(IRoiFilterPreview processor, EditorSession editor)
     {
-        this.processor = processor;
-        Preview = new(() => { IsActive = true; Schedule(force: true); RefreshCommands(); }, () => SelectedFilter != RoiFilterKind.None && document.Selection.Count > 0);
+        this.processor = processor; this.editor = editor;
+        Preview = new(Register, () => SelectedFilter != RoiFilterKind.None && document.Selection.Count > 0 && !editor.IsPreviewing);
         Stop = new(StopPreview, () => IsActive);
     }
     public void Update(DocumentState state, bool isLive)
     {
-        if (document.Image != state.Image || live != isLive) StopPreview();
+        var selectionChanged = document.Image != state.Image || !document.Selection.SetEquals(state.Selection);
+        var settingsChanged = state.Selection.Any(id => !document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
         document = state; live = isLive;
+        if (selectionChanged || settingsChanged)
+        {
+            suppressed = false;
+            var settings = state.Selection.Select(id => state.Rois[id]).OrderBy(r => r.Order).FirstOrDefault()?.Filter ?? new(RoiFilterKind.None);
+            Set(ref selectedFilter, settings.Kind, nameof(SelectedFilter));
+            Set(ref threshold, settings.Threshold.ToString(CultureInfo.CurrentCulture), nameof(Threshold));
+            Set(ref edgeLow, settings.EdgeLow.ToString(CultureInfo.CurrentCulture), nameof(EdgeLow));
+            Set(ref edgeHigh, settings.EdgeHigh.ToString(CultureInfo.CurrentCulture), nameof(EdgeHigh));
+            Notify(nameof(IsBinarize)); Notify(nameof(IsEdge));
+        }
         Schedule(); RefreshCommands();
     }
-    private void RefreshCommands() { Preview?.Refresh(); Stop?.Refresh(); }
-    private void ClearResult() { result = null; Changed?.Invoke(); }
-    public void StopPreview()
+    private void DraftChanged()
     {
-        IsActive = false; revision++; pending = requested = null; cancellation?.Cancel();
-        ClearResult(); Status = "원본 표시 · 필터를 선택한 뒤 미리보기를 누르세요."; RefreshCommands();
+        if (IsActive || SelectedFilter == RoiFilterKind.None) Register();
+        RefreshCommands();
     }
-    private void Schedule(bool force = false, bool keepVisible = false)
+    private void Register()
     {
-        if (!IsActive || disposed) return;
-        if (document.Image is null || document.Selection.Count == 0)
-        {
-            revision++; pending = requested = null; cancellation?.Cancel(); ClearResult();
-            Status = "미리보기 켜짐 · ROI를 선택하세요."; return;
-        }
+        if (disposed || editor.IsPreviewing || document.Selection.Count == 0) return;
         try
         {
             static double Number(string value) => double.Parse(value, CultureInfo.CurrentCulture);
             var settings = new FilterSettings(SelectedFilter, IsBinarize ? Number(Threshold) : 128,
                 IsEdge ? Number(EdgeLow) : 50, IsEdge ? Number(EdgeHigh) : 150);
             settings.Validate();
-            var rois = document.Selection.Select(id => document.Rois[id]).OrderBy(r => r.Order).ToArray();
-            var next = new FilterRequest(document.Image, live, rois, settings);
-            if (!force && requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive && old.Settings == next.Settings && old.Rois.SequenceEqual(next.Rois)) return;
+            editor.SetFilters(settings);
+            suppressed = false; Update(editor.State, live); Schedule(force: true);
+        }
+        catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
+        { Status = "임계값을 확인하세요. 0–255 숫자와 Edge 하한 < 상한이 필요합니다."; }
+    }
+    private void RefreshCommands() { Preview?.Refresh(); Stop?.Refresh(); }
+    private void ClearResult() { result = null; Changed?.Invoke(); }
+    public void StopPreview()
+    {
+        suppressed = true;
+        IsActive = false; revision++; pending = requested = null; cancellation?.Cancel();
+        ClearResult(); Status = "원본 표시 · 등록 설정 유지 · 다시 선택하면 자동 미리보기"; RefreshCommands();
+    }
+    private void Schedule(bool force = false, bool keepVisible = false)
+    {
+        if (disposed) return;
+        var rois = document.Selection.Select(id => document.Rois[id]).Where(r => r.Filter.Kind != RoiFilterKind.None).OrderBy(r => r.Order).ToArray();
+        IsActive = !suppressed && document.Image is not null && rois.Length > 0;
+        if (!IsActive)
+        {
+            revision++; pending = requested = null; cancellation?.Cancel(); ClearResult();
+            Status = suppressed ? "원본 표시 · 등록 설정 유지 · 다시 선택하면 자동 미리보기" : "등록된 필터 없음 · 필터 선택 후 미리보기로 등록하세요."; return;
+        }
+        try
+        {
+            var next = new FilterRequest(document.Image!, live, rois);
+            if (!force && requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive && old.Rois.SequenceEqual(next.Rois)) return;
             pending = requested = next; revision++; cancellation?.Cancel();
             if (!keepVisible) { ClearResult(); Status = "선택 영역을 처리하고 있습니다…"; }
             if (pump is null || pump.IsCompleted) pump = RunAsync();

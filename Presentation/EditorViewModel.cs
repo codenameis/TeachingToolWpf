@@ -90,7 +90,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     {
         this.viewport = viewport;
         Live = live;
-        Filters = new(filterPreview);
+        Filters = new(filterPreview, Session);
         Filters.Changed += Publish;
         filterTimer = new(TimeSpan.FromMilliseconds(200), System.Windows.Threading.DispatcherPriority.Background,
             (_, _) => { if (Live.IsRunning) Filters.RefreshLiveFrame(); }, System.Windows.Threading.Dispatcher.CurrentDispatcher);

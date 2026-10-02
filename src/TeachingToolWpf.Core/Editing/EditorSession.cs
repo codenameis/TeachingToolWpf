@@ -60,6 +60,13 @@ public sealed class EditorSession
         var ids = RoiHierarchy.Subtree(State, RoiHierarchy.EffectiveRoots(State));
         Commit("선택 ROI 삭제", State with { Rois = State.Rois.RemoveRange(ids), Selection = State.Selection.Except(ids) });
     }
+    public void SetFilters(FilterSettings settings)
+    {
+        settings.Validate();
+        var rois = State.Rois.ToBuilder();
+        foreach (var id in State.Selection) rois[id] = rois[id] with { Filter = settings };
+        Commit("ROI 필터 등록", State with { Rois = rois.ToImmutable() }, rebuild: false);
+    }
     public void TranslateSelection(PointD delta) => Transform("ROI 이동", r => r.Geometry.Translate(delta));
     public void RotateSelection(double delta, PointD pivot) => Transform("ROI 회전", r => r.Geometry.RotateAround(pivot, delta));
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));

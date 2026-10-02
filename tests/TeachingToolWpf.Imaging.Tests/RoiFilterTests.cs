@@ -7,6 +7,19 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiFilterTests
 {
+    [Fact] public async Task EachSelectedRoiUsesItsOwnRegisteredSettings()
+    {
+        var pixels = new PixelBuffer(16, 16, PixelKind.Gray8); pixels.Span.Fill(100);
+        using var frame = new VideoFrame(1, 1, pixels);
+        var service = new RoiFilterPreview(new ImageLoader("unused-for-live"), frame.Retain);
+        var first = new Roi(Guid.NewGuid(), "first", new(new(8, 8), 8, 8, 0), null, false, 1) { Filter = new(RoiFilterKind.Binarize, 50) };
+        var second = first with { Id = Guid.NewGuid(), Filter = new(RoiFilterKind.Binarize, 150) };
+        var original = first with { Id = Guid.NewGuid(), Filter = new(RoiFilterKind.None) };
+        var result = await service.ProcessAsync(new(new("live", "live", 16, 16), true, [first, second, original]), CancellationToken.None);
+        Assert.Equal(2, result.Regions.Count);
+        Assert.All(result.Regions[0].Gray8, value => Assert.Equal(255, value));
+        Assert.All(result.Regions[1].Gray8, value => Assert.Equal(0, value));
+    }
     [Fact] public async Task RotatedLiveRoiSamplesCorrectPixelsWithoutTakingFrameOwnership()
     {
         var pixels = new PixelBuffer(16, 16, PixelKind.Gray8);
@@ -14,7 +27,7 @@ public class RoiFilterTests
         using var frame = new VideoFrame(1, 1, pixels);
         var service = new RoiFilterPreview(new ImageLoader("unused-for-live"), frame.Retain);
         var roi = new Roi(Guid.NewGuid(), "90 degrees", new(new(8, 8), 8, 8, 90), null, false, 1);
-        var request = new FilterRequest(new("live:Gray8", "Live", 16, 16), true, [roi], new(RoiFilterKind.Binarize));
+        var request = new FilterRequest(new("live:Gray8", "Live", 16, 16), true, [roi with { Filter = new(RoiFilterKind.Binarize) }]);
         var region = Assert.Single((await service.ProcessAsync(request, CancellationToken.None)).Regions);
         Assert.All(region.Gray8.Take(8), pixel => Assert.Equal(255, pixel));
         Assert.All(region.Gray8.TakeLast(8), pixel => Assert.Equal(0, pixel));
@@ -37,7 +50,7 @@ public class RoiFilterTests
     {
         var service = new RoiFilterPreview(new ImageLoader("unused-for-procedural"), () => null);
         var roi = new Roi(Guid.NewGuid(), "회전", new(new(12000, 16000), 12000, 18000, 27), null, false, 1);
-        var request = new FilterRequest(new("sample:24576:32768", "24K", 24576, 32768), false, [roi], new(RoiFilterKind.Binarize));
+        var request = new FilterRequest(new("sample:24576:32768", "24K", 24576, 32768), false, [roi with { Filter = new(RoiFilterKind.Binarize) }]);
         var result = await service.ProcessAsync(request, CancellationToken.None);
         var region = Assert.Single(result.Regions);
         Assert.Equal(roi.Geometry, region.Geometry); Assert.InRange(region.Width, 1, 1024); Assert.InRange(region.Height, 1, 1024);

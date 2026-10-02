@@ -1,4 +1,5 @@
 using OpenCvSharp;
+using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Imaging;
 
 namespace TeachingToolWpf.Imaging.Filters;

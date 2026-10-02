@@ -1,4 +1,5 @@
 using TeachingToolWpf.Controls;
+using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Imaging.Filters;
 using TeachingToolWpf.Presentation;
 
@@ -17,7 +18,7 @@ internal static class FilterSmokeScenario
         model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
         model.SelectAll.Execute(null); await model.Filters.WhenIdle;
-        Require(model.Filters.Result?.Regions.Count == before.Rois.Count, "multi-selection updates preview");
+        Require(model.Filters.Result?.Regions.Count == 1, "unregistered ROI stays original in multi-selection");
         model.Filters.SelectedFilter = RoiFilterKind.Edge; await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == before.Rois.Count, model.Filters.Status);
         await Task.Delay(500); viewport.Capture("artifacts/filter-smoke.png"); await Task.Delay(500);
@@ -29,7 +30,7 @@ internal static class FilterSmokeScenario
         await model.StartLive.ExecuteAsync();
         Require(model.Live.IsRunning && model.Session.State.Image?.Width == 7680 && model.Session.State.Rois.Count == 0, "live switch resets ROI and image bounds");
         await Task.Delay(800);
-        model.AddRoi.Execute(null); model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
+        model.AddRoi.Execute(null); model.Filters.SelectedFilter = RoiFilterKind.Binarize; model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == 1, model.Filters.Status);
         await Task.Delay(600);
         Require(model.Filters.Result?.Regions.Count == 1, "periodic live filter refresh");
