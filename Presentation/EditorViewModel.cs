@@ -20,6 +20,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private bool pointSampling;
     private DocumentState? previous;
     private IReadOnlyList<RoiRow> rows = [];
+    private IReadOnlyDictionary<Guid, RoiRow> rowsById = new Dictionary<Guid, RoiRow>();
+    public RoiRow? FindRow(Guid id) => rowsById.GetValueOrDefault(id);
     public EditorSession Session { get; } = new();
     public InteractionController Input { get; }
     public ImageCoordinator Images { get; }
@@ -164,7 +166,12 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private void SessionChanged(object? sender, EventArgs e)
     {
         var state = Session.State;
-        if (!Session.IsPreviewing && (previous is null || previous.Rois.Count != state.Rois.Count || state.Rois.Values.Any(r => !previous.Rois.TryGetValue(r.Id, out var old) || old.ParentId != r.ParentId || old.Name != r.Name))) Rows = RoiRow.Build(state);
+        if (!Session.IsPreviewing && !ReferenceEquals(previous?.Rois, state.Rois) &&
+            (previous is null || previous.Rois.Count != state.Rois.Count || state.Rois.Values.Any(r => !previous.Rois.TryGetValue(r.Id, out var old) || old.ParentId != r.ParentId || old.Name != r.Name)))
+        {
+            Rows = RoiRow.Build(state);
+            rowsById = Rows.ToDictionary(row => row.Id);
+        }
         previous = state;
         Properties.Refresh(); ZoomText = (state.Viewport.Scale * viewport.Dpi * 100).ToString("0.##");
         Refresh();

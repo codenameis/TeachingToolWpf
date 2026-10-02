@@ -32,7 +32,9 @@ public static class RoiTransforms
     }
     public static DocumentState Apply(DocumentState state, IEnumerable<Guid> roots, Func<Roi, RotatedRect> transform)
     {
-        var targets = roots.ToDictionary(id => id, id => transform(state.Rois[id]));
+        var targets = roots.Select(id => (Id: id, Geometry: transform(state.Rois[id])))
+            .Where(target => target.Geometry != state.Rois[target.Id].Geometry).ToDictionary(target => target.Id, target => target.Geometry);
+        if (targets.Count == 0) return state;
         var requested = ApplyCore(state, targets);
         if (state.Image is null || RoiImageBounds.ContainsAll(requested)) return requested;
         // One fraction for the entire edit preserves multi-selection and descendant relationships.

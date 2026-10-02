@@ -6,6 +6,21 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class SelectionAfterDrawingTests
 {
+    [Fact] public void ClickWithoutMovingOnlyPublishesSelectionAndPreservesRedo()
+    {
+        var editor = new EditorSession();
+        var first = editor.Add(new(new(100, 100), 80, 80, 0));
+        editor.Add(new(new(300, 300), 80, 80, 0));
+        editor.Rename(first, "renamed"); editor.Undo();
+        var geometry = editor.State.Rois; var notifications = 0;
+        editor.Changed += (_, _) => notifications++;
+        var input = new InteractionController(editor);
+        input.Down(new(100, 100)); input.Up(new(100, 100));
+        Assert.Equal(1, notifications); Assert.Same(geometry, editor.State.Rois);
+        Assert.True(editor.CanRedo); Assert.Equal(first, Assert.Single(editor.State.Selection));
+        editor.Select([first]);
+        Assert.Equal(1, notifications);
+    }
     [Fact] public void CompletedDrawingReturnsToSelectionAndNextClickSelectsAnotherRoi()
     {
         var editor = new EditorSession();

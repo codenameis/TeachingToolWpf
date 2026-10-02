@@ -9,6 +9,7 @@ internal sealed class RoiListBinding : IDisposable
     private readonly ListBox list;
     private readonly EditorViewModel model;
     private bool synchronizing;
+    private object? previousSelection;
     public RoiListBinding(ListBox list, EditorViewModel model)
     {
         this.list = list; this.model = model;
@@ -21,13 +22,16 @@ internal sealed class RoiListBinding : IDisposable
     }
     private void FromModel(object? sender, EventArgs args)
     {
+        var selected = model.Session.State.Selection;
+        if (ReferenceEquals(previousSelection, selected) && ReferenceEquals(list.ItemsSource, model.Rows)) return;
         synchronizing = true;
         try
         {
             if (!ReferenceEquals(list.ItemsSource, model.Rows)) list.ItemsSource = model.Rows;
-            var selected = model.Session.State.Selection;
             foreach (var row in list.SelectedItems.Cast<RoiRow>().Where(r => !selected.Contains(r.Id)).ToArray()) list.SelectedItems.Remove(row);
-            foreach (var row in model.Rows.Where(r => selected.Contains(r.Id))) if (!list.SelectedItems.Contains(row)) list.SelectedItems.Add(row);
+            var alreadySelected = list.SelectedItems.Cast<RoiRow>().Select(row => row.Id).ToHashSet();
+            foreach (var id in selected) if (!alreadySelected.Contains(id) && model.FindRow(id) is { } row) list.SelectedItems.Add(row);
+            previousSelection = selected;
         }
         finally { synchronizing = false; }
     }

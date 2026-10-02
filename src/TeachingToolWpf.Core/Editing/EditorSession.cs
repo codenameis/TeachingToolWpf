@@ -35,7 +35,11 @@ public sealed class EditorSession
         }
         Commit("ROI 일괄 추가", State with { Rois = rois.ToImmutable() });
     }
-    public void Select(IEnumerable<Guid> ids) => Publish(State with { Selection = ids.Where(State.Rois.ContainsKey).ToImmutableHashSet() });
+    public void Select(IEnumerable<Guid> ids)
+    {
+        var selected = ids.Where(State.Rois.ContainsKey).ToImmutableHashSet();
+        if (!State.Selection.SetEquals(selected)) Publish(State with { Selection = selected });
+    }
     public void Paste(RoiClipboard clipboard)
     {
         if (!clipboard.HasContent || State.Image is null) return;
@@ -151,11 +155,12 @@ public sealed class EditorSession
     private void Commit(string name, DocumentState next, bool rebuild = true, bool replacesImage = false)
     {
         if (previewStart is not null) throw new InvalidOperationException("진행 중인 편집을 먼저 완료하세요.");
+        if (!replacesImage && ReferenceEquals(State.Rois, next.Rois) && State.Image == next.Image) return;
         if (rebuild) next = next with { Rois = RoiHierarchy.Rebuild(next.Rois) };
         var edit = new DocumentEdit(name, State, next, replacesImage);
         if (edit.IsEmpty) return;
         history.Push(edit);
         Publish(next);
     }
-    private void Publish(DocumentState next) { State = next; Changed?.Invoke(this, EventArgs.Empty); }
+    private void Publish(DocumentState next) { if (next == State) return; State = next; Changed?.Invoke(this, EventArgs.Empty); }
 }
