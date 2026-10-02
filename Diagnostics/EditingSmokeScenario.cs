@@ -44,6 +44,15 @@ internal static class EditingSmokeScenario
             Require(editor.State.Selection.SetEquals([roi.Id]), "click switches to another ROI immediately after drawing");
             Require(editor.State.Rois[roi.Id].Geometry == roi.Geometry, "selection click preserves ROI geometry");
         }
+        model.SelectAll.Execute(null);
+        Require(model.HandleKey(System.Windows.Input.Key.C, true, false), "Ctrl+C handles ROI copy");
+        Require(model.Paste.CanExecute(null), "copied selection enables paste button");
+        Require(model.HandleKey(System.Windows.Input.Key.V, true, false), "Ctrl+V handles ROI paste");
+        Require(editor.State.Rois.Count == 4 && editor.State.Selection.Count == 2, "paste selects new ROI ids");
+        SendMessage(viewport.Handle, 0x100, 0x2E, 0);
+        Require(editor.State.Rois.Count == 2, "native Delete key removes pasted selection");
+        model.Undo.Execute(null); Require(editor.State.Rois.Count == 4, "Undo restores deleted copies");
+        model.Undo.Execute(null); Require(editor.State.Rois.Count == 2, "paste is one undoable edit");
         model.SelectTool.Execute(null); model.SelectAll.Execute(null); model.Group.Execute(null);
         var parent = editor.State.Selection.Single();
         Require(editor.State.Rois.Count == 3 && editor.State.Rois.Values.Count(r => r.ParentId == parent) == 2, "group creates enclosing parent");

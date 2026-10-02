@@ -14,6 +14,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private readonly IViewportSurface viewport;
     private readonly List<RelayCommand> syncCommands = [];
     private readonly List<AsyncCommand> asyncCommands = [];
+    private readonly RoiClipboard clipboard = new();
     private readonly System.Windows.Threading.DispatcherTimer filterTimer;
     private string status = "이미지를 준비하고 있습니다…", gpuStatus = "DX12 초기화 중…", zoomText = "100";
     private bool pointSampling;
@@ -69,6 +70,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public RelayCommand Up { get; }
     public RelayCommand Down { get; }
     public RelayCommand Delete { get; }
+    public RelayCommand Copy { get; }
+    public RelayCommand Paste { get; }
     public RelayCommand Group { get; }
     public RelayCommand Ungroup { get; }
     public RelayCommand ResetAngle { get; }
@@ -101,6 +104,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         ApplyZoom = Command(SetZoom, HasImage); Fit = Command(FitImage, HasImage); ActualSize = Command(() => ZoomTo(1 / viewport.Dpi), HasImage);
         Left = Command(() => Pan(100, 0)); Right = Command(() => Pan(-100, 0)); Up = Command(() => Pan(0, 100)); Down = Command(() => Pan(0, -100));
         Delete = Command(Session.DeleteSelection, HasSelection);
+        Copy = Command(() => { var count = clipboard.Copy(Session.State); Status = $"ROI {count}개 복사 · Ctrl+V로 붙여넣기"; RefreshCommands(); }, HasSelection);
+        Paste = Command(() => { Session.Paste(clipboard); SetTool(EditorTool.Select); Status = "ROI를 붙여넣었습니다. Ctrl+Z로 한 번에 취소할 수 있습니다."; }, () => HasImage() && clipboard.HasContent);
         Group = Command(() =>
         {
             var before = Session.State.Selection.Count;
@@ -212,6 +217,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         {
             (true, false, Key.Z) => Undo, (true, _, Key.Y) or (true, true, Key.Z) => Redo,
             (true, true, Key.G) => Ungroup, (true, false, Key.G) => Group, (true, _, Key.A) => SelectAll,
+            (true, _, Key.C) => Copy, (true, _, Key.V) => Paste,
             (true, _, Key.O) => OpenImage, (false, _, Key.Delete) => Delete,
             (false, _, Key.V) => SelectTool, (false, _, Key.H) => PanTool, (false, _, Key.R) => DrawTool,
             (false, _, Key.F) => Fit, (false, _, Key.D0) => ResetAngle, _ => null

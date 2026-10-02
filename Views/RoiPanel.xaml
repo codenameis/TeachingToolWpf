@@ -23,6 +23,10 @@
         <Border Grid.Row="2" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="12">
             <StackPanel>
                 <Button Content="모두 선택" Command="{Binding SelectAll}" HorizontalAlignment="Left"/>
+                <WrapPanel Margin="0,6,0,0">
+                    <Button Content="복사" Command="{Binding Copy}" ToolTip="선택 ROI와 자손 복사 · Ctrl+C"/>
+                    <Button Content="붙여넣기" Command="{Binding Paste}" ToolTip="복사한 ROI 붙여넣기 · Ctrl+V" Margin="6,0,0,0"/>
+                </WrapPanel>
                 <WrapPanel Margin="0,6,0,4">
                     <Button Tag="{StaticResource GroupIcon}" Command="{Binding Group}" ToolTip="새 부모로 그룹화 · Ctrl+G" AutomationProperties.Name="부모로 그룹화" Style="{StaticResource IconButton}"/>
                     <Button Tag="{StaticResource UngroupIcon}" Command="{Binding Ungroup}" ToolTip="그룹 해제 · 자식은 유지 · Ctrl+Shift+G" AutomationProperties.Name="그룹 해제" Style="{StaticResource IconButton}"/>

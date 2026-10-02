@@ -36,6 +36,23 @@ public sealed class EditorSession
         Commit("ROI 일괄 추가", State with { Rois = rois.ToImmutable() });
     }
     public void Select(IEnumerable<Guid> ids) => Publish(State with { Selection = ids.Where(State.Rois.ContainsKey).ToImmutableHashSet() });
+    public void Paste(RoiClipboard clipboard)
+    {
+        if (!clipboard.HasContent || State.Image is null) return;
+        var templates = clipboard.Place(State.Image, new(20 / State.Viewport.Scale, 20 / State.Viewport.Scale));
+        var ids = templates.ToDictionary(r => r.Id, _ => Guid.NewGuid());
+        var rois = State.Rois.ToBuilder();
+        var roots = ImmutableHashSet.CreateBuilder<Guid>();
+        foreach (var template in templates)
+        {
+            var id = ids[template.Id];
+            if (template.ParentId is not { } parent || !ids.ContainsKey(parent)) roots.Add(id);
+            rois.Add(id, template with { Id = id, ParentId = null, Order = ++nextOrder,
+                Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사" });
+        }
+        Commit("ROI 붙여넣기", State with { Rois = rois.ToImmutable(), Selection = roots.ToImmutable() });
+        clipboard.Pasted();
+    }
     public void SetViewport(ViewportTransform view) => Publish(State with { Viewport = view });
     public void SetImage(ImageReference image, ViewportTransform view) => Commit("이미지 교체", State with
     { Image = image, Viewport = view, Rois = ImmutableDictionary<Guid, Roi>.Empty, Selection = [] }, rebuild: false, replacesImage: true);

@@ -29,7 +29,7 @@ namespace TeachingToolWpf
             selectionBinding = new(Regions.List, model);
             PreviewKeyDown += (_, args) =>
             {
-                if (args.OriginalSource is TextBox) return;
+                if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase || args.OriginalSource is TextBox) return;
                 args.Handled = model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             };
             if (memoryCheck) Diagnostics.ImageReplacementRun.Attach(this, Viewport, model);
