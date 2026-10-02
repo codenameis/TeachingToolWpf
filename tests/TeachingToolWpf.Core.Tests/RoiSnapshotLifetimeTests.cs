@@ -6,6 +6,14 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class RoiSnapshotLifetimeTests
 {
+    [Fact] public void DerivedCachePopulationDoesNotChangeStateEqualityOrHash()
+    {
+        var editor = new EditorSession(); editor.Add(new(new(100, 100), 20, 20, 0));
+        var first = editor.State; var copy = first with { Viewport = first.Viewport };
+        var hash = first.GetHashCode();
+        _ = first.SelectedSpatial; _ = first.Snapshot.Children;
+        Assert.Equal(first, copy); Assert.Equal(hash, first.GetHashCode());
+    }
     [Fact] public void DeferredIndexesDoNotRetainUnboundedRenameHistory()
     {
         var editor = new EditorSession(); var id = editor.Add(new(new(100, 100), 20, 20, 0));

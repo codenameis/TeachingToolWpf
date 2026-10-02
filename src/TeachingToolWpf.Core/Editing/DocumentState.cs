@@ -36,10 +36,14 @@ public sealed record DocumentState(
             return value.Value;
         }
     }
+    /// <summary>changedIds must include every added, removed, geometric or metadata change.</summary>
     public DocumentState WithRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
         => ReferenceEquals(Rois, rois) ? this : this with { snapshot = new(snapshot, rois, changedIds.Distinct().ToImmutableArray()), selectedSpatial = null };
     internal DocumentState WithRoisFrom(DocumentState before, ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
         => this with { snapshot = new(before.snapshot, rois, changedIds.Distinct().ToImmutableArray(), snapshot), selectedSpatial = null };
+    public bool Equals(DocumentState? other) => other is not null && ReferenceEquals(Rois, other.Rois) &&
+        ReferenceEquals(Selection, other.Selection) && Image == other.Image && Viewport == other.Viewport;
+    public override int GetHashCode() => HashCode.Combine(Rois, Selection, Image, Viewport);
     public static DocumentState Empty => new(ImmutableDictionary<Guid, Roi>.Empty,
         ImmutableHashSet<Guid>.Empty, null, ViewportTransform.Identity);
 }

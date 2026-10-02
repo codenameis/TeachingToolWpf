@@ -8,6 +8,7 @@ namespace TeachingToolWpf.Rendering;
 internal sealed class ScenePainter
 {
     private readonly SpriteMesh mesh = new();
+    private readonly RoiVisibility visible = new(), selectedVisible = new();
     private static readonly Vector4 Accent = new(.22f, .52f, 1, 1);
     private static readonly Vector4 Outline = new(.66f, .73f, .84f, 1);
     public SpriteMesh Build(RenderScene scene, GpuTexture white, IReadOnlyDictionary<TileKey, GpuTexture> tiles, Func<string, GpuTexture> label, GpuTexture? live, BoundsD liveBounds, GpuFilterPreview filters)
@@ -40,12 +41,16 @@ internal sealed class ScenePainter
             var corners = region.Geometry.Corners.Select(view.ImageToScreen).ToArray();
             mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true);
         }
-        var viewport = new BoundsD(-50, -50, scene.Width + 50, scene.Height + 50);
-        foreach (var roi in scene.Document.Rois.Values.OrderBy(r => r.Order))
+        visible.Update(scene.Document.Snapshot.Spatial, view, scene.Width, scene.Height);
+        selectedVisible.Update(scene.Document.SelectedSpatial, view, scene.Width, scene.Height);
+        foreach (var box in visible.Summaries) Summary(box, Outline with { W = .5f });
+        foreach (var box in selectedVisible.Summaries) Summary(box, Accent);
+        var drawn = new HashSet<RotatedRect>();
+        foreach (var roi in visible.Rois.Where(r => !scene.Document.Selection.Contains(r.Id)).Concat(selectedVisible.Rois))
         {
-            var points = roi.Geometry.Corners.Select(view.ImageToScreen).ToArray();
-            if (!BoundsD.FromPoints(points).Intersects(viewport)) continue;
             var selected = scene.Document.Selection.Contains(roi.Id);
+            if (!selected && !drawn.Add(roi.Geometry)) continue;
+            var points = roi.Geometry.Corners.Select(view.ImageToScreen).ToArray();
             var hovered = scene.Overlay.Hover == roi.Id;
             var color = selected || hovered ? Accent : Outline;
             mesh.Outline(white, points, selected ? 3 : 2, new(0, 0, 0, .22f));
@@ -61,7 +66,9 @@ internal sealed class ScenePainter
         }
         if (scene.Document.Selection.Count > 1)
         {
-            var box = BoundsD.FromPoints(scene.Document.Selection.SelectMany(id => scene.Document.Rois[id].Geometry.Corners).Select(view.ImageToScreen));
+            var bounds = scene.Document.SelectedSpatial.Bounds;
+            var a = view.ImageToScreen(new(bounds.Left, bounds.Top)); var b = view.ImageToScreen(new(bounds.Right, bounds.Bottom));
+            var box = new BoundsD(a.X, a.Y, b.X, b.Y);
             mesh.Outline(white, [new(box.Left, box.Top), new(box.Right, box.Top), new(box.Right, box.Bottom), new(box.Left, box.Bottom)], 1, Accent);
             var top = new PointD(box.Center.X, box.Top); var rotation = top + new PointD(0, -28);
             mesh.Line(white, top, rotation, 1, Accent); RotationHandle(white, rotation);
@@ -73,20 +80,30 @@ internal sealed class ScenePainter
             mesh.Outline(white, [new(selection.Left, selection.Top), new(selection.Right, selection.Top), new(selection.Right, selection.Bottom), new(selection.Left, selection.Bottom)], 1, Accent);
         }
         AddLabels(scene, white, label);
+        if (visible.Summaries.Count > 0)
+        {
+            var text = label("미세 ROI 요약 · 확대하면 개별 윤곽 표시");
+            mesh.Rectangle(white, new(8, 8, 20 + text.Width / scene.Dpi, 16 + text.Height / scene.Dpi), new(.13f, .16f, .22f, .94f));
+            mesh.Rectangle(text, new(14, 12, 14 + text.Width / scene.Dpi, 12 + text.Height / scene.Dpi), Vector4.One);
+        }
         return mesh;
+        void Summary(BoundsD bounds, Vector4 color)
+        {
+            var a = view.ImageToScreen(new(bounds.Left, bounds.Top)); var b = view.ImageToScreen(new(bounds.Right, bounds.Bottom));
+            mesh.Rectangle(white, new(a.X, a.Y, b.X, b.Y), color);
+        }
     }
     private void AddLabels(RenderScene scene, GpuTexture white, Func<string, GpuTexture> rasterize)
     {
         var occupied = new List<BoundsD>();
-        var childCounts = scene.Document.Rois.Values.Where(r => r.ParentId is not null).GroupBy(r => r.ParentId!.Value).ToDictionary(g => g.Key, g => g.Count());
-        var parents = childCounts.Keys.ToHashSet();
-        foreach (var roi in scene.Document.Rois.Values.Where(r => parents.Contains(r.Id) || r.ParentId is null || scene.Document.Selection.Contains(r.Id))
+        var children = scene.Document.Snapshot.Children;
+        foreach (var roi in visible.Rois.Concat(selectedVisible.Rois).DistinctBy(r => r.Id).Where(r => children.ContainsKey(r.Id) || r.ParentId is null || scene.Document.Selection.Contains(r.Id))
             .OrderByDescending(r => scene.Document.Selection.Contains(r.Id)).ThenBy(r => r.Order))
         {
             var selected = scene.Document.Selection.Contains(roi.Id);
             var bounds = BoundsD.FromPoints(roi.Geometry.Corners.Select(scene.Document.Viewport.ImageToScreen));
             if (!bounds.Intersects(new(0, 0, scene.Width, scene.Height))) continue;
-            var name = childCounts.TryGetValue(roi.Id, out var count) ? $"{roi.Name}  [{count}]" : roi.Name;
+            var name = children.TryGetValue(roi.Id, out var descendants) ? $"{roi.Name}  [{descendants.Length}]" : roi.Name;
             var text = selected ? $"{name}  ·  {roi.Geometry.Angle:0.0}°" : name;
             var x = Math.Clamp(bounds.Left, 4, Math.Max(4, scene.Width - 100));
             var anchorY = selected && scene.Document.Selection.Count == 1
@@ -96,7 +113,7 @@ internal sealed class ScenePainter
             // Suppress overlapping unselected tags before rasterizing them. Selection always wins.
             var estimate = new BoundsD(x, y, Math.Min(scene.Width, x + Math.Min(430, text.Length * 12 + 12)), y + 24);
             if (!(selected && scene.Document.Selection.Count == 1) && occupied.Any(b => b.Intersects(estimate))) continue;
-            if (occupied.Count >= 256) continue;
+            if (occupied.Count >= 256) break;
             var texture = rasterize(text);
             var box = new BoundsD(x, y, Math.Min(scene.Width, x + texture.Width / scene.Dpi + 12), y + texture.Height / scene.Dpi + 8);
             occupied.Add(box);
