@@ -25,9 +25,11 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             var owner = Window.GetWindow(this);
             if (ownerWindow != owner)
             {
-                if (ownerWindow is not null) ownerWindow.StateChanged -= WindowStateChanged;
+                if (ownerWindow is not null)
+                    ownerWindow.StateChanged -= WindowStateChanged;
                 ownerWindow = owner;
-                if (ownerWindow is not null) ownerWindow.StateChanged += WindowStateChanged;
+                if (ownerWindow is not null)
+                    ownerWindow.StateChanged += WindowStateChanged;
             }
             UpdateSize();
         };
@@ -43,12 +45,25 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
     public double ViewHeight => ActualHeight;
     public double Dpi => VisualTreeHelper.GetDpi(this).DpiScaleX;
     public event Action? LayoutChanged;
-    public InteractionController? Input { get; set; }
-    public Func<bool>? InputEnabled { get; set; }
-    public Func<Key, bool, bool, bool>? KeyAction { get; set; }
+    public InteractionController? Input
+    {
+        get; set;
+    }
+    public Func<bool>? InputEnabled
+    {
+        get; set;
+    }
+    public Func<Key, bool, bool, bool>? KeyAction
+    {
+        get; set;
+    }
     public event Action<Exception>? InputFailed;
     public long SetSource(ITileSource source) => Tiles.SetSource(source);
-    public void Submit(RenderScene value) { scene = value; renderer?.Submit(value); }
+    public void Submit(RenderScene value)
+    {
+        scene = value;
+        renderer?.Submit(value);
+    }
     public void Capture(string path) => renderer?.Capture(path);
     public event Action<string>? RendererStatusChanged;
     public event Action<Diagnostics.RenderMetrics>? MetricsChanged;
@@ -65,69 +80,142 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         renderer.StatusChanged += status => Dispatcher.BeginInvoke(() => RendererStatusChanged?.Invoke(status));
         renderer.MetricsChanged += value => Dispatcher.BeginInvoke(() => MetricsChanged?.Invoke(value));
         renderer.Start();
-        if (scene is not null) renderer.Submit(scene);
+        if (scene is not null)
+            renderer.Submit(scene);
     }
     public async Task RestartAsync()
     {
-        var previous = renderer; renderer = null;
-        if (previous is not null) await Task.Run(previous.Dispose);
-        if (closed || Handle == 0) return;
-        StartRenderer(Handle); UpdateSize();
+        var previous = renderer;
+        renderer = null;
+        if (previous is not null)
+            await Task.Run(previous.Dispose);
+        if (closed || Handle == 0)
+            return;
+        StartRenderer(Handle);
+        UpdateSize();
     }
-    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo) { base.OnRenderSizeChanged(sizeInfo); UpdateSize(); }
-    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi) { base.OnDpiChanged(oldDpi, newDpi); UpdateSize(); }
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        UpdateSize();
+    }
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        UpdateSize();
+    }
     private void UpdateSize()
     {
         var dpi = VisualTreeHelper.GetDpi(this);
         var suspended = !IsVisible || ownerWindow?.WindowState == WindowState.Minimized;
-        renderer?.Resize(suspended ? 0 : (int)Math.Ceiling(ActualWidth * dpi.DpiScaleX), suspended ? 0 : (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY));
+        // 크기 0은 렌더 중단을 뜻한다. 편집기에는 변경된 레이아웃을 계속 알린다.
+        renderer?.Resize(
+            suspended ? 0 : (int)Math.Ceiling(ActualWidth * dpi.DpiScaleX),
+            suspended ? 0 : (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY));
         LayoutChanged?.Invoke();
     }
-    private static bool Pressed(int key) => NativeMethods.GetKeyState(key) < 0;
-    private static InputModifiers Modifiers => (Pressed(0x11) ? InputModifiers.Control : 0) | (Pressed(0x10) ? InputModifiers.Shift : 0) | (Pressed(0x12) ? InputModifiers.Alt : 0);
+    private static InputModifiers Modifiers =>
+        (NativeMethods.IsKeyPressed(NativeVirtualKey.Control) ? InputModifiers.Control : 0) |
+        (NativeMethods.IsKeyPressed(NativeVirtualKey.Shift) ? InputModifiers.Shift : 0) |
+        (NativeMethods.IsKeyPressed(NativeVirtualKey.Alt) ? InputModifiers.Alt : 0);
+
     protected override nint WndProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
-        if (message == 0x87) { handled = true; return 4; }
-        if (message == 0x20 && (lParam.ToInt64() & 0xffff) == 1)
+        var windowMessage = (NativeWindowMessage)message;
+        if (windowMessage == NativeWindowMessage.GetDialogCode)
         {
-            ViewportWindow.UseCursor(Input?.Tool switch { EditorTool.Draw => 32515, EditorTool.Pan => 32649, _ => 32512 });
+            handled = true;
+            return NativeMethods.WantAllDialogKeys;
+        }
+        if (windowMessage == NativeWindowMessage.SetCursor && NativeMethods.IsClientCursorMessage(lParam))
+        {
+            ViewportWindow.UseCursor(Input?.Tool switch
+            {
+                EditorTool.Draw => NativeCursor.Cross,
+                EditorTool.Pan => NativeCursor.Hand,
+                _ => NativeCursor.Arrow
+            });
             handled = true;
             return 1;
         }
-        if (Input is null) return base.WndProc(hwnd, message, wParam, lParam, ref handled);
+        if (Input is null)
+            return base.WndProc(hwnd, message, wParam, lParam, ref handled);
         try
         {
-            var point = new PointD((short)(lParam.ToInt64() & 0xffff) / Dpi, (short)((lParam.ToInt64() >> 16) & 0xffff) / Dpi);
-            if (message is 0x201 or 0x207 && (InputEnabled?.Invoke() ?? true))
+            var point = ClientPixelsToDips(NativeMethods.DecodePoint(lParam));
+            if ((windowMessage is NativeWindowMessage.LeftButtonDown or NativeWindowMessage.MiddleButtonDown) &&
+                (InputEnabled?.Invoke() ?? true))
             {
-                NativeMethods.SetFocus(hwnd); NativeMethods.SetCapture(hwnd);
-                Input.Down(point, Modifiers, message == 0x207 || Pressed(0x20)); handled = true;
+                NativeMethods.SetFocus(hwnd);
+                NativeMethods.SetCapture(hwnd);
+                Input.Down(point, Modifiers, windowMessage == NativeWindowMessage.MiddleButtonDown ||
+                    NativeMethods.IsKeyPressed(NativeVirtualKey.Space));
+                handled = true;
             }
-            else if (message is 0x202 or 0x208)
+            else if (windowMessage is NativeWindowMessage.LeftButtonUp or NativeWindowMessage.MiddleButtonUp)
             {
-                if (Input.IsDragging) Input.Up(point, Modifiers);
-                NativeMethods.ReleaseCapture(); handled = true;
+                // ReleaseCapture가 CaptureChanged를 재진입시킬 수 있으므로 먼저 편집을 끝낸다.
+                if (Input.IsDragging)
+                    Input.Up(point, Modifiers);
+                NativeMethods.ReleaseCapture();
+                handled = true;
             }
-            else if (message == 0x200 && (InputEnabled?.Invoke() ?? true)) { Input.Move(point, Modifiers); handled = true; }
-            else if (message == 0x20A)
+            else if (windowMessage == NativeWindowMessage.MouseMove && (InputEnabled?.Invoke() ?? true))
             {
-                var location = new NativeMethods.NativePoint { X = (short)(lParam.ToInt64() & 0xffff), Y = (short)((lParam.ToInt64() >> 16) & 0xffff) };
-                NativeMethods.ScreenToClient(hwnd, ref location);
-                Input.Wheel(new(location.X / Dpi, location.Y / Dpi), (short)((wParam.ToInt64() >> 16) & 0xffff) / 120d); handled = true;
+                Input.Move(point, Modifiers);
+                handled = true;
             }
-            else if (message == 0x100)
+            else if (windowMessage == NativeWindowMessage.MouseWheel)
             {
-                handled = KeyAction?.Invoke(KeyInterop.KeyFromVirtualKey((int)wParam), Pressed(0x11), Pressed(0x10)) ?? false;
-                if ((int)wParam == 0x1B) NativeMethods.ReleaseCapture();
+                var wheelPoint = WheelPositionInDips(hwnd, lParam);
+                Input.Wheel(wheelPoint, NativeMethods.DecodeWheelNotches(wParam));
+                handled = true;
             }
-            else if (message is 0x215 or 0x8 && Input.IsDragging) Input.Cancel();
+            else if (windowMessage == NativeWindowMessage.KeyDown)
+            {
+                var virtualKey = (int)wParam;
+                handled = DispatchKeyAction(virtualKey);
+                if (virtualKey == (int)NativeVirtualKey.Escape)
+                    NativeMethods.ReleaseCapture();
+            }
+            else if ((windowMessage is NativeWindowMessage.CaptureChanged or NativeWindowMessage.KillFocus) && Input.IsDragging)
+            {
+                Input.Cancel();
+            }
         }
-        catch (Exception ex) { Input.Cancel(); NativeMethods.ReleaseCapture(); InputFailed?.Invoke(ex); }
+        catch (Exception ex)
+        {
+            Input.Cancel();
+            NativeMethods.ReleaseCapture();
+            InputFailed?.Invoke(ex);
+        }
         return handled ? 0 : base.WndProc(hwnd, message, wParam, lParam, ref handled);
     }
+
+    private PointD ClientPixelsToDips(NativeMethods.NativePoint point) => new(point.X / Dpi, point.Y / Dpi);
+
+    private PointD WheelPositionInDips(nint hwnd, nint lParam)
+    {
+        // 휠 메시지는 버튼/이동 메시지와 달리 화면 전체의 픽셀 좌표를 전달한다.
+        var screenPoint = NativeMethods.DecodePoint(lParam);
+        NativeMethods.ScreenToClient(hwnd, ref screenPoint);
+        return ClientPixelsToDips(screenPoint);
+    }
+
+    private bool DispatchKeyAction(int virtualKey) =>
+        KeyAction?.Invoke(KeyInterop.KeyFromVirtualKey(virtualKey),
+            NativeMethods.IsKeyPressed(NativeVirtualKey.Control),
+            NativeMethods.IsKeyPressed(NativeVirtualKey.Shift)) ?? false;
+
     protected override void DestroyWindowCore(HandleRef hwnd)
     {
-        closed = true; frames.Dispose(); renderer?.Dispose(); renderer = null; Tiles.Dispose(); NativeMethods.DestroyWindow(hwnd.Handle);
-        if (ownerWindow is not null) ownerWindow.StateChanged -= WindowStateChanged;
+        closed = true;
+        frames.Dispose();
+        renderer?.Dispose();
+        renderer = null;
+        Tiles.Dispose();
+        NativeMethods.DestroyWindow(hwnd.Handle);
+        if (ownerWindow is not null)
+            ownerWindow.StateChanged -= WindowStateChanged;
     }
 }

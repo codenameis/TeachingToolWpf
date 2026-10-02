@@ -7,8 +7,9 @@ namespace TeachingToolWpf.Controls;
 internal static class ViewportWindow
 {
     private const string ClassName = "TeachingToolWpf.Dx12Viewport";
-    private const int ChildVisibleClipped = 0x56000000;
-    private const int TabStop = 0x00010000;
+    private const NativeWindowStyle Style = NativeWindowStyle.Child | NativeWindowStyle.Visible |
+        NativeWindowStyle.ClipSiblings | NativeWindowStyle.ClipChildren | NativeWindowStyle.TabStop;
+    // Keep the managed delegate alive for every window registered with this class.
     private static readonly WindowProcedure Procedure = DefWindowProc;
     private static readonly Lazy<ushort> RegisteredClass = new(Register);
 
@@ -16,8 +17,9 @@ internal static class ViewportWindow
     {
         _ = RegisteredClass.Value;
         var handle = NativeMethods.CreateWindowEx(0, ClassName, "Vision editing canvas",
-            ChildVisibleClipped | TabStop, 0, 0, 1, 1, parent, 0, GetModuleHandle(null), 0);
-        if (handle == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            (int)Style, 0, 0, 1, 1, parent, 0, GetModuleHandle(null), 0);
+        if (handle == 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error());
         return handle;
     }
 
@@ -28,15 +30,16 @@ internal static class ViewportWindow
             Size = (uint)Marshal.SizeOf<WindowClass>(),
             Procedure = Marshal.GetFunctionPointerForDelegate(Procedure),
             Instance = GetModuleHandle(null),
-            Cursor = LoadCursor(0, 32512),
+            Cursor = LoadCursor(0, (nint)NativeCursor.Arrow),
             ClassName = ClassName
         };
         var atom = RegisterClassEx(ref definition);
-        if (atom == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+        if (atom == 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error());
         return atom;
     }
 
-    internal static void UseCursor(int id) => SetCursor(LoadCursor(0, id));
+    internal static void UseCursor(NativeCursor cursor) => SetCursor(LoadCursor(0, (nint)cursor));
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     private delegate nint WindowProcedure(nint hwnd, uint message, nint wParam, nint lParam);
