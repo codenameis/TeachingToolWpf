@@ -152,10 +152,10 @@ public class PreparedTransferTests
         var pending = editor.PreparePreviewAsync("이동");
         editor.PreviewTranslation(new(50, 30));
         if (roundTrip) editor.PreviewTranslation(new(20, 10));
-        var latest = editor.TranslationPreview;
+        var latest = editor.TransformPreview;
         var prepared = await pending;
         Assert.Throws<InvalidOperationException>(() => editor.CommitPrepared(prepared));
-        Assert.Same(before, editor.State); Assert.Same(latest, editor.TranslationPreview);
+        Assert.Same(before, editor.State); Assert.Same(latest, editor.TransformPreview);
         Assert.True(editor.IsPreviewing); Assert.Equal(bytes, editor.HistoryBytes);
         editor.CancelPreview();
     }

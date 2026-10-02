@@ -7,6 +7,25 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class FilterPreviewSessionTests
 {
+    [Fact] public async Task RotationPreviewUsesRotatedRegionAndCancellationRestoresFilter()
+    {
+        var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 500, 500), ViewportTransform.Identity);
+        var parent = editor.Add(new(new(200, 200), 150, 150, 10));
+        var child = editor.Add(new(new(220, 210), 20, 12, 25)); editor.SetFilters(new(RoiFilterKind.Edge));
+        editor.Select([parent]); editor.SetFilters(new(RoiFilterKind.Binarize));
+        var processor = new Processor(); processor.Release.SetResult();
+        using var model = new FilterPreviewViewModel(processor, editor);
+        editor.Changed += (_, _) => model.Update(editor.State, false, editor.TransformPreview);
+        model.Update(editor.State, false); await model.WhenIdle;
+        var before = editor.State; var properties = new RoiPropertiesViewModel(editor);
+        editor.BeginPreview(); editor.PreviewRotation(new(200, 200), 30);
+        properties.Refresh(); await model.WhenIdle;
+        Assert.Equal("40", properties.Angle);
+        Assert.Equal(editor.TransformPreview!.Geometry(before.Rois[parent]), Assert.Single(model.Result!.Regions).Geometry);
+        Assert.Equal(before.Rois[child].Geometry, editor.State.Rois[child].Geometry);
+        editor.CancelPreview(); await model.WhenIdle;
+        Assert.Equal(before.Rois[parent].Geometry, Assert.Single(model.Result!.Regions).Geometry);
+    }
     [Fact] public async Task NoOpDragReenablesFilterCommandsAndRegisteredDragKeepsRequestAllocationBounded()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100000, 100), ViewportTransform.Identity);
@@ -14,7 +33,7 @@ public class FilterPreviewSessionTests
         editor.Select(editor.State.Rois.Keys); editor.SetFilters(new(RoiFilterKind.Edge));
         var processor = new Processor(); processor.Release.SetResult();
         using var model = new FilterPreviewViewModel(processor, editor);
-        editor.Changed += (_, _) => model.Update(editor.State, false, editor.TranslationPreview);
+        editor.Changed += (_, _) => model.Update(editor.State, false, editor.TransformPreview);
         model.Update(editor.State, false); await model.WhenIdle;
         editor.BeginPreview(); editor.PreviewTranslation(new(1, 1));
         var bytes = GC.GetAllocatedBytesForCurrentThread();
@@ -28,7 +47,7 @@ public class FilterPreviewSessionTests
         Assert.Equal(editor.State.Rois.Count, model.Result!.Regions.Count);
         Assert.All(model.Result.Regions, r => Assert.Equal(editor.State.Rois[r.Id].Geometry, r.Geometry));
     }
-    [Fact] public async Task TranslationPreviewUsesMovedPixelsAndCancelRestoresOriginalRegion()
+    [Fact] public async Task TransformPreviewUsesMovedPixelsAndCancelRestoresOriginalRegion()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
         var id = editor.Add(new(new(30, 30), 10, 10, 0)); editor.SetFilters(new(RoiFilterKind.Edge));
@@ -36,7 +55,7 @@ public class FilterPreviewSessionTests
         using var model = new FilterPreviewViewModel(processor, editor); model.Update(editor.State, false); await model.WhenIdle;
         var before = editor.State.Rois[id].Geometry;
         editor.BeginPreview(); editor.PreviewTranslation(new(20, 15));
-        model.Update(editor.State, false, editor.TranslationPreview); await model.WhenIdle;
+        model.Update(editor.State, false, editor.TransformPreview); await model.WhenIdle;
         Assert.Equal(before.Translate(new(20, 15)), Assert.Single(model.Result!.Regions).Geometry);
         Assert.Equal(before, editor.State.Rois[id].Geometry);
         editor.CancelPreview(); model.Update(editor.State, false); await model.WhenIdle;

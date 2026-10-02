@@ -23,6 +23,19 @@ internal static class FilterSmokeScenario
         Require(model.Filters.Result?.Regions.Count == 1, "unregistered ROI stays original in multi-selection");
         model.Filters.SelectedFilter = RoiFilterKind.Edge; await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == before.Rois.Count, model.Filters.Status);
+        var rotationStart = model.Session.State;
+        model.Session.BeginPreview();
+        model.Session.PreviewRotation(rotationStart.SelectedSpatial.Bounds.Center, 10);
+        await model.Filters.WhenIdle;
+        var rotation = model.Session.TransformPreview!;
+        Require(model.Filters.Result?.Regions.Count == rotationStart.Rois.Count &&
+            model.Filters.Result.Regions.All(r => r.Geometry == rotation.Geometry(rotationStart.Rois[r.Id])),
+            "native OpenCV regions follow retained rotation preview");
+        viewport.Capture("artifacts/filter-rotation-smoke.png"); await Task.Delay(500);
+        model.Session.CancelPreview(); await model.Filters.WhenIdle;
+        Require(model.Filters.Result?.Regions.Count == rotationStart.Rois.Count &&
+            model.Filters.Result.Regions.All(r => r.Geometry == rotationStart.Rois[r.Id].Geometry),
+            "cancel restores original filter regions");
         await Task.Delay(500); viewport.Capture("artifacts/filter-smoke.png"); await Task.Delay(500);
         model.Filters.Stop.Execute(null); Require(model.Filters.Result is null, "original view clears preview");
         await model.Images.ReplaceAsync(new("sample:24576:32768", "24K", 24576, 32768));

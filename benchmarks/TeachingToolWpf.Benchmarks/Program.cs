@@ -3,6 +3,13 @@ using System.Diagnostics;
 using System.Text.Json;
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
+using TeachingToolWpf.Benchmarks;
+
+if (args.Contains("--rotation-commit-profile"))
+{
+    RotationCommitProfile.Run(args);
+    return;
+}
 
 var results = new List<object>();
 foreach (var count in new[] { 1000, 10000 })

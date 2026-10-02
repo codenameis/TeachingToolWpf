@@ -39,7 +39,7 @@ internal sealed class RoiPipeline : IDisposable
         this.gpu = gpu; uploads = [new(gpu), new(gpu)];
         root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
             [new(RootParameterType.ShaderResourceView, new RootDescriptor1(0, 0), ShaderVisibility.Vertex),
-             new(new RootConstants(0, 0, 12), ShaderVisibility.All)]));
+             new(new RootConstants(0, 0, 16), ShaderVisibility.All)]));
         var shader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Shaders", "Roi.hlsl"));
         pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
         {
@@ -60,11 +60,11 @@ internal sealed class RoiPipeline : IDisposable
         var level = (int)Math.Floor(Math.Log2(6 / view.Scale));
         surface.Commands.SetGraphicsRootSignature(root); surface.Commands.SetPipelineState(pipeline);
         surface.Commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-        if (scene.Translation is { } translation)
+        if (scene.Transform is { } preview)
         {
-            DrawIndex(translation.Selection.Stationary, false, default);
-            if (translation.Selection.Affected.Count != scene.Document.Selection.Count) DrawIndex(translation.Selection.Moving, false, translation.Delta);
-            DrawIndex(scene.Document.SelectedSpatial, true, translation.Delta);
+            DrawIndex(preview.Selection.Stationary, false, default);
+            if (preview.Selection.Affected.Count != scene.Document.Selection.Count) DrawIndex(preview.Selection.Moving, false, preview.Transform);
+            DrawIndex(scene.Document.SelectedSpatial, true, preview.Transform);
         }
         else
         {
@@ -78,9 +78,9 @@ internal sealed class RoiPipeline : IDisposable
                 if (bytes <= 128L * 1024 * 1024) break;
                 blocks.Remove(pair.Key); bytes -= pair.Value.CacheCost; surface.Retire(pair.Value);
             }
-        void DrawIndex(RoiSpatialIndex index, bool selected, PointD translation)
+        void DrawIndex(RoiSpatialIndex index, bool selected, RigidTransform2D transform)
         {
-            var query = new BoundsD(visible.Left - translation.X, visible.Top - translation.Y, visible.Right - translation.X, visible.Bottom - translation.Y);
+            var query = transform.InverseTransformBounds(visible);
             foreach (var region in index.Blocks(query))
             {
                 var key = (region.Identity, level);
@@ -90,8 +90,8 @@ internal sealed class RoiPipeline : IDisposable
                     block = Upload(region, instances, surface); blocks.Add(key, block); bytes += block.CacheCost;
                 }
                 block.LastUsed = frame; InstanceCount += block.Count;
-                DrawBlock(block, scene, surface, selected ? 3 : 2, new(0, 0, 0, .22f), true, selected, translation);
-                DrawBlock(block, scene, surface, selected ? 1.5f : 1, selected ? new(.22f, .52f, 1, 1) : new(.66f, .73f, .84f, 1), false, selected, translation);
+                DrawBlock(block, scene, surface, selected ? 3 : 2, new(0, 0, 0, .22f), true, selected, transform);
+                DrawBlock(block, scene, surface, selected ? 1.5f : 1, selected ? new(.22f, .52f, 1, 1) : new(.66f, .73f, .84f, 1), false, selected, transform);
             }
         }
     }
@@ -116,12 +116,14 @@ internal sealed class RoiPipeline : IDisposable
         }
         catch { buffer.Dispose(); throw; }
     }
-    private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, float thickness, Vector4 color, bool shadow, bool selected, PointD translation)
+    private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, float thickness, Vector4 color, bool shadow, bool selected, RigidTransform2D transform)
     {
-        var origin = scene.Document.Viewport.ImageToScreen(block.Origin + translation);
-        Span<float> constants = stackalloc float[12] { (float)(2 / scene.Width), (float)(-2 / scene.Height), (float)scene.Document.Viewport.Scale, thickness,
-            (float)origin.X, (float)origin.Y, shadow ? 1 : 0, selected ? 1 : .5f, color.X, color.Y, color.Z, color.W };
-        fixed (float* pointer = constants) surface.Commands.SetGraphicsRoot32BitConstants(1, 12, pointer, 0);
+        // Keep the large image origin in double. Only block-relative vectors reach the float shader.
+        var origin = scene.Document.Viewport.ImageToScreen(transform.Apply(block.Origin));
+        Span<float> constants = stackalloc float[16] { (float)(2 / scene.Width), (float)(-2 / scene.Height), (float)scene.Document.Viewport.Scale, thickness,
+            (float)origin.X, (float)origin.Y, shadow ? 1 : 0, selected ? 1 : .5f, color.X, color.Y, color.Z, color.W,
+            (float)transform.Cosine, (float)transform.Sine, 0, 0 };
+        fixed (float* pointer = constants) surface.Commands.SetGraphicsRoot32BitConstants(1, 16, pointer, 0);
         surface.Commands.SetGraphicsRootShaderResourceView(0, block.Buffer.GPUVirtualAddress);
         surface.Commands.DrawInstanced(24, (uint)block.Count, 0, 0);
     }

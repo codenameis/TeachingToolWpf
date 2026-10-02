@@ -110,10 +110,10 @@ public class PreparedEditingTests
         editor.CancelPreview();
         Assert.Same(before.Rois, editor.State.Rois); Assert.Equal(view, editor.State.Viewport);
         editor.BeginPreview(); editor.PreviewTranslation(new(5, 5));
-        var preview = editor.TranslationPreview;
+        var preview = editor.TransformPreview;
         var prepared = await pending;
         Assert.Throws<InvalidOperationException>(() => editor.CommitPrepared(prepared));
-        Assert.Same(preview, editor.TranslationPreview); Assert.True(editor.IsPreviewing);
+        Assert.Same(preview, editor.TransformPreview); Assert.True(editor.IsPreviewing);
         editor.CancelPreview();
     }
 
@@ -132,7 +132,7 @@ public class PreparedEditingTests
         Assert.Same(before.Rois, editor.State.Rois);
         editor.CommitPrepared(prepared);
 
-        Assert.Null(editor.TranslationPreview); Assert.False(editor.IsPreviewing);
+        Assert.Null(editor.TransformPreview); Assert.False(editor.IsPreviewing);
         Assert.Equal(view, editor.State.Viewport);
         Assert.Equal(before.Rois[parent].Geometry.Translate(new(600, 0)), editor.State.Rois[parent].Geometry);
         Assert.Equal(before.Rois[child].Geometry.Translate(new(600, 0)), editor.State.Rois[child].Geometry);

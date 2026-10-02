@@ -25,14 +25,198 @@ public sealed class RoiSpatialIndex
     // Metadata can change without rebuilding geometry. The value map belongs to this immutable snapshot.
     internal RoiSpatialIndex WithValues(ImmutableDictionary<Guid, Roi> rois) => new(root, locations, rois);
     private Roi Value(Entry entry) => values is null ? entry.Roi : values[entry.Roi.Id];
+
+    /// <summary>Exact rotated rectangle union bounds, using four branch-and-bound support queries.</summary>
+    public BoundsD RotatedBounds(PointD pivot, double angleDegrees)
+    {
+        if (!pivot.IsFinite) throw new ArgumentOutOfRangeException(nameof(pivot));
+        if (!double.IsFinite(angleDegrees)) throw new ArgumentOutOfRangeException(nameof(angleDegrees));
+        if (root.Count == 0) return default;
+        var angle = angleDegrees % 360;
+        if (angle == 0) return root.Bounds;
+        var (sin, cos) = Math.SinCos(angle * Math.PI / 180);
+        return new(pivot.X - Support(pivot, new(-cos, sin)), pivot.Y - Support(pivot, new(-sin, -cos)),
+            pivot.X + Support(pivot, new(cos, -sin)), pivot.Y + Support(pivot, new(sin, cos)));
+    }
+
+    private double Support(PointD pivot, PointD direction)
+    {
+        var best = double.NegativeInfinity;
+        Search(root, ProjectionUpperBound(root.Bounds, pivot, direction));
+        return best;
+
+        void Search(Node node, double upperBound)
+        {
+            if (node.Count == 0 || upperBound <= best) return;
+            if (node.Entries is { } entries)
+            {
+                foreach (var entry in entries)
+                {
+                    var rectangle = entry.Roi.Geometry;
+                    var center = rectangle.Center - pivot;
+                    var (sin, cos) = Math.SinCos(rectangle.Angle * Math.PI / 180);
+                    // A rectangle's support is its center plus the absolute projections of its local axes.
+                    var projection = center.X * direction.X + center.Y * direction.Y
+                        + Math.Abs(cos * direction.X + sin * direction.Y) * (rectangle.Width / 2)
+                        + Math.Abs(-sin * direction.X + cos * direction.Y) * (rectangle.Height / 2);
+                    best = Math.Max(best, projection);
+                }
+                return;
+            }
+            var left = node.Left!; var right = node.Right!;
+            var leftBound = ProjectionUpperBound(left.Bounds, pivot, direction);
+            var rightBound = ProjectionUpperBound(right.Bounds, pivot, direction);
+            if (leftBound >= rightBound) { Search(left, leftBound); Search(right, rightBound); }
+            else { Search(right, rightBound); Search(left, leftBound); }
+        }
+    }
+
+    private static double ProjectionUpperBound(BoundsD bounds, PointD pivot, PointD direction)
+    {
+        var x = direction.X >= 0 ? bounds.Right : bounds.Left;
+        var y = direction.Y >= 0 ? bounds.Bottom : bounds.Top;
+        var projection = (x - pivot.X) * direction.X + (y - pivot.Y) * direction.Y;
+        // Only the pruning bound is expanded; the returned support still uses the actual rectangle.
+        return projection + CoordinateRoundoff(bounds, pivot);
+    }
+
+    private static double CoordinateRoundoff(BoundsD bounds, PointD pivot)
+        => 32 * 2.2204460492503131e-16 * Math.Max(1,
+            Math.Max(Math.Max(Math.Abs(bounds.Left), Math.Abs(bounds.Right)),
+                Math.Max(Math.Max(Math.Abs(bounds.Top), Math.Abs(bounds.Bottom)), Math.Max(Math.Abs(pivot.X), Math.Abs(pivot.Y)))));
+
+    /// <summary>
+    /// First image-boundary exit in each direction. Compute once per immutable selection/pivot;
+    /// later drag samples can clamp without visiting ROI. Worst-case preparation remains O(N).
+    /// </summary>
+    public RotationRange RotationLimits(PointD pivot, ImageReference image, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!pivot.IsFinite) throw new ArgumentOutOfRangeException(nameof(pivot));
+        ArgumentNullException.ThrowIfNull(image);
+        if (image.Width <= 0 || image.Height <= 0) throw new ArgumentOutOfRangeException(nameof(image));
+        if (root.Count == 0) return RotationRange.Unbounded;
+        var limits = new BoundsD(-1e-7 - pivot.X, -1e-7 - pivot.Y,
+            image.Width + 1e-7 - pivot.X, image.Height + 1e-7 - pivot.Y);
+        var best = RotationExits.Unbounded;
+        Search(root, BoundsExits(root.Bounds));
+        return new(SafeEndpoint(best.Counterclockwise, -1), SafeEndpoint(best.Clockwise, 1));
+
+        double SafeEndpoint(double radians, int direction)
+        {
+            if (double.IsPositiveInfinity(radians)) return direction * double.PositiveInfinity;
+            // The analytic root is an equality. Keep the published rectangle on its inside even when
+            // angle normalization, SinCos, and final world-coordinate additions round differently.
+            var degrees = Math.Max(0, radians * 180 / Math.PI - 1e-10);
+            if (degrees == 0 || FitsWithRoundoff(degrees * direction)) return degrees * direction;
+            var inside = 0d; var outside = degrees;
+            for (var iteration = 0; iteration < 48; iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var middle = (inside + outside) / 2;
+                if (FitsWithRoundoff(middle * direction)) inside = middle; else outside = middle;
+            }
+            return inside * direction;
+        }
+
+        bool FitsWithRoundoff(double degrees)
+        {
+            var bounds = RotatedBounds(pivot, degrees);
+            var error = CoordinateRoundoff(bounds, pivot);
+            return bounds.Left >= -1e-7 + error && bounds.Top >= -1e-7 + error
+                && bounds.Right <= image.Width + 1e-7 - error && bounds.Bottom <= image.Height + 1e-7 - error;
+        }
+
+        RotationExits BoundsExits(BoundsD bounds)
+        {
+            // An outward-rounded AABB contains every descendant corner, so its first exit is a lower bound.
+            var margin = CoordinateRoundoff(bounds, pivot);
+            var left = bounds.Left - pivot.X - margin; var right = bounds.Right - pivot.X + margin;
+            var top = bounds.Top - pivot.Y - margin; var bottom = bounds.Bottom - pivot.Y + margin;
+            var exits = RotationExits.Unbounded;
+            IncludePoint(ref exits, new(left, top), limits);
+            IncludePoint(ref exits, new(right, top), limits);
+            IncludePoint(ref exits, new(right, bottom), limits);
+            IncludePoint(ref exits, new(left, bottom), limits);
+            return exits;
+        }
+
+        void Search(Node node, RotationExits lowerBound)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (node.Count == 0 || lowerBound.Clockwise >= best.Clockwise && lowerBound.Counterclockwise >= best.Counterclockwise) return;
+            if (node.Entries is { } entries)
+            {
+                foreach (var entry in entries)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var rectangle = entry.Roi.Geometry;
+                    var center = rectangle.Center - pivot;
+                    var (sin, cos) = Math.SinCos(rectangle.Angle * Math.PI / 180);
+                    var horizontal = new PointD(cos * (rectangle.Width / 2), sin * (rectangle.Width / 2));
+                    var vertical = new PointD(-sin * (rectangle.Height / 2), cos * (rectangle.Height / 2));
+                    IncludePoint(ref best, center - horizontal - vertical, limits);
+                    IncludePoint(ref best, center + horizontal - vertical, limits);
+                    IncludePoint(ref best, center + horizontal + vertical, limits);
+                    IncludePoint(ref best, center - horizontal + vertical, limits);
+                }
+                return;
+            }
+            var left = node.Left!; var right = node.Right!;
+            var leftBound = BoundsExits(left.Bounds); var rightBound = BoundsExits(right.Bounds);
+            if (leftBound.Earliest <= rightBound.Earliest) { Search(left, leftBound); Search(right, rightBound); }
+            else { Search(right, rightBound); Search(left, leftBound); }
+        }
+    }
+
+    private readonly record struct RotationExits(double Clockwise, double Counterclockwise)
+    {
+        public static RotationExits Unbounded => new(double.PositiveInfinity, double.PositiveInfinity);
+        public double Earliest => Math.Min(Clockwise, Counterclockwise);
+    }
+
+    private static void IncludePoint(ref RotationExits exits, PointD point, BoundsD limits)
+    {
+        IncludeEdge(ref exits, point.X, -point.Y, limits.Right);
+        IncludeEdge(ref exits, -point.X, point.Y, -limits.Left);
+        IncludeEdge(ref exits, point.Y, point.X, limits.Bottom);
+        IncludeEdge(ref exits, -point.Y, -point.X, -limits.Top);
+    }
+
+    private static void IncludeEdge(ref RotationExits exits, double a, double b, double limit)
+    {
+        // A corner follows a*cos(theta)+b*sin(theta). The forbidden arc starts at phase-acos(limit/radius).
+        var radius = double.Hypot(a, b);
+        if (radius <= limit) return; // Tangency alone never leaves the image.
+        if (a > limit || limit <= -radius) { exits = new(0, 0); return; }
+        var phase = Math.Atan2(b, a);
+        var halfArc = Math.Acos(Math.Clamp(limit / radius, -1, 1));
+        var clockwise = a == limit && b >= 0 ? 0 : PositiveAngle(phase - halfArc);
+        var counterclockwise = a == limit && b <= 0 ? 0 : PositiveAngle(-phase - halfArc);
+        exits = new(Math.Min(exits.Clockwise, clockwise), Math.Min(exits.Counterclockwise, counterclockwise));
+    }
+
+    private static double PositiveAngle(double radians)
+    {
+        var result = radians % (2 * Math.PI);
+        return result < 0 ? result + 2 * Math.PI : result;
+    }
+
     private static BoundsD Union(BoundsD a, BoundsD b) => new(Math.Min(a.Left, b.Left), Math.Min(a.Top, b.Top), Math.Max(a.Right, b.Right), Math.Max(a.Bottom, b.Bottom));
     private static Node Leaf(Entry[] entries)
     {
         var bounds = entries.Length == 0 ? default : entries[0].Bounds;
-        var maxArea = 0d;
-        foreach (var entry in entries) { bounds = Union(bounds, entry.Bounds); maxArea = Math.Max(maxArea, entry.Roi.Geometry.Area); }
-        return new(bounds, entries.Length, 0, maxArea, entries.Select(e => e.Roi).MinBy(r => (r.Geometry.Area, -r.Order)),
-            entries.Select(e => e.Roi).MaxBy(r => (r.Geometry.Area, -r.Order)), entries, null, null);
+        var maxArea = 0d; Roi? firstHit = null; Roi? representative = null;
+        foreach (var entry in entries)
+        {
+            bounds = Union(bounds, entry.Bounds);
+            var roi = entry.Roi; var area = roi.Geometry.Area;
+            if (CompareHit(roi, firstHit) < 0) firstHit = roi;
+            if (representative is null || area > maxArea || area == maxArea && roi.Order < representative.Order)
+                representative = roi;
+            maxArea = Math.Max(maxArea, area);
+        }
+        return new(bounds, entries.Length, 0, maxArea, firstHit, representative, entries, null, null);
     }
     private static Node Branch(Node left, Node right) => new(left.Count == 0 ? right.Bounds : right.Count == 0 ? left.Bounds : Union(left.Bounds, right.Bounds),
         left.Count + right.Count, 1 + Math.Max(left.Height, right.Height), Math.Max(left.MaxArea, right.MaxArea),
@@ -61,6 +245,33 @@ public sealed class RoiSpatialIndex
         var middle = count / 2;
         return Branch(Build(entries, start, middle, path << 1, paths), Build(entries, start + middle, count - middle, (path << 1) | 1, paths));
     }
+    /// <summary>
+    /// Replaces every ROI value while preserving the spatial partition and ID paths. The caller chooses
+    /// this for a coherent whole-set transform; arbitrary rearrangement can reduce later query efficiency.
+    /// </summary>
+    public RoiSpatialIndex RefitGeometry(ImmutableDictionary<Guid, Roi> rois, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(rois);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (rois.Count != locations.Count) throw new ArgumentException("Refit requires exactly the indexed ROI IDs.", nameof(rois));
+        return new(Refit(root), locations);
+
+        Node Refit(Node node)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (node.Entries is not { } entries) return Branch(Refit(node.Left!), Refit(node.Right!));
+            var updated = new Entry[entries.Length];
+            for (var index = 0; index < entries.Length; index++)
+            {
+                var id = entries[index].Roi.Id;
+                if (!rois.TryGetValue(id, out var roi) || roi is null || roi.Id != id)
+                    throw new ArgumentException("Refit requires matching indexed keys and ROI IDs.", nameof(rois));
+                updated[index] = new(roi, roi.Geometry.Bounds);
+            }
+            return Leaf(updated);
+        }
+    }
+
     public RoiSpatialIndex WithChanges(IEnumerable<(Guid Id, Roi? Value)> changes)
     {
         var next = root; var paths = locations.ToBuilder(); var currentValues = values?.ToBuilder();

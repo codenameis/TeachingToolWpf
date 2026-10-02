@@ -62,6 +62,11 @@ internal static class EditingSmokeScenario
         model.ResetAngle.Execute(null); Require(editor.State.Rois[parent].Geometry.Angle == 0, "absolute zero");
         await model.Undo.ExecuteAsync(); Require(editor.State.Rois[parent].Geometry.Angle == 37, "button undo");
         await model.Redo.ExecuteAsync(); Require(editor.State.Rois[parent].Geometry.Angle == 0, "button redo");
+        var beforeRotationButton = editor.State;
+        model.RotateRight.Execute(null); await model.EditCompletion;
+        Require(editor.State.Rois[parent].Geometry.Angle == 15, "rotation toolbar uses rigid preview and commit");
+        await model.Undo.ExecuteAsync();
+        Require(beforeRotationButton.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value), "one undo restores toolbar rotation and descendants");
         await model.Delete.ExecuteAsync(); Require(editor.State.Rois.Count == 0, "cascade delete");
         await model.Undo.ExecuteAsync(); Require(editor.State.Rois.Count == 3 && editor.State.Selection.Contains(parent), "cascade restore and selection");
         model.Ungroup.Execute(null); Require(editor.State.Rois.Count == 2, "ungroup keeps children");

@@ -44,11 +44,11 @@ internal sealed class ScenePainter
         }
         RoiBatchBoundary = mesh.Split();
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
-            mesh.Outline(white, (scene.Translation?.Geometry(hovered) ?? hovered.Geometry).Corners.Select(view.ImageToScreen).ToArray(), 1, Accent);
+            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Corners.Select(view.ImageToScreen).ToArray(), 1, Accent);
         if (scene.Document.Selection.Count == 1)
         {
             var roi = scene.Document.Rois[scene.Document.Selection.Single()];
-            var geometry = scene.Translation?.Geometry(roi) ?? roi.Geometry;
+            var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
             var points = geometry.Corners.Select(view.ImageToScreen).ToArray();
             foreach (var point in HandleGeometry.ResizeHandles(geometry, view)) Handle(white, point, 6, Accent);
             var top = (points[0] + points[1]) / 2;
@@ -59,11 +59,11 @@ internal sealed class ScenePainter
         if (scene.Document.Selection.Count > 1)
         {
             var bounds = scene.Document.SelectedSpatial.Bounds;
-            if (scene.Translation is { } translation) bounds = new(bounds.Left + translation.Delta.X, bounds.Top + translation.Delta.Y, bounds.Right + translation.Delta.X, bounds.Bottom + translation.Delta.Y);
-            var a = view.ImageToScreen(new(bounds.Left, bounds.Top)); var b = view.ImageToScreen(new(bounds.Right, bounds.Bottom));
-            var box = new BoundsD(a.X, a.Y, b.X, b.Y);
-            mesh.Outline(white, [new(box.Left, box.Top), new(box.Right, box.Top), new(box.Right, box.Bottom), new(box.Left, box.Bottom)], 1, Accent);
-            var top = new PointD(box.Center.X, box.Top); var rotation = top + new PointD(0, -28);
+            var transform = scene.Transform?.Transform ?? default;
+            var corners = SelectionCorners(bounds, view, transform);
+            mesh.Outline(white, corners, 1, Accent);
+            var top = (corners[0] + corners[1]) / 2;
+            var rotation = top + transform.ApplyVector(new PointD(0, -28));
             mesh.Line(white, top, rotation, 1, Accent); RotationHandle(white, rotation);
         }
         if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.Corners.Select(view.ImageToScreen).ToArray(), 1.5, Accent);
@@ -83,6 +83,9 @@ internal sealed class ScenePainter
         MinimapPainter.Draw(mesh, scene, white, minimapImage, label);
         return mesh;
     }
+    internal static PointD[] SelectionCorners(BoundsD bounds, ViewportTransform view, RigidTransform2D transform)
+        => new[] { new PointD(bounds.Left, bounds.Top), new(bounds.Right, bounds.Top), new(bounds.Right, bounds.Bottom), new(bounds.Left, bounds.Bottom) }
+            .Select(point => view.ImageToScreen(transform.Apply(point))).ToArray();
     private void Handle(GpuTexture white, PointD point, double size, Vector4 color)
     {
         mesh.Rectangle(white, new(point.X - size / 2 - 1, point.Y - size / 2 - 1, point.X + size / 2 + 1, point.Y + size / 2 + 1), color);

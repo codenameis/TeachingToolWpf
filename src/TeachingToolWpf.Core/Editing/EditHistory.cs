@@ -16,6 +16,7 @@ public sealed class DocumentEdit
     private readonly ViewportTransform beforeView;
     private readonly ViewportTransform afterView;
     private readonly bool changesImage;
+    private readonly bool refitSpatial;
     internal bool ChangesImage => changesImage;
     public bool IsEmpty => Changes.IsEmpty && !changesImage;
     public long EstimatedBytes { get; }
@@ -24,6 +25,7 @@ public sealed class DocumentEdit
     {
         cancellationToken.ThrowIfCancellationRequested();
         Name = name;
+        refitSpatial = after.Snapshot.IsRigidUpdate && ReferenceEquals(after.Snapshot.PreviousRois, before.Rois);
         IEnumerable<Guid> candidates = ReferenceEquals(before.Rois, after.Rois) ? [] :
             ReferenceEquals(before.Rois, after.Snapshot.PreviousRois) ? after.Snapshot.ChangedIds : before.Rois.Keys.Union(after.Rois.Keys);
         var changes = ImmutableArray.CreateBuilder<RoiChange>();
@@ -59,7 +61,9 @@ public sealed class DocumentEdit
             if (value is null) rois.Remove(change.Id);
             else rois[change.Id] = value;
         }
-        var result = state.WithRois(rois.ToImmutable(), Changes.Select(c => c.Id)) with
+        var ids = Changes.Select(c => c.Id);
+        var geometry = refitSpatial ? state.WithRigidRois(rois.ToImmutable(), ids) : state.WithRois(rois.ToImmutable(), ids);
+        var result = geometry with
         {
             Selection = forward ? afterSelection : beforeSelection,
             Image = changesImage ? (forward ? afterImage : beforeImage) : state.Image,

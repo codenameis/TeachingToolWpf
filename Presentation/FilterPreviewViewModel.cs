@@ -23,7 +23,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     private long revision;
     private Task? pump;
     private FilterPreviewResult? result;
-    private RoiTranslationPreview? translation;
+    private RoiTransformPreview? transformPreview;
     public IReadOnlyList<FilterOption> Options { get; } = [new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화"), new(RoiFilterKind.Edge, "Edge · Canny")];
     public RoiFilterKind SelectedFilter { get => selectedFilter; set { if (Set(ref selectedFilter, value)) { Notify(nameof(IsBinarize)); Notify(nameof(IsEdge)); DraftChanged(); } } }
     public string Threshold { get => threshold; set { if (Set(ref threshold, value)) DraftChanged(); } }
@@ -51,15 +51,15 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         ClearRegistration = new(() => { editor.SetFilters(new(RoiFilterKind.None)); Update(editor.State, live); },
             () => !editor.IsPreviewing && !document.SelectionFacts.RegisteredFilters.IsEmpty);
     }
-    public void Update(DocumentState state, bool isLive, RoiTranslationPreview? preview = null)
+    public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null)
     {
         var editingChanged = editing != editor.IsPreviewing; editing = editor.IsPreviewing;
-        if (ReferenceEquals(document.Rois, state.Rois) && ReferenceEquals(document.Selection, state.Selection) && document.Image == state.Image && live == isLive && translation == preview)
+        if (ReferenceEquals(document.Rois, state.Rois) && ReferenceEquals(document.Selection, state.Selection) && document.Image == state.Image && live == isLive && transformPreview == preview)
         { document = state; if (editingChanged) RefreshCommands(); return; } // View-only navigation cannot change image-local filter pixels.
         var selectionChanged = document.Image != state.Image || !document.Selection.SetEquals(state.Selection);
         var settingsChanged = !selectionChanged && !ReferenceEquals(document.Rois, state.Rois) &&
             state.Selection.Any(id => !document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
-        document = state; live = isLive; translation = preview;
+        document = state; live = isLive; transformPreview = preview;
         Notify(nameof(HasMixedFilters));
         if (selectionChanged || settingsChanged)
         {
@@ -113,9 +113,9 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         }
         try
         {
-            var next = new FilterRequest(document.Image!, live, rois, translation);
+            var next = new FilterRequest(document.Image!, live, rois, transformPreview);
             if (!force && requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive &&
-                old.Translation == next.Translation && old.Rois.SequenceEqual(next.Rois)) return;
+                old.Transform == next.Transform && old.Rois.SequenceEqual(next.Rois)) return;
             pending = requested = next; revision++; cancellation?.Cancel();
             if (!keepVisible) { ClearResult(); Status = "선택 영역을 처리하고 있습니다…"; }
             if (pump is null || pump.IsCompleted) pump = RunAsync();

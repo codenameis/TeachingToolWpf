@@ -8,8 +8,8 @@ public sealed partial class EditorSession
 {
     private readonly EditHistory history = new();
     private DocumentState? previewStart;
-    private RoiTranslationSelection? translationSelection;
-    public RoiTranslationPreview? TranslationPreview { get; private set; }
+    private RoiTransformSelection? transformSelection;
+    public RoiTransformPreview? TransformPreview { get; private set; }
     private long nextOrder;
     public DocumentState State { get; private set; } = DocumentState.Empty;
     public event EventHandler? Changed;
@@ -19,8 +19,9 @@ public sealed partial class EditorSession
     public string? RedoName => history.RedoName;
     public long HistoryBytes => history.Bytes;
     public bool IsPreviewing => previewStart is not null;
+    public long PreviewEpoch => previewEpoch;
     public bool HasPreviewChanges => previewStart is { } before &&
-        (TranslationPreview is { Delta: var delta } && delta != default || !ReferenceEquals(State.Rois, before.Rois));
+        (TransformPreview is { Transform.IsIdentity: false } || !ReferenceEquals(State.Rois, before.Rois));
 
     public Guid Add(RotatedRect geometry)
     {
@@ -98,14 +99,18 @@ public sealed partial class EditorSession
     }
     public void TranslateSelection(PointD delta)
     {
-        var selection = new RoiTranslationSelection(State);
-        var constrained = selection.Constrain(delta);
-        Commit("ROI 이동", selection.Apply(constrained), rebuild: !selection.PreservesHierarchy(constrained));
+        var selection = State.TransformSelection;
+        var transform = new RigidTransform2D(default, 0, selection.Constrain(delta));
+        Commit("ROI 이동", selection.Apply(transform) with { Viewport = State.Viewport }, rebuild: !selection.PreservesHierarchy(transform));
     }
-    public void RotateSelection(double delta, PointD pivot) => Transform("ROI 회전", r => r.Geometry.RotateAround(pivot, delta));
+    public void RotateSelection(double delta, PointD pivot)
+    {
+        var selection = State.TransformSelection;
+        var transform = new RigidTransform2D(pivot, selection.RotationLimits(pivot).Clamp(delta));
+        Commit("ROI 회전", selection.Apply(transform) with { Viewport = State.Viewport }, rebuild: !selection.PreservesHierarchy(transform));
+    }
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));
     public void SetGeometry(Guid id, RotatedRect geometry) => Commit("ROI 속성 변경", RoiTransforms.Apply(State, [id], _ => geometry));
-    private void Transform(string name, Func<Roi, RotatedRect> transform) => Commit(name, RoiTransforms.Apply(State, RoiHierarchy.EffectiveRoots(State), transform));
 
     public Guid GroupSelection()
     {
@@ -136,11 +141,21 @@ public sealed partial class EditorSession
     public void PreviewTranslation(PointD delta)
     {
         if (previewStart is null) throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
-        if (delta == default && translationSelection is null) return;
-        translationSelection ??= new(previewStart);
-        var constrained = translationSelection.Constrain(delta);
-        if (TranslationPreview?.Delta == constrained) return;
-        TranslationPreview = new(translationSelection, constrained);
+        if (delta == default && transformSelection is null) return;
+        transformSelection ??= previewStart.TransformSelection;
+        SetTransformPreview(new(default, 0, transformSelection.Constrain(delta)));
+    }
+    public void PreviewRotation(PointD pivot, double degrees)
+    {
+        if (previewStart is null) throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
+        if (degrees == 0 && transformSelection is null) return;
+        transformSelection ??= previewStart.TransformSelection;
+        SetTransformPreview(new(pivot, transformSelection.RotationLimits(pivot).Clamp(degrees)));
+    }
+    private void SetTransformPreview(RigidTransform2D transform)
+    {
+        if (TransformPreview?.Transform == transform) return;
+        TransformPreview = new(transformSelection!, transform);
         mutationRevision++;
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -164,21 +179,22 @@ public sealed partial class EditorSession
     {
         if (previewStart is null) return;
         var before = previewStart;
-        var translation = TranslationPreview;
-        var displayedPreview = translation is not null || !ReferenceEquals(State, before);
-        var next = translation is { } translated ? translated.Selection.Apply(translated.Delta) : State;
-        TranslationPreview = null; translationSelection = null;
+        var preview = TransformPreview;
+        var displayedPreview = preview is not null || !ReferenceEquals(State, before);
+        var next = preview is not null ? preview.Selection.Apply(preview.Transform) with { Viewport = State.Viewport } : State;
+        TransformPreview = null; transformSelection = null;
         previewStart = null; previewEpoch++;
-        State = before;
-        try { Commit(name, next, rebuild: translation is null || !translation.Selection.PreservesHierarchy(translation.Delta)); }
-        catch { Publish(before); throw; }
-        finally { if (displayedPreview && ReferenceEquals(State, before)) Changed?.Invoke(this, EventArgs.Empty); }
+        var restored = before.Viewport == State.Viewport ? before : before with { Viewport = State.Viewport };
+        State = restored;
+        try { Commit(name, next, rebuild: preview is null || !preview.Selection.PreservesHierarchy(preview.Transform)); }
+        catch { Publish(restored); throw; }
+        finally { if (displayedPreview && ReferenceEquals(State, restored)) Changed?.Invoke(this, EventArgs.Empty); }
     }
     public void CancelPreview()
     {
         if (previewStart is not { } before) return;
-        var translated = TranslationPreview is not null;
-        TranslationPreview = null; translationSelection = null;
+        var translated = TransformPreview is not null;
+        TransformPreview = null; transformSelection = null;
         previewStart = null; previewEpoch++;
         Publish(before.Viewport == State.Viewport ? before : before with { Viewport = State.Viewport });
         if (translated) Changed?.Invoke(this, EventArgs.Empty);

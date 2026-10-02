@@ -8,7 +8,8 @@ public enum EditorTool { Select, Pan, Draw }
 public sealed record InteractionOverlay(Guid? Hover = null, RotatedRect? Draft = null, BoundsD? Marquee = null);
 
 /// <summary>Chooses an input state; each gesture owns its preview and commit/cancel behavior.</summary>
-public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null)
+public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null,
+    Action<PointD>? previewTranslation = null, Action<PointD, double>? previewRotation = null)
 {
     private IGesture? gesture;
     private EditorTool tool;
@@ -26,6 +27,8 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     public bool NavigationOnly { get; set; }
     public event Action? Changed;
     internal EditorSession Editor => editor;
+    internal void PreviewTranslation(PointD delta) { if (previewTranslation is null) editor.PreviewTranslation(delta); else previewTranslation(delta); }
+    internal void PreviewRotation(PointD pivot, double degrees) { if (previewRotation is null) editor.PreviewRotation(pivot, degrees); else previewRotation(pivot, degrees); }
     internal void CommitPreview(string name) { if (commitPreview is null) editor.CommitPreview(name); else commitPreview(name); }
     internal void Select(IEnumerable<Guid> ids) { if (selectRois is null) editor.Select(ids); else selectRois(ids); }
     internal void Show(InteractionOverlay overlay) { Overlay = overlay; Changed?.Invoke(); }

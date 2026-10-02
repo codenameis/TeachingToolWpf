@@ -114,6 +114,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - UI 스레드: 입력, 편집 상태, WPF 바인딩. 렌더 스레드: GPU 명령, 리소스, Present. 작업 스레드: 파일 I/O, 디코드, 타일 준비.
 - 렌더 스레드는 UI 스레드의 WPF 객체나 변경 중인 도메인 컬렉션을 읽지 않는다. 불변 스냅샷과 명시적인 버퍼 소유권으로 전달한다. 텍스트 어댑터는 렌더 STA에서 독립 생성한 WPF 텍스트 객체를 래스터화하여 GPU 라벨 캐시에 전달한다.
 - 입력 이벤트마다 독립 작업을 무한 생성하지 않는다. 렌더 요청은 합치고, 이미지·선택·뷰포트 변경이 없는 정지 상태에서는 대기한다.
+- 이동·회전 드래그는 `RoiTransformPreview`의 공통 `RigidTransform2D`를 CPU 표시·필터·DX12 instance 상수에서 공유한다. 포인터 샘플마다 ROI 맵·BVH·GPU instance를 다시 만들지 않는다. 회전은 시작 형상에서 각 방향으로 처음 이미지 경계를 벗어나는 각도를 선택/pivot별로 준비하여 제한한다. 경계를 통과한 뒤 다시 들어오는 끝 각도로 건너뛰지 않는다. 상세 계약은 [ADR-010](docs/decisions/0010-retained-rigid-rotation.md), 실측과 한계는 [회전 성능](docs/rotation-performance.md)을 따른다.
 - ROI 윤곽은 불변 BVH 블록의 DX12 instance buffer를 재사용한다. 노드 키는 구조적 비교가 아닌 참조 동일성이다. 캐시 예산은 실제 GPU 할당과 유지되는 CPU 데이터 추정을 구분한다. [ADR-008](docs/decisions/0008-retained-roi-rendering.md)을 따른다.
 - 이동 preview 중 확정 문서를 매 샘플 복제하지 않는다. `TranslationPreview`의 불변 선택/이동량을 렌더·속성·필터가 함께 사용하고, 확정에서만 형상/이력을 만든다. 취소·no-op에서도 preview 종료 상태를 알린다. 회전/resize의 기존 preview 계약과 혼동하지 않는다.
 - 실시간 **표시**는 최신 완료 프레임 우선의 제한된 큐다. 버린 프레임 수를 기록하며, 수집·검사·저장의 무손실 요구와 혼동하지 않는다.

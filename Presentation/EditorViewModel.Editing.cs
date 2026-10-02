@@ -30,17 +30,26 @@ public sealed partial class EditorViewModel
         using var cancellation = new CancellationTokenSource(); editCancellation = cancellation;
         Status = $"{name} 준비 중… 화면 이동·확대 가능 · Esc로 취소"; Refresh();
         try { await action(cancellation.Token); if (!disposed) Status = $"{name} 완료"; }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { if (!disposed) Status = $"{name} 취소"; }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested || !Session.IsPreviewing) { if (!disposed) Status = $"{name} 취소"; }
         finally
         {
             preparedRows = null; editCancellation = null;
-            if (!disposed) { if (Session.IsPreviewing) Session.CancelPreview(); Refresh(); }
+            if (!disposed) { if (Session.IsPreviewing) Session.CancelPreview(); previewPreparation.Cancel(); Refresh(); }
         }
     }
 
     private void CompletePreview(string name)
     {
-        var changedCount = Session.TranslationPreview?.Selection.Affected.Count ?? Session.State.Selection.Count;
+        if (previewPreparation.HasPending)
+        {
+            EditCompletion = ObserveEditAsync(PrepareEditAsync(name, async token =>
+            {
+                await previewPreparation.FlushAsync(token);
+                return await Session.PreparePreviewAsync(name, token);
+            }));
+            return;
+        }
+        var changedCount = Session.TransformPreview?.Selection.Affected.Count ?? Session.State.Selection.Count;
         if (changedCount <= 256 || !Session.HasPreviewChanges) { Session.CommitPreview(name); return; }
         EditCompletion = ObserveEditAsync(PrepareEditAsync(name, token => Session.PreparePreviewAsync(name, token)));
     }

@@ -15,6 +15,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     private readonly List<RelayCommand> syncCommands = [];
     private readonly List<AsyncCommand> asyncCommands = [];
     private readonly RoiClipboard clipboard = new();
+    private readonly RoiPreviewPreparation previewPreparation;
     private CancellationTokenSource? editCancellation;
     private bool disposed;
     public Task PasteCompletion { get; private set; } = Task.CompletedTask;
@@ -106,6 +107,10 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public string Performance { get => performance; set => Set(ref performance, value); }
 
     public EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview)
+        : this(viewport, loader, live, filterPreview, null) { }
+
+    internal EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
+        Action<DocumentState, CancellationToken>? preparePreview)
     {
         this.viewport = viewport;
         Live = live;
@@ -113,7 +118,9 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         Filters.Changed += Publish;
         filterTimer = new(TimeSpan.FromMilliseconds(200), System.Windows.Threading.DispatcherPriority.Background,
             (_, _) => { if (Live.IsRunning) Filters.RefreshLiveFrame(); }, System.Windows.Threading.Dispatcher.CurrentDispatcher);
-        Input = new(Session, CompletePreview, CompleteSelection); Images = new(Session, viewport, loader, Live.CloseAsync, PrepareRowsAsync); Properties = new(Session);
+        previewPreparation = new(Session, Fail, () => Status = "선택 영역 준비 중… 최신 포인터 위치 반영", preparePreview);
+        Input = new(Session, CompletePreview, CompleteSelection, previewPreparation.SubmitTranslation, previewPreparation.SubmitRotation);
+        Images = new(Session, viewport, loader, Live.CloseAsync, PrepareRowsAsync); Properties = new(Session);
         PreviousRowPage = Command(() => ChangeRowPage(rowPage - 1), () => rowPage > 0);
         NextRowPage = Command(() => ChangeRowPage(rowPage + 1), () => (rowPage + 1) * RowPageSize < Rows.Count);
         SelectTool = Command(() => SetTool(EditorTool.Select)); PanTool = Command(() => SetTool(EditorTool.Pan), navigation: true); DrawTool = Command(() => SetTool(EditorTool.Draw), HasImage);
@@ -200,9 +207,10 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public void Guard(Action action) { try { action(); } catch (Exception ex) { Fail(ex); } }
     public void Fail(Exception ex) => Status = ex.Message;
     private void SetTool(EditorTool tool) { Input.Tool = tool; Status = tool == EditorTool.Draw ? "ROI 한 개를 그리면 선택 도구로 돌아갑니다. 다시 그리기: R · 취소: Esc" : tool == EditorTool.Pan ? "드래그로 화면을 이동합니다. 휠: 확대/축소" : "Ctrl+클릭: 다중 선택 · 빈 곳 드래그: 범위 선택 · Shift: 이동 축/회전 15° 고정"; }
-    private void InputChanged() { Notify(nameof(ToolName)); Notify(nameof(ToolHint)); Notify(nameof(IsSelect)); Notify(nameof(IsPan)); Notify(nameof(IsDraw)); RefreshCommands(); Publish(); }
+    private void InputChanged() { if (!Session.IsPreviewing) previewPreparation.Cancel(); Notify(nameof(ToolName)); Notify(nameof(ToolHint)); Notify(nameof(IsSelect)); Notify(nameof(IsPan)); Notify(nameof(IsDraw)); RefreshCommands(); Publish(); }
     private void SessionChanged(object? sender, EventArgs e)
     {
+        if (!Session.IsPreviewing) previewPreparation.Cancel();
         var state = Session.State;
         if (!Session.IsPreviewing && !ReferenceEquals(rowVersion, state.Snapshot.RowVersion))
         {
@@ -228,7 +236,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     private void Refresh()
     {
         Input.NavigationOnly = !CanEdit;
-        Filters.Update(Session.State, Live.Image is not null, Session.TranslationPreview);
+        Filters.Update(Session.State, Live.Image is not null, Session.TransformPreview);
         Notify(nameof(CanEdit)); Notify(nameof(CanNavigate)); Notify(nameof(SelectionSummary)); Notify(nameof(ImageTitle)); Notify(nameof(ImageDetails)); Notify(nameof(UndoHint)); Notify(nameof(RedoHint));
         Notify(nameof(RoiCount)); Notify(nameof(HasRois)); Notify(nameof(SelectionTitle)); Notify(nameof(IsLiveRunning));
         RefreshCommands(); Publish();
@@ -256,8 +264,9 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     private void FitImage() { if (DisplayImage is { } image) Session.SetViewport(ViewportTransform.Fit(image.Width, image.Height, viewport.ViewWidth, viewport.ViewHeight)); }
     private void Rotate(double angle)
     {
-        var bounds = BoundsD.FromPoints(Session.State.Selection.SelectMany(id => Session.State.Rois[id].Geometry.Corners));
-        Session.RotateSelection(angle, bounds.Center);
+        Session.BeginPreview();
+        previewPreparation.SubmitRotation(Session.State.SelectedSpatial.Bounds.Center, angle);
+        CompletePreview("ROI 회전");
     }
     private async Task OpenAsync()
     {
@@ -268,12 +277,12 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public void Publish()
     {
         Input.SetViewportSize(viewport.ViewWidth, viewport.ViewHeight);
-        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TranslationPreview));
+        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview));
     }
     public void SelectRows(IEnumerable<Guid> ids) { if (CanEdit && !Input.IsDragging) Session.Select(ids); }
     public bool HandleKey(Key key, bool control, bool shift)
     {
-        if (key == Key.Escape) { Input.Cancel(); Images.Cancel(); editCancellation?.Cancel(); return true; }
+        if (key == Key.Escape) { Input.Cancel(); previewPreparation.Cancel(); Images.Cancel(); editCancellation?.Cancel(); return true; }
         ICommand? command = (control, shift, key) switch
         {
             (true, false, Key.Z) => Undo, (true, _, Key.Y) or (true, true, Key.Z) => Redo,
@@ -296,7 +305,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     }
     public void Dispose()
     {
-        disposed = true; editCancellation?.Cancel();
+        disposed = true; editCancellation?.Cancel(); previewPreparation.Dispose();
         filterTimer.Stop(); Filters.Changed -= Publish; Filters.Dispose();
         Live.Dispose(); Live.Changed -= Refresh; Images.Dispose(); viewport.LayoutChanged -= Publish; Session.Changed -= SessionChanged; Input.Changed -= InputChanged; Images.Changed -= Refresh;
     }

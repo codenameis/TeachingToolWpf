@@ -24,13 +24,13 @@ internal sealed class PanGesture(EditorSession editor, PointD start) : IGesture
 }
 internal abstract class EditGesture : IGesture
 {
-    private readonly InteractionController controller;
+    protected InteractionController Controller { get; }
     protected EditorSession Editor { get; }
     protected ViewportTransform View { get; }
-    protected EditGesture(InteractionController controller) { this.controller = controller; Editor = controller.Editor; View = Editor.State.Viewport; Editor.BeginPreview(); }
+    protected EditGesture(InteractionController controller) { Controller = controller; Editor = controller.Editor; View = Editor.State.Viewport; Editor.BeginPreview(); }
     public abstract void Move(PointD screen, InputModifiers modifiers);
     protected abstract string Name { get; }
-    public void Complete() => controller.CommitPreview(Name);
+    public void Complete() => Controller.CommitPreview(Name);
     public void Cancel() => Editor.CancelPreview();
 }
 internal sealed class MoveGesture(InteractionController controller, PointD start) : EditGesture(controller)
@@ -41,7 +41,7 @@ internal sealed class MoveGesture(InteractionController controller, PointD start
         var delta = (screen - start) / View.Scale;
         if ((screen - start).Length < 2) delta = new();
         if (modifiers.HasFlag(InputModifiers.Shift)) delta = Math.Abs(delta.X) > Math.Abs(delta.Y) ? new(delta.X, 0) : new(0, delta.Y);
-        Editor.PreviewTranslation(delta);
+        Controller.PreviewTranslation(delta);
     }
 }
 internal sealed class ResizeGesture(InteractionController controller, Roi original, int handle) : EditGesture(controller)
@@ -52,13 +52,19 @@ internal sealed class ResizeGesture(InteractionController controller, Roi origin
 }
 internal sealed class RotateGesture(InteractionController controller, PointD start, PointD pivot) : EditGesture(controller)
 {
+    private PointD previous = controller.Editor.State.Viewport.ScreenToImage(start) - pivot;
+    private double accumulatedDegrees;
     protected override string Name => "ROI 회전";
     public override void Move(PointD screen, InputModifiers modifiers)
     {
-        var a = View.ScreenToImage(start) - pivot; var b = View.ScreenToImage(screen) - pivot;
-        var degrees = (Math.Atan2(b.Y, b.X) - Math.Atan2(a.Y, a.X)) * 180 / Math.PI;
+        var current = View.ScreenToImage(screen) - pivot;
+        if (current.Length < 1e-12) return;
+        accumulatedDegrees += Math.Atan2(previous.X * current.Y - previous.Y * current.X,
+            previous.X * current.X + previous.Y * current.Y) * 180 / Math.PI;
+        previous = current;
+        var degrees = accumulatedDegrees;
         if (modifiers.HasFlag(InputModifiers.Shift)) degrees = Math.Round(degrees / 15) * 15;
-        Editor.PreviewTransform(roi => roi.Geometry.RotateAround(pivot, degrees));
+        Controller.PreviewRotation(pivot, degrees);
     }
 }
 internal sealed class DrawGesture(InteractionController controller, PointD start) : IGesture

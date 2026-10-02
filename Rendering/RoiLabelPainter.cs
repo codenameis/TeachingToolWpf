@@ -7,7 +7,7 @@ namespace TeachingToolWpf.Rendering;
 /// <summary>Retains label placement during nearby pans. Candidate geometry and label rasterization have separate lifetimes.</summary>
 internal sealed class RoiLabelPainter
 {
-    private readonly record struct Label(Guid Id, string Text, PointD Anchor, BoundsD ImageBounds, bool Selected);
+    private readonly record struct Label(Roi Roi, string Text, bool Selected);
     private readonly RoiVisibility visible = new(), selectedVisible = new(), movingVisible = new();
     private readonly List<Label> labels = [];
     private readonly Dictionary<(int X, int Y), List<BoundsD>> occupied = [];
@@ -16,21 +16,22 @@ internal sealed class RoiLabelPainter
     public void Draw(SpriteMesh mesh, RenderScene scene, GpuTexture white, Func<string, GpuTexture?> rasterize, Func<string, GpuTexture> immediate)
     {
         var offset = previous is null ? default : scene.Document.Viewport.Offset - previous.Document.Viewport.Offset;
-        var moved = (scene.Translation?.Delta ?? default) - (previous?.Translation?.Delta ?? default);
+        var transform = scene.Transform?.Transform ?? default;
+        var priorTransform = previous?.Transform?.Transform ?? default;
+        var moved = transform.Translation - priorTransform.Translation;
         if (previous is null || !ReferenceEquals(previous.Document.Rois, scene.Document.Rois) ||
             !ReferenceEquals(previous.Document.Selection, scene.Document.Selection) || previous.Document.Viewport.Scale != scene.Document.Viewport.Scale ||
-            !ReferenceEquals(previous.Translation?.Selection, scene.Translation?.Selection) ||
+            !ReferenceEquals(previous.Transform?.Selection, scene.Transform?.Selection) ||
+            transform.AngleDegrees != priorTransform.AngleDegrees || transform.Pivot != priorTransform.Pivot ||
             previous.Width != scene.Width || previous.Height != scene.Height || previous.Dpi != scene.Dpi ||
             Math.Abs(offset.X) > 64 || Math.Abs(offset.Y) > 64 || moved.Length * scene.Document.Viewport.Scale > 64)
-        { Rebuild(scene); previous = scene; offset = default; moved = default; }
+        { Rebuild(scene); previous = scene; }
         occupied.Clear();
         foreach (var label in labels)
         {
-            var moving = scene.Translation is { } translation && translation.Selection.Affected.Contains(label.Id);
-            var movement = moving ? moved * scene.Document.Viewport.Scale : default;
-            var displayView = moving ? scene.Document.Viewport.Pan(scene.Translation!.Delta * scene.Document.Viewport.Scale) : scene.Document.Viewport;
-            if (!IsVisible(label.ImageBounds, displayView, scene.Width, scene.Height)) continue;
-            var anchor = ClampAnchor(label.Anchor + offset + movement, scene.Width, scene.Height);
+            var geometry = scene.Transform?.Geometry(label.Roi) ?? label.Roi.Geometry;
+            if (!IsVisible(geometry.Bounds, scene.Document.Viewport, scene.Width, scene.Height)) continue;
+            var anchor = ClampAnchor(Anchor(geometry, scene.Document.Viewport, label.Selected && scene.Document.Selection.Count == 1), scene.Width, scene.Height);
             var texture = label.Selected && scene.Document.Selection.Count == 1 ? immediate(label.Text) : rasterize(label.Text);
             if (texture is null) continue;
             var box = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + texture.Width / scene.Dpi + 12), anchor.Y + texture.Height / scene.Dpi + 8);
@@ -44,48 +45,52 @@ internal sealed class RoiLabelPainter
     {
         labels.Clear(); occupied.Clear();
         var state = scene.Document; var view = state.Viewport;
-        var translation = scene.Translation;
-        var movingView = view.Pan((translation?.Delta ?? default) * view.Scale);
-        visible.Update(translation?.Selection.Stationary ?? state.Snapshot.Spatial, view, scene.Width, scene.Height);
+        var preview = scene.Transform;
+        var transform = preview?.Transform ?? default;
+        visible.Update(preview?.Selection.Stationary ?? state.Snapshot.Spatial, view, scene.Width, scene.Height);
         HasSummaries = visible.Summaries.Count > 0;
-        if (translation is null && state.Selection.Count == state.Rois.Count) Add(visible.Rois, true, view);
+        if (preview is null && state.Selection.Count == state.Rois.Count) Add(visible.Rois, true);
         else
         {
             if (state.Selection.Count > 0)
             {
-                selectedVisible.Update(state.SelectedSpatial, movingView, scene.Width, scene.Height);
+                selectedVisible.Update(state.SelectedSpatial, view, scene.Width, scene.Height, transform);
                 HasSummaries |= selectedVisible.Summaries.Count > 0;
-                Add(selectedVisible.Rois, true, movingView);
+                Add(selectedVisible.Rois, true);
             }
-            if (translation is not null && translation.Selection.Affected.Count > state.Selection.Count)
+            if (preview is not null && preview.Selection.Affected.Count > state.Selection.Count)
             {
-                movingVisible.Update(translation.Selection.Moving, movingView, scene.Width, scene.Height);
+                movingVisible.Update(preview.Selection.Moving, view, scene.Width, scene.Height, transform);
                 HasSummaries |= movingVisible.Summaries.Count > 0;
-                Add(movingVisible.Rois, false, movingView);
+                Add(movingVisible.Rois, false);
             }
-            Add(visible.Rois, false, view);
+            Add(visible.Rois, false);
         }
-        void Add(IEnumerable<Roi> candidates, bool selected, ViewportTransform displayView)
+        void Add(IEnumerable<Roi> candidates, bool selected)
         {
             var children = state.Snapshot.Children;
             foreach (var roi in candidates)
             {
                 if (labels.Count >= 256) break;
                 if (!selected && (state.Selection.Contains(roi.Id) || roi.ParentId is not null && !children.ContainsKey(roi.Id))) continue;
-                var image = roi.Geometry.Bounds;
-                var a = displayView.ImageToScreen(new(image.Left, image.Top)); var b = displayView.ImageToScreen(new(image.Right, image.Bottom));
-                if (b.X < -64 || a.X > scene.Width + 64 || b.Y < -64 || a.Y > scene.Height + 64) continue;
-                var x = Math.Clamp(a.X, 4, Math.Max(4, scene.Width - 100));
-                var top = selected && state.Selection.Count == 1 ? Math.Min(a.Y, HandleGeometry.RotationHandle(roi.Geometry, displayView).Y - 8) : a.Y;
-                var y = Math.Clamp(top - 30, 4, Math.Max(4, scene.Height - 30));
+                var geometry = preview?.Geometry(roi) ?? roi.Geometry;
+                if (!IsVisible(geometry.Bounds, view, scene.Width, scene.Height)) continue;
+                var anchor = ClampAnchor(Anchor(geometry, view, selected && state.Selection.Count == 1), scene.Width, scene.Height);
                 var estimatedLength = roi.Name.Length + (children.ContainsKey(roi.Id) ? 12 : 0) + (selected ? 14 : 0);
-                var estimate = new BoundsD(x, y, Math.Min(scene.Width, x + Math.Min(430, estimatedLength * 12 + 12)), y + 24);
+                var estimate = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + Math.Min(430, estimatedLength * 12 + 12)), anchor.Y + 24);
                 if (Intersects(estimate)) continue;
                 var name = children.TryGetValue(roi.Id, out var descendants) ? $"{roi.Name}  [{descendants.Length}]" : roi.Name;
-                var text = selected ? $"{name}  ·  {roi.Geometry.Angle:0.0}°" : name;
-                labels.Add(new(roi.Id, text, new(a.X, top - 30), image, selected)); Occupy(estimate);
+                var text = selected ? $"{name}  ·  {geometry.Angle:0.0}°" : name;
+                labels.Add(new(roi, text, selected)); Occupy(estimate);
             }
         }
+    }
+    private static PointD Anchor(RotatedRect geometry, ViewportTransform view, bool singleSelection)
+    {
+        var bounds = geometry.Bounds;
+        var corner = view.ImageToScreen(new(bounds.Left, bounds.Top));
+        var top = singleSelection ? Math.Min(corner.Y, HandleGeometry.RotationHandle(geometry, view).Y - 8) : corner.Y;
+        return new(corner.X, top - 30);
     }
     private bool Intersects(BoundsD bounds)
     {

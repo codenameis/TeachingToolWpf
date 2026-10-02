@@ -44,19 +44,28 @@ public sealed partial class EditorSession
     public Task<PreparedEditorChange> PrepareTranslationAsync(PointD delta, CancellationToken token = default)
         => PrepareChangeAsync("ROI 이동", before =>
         {
-            var selection = new RoiTranslationSelection(before);
-            var constrained = selection.Constrain(delta);
-            var next = selection.Apply(constrained, token);
-            return selection.PreservesHierarchy(constrained) ? next : RoiHierarchy.Rebuild(before, next, token);
+            var selection = before.TransformSelection;
+            var transform = new RigidTransform2D(default, 0, selection.Constrain(delta));
+            var next = selection.Apply(transform, token);
+            return selection.PreservesHierarchy(transform) ? next : RoiHierarchy.Rebuild(before, next, token);
+        }, false, token);
+
+    public Task<PreparedEditorChange> PrepareRotationAsync(double delta, PointD pivot, CancellationToken token = default)
+        => PrepareChangeAsync("ROI 회전", before =>
+        {
+            var selection = before.TransformSelection;
+            var transform = new RigidTransform2D(pivot, selection.RotationLimits(pivot).Clamp(delta));
+            var next = selection.Apply(transform, token);
+            return selection.PreservesHierarchy(transform) ? next : RoiHierarchy.Rebuild(before, next, token);
         }, false, token);
 
     public Task<PreparedEditorChange> PreparePreviewAsync(string name, CancellationToken token = default)
     {
         var before = previewStart ?? throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
-        var translation = TranslationPreview;
+        var transform = TransformPreview;
         var displayed = State;
-        return PrepareChangeAsync(name, _ => translation is { } move ? move.Selection.Apply(move.Delta, token) : displayed,
-            translation is null || !translation.Selection.PreservesHierarchy(translation.Delta), token, before);
+        return PrepareChangeAsync(name, _ => transform is { } move ? move.Selection.Apply(move.Transform, token) : displayed,
+            transform is null || !transform.Selection.PreservesHierarchy(transform.Transform), token, before);
     }
 
     private Task<PreparedEditorChange> PrepareChangeAsync(string? name, Func<DocumentState, DocumentState> prepare,
@@ -83,6 +92,13 @@ public sealed partial class EditorSession
         token.ThrowIfCancellationRequested(); _ = state.Snapshot.Children;
         token.ThrowIfCancellationRequested(); _ = state.SelectionFacts.HasMultipleRoots;
         token.ThrowIfCancellationRequested(); _ = state.SelectedSpatial;
+        if (!state.Selection.IsEmpty)
+        {
+            var transform = state.TransformSelection;
+            token.ThrowIfCancellationRequested(); _ = transform.Moving;
+            token.ThrowIfCancellationRequested(); _ = transform.Stationary;
+            token.ThrowIfCancellationRequested(); _ = transform.RotationLimits(transform.Bounds.Center);
+        }
         token.ThrowIfCancellationRequested();
     }
 
@@ -93,7 +109,7 @@ public sealed partial class EditorSession
         if (prepared.Edit is { IsEmpty: false } edit) history.Push(edit);
         prepared.Consumed = true;
         var hadPreview = previewStart is not null;
-        previewStart = null; translationSelection = null; TranslationPreview = null; previewEpoch++;
+        previewStart = null; transformSelection = null; TransformPreview = null; previewEpoch++;
         Publish(prepared.State with { Viewport = State.Viewport });
         if (hadPreview) Changed?.Invoke(this, EventArgs.Empty);
     }

@@ -14,6 +14,7 @@ public sealed class RoiSnapshot
     public ImmutableDictionary<Guid, Roi>? PreviousRois { get; }
     public ImmutableArray<Guid> ChangedIds { get; }
     public object RowVersion { get; }
+    internal bool IsRigidUpdate { get; }
     public RoiSnapshot(ImmutableDictionary<Guid, Roi> rois)
     {
         Rois = rois;
@@ -22,9 +23,10 @@ public sealed class RoiSnapshot
         children = new(() => rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
             .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
     }
-    internal RoiSnapshot(RoiSnapshot previous, ImmutableDictionary<Guid, Roi> rois, ImmutableArray<Guid> changedIds, RoiSnapshot? spatialSeed = null)
+    internal RoiSnapshot(RoiSnapshot previous, ImmutableDictionary<Guid, Roi> rois, ImmutableArray<Guid> changedIds, RoiSnapshot? spatialSeed = null, bool refitSpatial = false)
     {
         Rois = rois; PreviousRois = previous.Rois; ChangedIds = changedIds;
+        IsRigidUpdate = refitSpatial;
         var oldRois = previous.Rois;
         var bulk = RequiresRebuild(changedIds.Length, rois.Count);
         var seed = spatialSeed ?? previous;
@@ -55,9 +57,9 @@ public sealed class RoiSnapshot
         }
         RowVersion = rowsChanged ? new() : previous.RowVersion;
         // Capture evaluated values, not previous factories: Undo/Redo must not retain a recursive lazy chain.
-        var oldSpatial = rebuildSpatial ? null : seed.Spatial;
+        var oldSpatial = rebuildSpatial && !refitSpatial ? null : seed.Spatial;
         var spatialChanges = geometryChanges?.ToArray();
-        spatial = new(() => rebuildSpatial ? new(rois.Values) :
+        spatial = new(() => refitSpatial ? oldSpatial!.RefitGeometry(rois) : rebuildSpatial ? new(rois.Values) :
             (spatialChanges!.Length == 0 ? oldSpatial! : oldSpatial!.WithChanges(spatialChanges)).WithValues(rois));
         if (!topologyChanged) { children = previous.children; return; }
         var oldChildren = bulk ? null : previous.Children;

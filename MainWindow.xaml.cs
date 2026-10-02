@@ -32,7 +32,8 @@ namespace TeachingToolWpf
                 if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase || args.OriginalSource is TextBox) return;
                 args.Handled = model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             };
-            if (Environment.GetCommandLineArgs().Contains("--responsive-editing")) Diagnostics.ResponsiveEditingRun.Attach(this, Viewport, model);
+            if (Environment.GetCommandLineArgs().Contains("--roi-rotation-benchmark")) Diagnostics.RoiRotationRun.Attach(this, Viewport, model);
+            else if (Environment.GetCommandLineArgs().Contains("--responsive-editing")) Diagnostics.ResponsiveEditingRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--roi-drag-benchmark")) Diagnostics.RoiDragRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--roi-render-benchmark")) Diagnostics.RoiRenderRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--clipboard-check")) Diagnostics.ClipboardRun.Attach(this, Viewport, model);

@@ -26,14 +26,14 @@ public class TranslationPreviewTests
         var other = editor.Add(new(new(800, 800), 20, 20, 0));
         editor.Select([parent, child]); var before = editor.State; var history = editor.HistoryBytes;
         editor.BeginPreview(); editor.PreviewTranslation(new(50, 20));
-        var selection = editor.TranslationPreview!.Selection;
+        var selection = editor.TransformPreview!.Selection;
         for (var i = 0; i < 100; i++) editor.PreviewTranslation(new(i, i / 2d));
-        Assert.Same(before, editor.State); Assert.Same(selection, editor.TranslationPreview!.Selection); Assert.Equal(history, editor.HistoryBytes);
-        var delta = editor.TranslationPreview.Delta;
-        Assert.Equal(before.Rois[child].Geometry.Translate(delta), editor.TranslationPreview.Geometry(before.Rois[child]));
+        Assert.Same(before, editor.State); Assert.Same(selection, editor.TransformPreview!.Selection); Assert.Equal(history, editor.HistoryBytes);
+        var delta = editor.TransformPreview.Transform.Translation;
+        Assert.Equal(before.Rois[child].Geometry.Translate(delta), editor.TransformPreview.Geometry(before.Rois[child]));
         Assert.DoesNotContain(other, selection.Affected);
         editor.CommitPreview("이동");
-        Assert.Null(editor.TranslationPreview);
+        Assert.Null(editor.TransformPreview);
         Assert.Equal(before.Rois[parent].Geometry.Translate(delta), editor.State.Rois[parent].Geometry);
         Assert.Equal(before.Rois[child].Geometry.Translate(delta), editor.State.Rois[child].Geometry);
         Assert.Equal(before.Rois[other], editor.State.Rois[other]);
@@ -46,8 +46,8 @@ public class TranslationPreviewTests
         var id = editor.Add(new(new(70, 50), 40, 20, 0)); editor.Rename(id, "changed"); editor.Undo();
         var before = editor.State;
         editor.BeginPreview(); editor.PreviewTranslation(new(40, 20));
-        Assert.Equal(new PointD(10, 5), editor.TranslationPreview!.Delta);
-        editor.CancelPreview(); Assert.Same(before, editor.State); Assert.True(editor.CanRedo); Assert.Null(editor.TranslationPreview);
+        Assert.Equal(new PointD(10, 5), editor.TransformPreview!.Transform.Translation);
+        editor.CancelPreview(); Assert.Same(before, editor.State); Assert.True(editor.CanRedo); Assert.Null(editor.TransformPreview);
         editor.BeginPreview(); editor.PreviewTranslation(new(10, 5)); editor.PreviewTranslation(default); editor.CommitPreview("이동");
         Assert.Same(before.Rois, editor.State.Rois); Assert.True(editor.CanRedo);
         editor.BeginPreview(); editor.PreviewTranslation(new(40, 20)); editor.CommitPreview("이동");
@@ -61,8 +61,8 @@ public class TranslationPreviewTests
         var allocated = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 2; i < 102; i++) editor.PreviewTranslation(new(i, i));
         Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - allocated, 0, 32 * 1024);
-        Assert.Same(before, editor.State); Assert.Same(before.Snapshot.Spatial, editor.TranslationPreview!.Selection.Moving);
-        Assert.Empty(editor.TranslationPreview.Selection.Stationary.Intersecting(before.Snapshot.Spatial.Bounds));
+        Assert.Same(before, editor.State); Assert.Same(before.Snapshot.Spatial, editor.TransformPreview!.Selection.Moving);
+        Assert.Empty(editor.TransformPreview.Selection.Stationary.Intersecting(before.Snapshot.Spatial.Bounds));
         editor.CancelPreview();
     }
 }
