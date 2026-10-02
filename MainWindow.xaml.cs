@@ -13,7 +13,8 @@ namespace TeachingToolWpf
             InitializeComponent();
             var smoke = Environment.GetCommandLineArgs().Contains("--smoke");
             var largeImage = Environment.GetCommandLineArgs().Contains("--large-image");
-            var cache = smoke || largeImage ? System.IO.Path.GetFullPath("artifacts/image-cache") : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeachingToolWpf", "ImageCache");
+            var memoryCheck = Environment.GetCommandLineArgs().Contains("--memory-check");
+            var cache = smoke || largeImage || memoryCheck ? System.IO.Path.GetFullPath("artifacts/image-cache") : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeachingToolWpf", "ImageCache");
             Imaging.VipsRuntime.Configure();
             var live = new Presentation.LivePreview(Viewport, kind => new Imaging.SyntheticFrameSource(kind));
             var loader = new Imaging.ImageLoader(cache);
@@ -31,7 +32,8 @@ namespace TeachingToolWpf
                 if (args.OriginalSource is TextBox) return;
                 args.Handled = model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             };
-            if (largeImage) Diagnostics.LargeImageRun.Attach(this, Viewport, model);
+            if (memoryCheck) Diagnostics.ImageReplacementRun.Attach(this, Viewport, model);
+            else if (largeImage) Diagnostics.LargeImageRun.Attach(this, Viewport, model);
             else if (Environment.GetCommandLineArgs().Contains("--benchmark")) Diagnostics.BenchmarkRun.Attach(this, Viewport, model);
             else if (smoke) Diagnostics.RenderSmoke.Attach(this, Viewport, model);
             else Loaded += async (_, _) => { try { await model.InitializeAsync(); } catch (Exception ex) { model.Fail(ex); } };
