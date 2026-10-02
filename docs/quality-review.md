@@ -159,3 +159,7 @@ MVVM과 Command/Memento를 재사용하고 클립보드는 값 스냅샷으로 �
 Command/Memento와 제스처 State/Strategy를 유지했다. 성능상 원칙 예외·의존성 추가·ROI 생략은 없다. 독립 모델의 읽기 전용 리뷰에서 비동기 결과 유효성, fence 수명, UV/그리기 순서, 미니맵 입력, 캡처 버전 경합에 대한 확정 결함이 없었다. 캡처는 첫 프레임/타일이 오지 않으면 보류되므로 진단 호출측 timeout을 유지한다.
 
 미니맵 클릭/드래그 구분 조건을 반전한 mutation은 해당 테스트를 실패시켰으며 복원 후 Core 60개가 통과했다. 실제 GPU와 응답 간격·남은 UI 지연은 [검증 기록](clipboard-minimap-validation.md)에 구분했다.
+
+## 2026-10-02 불변 대량 편집 준비·목록 재사용
+
+[ADR-009](decisions/0009-responsive-bulk-editing.md)에서 클린 코드·Command/Memento·State·Observer·Adapter와 SOLID 5개/GRASP 9개를 변경 책임별로 검토했다. 독립 리뷰에서 발견한 라이브 종료 이후 late-cancel과 큰 좌표의 포함 tolerance 경계를 수정하고 회귀 테스트를 추가했다. revision 검사를 제거한 변이 시험은 stale 테스트 4개에서 실패, 복원 후 전체 통과했다. 새 원칙 예외·이력/정확성/테스트 기준 완화는 없다. 성능 개선과 미달 항목은 [별도 보고서](low-spec-performance.md)에 공개한다.
