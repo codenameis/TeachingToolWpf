@@ -1,0 +1,28 @@
+<UserControl x:Class="TeachingToolWpf.Views.RoiStylePanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:TeachingToolWpf.Controls">
+    <Border BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Margin="0,28,0,0" Padding="0,18,0,0">
+        <StackPanel>
+            <TextBlock Text="ROI 표시 설정" Style="{StaticResource SectionLabel}" Margin="0,0,0,14"/>
+            <TextBlock Text="선 두께 (DIP)" Style="{StaticResource Caption}" ToolTip="0.5~8 DIP · 선택한 ROI는 설정값보다 0.5 DIP 굵게 표시됩니다."/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/><ColumnDefinition Width="76"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="10"/><RowDefinition Height="Auto"/><RowDefinition Height="10"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Border Width="10" Height="10" Background="{Binding ParentColor}" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="부모 ROI" VerticalAlignment="Center" ToolTip="하위 ROI가 있는 영역"/>
+                <controls:ValueTextBox Grid.Column="2" Style="{StaticResource ValueTextBoxStyle}" Value="{Binding ParentThickness, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="부모 ROI 선 두께" ToolTip="0.5~8 DIP · 선택 시 0.5 DIP 추가"/>
+                <Border Grid.Row="2" Width="10" Height="10" Background="{Binding ChildColor}" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="자식 ROI" VerticalAlignment="Center" ToolTip="부모가 있고 하위 ROI가 없는 영역"/>
+                <controls:ValueTextBox Grid.Row="2" Grid.Column="2" Style="{StaticResource ValueTextBoxStyle}" Value="{Binding ChildThickness, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="자식 ROI 선 두께" ToolTip="0.5~8 DIP · 선택 시 0.5 DIP 추가"/>
+                <Border Grid.Row="4" Width="10" Height="10" Background="{Binding DefaultColor}" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="일반 ROI" VerticalAlignment="Center" ToolTip="부모와 하위 ROI가 없는 영역"/>
+                <controls:ValueTextBox Grid.Row="4" Grid.Column="2" Style="{StaticResource ValueTextBoxStyle}" Value="{Binding DefaultThickness, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="일반 ROI 선 두께" ToolTip="0.5~8 DIP · 선택 시 0.5 DIP 추가"/>
+            </Grid>
+            <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="Firebrick" FontSize="11" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"/>
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <Button Content="두께 적용" Command="{Binding Apply}" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="ROI 표시 설정 적용"/>
+                <Button Grid.Column="2" Content="기본값" Command="{Binding Reset}" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="ROI 표시 설정 기본값 복원"/>
+            </Grid>
+            <TextBlock Text="색상은 고정입니다. 표시 설정은 실행 중에만 유지되며 실행 취소 대상에 포함되지 않습니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,0" LineHeight="17"/>
+        </StackPanel>
+    </Border>
+</UserControl>

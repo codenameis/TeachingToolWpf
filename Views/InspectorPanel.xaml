@@ -32,6 +32,7 @@
                     <TextBlock Text="영역 하나를 선택하면 위치, 크기와 회전을 정밀하게 편집할 수 있습니다." TextWrapping="Wrap" LineHeight="20" Foreground="{StaticResource TextSecondary}" FontSize="11"/>
                     <Button Content="선택 각도 0°로 초기화" Command="{Binding ResetAngle}" Style="{StaticResource SecondaryButton}" Margin="0,20,0,0"/>
                 </StackPanel>
+                <views:RoiStylePanel DataContext="{Binding StyleSettings}"/>
                 <Border BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Margin="0,28,0,0" Padding="0,18,0,20">
                     <StackPanel><TextBlock Text="편집 가이드" Style="{StaticResource SectionLabel}" Margin="0,0,0,10"/><TextBlock Text="모서리 핸들  ·  크기 조절&#x0a;원형 핸들  ·  회전&#x0a;방향키  ·  1 px 이동&#x0a;Shift + 방향키  ·  10 px 이동" Foreground="{StaticResource TextSecondary}" FontSize="10" LineHeight="21"/></StackPanel>
                 </Border>

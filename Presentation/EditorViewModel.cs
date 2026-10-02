@@ -46,6 +46,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public AsyncCommand StartLive { get; }
     public AsyncCommand StopLive { get; }
     public RoiPropertiesViewModel Properties { get; }
+    public RoiStyleSettingsViewModel StyleSettings { get; } = new();
     public RoiRows Rows { get => rows; private set => Set(ref rows, value); }
     public string Status { get => status; set => Set(ref status, value); }
     public string GpuStatus { get => gpuStatus; set => Set(ref gpuStatus, value); }
@@ -113,6 +114,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         Action<DocumentState, CancellationToken>? preparePreview)
     {
         this.viewport = viewport;
+        StyleSettings.Changed += Publish;
         Live = live;
         Filters = new(filterPreview, Session);
         Filters.Changed += Publish;
@@ -277,7 +279,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public void Publish()
     {
         Input.SetViewportSize(viewport.ViewWidth, viewport.ViewHeight);
-        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview));
+        viewport.Submit(new(Session.State, DisplayImage, Images.Generation, viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview, StyleSettings.Palette));
     }
     public void SelectRows(IEnumerable<Guid> ids) { if (CanEdit && !Input.IsDragging) Session.Select(ids); }
     public bool HandleKey(Key key, bool control, bool shift)
@@ -305,7 +307,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     }
     public void Dispose()
     {
-        disposed = true; editCancellation?.Cancel(); previewPreparation.Dispose();
+        disposed = true; editCancellation?.Cancel(); previewPreparation.Dispose(); StyleSettings.Changed -= Publish;
         filterTimer.Stop(); Filters.Changed -= Publish; Filters.Dispose();
         Live.Dispose(); Live.Changed -= Refresh; Images.Dispose(); viewport.LayoutChanged -= Publish; Session.Changed -= SessionChanged; Input.Changed -= InputChanged; Images.Changed -= Refresh;
     }
