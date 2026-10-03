@@ -1,5 +1,9 @@
 # 실행 검증 · 2026-10-02
 
+## 2026-10-03 도형 확장
+
+사각형·원·삼각형·오목 폴리곤을 공통 ROI 계약으로 연결했다. Core 174 + Imaging/WPF 129 테스트와 Release 빌드(경고/오류 0), 실제 RTX 3060/DX12 debug 및 최종 publish 폴더 smoke(종료 0)를 통과했다. 도형 선택, HWND 메시지 생성, 원 지름, 혼합 회전·그룹·연쇄 삭제·Undo와 투명 OpenCV 마스크를 확인했다. [설계·검증 및 한계](decisions/0012-roi-shapes.md), [최종 배포 캡처/로그](data/roi-shapes-validation.zip)를 참조한다. 혼합 도형 대량 성능과 물리 마우스 전체 E2E는 미검증이다.
+
 ## ROI GPU 재사용·이동 preview 후속
 
 Core 68 + Imaging/WPF 38 테스트와 Release 빌드(경고/오류 0)를 통과했다. 1만/32,940개 평면·PCB·완전 중첩의 CPU/GPU 전후 로그, 32,940개 작은 pan/큰 pan/zoom 각 3회, 10만/100만 전체 보기 탐색, 경계 이동과 실제 위치가 계속 바뀌는 다중 이동을 측정했다. [조건·수치·남은 지연](retained-roi-performance.md)을 따른다.

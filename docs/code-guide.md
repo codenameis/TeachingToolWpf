@@ -8,10 +8,11 @@
 |---|---|---|
 | 버튼·단축키 연결 | [EditorViewModel](../Presentation/EditorViewModel.cs) | WPF 요청을 같은 편집 명령으로 전달 |
 | ROI 생성·그룹화·삭제·Undo/Redo | [EditorSession](../src/TeachingToolWpf.Core/Editing/EditorSession.cs) | 문서 변경과 한 번의 편집 이력 확정 |
+| 사각형·원·삼각형·폴리곤 | [RoiGeometry](../src/TeachingToolWpf.Core/Geometry/RoiGeometry.cs), [RoiShape](../src/TeachingToolWpf.Core/Geometry/RoiShape.cs) | 공통 프레임과 불변 윤곽 전략. FrameCorners는 실제 도형이 아닌 편집 프레임 |
 | 드래그 중 이동·회전·취소 | [InteractionController](../src/TeachingToolWpf.Core/Interaction/InteractionController.cs), [Gestures](../src/TeachingToolWpf.Core/Interaction/Gestures.cs) | 이미지 좌표와 도구 상태 |
 | 큰 선택 집합의 준비·최신 포인터 | [RoiPreviewPreparation](../Presentation/RoiPreviewPreparation.cs) | 작업 하나만 실행, 이전 드래그 결과는 폐기 |
 | 무거운 편집의 준비·확정 | [EditorViewModel.Editing](../Presentation/EditorViewModel.Editing.cs) | 작업 스레드 준비 후 UI에서 유효성 확인·확정 |
-| 부모·자식 포함 판정 | [RoiHierarchy](../src/TeachingToolWpf.Core/Editing/RoiHierarchy.cs) | 실제 회전 꼭짓점으로 판정, 가장 작은 유효 부모 |
+| 부모·자식 포함 판정 | [RoiHierarchy](../src/TeachingToolWpf.Core/Editing/RoiHierarchy.cs) | 반지름·실제 윤곽의 완전 포함으로 판정, 오목 홈을 가로지르는 변 거부 |
 | 부모 색·선 두께 | [RoiStyles](../Rendering/RoiStyles.cs), [RoiStyleSettingsViewModel](../Presentation/RoiStyleSettingsViewModel.cs) | 표시 설정은 문서·Undo/Redo와 별도 |
 | 마우스가 들어오는 입구 | [Dx12Viewport](../Controls/Dx12Viewport.cs), [NativeMethods](../Controls/NativeMethods.cs) | Windows 입력을 앱 좌표·입력 호출로 변환 |
 | GPU가 화면을 만드는 순서 | [RenderWorker](../Rendering/RenderWorker.cs) | GPU 자원을 소유하는 렌더 스레드 |
@@ -42,7 +43,7 @@
 | fence | 제출한 GPU 작업이 끝났는지 확인하는 완료 번호. 버퍼 재사용·해제의 기준이다. |
 | resource barrier | 같은 메모리를 복사 대상으로 쓸지, 셰이더에서 읽을지 전환하는 명령. |
 | upload arena | CPU가 채운 데이터를 GPU로 보내는 재사용 공간. 프레임 슬롯의 fence가 완료된 뒤 다시 사용한다. |
-| instance | 같은 사각형 그리기 규칙에 넣는 ROI별 중심·축 데이터. ROI마다 WPF 컨트롤을 만들지 않는다. |
+| instance | 사각형/원은 중심·축, 폴리곤은 각 변의 시작점·방향을 전달하는 보관 GPU 데이터. ROI마다 WPF 컨트롤을 만들지 않는다. |
 | shader constants | 해당 그리기에 공통으로 적용할 배율·회전·색·두께. ROI 형상 전체를 다시 보내는 데이터가 아니다. |
 | BVH | 화면 밖 ROI와 불필요한 포함 후보를 빠르게 건너뛰는 공간 검색 트리. |
 | LOD | 화면에서 너무 작은 ROI들을 요약해 표시하는 단계. 문서의 ROI 자체를 삭제하거나 합치지 않는다. |
