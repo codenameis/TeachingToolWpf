@@ -133,6 +133,20 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## UI와 코드 품질
 
+### C# 코드 컨벤션 — Microsoft 기준
+
+2026-10-03 사용자 요청에 따라 모든 직접 작성한 C# 코드(앱·Core·테스트·벤치마크)는 [Microsoft C# 코딩 규칙](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)과 [식별자 명명 규칙](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names)을 따른다. 구체적인 저장소 선택·예시·검사 방법은 [C# 코드 컨벤션](docs/csharp-code-conventions.md), 자동 검사 설정은 [`.editorconfig`](.editorconfig)가 기준이다.
+
+- 타입·메서드·지역 함수·속성·이벤트·상수는 `PascalCase`, 인터페이스는 `I` 접두사, 매개변수·일반 지역 변수는 `camelCase`로 쓴다. 위치 기반 record 매개변수는 생성되는 속성과 일치하는 `PascalCase`다.
+- private/internal 인스턴스 필드는 `_camelCase`, private/internal 정적 필드는 `s_camelCase`로 쓴다. `const`는 접근 수준·위치와 무관하게 `PascalCase`가 우선한다. 공개/보호 필드와 WPF dependency property 식별자는 `PascalCase`다.
+- 중괄호는 여는 괄호부터 다음 줄에 놓는 **Allman** 스타일, 들여쓰기는 공백 **4칸**을 사용한다. `if`/`else`/반복문도 한 문장이라도 중괄호를 생략하지 않는다. `catch`/`finally`/블록 람다를 한 줄에 압축하지 않는다.
+- 한 줄에 한 문장·한 변수 선언을 쓰고, 메서드·속성 정의 사이를 빈 줄로 구분한다. `for` 헤더와 tuple 분해 선언은 문법에 맞게 유지한다. 연산 우선순위가 섞인 식은 의미를 명확히 하는 소괄호를 사용한다.
+- `using`은 파일 범위 namespace 밖에 놓고 `System`을 먼저 정렬한다. 기존 nullable·현대 C# 문법을 유지하며 스타일 변경을 이유로 실행 순서·버퍼 배치·수명·공개 계약을 바꾸지 않는다. 생성 코드·외부 코드는 직접 포맷하지 않는다.
+- 이름 변경은 심볼 Rename으로 참조까지 갱신한다. XAML 바인딩·리플렉션 문자열·네이티브 entry point·직렬화 계약은 별도로 확인한다. 단순 문자열 치환으로 이름을 바꾸지 않는다.
+- 수정 후 `pwsh -File scripts/Format-Code.ps1 -Verify`와 해당 빌드/기존 테스트를 실행한다. 자동 검사 범위 밖의 의도가 드러나는 이름, 문장 분리, 주석은 리뷰로 확인한다. 가벼운 스타일 정리만을 위해 동작을 복제하는 테스트를 만들지 않는다.
+
+### UI·자원 경계
+
 - 사람의 읽기 순서를 우선한다. 한 줄에 여러 부작용을 압축하지 않고 조건·취소·확정·자원 해제 순서를 드러낸다. Win32 메시지와 GPU 데이터 배치는 이름 있는 상수/타입으로 표현하며 바이트 배치 계약은 테스트로 검증한다.
 - `unsafe`, 핸들, 포인터, GPU fence는 해당 소유 경계 안에 유지한다. 설명은 비트 조작을 되풀이하기보다 왜 필요한지와 재사용/해제 조건을 한국어로 적는다. 가독성을 이유로 매 프레임 복사·할당·추상화 계층을 추가하지 않는다.
 - 읽기 시작점과 입력 → 편집 → 렌더 흐름은 [코드 읽기 안내](docs/code-guide.md)를 유지한다. 핵심 이름/책임이 바뀌면 안내도 함께 갱신한다.

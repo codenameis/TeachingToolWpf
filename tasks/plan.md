@@ -7,6 +7,7 @@
 - 2026-10-02 후속: 이미지 교체 시 ROI 초기화/Undo 복원, 이미지 경계 제한, Figma/Fluent 방향 선택 표시, OpenCV Binarize/Canny ROI 미리보기. 상세 계약은 [ADR-004](../docs/decisions/0004-roi-bounds-and-filter-preview.md)를 따른다. 아래 초기 UX 초안과 충돌하면 이 후속 계약이 우선한다.
 - 같은 날 추가 요구: ROI별 필터 등록과 재선택 자동 표시, 자손/필터를 포함하는 복사·붙여넣기와 Del, 실제 8K/24K 이미지 반복 교체 메모리 시험. 최신 동작은 [ADR-005](../docs/decisions/0005-filter-registration-and-roi-copy.md), 측정은 [메모리 검증](../docs/memory-replacement-validation.md)을 따른다. ROI 미등록 상태는 명시적 미리보기로 등록하고 등록 이후에는 선택 시 자동 표시한다.
 - 지침: [AGENTS.md](../AGENTS.md)
+- 2026-10-03 코드 컨벤션: Microsoft C# 기준의 명명·Allman 중괄호·4칸 공백·문장 분리와 명확한 수식 괄호를 적용한다. [상세 규칙](../docs/csharp-code-conventions.md), `.editorconfig`, `scripts/Format-Code.ps1 -Verify`를 함께 유지한다. 스타일 정리는 기존 ROI 기능·수명·메모리 배치·성능 설계를 유지한다.
 - 대량 PCB 후속: 사용자 요구가 수백만 ROI로 확대되었다. 공유/증분 BVH, 화면 크기별 요약 표시, 4,096개 초과 문서의 512개 목록 페이지와 비활성 속성 표시를 적용한다. 초기 구축·전체 변경과 일상 편집은 별도로 측정한다. [ADR-006](../docs/decisions/0006-large-roi-interaction.md), [성능 보고서](../docs/roi-scalability.md)를 따른다.
 - 작업 목록: [todo.md](todo.md). 완료 여부는 이 목록 한 곳에서 관리한다.
 - 가독성 정리: Win32 입력 경계, ROI GPU 전달 배치, 편집 준비/확정/취소와 GPU 수명에 이름·단계를 명시한다. 기존 기능·API·메모리 배치·최적화 방식을 유지한다. [코드 읽기 안내](../docs/code-guide.md)와 [검증 기록](../docs/readability-validation.md)을 함께 관리한다.

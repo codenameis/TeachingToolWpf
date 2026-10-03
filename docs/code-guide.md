@@ -2,6 +2,8 @@
 
 이 앱은 **입력 → 편집 상태 → 화면 그리기**로 읽으면 된다. ROI 규칙을 바꾸기 위해 DX12 포인터나 셰이더부터 이해할 필요는 없다. 편집 상태는 Core가, WPF 연결은 Presentation이, GPU 자원은 Rendering이 소유한다.
 
+식별자와 괄호는 [Microsoft 기준 C# 컨벤션](csharp-code-conventions.md)을 따른다. `_viewport`는 인스턴스 필드, `s_procedure`는 정적 필드, `SizeInBytes`는 상수 또는 속성처럼 이름으로 역할을 구분한다. 지속 지침은 [AGENTS.md](../AGENTS.md), 검사 설정은 [`.editorconfig`](../.editorconfig)에 있다.
+
 ## 작업별 시작점
 
 | 하려는 일 | 먼저 읽을 파일 | 알아둘 경계 |

@@ -1,5 +1,13 @@
 # 단계별 작업 목록
 
+## 2026-10-03 Microsoft C# 코드 컨벤션
+
+- [x] C1: 앱·Core·테스트·벤치마크의 Allman 중괄호, 4칸 공백, 한 문장/선언씩 배치, 명확한 수식 괄호, `_camelCase`/`s_camelCase`/PascalCase 이름과 참조를 정리했다.
+- [x] C2: AGENTS.md와 [상세 규칙](../docs/csharp-code-conventions.md)에 지속 지침을 추가하고 `.editorconfig`, `scripts/Format-Code.ps1` 적용/읽기 전용 검사 명령을 제공했다. SOLID 5개·GRASP 9개 검토, 원칙 예외 없음.
+- [x] C3: Release 경고/오류 0, Core 174 + Imaging/WPF 129 통과, 최종 컨벤션 검사 통과. 원본 C# 174개 파일의 리터럴·주석 내용 보존 확인. 최종 publish의 RTX 3060/DX12 debug smoke 종료 0으로 도형/필터/계층/Undo/Redo 확인. [검증 기록](../docs/data/csharp-style-validation.json).
+
+이번 스타일 정리에서는 성능을 새로 측정하지 않았다. 기존 성능 목표와 미검증 항목은 그대로 유지한다.
+
 ## 2026-10-03 사각형·원·삼각형·폴리곤 ROI
 
 - [x] D1: 공통 RoiGeometry + 불변 도형 전략, 실제 윤곽 포함/BVH/회전 경계, 원 지름 제약과 오목·자기 교차 검증. 기존 사각형 전제 제거.

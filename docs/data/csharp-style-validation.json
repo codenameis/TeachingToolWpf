@@ -1,0 +1,48 @@
+{
+  "Date": "2026-10-03",
+  "Sdk": "10.0.401",
+  "BuildConfiguration": "Release",
+  "BuildWarnings": 0,
+  "BuildErrors": 0,
+  "CoreTestsPassed": 174,
+  "ImagingTestsPassed": 129,
+  "StyleVerificationExitCode": 0,
+  "BaselineSourceFilesAudited": 174,
+  "LiteralAndCommentContentPreserved": true,
+  "SmokeExitCode": 0,
+  "SmokeGpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+  "Dx12Debug": true,
+  "SmokeLog": [
+    "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True",
+    "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True",
+    "Paged list selection, pan, focused inspector editing and Korean value undo passed",
+    "Native input, toolbar, history, grouping and renderer restart passed",
+    "ROI role colors, independent widths, native child detach, Undo/Redo and style reset passed",
+    "Shape selector, native circle/triangle/polygon input, diameter, mixed rotation/group/delete/undo and masked OpenCV passed",
+    "8K minimap native click/drag, capture cancellation and history preservation passed",
+    "OpenCV Binarize/Edge, selection update, image reset/undo and live bounds passed",
+    "DX12 · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: True",
+    "8K live start/stop completed"
+  ],
+  "CaptureComparisons": [
+    {
+      "Name": "shapes-outline.png",
+      "BeforeSha256": "EA79D6C27EED5C747208CE58DD66D2D889EDA70F917A0E8B3A04B1A23B479F1F",
+      "AfterSha256": "EA79D6C27EED5C747208CE58DD66D2D889EDA70F917A0E8B3A04B1A23B479F1F",
+      "Equal": true
+    },
+    {
+      "Name": "shapes-filter.png",
+      "BeforeSha256": "58D13C50ABC7A5E05DE09B5CD02FE719136D053FDB190B2B1E1E7F29B5472427",
+      "AfterSha256": "58D13C50ABC7A5E05DE09B5CD02FE719136D053FDB190B2B1E1E7F29B5472427",
+      "Equal": true
+    },
+    {
+      "Name": "roi-style-parent-selected.png",
+      "BeforeSha256": "361F7EB71AF51DA805A1DC897CFB65596E5DD3C67DE9584AF020D97DB4C5695E",
+      "AfterSha256": "361F7EB71AF51DA805A1DC897CFB65596E5DD3C67DE9584AF020D97DB4C5695E",
+      "Equal": true
+    }
+  ],
+  "Limitation": "이번 작업은 명명·서식 정리이며 새 성능 측정을 수행하지 않았다."
+}
