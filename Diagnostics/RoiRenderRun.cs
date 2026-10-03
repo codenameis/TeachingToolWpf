@@ -26,7 +26,7 @@ internal static class RoiRenderRun
             try
             {
                 await model.InitializeAsync();
-                model.Session.AddRange(layout == "overlap" ? Enumerable.Repeat(new RotatedRect(new(4096, 4096), 2500, 2200, 12), count)
+                model.Session.AddRange(layout == "overlap" ? Enumerable.Repeat(new RoiGeometry(new(4096, 4096), 2500, 2200, 12), count)
                     : RoiInteractionRun.Fixture(count, layout == "pcb"));
                 await Task.Delay(1000);
                 foreach (var selection in new[] { "none", "all" })

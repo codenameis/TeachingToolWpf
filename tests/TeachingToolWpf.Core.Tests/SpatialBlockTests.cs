@@ -54,8 +54,8 @@ public class SpatialBlockTests
         foreach (var center in new[] { new PointD(100, 100), new PointD(1e12, 1e12) })
         foreach (var angle in new[] { 0d, 1, 45, 90, 180, 270, 359.9 })
         {
-            var shape = new RotatedRect(center, 123.456, 38.25, angle);
-            var expected = BoundsD.FromPoints(shape.Corners); var actual = shape.Bounds;
+            var shape = new RoiGeometry(center, 123.456, 38.25, angle);
+            var expected = BoundsD.FromPoints(shape.FrameCorners); var actual = shape.Bounds;
             Assert.InRange(Math.Abs(expected.Left - actual.Left), 0, .00025);
             Assert.InRange(Math.Abs(expected.Top - actual.Top), 0, .00025);
             Assert.InRange(Math.Abs(expected.Right - actual.Right), 0, .00025);

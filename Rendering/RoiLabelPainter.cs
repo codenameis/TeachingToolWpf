@@ -86,7 +86,7 @@ internal sealed class RoiLabelPainter
             }
         }
     }
-    private static PointD Anchor(RotatedRect geometry, ViewportTransform view, bool singleSelection)
+    private static PointD Anchor(RoiGeometry geometry, ViewportTransform view, bool singleSelection)
     {
         var bounds = geometry.Bounds;
         var corner = view.ImageToScreen(new(bounds.Left, bounds.Top));

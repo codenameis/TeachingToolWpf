@@ -32,9 +32,9 @@ public class InteractionTests
     }
     [Fact] public void RotatedResizeKeepsOppositeCornerFixed()
     {
-        var original = new RotatedRect(new(100, 100), 40, 80, 33);
+        var original = new RoiGeometry(new(100, 100), 40, 80, 33);
         var resized = HandleGeometry.Resize(original, 0, original.ToWorld(new(-50, -70)));
-        Assert.True((original.Corners[2] - resized.Corners[2]).Length < 1e-9);
+        Assert.True((original.FrameCorners[2] - resized.FrameCorners[2]).Length < 1e-9);
         Assert.Equal(70, resized.Width, 8);
         Assert.Equal(110, resized.Height, 8);
     }

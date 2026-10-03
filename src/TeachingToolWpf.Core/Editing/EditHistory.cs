@@ -37,6 +37,8 @@ public sealed class DocumentEdit
             if (old == next) continue;
             changes.Add(new(id, old, next));
             estimatedBytes += 320L + ((old?.Name.Length ?? 0) + (next?.Name.Length ?? 0)) * 2;
+            estimatedBytes += ((old?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? old.Geometry.Shape.Vertices.Length : 0)
+                + (next?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? next.Geometry.Shape.Vertices.Length : 0)) * 16L;
         }
         Changes = changes.ToImmutable();
         beforeSelection = before.Selection;

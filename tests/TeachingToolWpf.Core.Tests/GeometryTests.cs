@@ -7,17 +7,17 @@ public sealed class GeometryTests
     [Fact]
     public void RotatedContainmentRejectsCornerOutsideDespiteAabbOverlap()
     {
-        var parent = new RotatedRect(new PointD(100, 100), 100, 20, 45);
-        var child = new RotatedRect(new PointD(100, 120), 10, 10, 0);
+        var parent = new RoiGeometry(new PointD(100, 100), 100, 20, 45);
+        var child = new RoiGeometry(new PointD(100, 120), 10, 10, 0);
         Assert.False(parent.Contains(child));
-        Assert.True(parent.Contains(new RotatedRect(new PointD(100, 100), 10, 5, 45)));
+        Assert.True(parent.Contains(new RoiGeometry(new PointD(100, 100), 10, 5, 45)));
     }
 
     [Theory]
     [InlineData(0)] [InlineData(90)] [InlineData(359.9)]
     public void LocalWorldRoundTripPreservesLargeCoordinates(double angle)
     {
-        var rect = new RotatedRect(new PointD(24576, 131072), 300, 200, angle);
+        var rect = new RoiGeometry(new PointD(24576, 131072), 300, 200, angle);
         var p = new PointD(13.25, -4.5);
         Assert.True((rect.ToLocal(rect.ToWorld(p)) - p).Length < 1e-8);
     }
@@ -33,5 +33,5 @@ public sealed class GeometryTests
     [Theory]
     [InlineData(0)] [InlineData(-1)] [InlineData(double.NaN)]
     public void InvalidSizesAreRejected(double width) =>
-        Assert.Throws<ArgumentOutOfRangeException>(() => new RotatedRect(new PointD(0, 0), width, 10, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new RoiGeometry(new PointD(0, 0), width, 10, 0));
 }

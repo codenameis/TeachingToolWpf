@@ -94,7 +94,7 @@ public class RoiRowsTests
         var list = new RoiListBox { Width = 240, Height = 180, SelectionMode = SelectionMode.Extended };
         using var binding = new RoiListBinding(list, model);
         model.Session.InitializeImage(new("rows", "rows", 10000, 10000), ViewportTransform.Identity);
-        model.Session.AddRange(Enumerable.Range(0, 4600).Select(i => new RotatedRect(new(50 + i % 80 * 80, 50 + i / 80 * 80), 30, 30, 0)));
+        model.Session.AddRange(Enumerable.Range(0, 4600).Select(i => new RoiGeometry(new(50 + i % 80 * 80, 50 + i / 80 * 80), 30, 30, 0)));
         var first = model.Rows[0].Id; var otherPage = model.Rows[550].Id;
         model.Session.Select([first, otherPage]);
         model.NextRowPage.Execute(null);

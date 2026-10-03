@@ -13,7 +13,7 @@ public class RotationRangeTests
         var index = new RoiSpatialIndex(rois); var pivot = new PointD(413, 367);
         foreach (var angle in new[] { 0d, 15, 37, -89, 180, 359, 721 })
         {
-            var expected = BoundsD.FromPoints(rois.SelectMany(r => r.Geometry.RotateAround(pivot, angle).Corners));
+            var expected = BoundsD.FromPoints(rois.SelectMany(r => r.Geometry.RotateAround(pivot, angle).FrameCorners));
             AssertBounds(expected, index.RotatedBounds(pivot, angle), 1e-8);
         }
         var thin = RoiAt(new(500, 500), 180, 4, 45);
@@ -97,7 +97,7 @@ public class RotationRangeTests
         var rois = new[] { RoiAt(pivot + new PointD(70, -50), 15, 29, 17), RoiAt(pivot + new PointD(-30, 20), 11, 8, 75) };
         var index = new RoiSpatialIndex(rois);
         foreach (var angle in new[] { -179d, 35, 91 })
-            AssertBounds(BoundsD.FromPoints(rois.SelectMany(r => r.Geometry.RotateAround(pivot, angle).Corners)), index.RotatedBounds(pivot, angle), 1e-6);
+            AssertBounds(BoundsD.FromPoints(rois.SelectMany(r => r.Geometry.RotateAround(pivot, angle).FrameCorners)), index.RotatedBounds(pivot, angle), 1e-6);
         Assert.Equal(RotationRange.Unbounded, index.RotationLimits(pivot, new("large", "large", 2_000_000_000, 2_000_000_000)));
     }
 
@@ -139,7 +139,7 @@ public class RotationRangeTests
     private static Roi RoiAt(PointD center, double width, double height, double angle, long order = 0)
         => new(Guid.NewGuid(), "roi", new(center, width, height, angle), null, false, order);
     private static bool Fits(IEnumerable<Roi> rois, PointD pivot, double angle, ImageReference image)
-        => rois.SelectMany(r => r.Geometry.RotateAround(pivot, angle).Corners)
+        => rois.SelectMany(r => r.Geometry.RotateAround(pivot, angle).FrameCorners)
             .All(p => p.X >= -1e-7 && p.Y >= -1e-7 && p.X <= image.Width + 1e-7 && p.Y <= image.Height + 1e-7);
     private static void AssertBounds(BoundsD expected, BoundsD actual, double tolerance)
     {

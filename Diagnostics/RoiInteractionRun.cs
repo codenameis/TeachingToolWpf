@@ -130,7 +130,7 @@ internal static class RoiInteractionRun
             Width = viewport.ViewWidth, Height = viewport.ViewHeight, Dpi = viewport.Dpi }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    internal static IEnumerable<RotatedRect> Fixture(int count, bool hierarchy)
+    internal static IEnumerable<RoiGeometry> Fixture(int count, bool hierarchy)
     {
         var columns = (int)Math.Ceiling(Math.Sqrt(hierarchy ? Math.Ceiling(count / 9d) : count));
         var cell = 8192d / columns;

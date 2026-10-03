@@ -183,7 +183,7 @@ public class RoiPreviewPreparationTests
     private static void Populate(EditorSession session)
     {
         session.InitializeImage(new("test", "test", 10000, 10000), new(1, default));
-        session.AddRange(Enumerable.Range(0, 4100).Select(i => new RotatedRect(new(100 + i % 80 * 40, 100 + i / 80 * 40), 20, 20, 0)));
+        session.AddRange(Enumerable.Range(0, 4100).Select(i => new RoiGeometry(new(100 + i % 80 * 40, 100 + i / 80 * 40), 20, 20, 0)));
         session.Select([session.State.Rois.Values.MinBy(r => r.Order)!.Id]);
     }
     private sealed class Gate

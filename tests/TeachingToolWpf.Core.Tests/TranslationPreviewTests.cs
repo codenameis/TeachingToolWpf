@@ -55,7 +55,7 @@ public class TranslationPreviewTests
     }
     [Fact] public void DensePreviewDoesNotAllocateOneGeometryPerPointerSample()
     {
-        var editor = new EditorSession(); editor.AddRange(Enumerable.Range(0, 10000).Select(i => new RotatedRect(new(i * 20, 100), 10, 10, 0)));
+        var editor = new EditorSession(); editor.AddRange(Enumerable.Range(0, 10000).Select(i => new RoiGeometry(new(i * 20, 100), 10, 10, 0)));
         editor.Select(editor.State.Rois.Keys); var before = editor.State;
         editor.BeginPreview(); editor.PreviewTranslation(new(1, 1));
         var allocated = GC.GetAllocatedBytesForCurrentThread();

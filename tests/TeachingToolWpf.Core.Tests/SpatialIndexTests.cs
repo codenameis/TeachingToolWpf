@@ -9,7 +9,7 @@ public class SpatialIndexTests
     [Fact] public void MovingOutsideOldBvhBoundsUpdatesQueriesAndRetainsSnapshotMetadata()
     {
         var editor = new EditorSession();
-        editor.AddRange(Enumerable.Range(0, 100).Select(i => new RotatedRect(new(i * 100, 100), 20, 20, 0)));
+        editor.AddRange(Enumerable.Range(0, 100).Select(i => new RoiGeometry(new(i * 100, 100), 20, 20, 0)));
         var roi = editor.State.Rois.Values.MinBy(r => r.Order)!; editor.Select([roi.Id]);
         var before = editor.State.Snapshot.Spatial;
         editor.TranslateSelection(new(0, 5000));
@@ -27,7 +27,7 @@ public class SpatialIndexTests
     {
         var editor = new EditorSession(); var random = new Random(53);
         editor.InitializeImage(new("test", "test", 2000, 2000), ViewportTransform.Identity);
-        editor.AddRange(Enumerable.Range(0, 100).Select(_ => new RotatedRect(new(random.Next(400, 1600), random.Next(400, 1600)), random.Next(20, 300), random.Next(20, 300), random.Next(360))));
+        editor.AddRange(Enumerable.Range(0, 100).Select(_ => new RoiGeometry(new(random.Next(400, 1600), random.Next(400, 1600)), random.Next(20, 300), random.Next(20, 300), random.Next(360))));
         for (var i = 0; i < 30; i++)
         {
             var id = editor.State.Rois.Keys.ElementAt(i); editor.Select([id]);

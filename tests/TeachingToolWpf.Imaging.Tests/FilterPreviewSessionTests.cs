@@ -29,7 +29,7 @@ public class FilterPreviewSessionTests
     [Fact] public async Task NoOpDragReenablesFilterCommandsAndRegisteredDragKeepsRequestAllocationBounded()
     {
         var editor = new EditorSession(); editor.InitializeImage(new("sample", "sample", 100000, 100), ViewportTransform.Identity);
-        editor.AddRange(Enumerable.Range(0, 10000).Select(i => new RotatedRect(new(i * 8 + 10, 30), 5, 5, 0)));
+        editor.AddRange(Enumerable.Range(0, 10000).Select(i => new RoiGeometry(new(i * 8 + 10, 30), 5, 5, 0)));
         editor.Select(editor.State.Rois.Keys); editor.SetFilters(new(RoiFilterKind.Edge));
         var processor = new Processor(); processor.Release.SetResult();
         using var model = new FilterPreviewViewModel(processor, editor);

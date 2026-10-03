@@ -5,7 +5,7 @@ namespace TeachingToolWpf.Core.Interaction;
 
 public enum EditorTool { Select, Pan, Draw }
 [Flags] public enum InputModifiers { None = 0, Control = 1, Shift = 2, Alt = 4 }
-public sealed record InteractionOverlay(Guid? Hover = null, RotatedRect? Draft = null, BoundsD? Marquee = null);
+public sealed record InteractionOverlay(Guid? Hover = null, RoiGeometry? Draft = null, BoundsD? Marquee = null);
 
 /// <summary>Chooses an input state; each gesture owns its preview and commit/cancel behavior.</summary>
 public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null,

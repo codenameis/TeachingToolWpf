@@ -59,7 +59,7 @@ public sealed class RoiClipboardContent
             token.ThrowIfCancellationRequested();
             placed.Add(roi with
             {
-                Geometry = new(center + (roi.Geometry.Center - bounds.Center) * scale,
+                Geometry = roi.Geometry.WithFrame(center + (roi.Geometry.Center - bounds.Center) * scale,
                     roi.Geometry.Width * scale, roi.Geometry.Height * scale, roi.Geometry.Angle)
             });
         }

@@ -11,14 +11,14 @@ public static class RoiTransforms
         var targets = roots.ToDictionary(id => id, id =>
         {
             var rect = state.Rois[id].Geometry;
-            return new RotatedRect(rect.Center, rect.Width, rect.Height, 0);
+            return rect.WithFrame(rect.Center, rect.Width, rect.Height, 0);
         });
         var reset = ApplyCore(state, targets);
         if (ReferenceEquals(reset, state)) return state;
         if (state.Image is not { } image || RoiImageBounds.Contains(reset, reset.Snapshot.ChangedIds)) return reset;
         // Zero is an exact command: fit the transformed subtree as one unit if zero would cross an edge.
         var affected = RoiHierarchy.Subtree(state, roots);
-        var bounds = BoundsD.FromPoints(affected.SelectMany(id => reset.Rois[id].Geometry.Corners));
+        var bounds = new RoiSpatialIndex(affected.Select(id => reset.Rois[id])).Bounds;
         var scale = Math.Min(1, Math.Min(image.Width / bounds.Width, image.Height / bounds.Height));
         var halfWidth = Math.Min(image.Width / 2d, bounds.Width * scale / 2);
         var halfHeight = Math.Min(image.Height / 2d, bounds.Height * scale / 2);
@@ -27,11 +27,11 @@ public static class RoiTransforms
         foreach (var id in affected)
         {
             var roi = rois[id]; var rect = roi.Geometry;
-            rois[id] = roi with { Geometry = new(center + (rect.Center - bounds.Center) * scale, rect.Width * scale, rect.Height * scale, rect.Angle) };
+            rois[id] = roi with { Geometry = rect.WithFrame(center + (rect.Center - bounds.Center) * scale, rect.Width * scale, rect.Height * scale, rect.Angle) };
         }
         return state.WithRois(rois.ToImmutable(), affected);
     }
-    public static DocumentState Apply(DocumentState state, IEnumerable<Guid> roots, Func<Roi, RotatedRect> transform)
+    public static DocumentState Apply(DocumentState state, IEnumerable<Guid> roots, Func<Roi, RoiGeometry> transform)
     {
         var targets = roots.Select(id => (Id: id, Geometry: transform(state.Rois[id])))
             .Where(target => target.Geometry != state.Rois[target.Id].Geometry).ToDictionary(target => target.Id, target => target.Geometry);
@@ -51,7 +51,7 @@ public static class RoiTransforms
         }
         return accepted;
     }
-    private static DocumentState ApplyCore(DocumentState state, IReadOnlyDictionary<Guid, RotatedRect> targets)
+    private static DocumentState ApplyCore(DocumentState state, IReadOnlyDictionary<Guid, RoiGeometry> targets)
     {
         var result = state.Rois.ToBuilder();
         var changed = new HashSet<Guid>();

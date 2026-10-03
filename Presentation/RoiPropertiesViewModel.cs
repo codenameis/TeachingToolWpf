@@ -25,7 +25,7 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
         var roi = editor.State.Rois[value]; var geometry = editor.TransformPreview?.Geometry(roi) ?? roi.Geometry;
         Name = roi.Name; X = Format(geometry.Center.X); Y = Format(geometry.Center.Y);
         Width = Format(geometry.Width); Height = Format(geometry.Height); Angle = Format(geometry.Angle);
-        RelativeAngle = roi.ParentId is { } parent ? Format(RotatedRect.NormalizeAngle(geometry.Angle -
+        RelativeAngle = roi.ParentId is { } parent ? Format(RoiGeometry.NormalizeAngle(geometry.Angle -
             (editor.TransformPreview?.Geometry(editor.State.Rois[parent]) ?? editor.State.Rois[parent].Geometry).Angle)) + "°" : "루트 ROI";
     }
     public void Apply()
@@ -33,6 +33,13 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
         if (id is not { } value) return;
         static double Parse(string text) => double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value) && double.IsFinite(value)
             ? value : throw new ArgumentException("속성에는 유한한 숫자를 입력하세요.");
-        editor.SetProperties(value, Name, new(new(Parse(X), Parse(Y)), Parse(Width), Parse(Height), Parse(Angle)));
+        var original = editor.State.Rois[value].Geometry;
+        var newWidth = Parse(Width); var newHeight = Parse(Height);
+        if (original.Shape.Kind == RoiShapeKind.Circle)
+        {
+            if (Width != Format(original.Width)) newHeight = newWidth;
+            else newWidth = newHeight;
+        }
+        editor.SetProperties(value, Name, original.WithFrame(new(Parse(X), Parse(Y)), newWidth, newHeight, Parse(Angle)));
     }
 }

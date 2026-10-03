@@ -29,7 +29,7 @@ public class TransformSelectionSetTests
     [Fact] public void WholeDocumentSelectionReusesExistingImmutableMembership()
     {
         var editor = new EditorSession();
-        editor.AddRange(Enumerable.Range(0, 20).Select(index => new RotatedRect(new(index * 30, 100), 10, 10, 0)));
+        editor.AddRange(Enumerable.Range(0, 20).Select(index => new RoiGeometry(new(index * 30, 100), 10, 10, 0)));
         editor.Select(editor.State.Rois.Keys);
         var state = editor.State;
         Assert.Same(state.Selection, state.TransformSelection.Affected);

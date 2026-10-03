@@ -29,7 +29,7 @@ internal static class BenchmarkRun
                 window.UpdateLayout();
                 await model.InitializeAsync();
                 model.LiveFormat = kind; await model.StartLive.ExecuteAsync();
-                if (roiCount > 0) model.Session.AddRange(Enumerable.Range(0, roiCount).Select(i => new RotatedRect(new((i % 100) * 76 + 38, (i / 100) * 42 + 21), 50, 26, i % 45)));
+                if (roiCount > 0) model.Session.AddRange(Enumerable.Range(0, roiCount).Select(i => new RoiGeometry(new((i % 100) * 76 + 38, (i / 100) * 42 + 21), 50, 26, i % 45)));
                 if (model.Session.State.Rois.Count != roiCount) throw new InvalidOperationException("Benchmark ROI count does not match the requested workload.");
                 await Task.Delay(TimeSpan.FromSeconds(seconds));
                 await model.Live.StopAsync();

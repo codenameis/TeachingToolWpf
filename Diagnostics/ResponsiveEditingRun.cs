@@ -27,7 +27,7 @@ internal static class ResponsiveEditingRun
             try
             {
                 await model.InitializeAsync();
-                model.Session.AddRange(RoiInteractionRun.Fixture(count, false).Select(r => new RotatedRect(r.Center * .5 + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle)));
+                model.Session.AddRange(RoiInteractionRun.Fixture(count, false).Select(r => new RoiGeometry(r.Center * .5 + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle)));
                 await Task.Delay(500); window.UpdateLayout();
                 async Task Measure(string operation, int iteration, Func<Task> execute)
                 {

@@ -3,7 +3,7 @@ namespace TeachingToolWpf.Core.Geometry;
 /// <summary>Places a useful starter rectangle inside the visible part of an image.</summary>
 public static class RoiPlacement
 {
-    public static RotatedRect InView(int imageWidth, int imageHeight, ViewportTransform view, double width, double height)
+    public static RoiGeometry InView(int imageWidth, int imageHeight, ViewportTransform view, double width, double height)
     {
         if (imageWidth <= 0 || imageHeight <= 0) throw new ArgumentOutOfRangeException(nameof(imageWidth));
         var a = view.ScreenToImage(new(0, 0));

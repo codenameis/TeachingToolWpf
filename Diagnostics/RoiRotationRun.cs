@@ -52,7 +52,7 @@ internal static class RoiRotationRun
                 await model.InitializeAsync();
                 stage = "fixture"; await Save();
                 model.Session.AddRange(RoiInteractionRun.Fixture(count, layout == "pcb").Select(r => mode == "interior"
-                    ? new RotatedRect(r.Center * .5 + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle) : r));
+                    ? new RoiGeometry(r.Center * .5 + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle) : r));
                 if (selectionMode == "all") { await model.SelectAll.ExecuteAsync(); await model.EditCompletion; }
                 else
                 {

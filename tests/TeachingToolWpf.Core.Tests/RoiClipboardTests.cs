@@ -50,7 +50,7 @@ public class RoiClipboardTests
     [Fact] public void BulkOverlappingPastePreservesValuesAndAtomicHistory()
     {
         var editor = Create();
-        editor.AddRange(Enumerable.Repeat(new RotatedRect(new(200, 200), 100, 100, 0), 7000));
+        editor.AddRange(Enumerable.Repeat(new RoiGeometry(new(200, 200), 100, 100, 0), 7000));
         editor.Select(editor.State.Rois.Keys);
         var original = editor.State;
         var clipboard = new RoiClipboard(); Assert.Equal(7000, clipboard.Copy(original));
@@ -67,7 +67,7 @@ public class RoiClipboardTests
     }
     [Fact] public async Task AsyncPasteHasOneUndoAndCancelledPastePreservesRedo()
     {
-        var editor = Create(); editor.AddRange(Enumerable.Repeat(new RotatedRect(new(200, 200), 30, 30, 0), 300));
+        var editor = Create(); editor.AddRange(Enumerable.Repeat(new RoiGeometry(new(200, 200), 30, 30, 0), 300));
         editor.Select(editor.State.Rois.Keys); var original = editor.State;
         var clipboard = new RoiClipboard(); clipboard.Copy(original);
         await editor.PasteAsync(clipboard); Assert.Equal(600, editor.State.Rois.Count);

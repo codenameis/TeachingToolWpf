@@ -26,7 +26,7 @@ internal static class RoiDragRun
             {
                 await model.InitializeAsync();
                 model.Session.AddRange(RoiInteractionRun.Fixture(count, false).Select(r => interior
-                    ? new RotatedRect(r.Center * .5 + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle) : r));
+                    ? new RoiGeometry(r.Center * .5 + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle) : r));
                 model.Session.Select(model.Session.State.Rois.Keys);
                 await Task.Delay(500);
                 var before = model.Session.State; var roi = before.Rois.Values.MinBy(r => (r.Geometry.Center - new PointD(4096, 4096)).Length)!;

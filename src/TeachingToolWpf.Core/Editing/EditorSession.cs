@@ -26,7 +26,7 @@ public sealed partial class EditorSession
     public bool HasPreviewChanges => previewStart is { } before &&
         (TransformPreview is { Transform.IsIdentity: false } || !ReferenceEquals(State.Rois, before.Rois));
 
-    public Guid Add(RotatedRect geometry)
+    public Guid Add(RoiGeometry geometry)
     {
         geometry = RoiImageBounds.ClipNew(geometry, State.Image);
         var roi = new Roi(Guid.NewGuid(), $"ROI {++nextOrder:000}", geometry, null, false, nextOrder);
@@ -36,7 +36,7 @@ public sealed partial class EditorSession
         });
         return roi.Id;
     }
-    public void AddRange(IEnumerable<RotatedRect> geometries)
+    public void AddRange(IEnumerable<RoiGeometry> geometries)
     {
         var rois = State.Rois.ToBuilder();
         var added = new List<Guid>();
@@ -94,7 +94,7 @@ public sealed partial class EditorSession
             Viewport = view
         });
     }
-    public void SetProperties(Guid id, string name, RotatedRect geometry)
+    public void SetProperties(Guid id, string name, RoiGeometry geometry)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 256)
             throw new ArgumentException("이름은 1–256자여야 합니다.");
@@ -153,14 +153,14 @@ public sealed partial class EditorSession
         }, rebuild: !selection.PreservesHierarchy(transform));
     }
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));
-    public void SetGeometry(Guid id, RotatedRect geometry) => Commit("ROI 속성 변경", RoiTransforms.Apply(State, [id], _ => geometry));
+    public void SetGeometry(Guid id, RoiGeometry geometry) => Commit("ROI 속성 변경", RoiTransforms.Apply(State, [id], _ => geometry));
 
     public Guid GroupSelection()
     {
         var roots = RoiHierarchy.EffectiveRoots(State).ToArray();
         if (roots.Length < 2)
             throw new InvalidOperationException("독립적인 ROI를 2개 이상 선택하세요.");
-        var bounds = BoundsD.FromPoints(roots.SelectMany(id => State.Rois[id].Geometry.Corners));
+        var bounds = new RoiSpatialIndex(roots.Select(id => State.Rois[id])).Bounds;
         var padding = Math.Max(1, Math.Max(Math.Abs(bounds.Center.X), Math.Abs(bounds.Center.Y)) * 1e-10);
         var group = new Roi(Guid.NewGuid(), $"그룹 {++nextOrder:000}",
             RoiImageBounds.ClipNew(new(bounds.Center, bounds.Width + padding * 2, bounds.Height + padding * 2, 0), State.Image), null, true, nextOrder);
@@ -234,19 +234,19 @@ public sealed partial class EditorSession
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    public void PreviewTransform(Func<Roi, RotatedRect> transform)
+    public void PreviewTransform(Func<Roi, RoiGeometry> transform)
     {
         var before = RequirePreviewStart();
         Publish(RoiTransforms.Apply(before, RoiHierarchy.EffectiveRoots(before), transform));
     }
 
-    public void PreviewGeometry(Guid id, RotatedRect geometry)
+    public void PreviewGeometry(Guid id, RoiGeometry geometry)
     {
         var before = RequirePreviewStart();
         Publish(RoiTransforms.Apply(before, [id], _ => geometry));
     }
 
-    public void PreviewResize(Guid id, RotatedRect geometry)
+    public void PreviewResize(Guid id, RoiGeometry geometry)
     {
         var before = RequirePreviewStart();
         // 자식 크기는 유지하고, 핸들 조절로 이동한 부모 중심의 변위만 함께 적용한다.

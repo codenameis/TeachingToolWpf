@@ -16,7 +16,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
     public static RoiInstance[] Pack(RoiSpatialBlock block, double aggregateSize)
     {
         var result = new List<RoiInstance>();
-        var unique = new HashSet<RotatedRect>();
+        var unique = new HashSet<RoiGeometry>();
         var origin = block.Bounds.Center;
         foreach (var item in block.Detail(aggregateSize))
         {
@@ -44,7 +44,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
     public static uint[] ResolveRoles(RoiSpatialBlock block, double aggregateSize, DocumentState document)
     {
         var result = new List<uint>();
-        var unique = new Dictionary<RotatedRect, int>();
+        var unique = new Dictionary<RoiGeometry, int>();
         // 형상 버퍼와 같은 순서로 묶어야 역할 SRV의 인덱스가 일치한다. 요약은 중립 역할이다.
         foreach (var item in block.Detail(aggregateSize))
         {

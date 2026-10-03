@@ -36,7 +36,7 @@ public class ImageBoundsTests
         var editor = Create(); var input = new InteractionController(editor) { Tool = EditorTool.Draw };
         input.Down(new(40, 30)); input.Up(new(170, 190));
         var roi = editor.State.Rois.Values.Single();
-        Assert.Equal(new RotatedRect(new(70, 65), 60, 70, 0), roi.Geometry);
+        Assert.Equal(new RoiGeometry(new(70, 65), 60, 70, 0), roi.Geometry);
         input.Tool = EditorTool.Draw;
         input.Down(new(120, 120)); input.Up(new(190, 180)); Assert.Single(editor.State.Rois);
     }

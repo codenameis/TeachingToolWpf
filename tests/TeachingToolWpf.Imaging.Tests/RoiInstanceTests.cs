@@ -43,7 +43,7 @@ public class RoiInstanceTests
     }
     [Fact] public void InstancesPreserveRotatedCornersAtLargeImageCoordinates()
     {
-        var shapes = new[] { new RotatedRect(new(1e12 + 20, 1e12 + 10), 50, 25, 12), new RotatedRect(new(1e12 + 120, 1e12 + 80), 10, 75, 275) };
+        var shapes = new[] { new RoiGeometry(new(1e12 + 20, 1e12 + 10), 50, 25, 12), new RoiGeometry(new(1e12 + 120, 1e12 + 80), 10, 75, 275) };
         var rois = shapes.Select((s, i) => new Roi(Guid.NewGuid(), "ROI", s, null, false, i)).ToArray();
         var index = new RoiSpatialIndex(rois); var block = index.Blocks(index.Bounds).Single();
         var packed = RoiInstance.Pack(block, 0);
@@ -56,13 +56,13 @@ public class RoiInstanceTests
             {
                 var relative = instance.Center + instance.AxisX * signs[j].Item1 + instance.AxisY * signs[j].Item2;
                 var point = block.Bounds.Center + new PointD(relative.X, relative.Y);
-                Assert.InRange((point - shapes[i].Corners[j]).Length, 0, .001);
+                Assert.InRange((point - shapes[i].FrameCorners[j]).Length, 0, .001);
             }
         }
     }
     [Fact] public void IdenticalVisibleShapesShareGeometryWhileDomainIdsStayDistinct()
     {
-        var shape = new RotatedRect(new(100, 100), 50, 40, 12);
+        var shape = new RoiGeometry(new(100, 100), 50, 40, 12);
         var rois = Enumerable.Range(0, 1000).Select(i => new Roi(Guid.NewGuid(), "ROI", shape, null, false, i)).ToArray();
         var index = new RoiSpatialIndex(rois); var block = index.Blocks(index.Bounds).Single();
         Assert.Single(RoiInstance.Pack(block, 0));
@@ -77,8 +77,8 @@ public class RoiInstanceTests
         foreach (var extent in new[] { 0d, 24576d, 1e12 })
         {
             var pivot = new PointD(extent + 300, extent + 300);
-            var shape = new RotatedRect(new(extent + 600, extent + 210), 123, 47, 27);
-            var other = new RotatedRect(new(extent + 420, extent + 420), 55, 33, 315);
+            var shape = new RoiGeometry(new(extent + 600, extent + 210), 123, 47, 27);
+            var other = new RoiGeometry(new(extent + 420, extent + 420), 55, 33, 315);
             var index = new RoiSpatialIndex(new[] { shape, other }.Select((geometry, i) => new Roi(Guid.NewGuid(), "ROI", geometry, null, false, i)));
             var block = index.Blocks(index.Bounds).Single(); var packed = RoiInstance.Pack(block, 0);
             var transform = new RigidTransform2D(pivot, angle, new(17, -13));
@@ -86,7 +86,7 @@ public class RoiInstanceTests
             var screenOrigin = view.ImageToScreen(transform.Apply(block.Bounds.Center));
             var origin = new Vector2((float)screenOrigin.X, (float)screenOrigin.Y);
             var cosine = (float)transform.Cosine; var sine = (float)transform.Sine;
-            var expected = shape.RotateAround(pivot, angle).Translate(new(17, -13)).Corners;
+            var expected = shape.RotateAround(pivot, angle).Translate(new(17, -13)).FrameCorners;
             var signs = new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) };
             for (var i = 0; i < signs.Length; i++)
             {
@@ -144,7 +144,7 @@ public class RoiInstanceTests
         var view = new ViewportTransform(2, new(30, -50));
         var transform = new RigidTransform2D(bounds.Center, 90, new(11, 23));
         var corners = ScenePainter.SelectionCorners(bounds, view, transform);
-        var expected = new RotatedRect(bounds.Center, bounds.Width, bounds.Height, 0).RotateAround(bounds.Center, 90).Translate(new(11, 23)).Corners;
+        var expected = new RoiGeometry(bounds.Center, bounds.Width, bounds.Height, 0).RotateAround(bounds.Center, 90).Translate(new(11, 23)).FrameCorners;
         for (var i = 0; i < 4; i++) Assert.InRange((corners[i] - view.ImageToScreen(expected[i])).Length, 0, 1e-9);
         var handle = (corners[0] + corners[1]) / 2 + transform.ApplyVector(new(0, -28));
         var rotationHandle = HandleGeometry.RotationHandle(new(bounds.Center + transform.Translation, bounds.Width, bounds.Height, 90), view);
@@ -152,7 +152,7 @@ public class RoiInstanceTests
     }
     [Fact] public void LargeOverlappingRoisBoundLabelCandidatesWithoutChangingExactGeometryQueries()
     {
-        var shape = new RotatedRect(new(200, 200), 300, 300, 0);
+        var shape = new RoiGeometry(new(200, 200), 300, 300, 0);
         var rois = Enumerable.Range(0, 12000).Select(i => new Roi(Guid.NewGuid(), $"overlap {i}", shape, null, false, i)).ToArray();
         var index = new RoiSpatialIndex(rois); var visibility = new RoiVisibility();
         visibility.Update(index, ViewportTransform.Identity, 400, 400);

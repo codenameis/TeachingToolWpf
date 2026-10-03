@@ -70,7 +70,7 @@ internal sealed class RotateGesture(InteractionController controller, PointD sta
 internal sealed class DrawGesture(InteractionController controller, PointD start) : IGesture
 {
     private readonly ViewportTransform view = controller.Editor.State.Viewport;
-    private RotatedRect? draft;
+    private RoiGeometry? draft;
     public void Move(PointD screen, InputModifiers modifiers)
     {
         var image = controller.Editor.State.Image;
@@ -102,7 +102,7 @@ internal sealed class MarqueeGesture(InteractionController controller, PointD st
         var a = baseline.Viewport.ScreenToImage(new(bounds.Left, bounds.Top));
         var b = baseline.Viewport.ScreenToImage(new(bounds.Right, bounds.Bottom));
         var ids = baseline.Snapshot.Spatial.Intersecting(new(a.X, a.Y, b.X, b.Y))
-            .Where(r => r.Geometry.Corners.All(p => bounds.Contains(baseline.Viewport.ImageToScreen(p)))).Select(r => r.Id);
+            .Where(r => r.Geometry.FrameCorners.All(p => bounds.Contains(baseline.Viewport.ImageToScreen(p)))).Select(r => r.Id);
         controller.Select(additive ? baseline.Selection.Union(ids) : ids);
     }
     public void Cancel() { }

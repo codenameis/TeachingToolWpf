@@ -3,7 +3,7 @@ using TeachingToolWpf.Core.Geometry;
 
 namespace TeachingToolWpf.Core.Editing;
 
-public sealed record Roi(Guid Id, string Name, RotatedRect Geometry, Guid? ParentId, bool IsGroup, long Order)
+public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? ParentId, bool IsGroup, long Order)
 {
     public FilterSettings Filter { get; init; } = new(RoiFilterKind.None);
 }

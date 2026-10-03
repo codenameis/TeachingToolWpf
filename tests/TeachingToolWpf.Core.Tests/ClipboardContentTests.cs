@@ -18,7 +18,7 @@ public class ClipboardContentTests
         editor.Select(editor.State.Rois.Keys);
         var clipboard = new RoiClipboard(); clipboard.Copy(editor.State);
         var content = clipboard.Capture();
-        var expected = BoundsD.FromPoints(content.Entries.SelectMany(r => r.Geometry.Corners));
+        var expected = BoundsD.FromPoints(content.Entries.SelectMany(r => r.Geometry.FrameCorners));
 
         Assert.Equal(expected.Left, content.Bounds.Left, 9);
         Assert.Equal(expected.Top, content.Bounds.Top, 9);
@@ -36,7 +36,7 @@ public class ClipboardContentTests
             Assert.Equal(original.ParentId, copy.ParentId); Assert.Equal(original.Filter, copy.Filter);
             Assert.Equal(original.Geometry.Angle, copy.Geometry.Angle);
             Assert.Equal(scale, copy.Geometry.Height / original.Geometry.Height, 9);
-            Assert.All(copy.Geometry.Corners, p =>
+            Assert.All(copy.Geometry.FrameCorners, p =>
             {
                 Assert.InRange(p.X, -1e-7, target.Width + 1e-7);
                 Assert.InRange(p.Y, -1e-7, target.Height + 1e-7);

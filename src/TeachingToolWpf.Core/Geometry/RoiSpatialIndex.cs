@@ -53,12 +53,7 @@ public sealed class RoiSpatialIndex
                 foreach (var entry in entries)
                 {
                     var rectangle = entry.Roi.Geometry;
-                    var center = rectangle.Center - pivot;
-                    var (sin, cos) = Math.SinCos(rectangle.Angle * Math.PI / 180);
-                    // A rectangle's support is its center plus the absolute projections of its local axes.
-                    var projection = center.X * direction.X + center.Y * direction.Y
-                        + Math.Abs(cos * direction.X + sin * direction.Y) * (rectangle.Width / 2)
-                        + Math.Abs(-sin * direction.X + cos * direction.Y) * (rectangle.Height / 2);
+                    var projection = rectangle.Support(direction) - pivot.X * direction.X - pivot.Y * direction.Y;
                     best = Math.Max(best, projection);
                 }
                 return;
@@ -152,6 +147,17 @@ public sealed class RoiSpatialIndex
                     cancellationToken.ThrowIfCancellationRequested();
                     var rectangle = entry.Roi.Geometry;
                     var center = rectangle.Center - pivot;
+                    if (rectangle.Radius > 0)
+                    {
+                        var radius = rectangle.Radius;
+                        IncludePoint(ref best, center, new(limits.Left + radius, limits.Top + radius, limits.Right - radius, limits.Bottom - radius));
+                        continue;
+                    }
+                    if (rectangle.Shape.Kind != RoiShapeKind.Rectangle)
+                    {
+                        foreach (var point in rectangle.Outline) IncludePoint(ref best, point - pivot, limits);
+                        continue;
+                    }
                     var (sin, cos) = Math.SinCos(rectangle.Angle * Math.PI / 180);
                     var horizontal = new PointD(cos * (rectangle.Width / 2), sin * (rectangle.Width / 2));
                     var vertical = new PointD(-sin * (rectangle.Height / 2), cos * (rectangle.Height / 2));

@@ -108,8 +108,8 @@ internal static class RotationCommitProfile
             var component = index / 9; var pad = index % 9 - 1;
             var origin = new PointD(2048 + component % columns * cell, 2048 + component / columns * cell);
             var geometry = pad < 0
-                ? new RotatedRect(origin + new PointD(cell / 2, cell / 2), cell * .8, cell * .8, 0)
-                : new RotatedRect(origin + new PointD(cell * (.2 + pad % 4 * .2), cell * (.3 + pad / 4 * .4)), cell * .1, cell * .12, 0);
+                ? new RoiGeometry(origin + new PointD(cell / 2, cell / 2), cell * .8, cell * .8, 0)
+                : new RoiGeometry(origin + new PointD(cell * (.2 + pad % 4 * .2), cell * (.3 + pad / 4 * .4)), cell * .1, cell * .12, 0);
             var id = StableId(index);
             rois.Add(id, new(id, $"ROI {index}", geometry, pad < 0 ? null : StableId(component * 9), false, index));
         }

@@ -110,7 +110,7 @@ public class RotationPreviewTests
     [Fact] public void HundredThousandRoiPreviewHasBoundedAllocationAcrossOneHundredWarmSamples()
     {
         var editor = Create(20000, 20000);
-        editor.AddRange(Enumerable.Range(0, 100000).Select(i => new RotatedRect(new(1000 + i % 400 * 20, 1000 + i / 400 * 20), 10, 8, 0)));
+        editor.AddRange(Enumerable.Range(0, 100000).Select(i => new RoiGeometry(new(1000 + i % 400 * 20, 1000 + i / 400 * 20), 10, 8, 0)));
         editor.Select(editor.State.Rois.Keys); var before = editor.State;
         editor.BeginPreview();
         for (var i = 0; i < 10; i++) editor.PreviewRotation(new(5000, 4000), i * .1);
@@ -231,9 +231,9 @@ public class RotationPreviewTests
         var editor = new EditorSession(); editor.InitializeImage(new("image", "image", width, height), ViewportTransform.Identity); return editor;
     }
     private static void Near(PointD expected, PointD actual) => Assert.InRange((expected - actual).Length, 0, 1e-7);
-    private static bool FitsImage(RotatedRect geometry, ImageReference image) => geometry.Corners.All(point =>
+    private static bool FitsImage(RoiGeometry geometry, ImageReference image) => geometry.FrameCorners.All(point =>
         point.X >= -1e-7 && point.Y >= -1e-7 && point.X <= image.Width + 1e-7 && point.Y <= image.Height + 1e-7);
-    private static void GeometryNear(RotatedRect expected, RotatedRect actual)
+    private static void GeometryNear(RoiGeometry expected, RoiGeometry actual)
     {
         Near(expected.Center, actual.Center); Assert.Equal(expected.Width, actual.Width, 8); Assert.Equal(expected.Height, actual.Height, 8);
         var difference = Math.Abs(expected.Angle - actual.Angle) % 360;

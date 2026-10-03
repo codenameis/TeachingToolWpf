@@ -39,14 +39,14 @@ internal sealed class ScenePainter
         }
         foreach (var (region, texture, uv) in filters.Regions)
         {
-            var corners = region.Geometry.Corners.Select(view.ImageToScreen).ToArray();
+            var corners = region.Geometry.FrameCorners.Select(view.ImageToScreen).ToArray();
             mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true, uv);
         }
         RoiBatchBoundary = mesh.Split();
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
         {
             var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
-            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Corners.Select(view.ImageToScreen).ToArray(),
+            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).FrameCorners.Select(view.ImageToScreen).ToArray(),
                 style.StrokeThickness(true), style.SelectedColor);
         }
         if (scene.Document.Selection.Count == 1)
@@ -54,7 +54,7 @@ internal sealed class ScenePainter
             var roi = scene.Document.Rois[scene.Document.Selection.Single()];
             var color = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, roi.Id)).SelectedColor;
             var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
-            var points = geometry.Corners.Select(view.ImageToScreen).ToArray();
+            var points = geometry.FrameCorners.Select(view.ImageToScreen).ToArray();
             foreach (var point in HandleGeometry.ResizeHandles(geometry, view)) Handle(white, point, 6, color);
             var top = (points[0] + points[1]) / 2;
             var rotation = HandleGeometry.RotationHandle(geometry, view);
@@ -71,7 +71,7 @@ internal sealed class ScenePainter
             var rotation = top + transform.ApplyVector(new PointD(0, -28));
             mesh.Line(white, top, rotation, 1, Accent); RotationHandle(white, rotation, Accent);
         }
-        if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.Corners.Select(view.ImageToScreen).ToArray(),
+        if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.FrameCorners.Select(view.ImageToScreen).ToArray(),
             scene.RoiStyles.Default.StrokeThickness(true), scene.RoiStyles.Default.SelectedColor);
         if (scene.Overlay.Marquee is { } selection)
         {

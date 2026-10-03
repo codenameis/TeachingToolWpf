@@ -52,7 +52,7 @@ internal static class ClipboardRun
                 }
                 var count = args.Contains("--clipboard-repeat") ? 300 : 7000;
                 await Measure("create", () => model.Session.AddRange(layout == "overlap"
-                    ? Enumerable.Repeat(new RotatedRect(new(4096, 4096), 100, 100, 0), count)
+                    ? Enumerable.Repeat(new RoiGeometry(new(4096, 4096), 100, 100, 0), count)
                     : RoiInteractionRun.Fixture(count, layout == "pcb")));
                 while (count < 7000)
                 {

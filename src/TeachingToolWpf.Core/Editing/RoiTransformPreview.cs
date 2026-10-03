@@ -78,12 +78,12 @@ public sealed class RoiTransformSelection
         return Affected.Count == Before.Rois.Count ? Before.WithRigidRois(rois.ToImmutable(), Affected)
             : Before.WithRois(rois.ToImmutable(), Affected);
     }
-    internal static RotatedRect TransformGeometry(RotatedRect geometry, RigidTransform2D transform) => transform.IsIdentity ? geometry
-        : new(transform.Apply(geometry.Center), geometry.Width, geometry.Height, geometry.Angle + transform.AngleDegrees);
+    internal static RoiGeometry TransformGeometry(RoiGeometry geometry, RigidTransform2D transform) => transform.IsIdentity ? geometry
+        : geometry.WithFrame(transform.Apply(geometry.Center), geometry.Width, geometry.Height, geometry.Angle + transform.AngleDegrees);
     private sealed record RotationConstraint(PointD Pivot, Lazy<RotationRange> Limits);
 }
 
 public sealed record RoiTransformPreview(RoiTransformSelection Selection, RigidTransform2D Transform)
 {
-    public RotatedRect Geometry(Roi roi) => Selection.Affected.Contains(roi.Id) ? RoiTransformSelection.TransformGeometry(roi.Geometry, Transform) : roi.Geometry;
+    public RoiGeometry Geometry(Roi roi) => Selection.Affected.Contains(roi.Id) ? RoiTransformSelection.TransformGeometry(roi.Geometry, Transform) : roi.Geometry;
 }

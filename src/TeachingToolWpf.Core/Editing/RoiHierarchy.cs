@@ -28,7 +28,7 @@ public static class RoiHierarchy
         {
             token.ThrowIfCancellationRequested();
             if (!next.Rois.TryGetValue(id, out var child)) continue;
-            var parent = index.At(child.Geometry.Center, child.Geometry.Area).Where(r => r.Geometry.Contains(child.Geometry))
+            var parent = index.At(child.Geometry.ContainmentAnchor, child.Geometry.Area).Where(r => r.Geometry.Contains(child.Geometry))
                 .OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id).FirstOrDefault()?.Id;
             if (child.ParentId != parent) { result[id] = child with { ParentId = parent }; changed.Add(id); }
         }
@@ -43,7 +43,7 @@ public static class RoiHierarchy
         {
             token.ThrowIfCancellationRequested();
             Guid? parent = null;
-            foreach (var candidate in index.At(child.Geometry.Center, child.Geometry.Area).OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id))
+            foreach (var candidate in index.At(child.Geometry.ContainmentAnchor, child.Geometry.Area).OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id))
             {
                 if (!candidate.Geometry.Contains(child.Geometry.Center)) continue;
                 if (!candidate.Geometry.Contains(child.Geometry)) continue;

@@ -6,7 +6,7 @@ namespace TeachingToolWpf.Core.Tests;
 public sealed class EditingTests
 {
     private static Guid Add(EditorSession editor, double x, double y, double width, double height, double angle = 0) =>
-        editor.Add(new RotatedRect(new(x, y), width, height, angle));
+        editor.Add(new RoiGeometry(new(x, y), width, height, angle));
 
     [Fact]
     public void DeletingParentRemovesWholeTreeAndUndoRestoresIdsAndSelection()

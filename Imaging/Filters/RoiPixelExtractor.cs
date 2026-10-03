@@ -1,14 +1,14 @@
 using OpenCvSharp;
 using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Core.Imaging;
-using RotatedRect = TeachingToolWpf.Core.Geometry.RotatedRect;
+using RoiGeometry = TeachingToolWpf.Core.Geometry.RoiGeometry;
 
 namespace TeachingToolWpf.Imaging.Filters;
 
 /// <summary>Reads only the bounding tiles at preview resolution, then rectifies a rotated ROI.</summary>
 internal static class RoiPixelExtractor
 {
-    public static Mat FromTiles(ITileSource source, RotatedRect roi, int width, int height, CancellationToken token)
+    public static Mat FromTiles(ITileSource source, RoiGeometry roi, int width, int height, CancellationToken token)
     {
         var ratio = Math.Max(roi.Width / width, roi.Height / height);
         var level = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(1, ratio))), 0, source.Info.Levels - 1);
@@ -38,13 +38,13 @@ internal static class RoiPixelExtractor
         return Rectify(patch, roi, width, height, factor, new(left, top));
     }
 
-    public static Mat FromFrame(PixelBuffer pixels, RotatedRect roi, int width, int height)
+    public static Mat FromFrame(PixelBuffer pixels, RoiGeometry roi, int width, int height)
     {
         using var source = OpenCvRoiFilter.Wrap(pixels);
         return Rectify(source, roi, width, height, 1, new());
     }
 
-    private static Mat Rectify(Mat source, RotatedRect roi, int width, int height, double factor, PointD origin)
+    private static Mat Rectify(Mat source, RoiGeometry roi, int width, int height, double factor, PointD origin)
     {
         // Map destination pixel centers to source pixel centers; geometry uses image edge coordinates.
         var a = roi.ToWorld(new(-roi.Width / 2 + roi.Width / (2 * width), -roi.Height / 2 + roi.Height / (2 * height))) / factor - origin - new PointD(.5, .5);

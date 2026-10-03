@@ -10,14 +10,17 @@ public static class RoiImageBounds
 
     public static bool ContainsAll(DocumentState state) => Contains(state, state.Rois.Keys);
     public static bool Contains(DocumentState state, IEnumerable<Guid> ids) => state.Image is not { } image ||
-        ids.All(id => state.Rois[id].Geometry.Corners.All(p =>
-            p.X >= -1e-7 && p.Y >= -1e-7 && p.X <= image.Width + 1e-7 && p.Y <= image.Height + 1e-7));
+        ids.All(id => Fits(state.Rois[id].Geometry.Bounds, image));
 
-    public static RotatedRect ClipNew(RotatedRect rect, ImageReference? image)
+    public static bool Fits(BoundsD bounds, ImageReference image) => bounds.Left >= -1e-7 && bounds.Top >= -1e-7 &&
+        bounds.Right <= image.Width + 1e-7 && bounds.Bottom <= image.Height + 1e-7;
+
+    public static RoiGeometry ClipNew(RoiGeometry rect, ImageReference? image)
     {
         if (image is null) return rect;
         var bounds = rect.Bounds;
-        if (rect.Angle == 0)
+        if (Fits(bounds, image)) return rect;
+        if (rect.Angle == 0 && rect.Shape.Kind == RoiShapeKind.Rectangle)
         {
             var a = Clamp(new(bounds.Left, bounds.Top), image);
             var b = Clamp(new(bounds.Right, bounds.Bottom), image);
@@ -26,14 +29,15 @@ public static class RoiImageBounds
         }
         var scale = Math.Min(1, Math.Min(image.Width / bounds.Width, image.Height / bounds.Height));
         var halfWidth = bounds.Width * scale / 2; var halfHeight = bounds.Height * scale / 2;
-        return new(new(Math.Clamp(rect.Center.X, halfWidth, image.Width - halfWidth),
-            Math.Clamp(rect.Center.Y, halfHeight, image.Height - halfHeight)), rect.Width * scale, rect.Height * scale, rect.Angle);
+        var fittedCenter = new PointD(Math.Clamp(bounds.Center.X, halfWidth, image.Width - halfWidth),
+            Math.Clamp(bounds.Center.Y, halfHeight, image.Height - halfHeight));
+        return rect.WithFrame(fittedCenter + (rect.Center - bounds.Center) * scale, rect.Width * scale, rect.Height * scale, rect.Angle);
     }
 
-    internal static RotatedRect Interpolate(RotatedRect from, RotatedRect to, double fraction)
+    internal static RoiGeometry Interpolate(RoiGeometry from, RoiGeometry to, double fraction)
     {
         var angle = (to.Angle - from.Angle + 540) % 360 - 180;
-        return new(from.Center + (to.Center - from.Center) * fraction,
+        return from.WithFrame(from.Center + (to.Center - from.Center) * fraction,
             from.Width + (to.Width - from.Width) * fraction, from.Height + (to.Height - from.Height) * fraction,
             from.Angle + angle * fraction);
     }
