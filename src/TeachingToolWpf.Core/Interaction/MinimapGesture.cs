@@ -5,26 +5,38 @@ namespace TeachingToolWpf.Core.Interaction;
 
 internal sealed class MinimapGesture : IGesture
 {
-    private readonly EditorSession editor;
-    private readonly MinimapLayout map;
-    private readonly ViewportTransform before;
-    private readonly PointD start, grabOffset;
-    private PointD last;
+    private readonly EditorSession _editor;
+    private readonly MinimapLayout _map;
+    private readonly ViewportTransform _before;
+    private readonly PointD _start;
+
+    private readonly PointD _grabOffset;
+    private PointD _last;
+
     public MinimapGesture(EditorSession editor, MinimapLayout map, PointD start)
     {
-        this.editor = editor; this.map = map; this.start = last = start; before = editor.State.Viewport;
-        grabOffset = map.VisibleBounds(before).Contains(start)
-            ? before.ScreenToImage(new(map.ViewWidth / 2, map.ViewHeight / 2)) - map.MapToImage(start) : new();
+        _editor = editor;
+        _map = map;
+        _start = _last = start;
+        _before = editor.State.Viewport;
+        _grabOffset = map.VisibleBounds(_before).Contains(start)
+            ? _before.ScreenToImage(new(map.ViewWidth / 2, map.ViewHeight / 2)) - map.MapToImage(start) : new();
         Move(start, InputModifiers.None);
     }
+
     public void Move(PointD screen, InputModifiers modifiers)
     {
-        last = screen;
-        editor.SetViewport(map.CenterView(before, map.MapToImage(screen) + grabOffset));
+        _last = screen;
+        _editor.SetViewport(_map.CenterView(_before, _map.MapToImage(screen) + _grabOffset));
     }
+
     public void Complete()
     {
-        if ((last - start).Length < 2) editor.SetViewport(map.CenterView(before, map.MapToImage(last)));
+        if ((_last - _start).Length < 2)
+        {
+            _editor.SetViewport(_map.CenterView(_before, _map.MapToImage(_last)));
+        }
     }
-    public void Cancel() => editor.SetViewport(before);
+
+    public void Cancel() => _editor.SetViewport(_before);
 }

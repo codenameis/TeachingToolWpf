@@ -8,17 +8,69 @@ namespace TeachingToolWpf.Presentation;
 /// <summary>Application display settings; publishes one immutable palette without editing the document.</summary>
 public sealed class RoiStyleSettingsViewModel : ObservableObject
 {
-    private string defaultThickness = "", childThickness = "", parentThickness = "", error = "";
-    public RoiStylePalette Palette { get; private set; } = RoiStylePalette.Standard;
-    public string DefaultThickness { get => defaultThickness; set => Set(ref defaultThickness, value); }
-    public string ChildThickness { get => childThickness; set => Set(ref childThickness, value); }
-    public string ParentThickness { get => parentThickness; set => Set(ref parentThickness, value); }
-    public string Error { get => error; private set => Set(ref error, value); }
-    public Brush DefaultColor { get; }
-    public Brush ChildColor { get; }
-    public Brush ParentColor { get; }
-    public RelayCommand Apply { get; }
-    public RelayCommand Reset { get; }
+    private string _defaultThickness = "";
+
+    private string _childThickness = "";
+
+    private string _parentThickness = "";
+
+    private string _error = "";
+
+    public RoiStylePalette Palette
+    {
+        get;
+        private set;
+    } = RoiStylePalette.Standard;
+
+    public string DefaultThickness
+    {
+        get => _defaultThickness;
+        set => Set(ref _defaultThickness, value);
+    }
+
+    public string ChildThickness
+    {
+        get => _childThickness;
+        set => Set(ref _childThickness, value);
+    }
+
+    public string ParentThickness
+    {
+        get => _parentThickness;
+        set => Set(ref _parentThickness, value);
+    }
+
+    public string Error
+    {
+        get => _error;
+        private set => Set(ref _error, value);
+    }
+
+    public Brush DefaultColor
+    {
+        get;
+    }
+
+    public Brush ChildColor
+    {
+        get;
+    }
+
+    public Brush ParentColor
+    {
+        get;
+    }
+
+    public RelayCommand Apply
+    {
+        get;
+    }
+
+    public RelayCommand Reset
+    {
+        get;
+    }
+
     public event Action? Changed;
 
     public RoiStyleSettingsViewModel()
@@ -26,7 +78,8 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
         DefaultColor = Swatch(Palette.Default.Color);
         ChildColor = Swatch(Palette.Child.Color);
         ParentColor = Swatch(Palette.Parent.Color);
-        Apply = new(ApplySettings); Reset = new(ResetSettings);
+        Apply = new(ApplySettings);
+        Reset = new(ResetSettings);
         RefreshDrafts();
     }
 
@@ -39,7 +92,11 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
                 Palette.Child.WithThickness(Parse(ChildThickness, "자식 ROI")),
                 Palette.Parent.WithThickness(Parse(ParentThickness, "부모 ROI")));
         }
-        catch (ArgumentException ex) { Error = ex.Message; return; }
+        catch (ArgumentException ex)
+        {
+            Error = ex.Message;
+            return;
+        }
         Error = "";
         Publish(next);
         RefreshDrafts();
@@ -49,7 +106,10 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
     {
         if (!float.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value)
             || !float.IsFinite(value) || value < RoiStrokeStyle.MinimumThickness || value > RoiStrokeStyle.MaximumThickness)
+        {
             throw new ArgumentException($"{role} 선 두께에 0.5~8 사이의 숫자를 입력하세요.");
+        }
+
         return value;
     }
 
@@ -62,8 +122,14 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
 
     private void Publish(RoiStylePalette next)
     {
-        if (Palette == next) return;
-        Palette = next; Notify(nameof(Palette)); Changed?.Invoke();
+        if (Palette == next)
+        {
+            return;
+        }
+
+        Palette = next;
+        Notify(nameof(Palette));
+        Changed?.Invoke();
     }
 
     private void RefreshDrafts()

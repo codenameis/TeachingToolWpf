@@ -12,7 +12,11 @@ internal static class WindowCapture
     {
         var dpi = VisualTreeHelper.GetDpi(window);
         var visual = new DrawingVisual();
-        var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad; image.UriSource = new Uri(Path.GetFullPath(viewportPng)); image.EndInit();
+        var image = new BitmapImage();
+        image.BeginInit();
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.UriSource = new Uri(Path.GetFullPath(viewportPng));
+        image.EndInit();
         using (var context = visual.RenderOpen())
         {
             context.DrawRectangle(new VisualBrush(window), null, new Rect(0, 0, window.ActualWidth, window.ActualHeight));
@@ -21,7 +25,9 @@ internal static class WindowCapture
         }
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(window.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(window.ActualHeight * dpi.DpiScaleY), 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
         bitmap.Render(visual);
-        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var stream = File.Create(output); encoder.Save(stream);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(output);
+        encoder.Save(stream);
     }
 }

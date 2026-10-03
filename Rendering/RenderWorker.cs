@@ -1,7 +1,7 @@
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
 using System.Diagnostics;
+using TeachingToolWpf.Core.Imaging;
 using TeachingToolWpf.Diagnostics;
+using TeachingToolWpf.Imaging;
 
 namespace TeachingToolWpf.Rendering;
 
@@ -10,52 +10,58 @@ public sealed class RenderWorker : IDisposable
 {
     private const double BytesPerGibibyte = 1024d * 1024 * 1024;
     private const int MetricsNotificationFrameInterval = 30;
-    private readonly AutoResetEvent wake = new(false);
-    private readonly Thread thread;
-    private readonly nint hwnd;
-    private readonly TileWorker tiles;
-    private readonly ITextRasterizer textRasterizer;
-    private readonly LatestFrameMailbox frames;
-    private readonly IFramePreparer framePreparer;
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly Thread _thread;
+    private readonly nint _hwnd;
+    private readonly TileWorker _tiles;
+    private readonly ITextRasterizer _textRasterizer;
+    private readonly LatestFrameMailbox _frames;
+    private readonly IFramePreparer _framePreparer;
     private sealed record Submission(long Version, RenderScene Scene);
     private sealed record CaptureRequest(long Version, string Path);
-    private Submission? latestSubmission;
-    private CaptureRequest? captureRequest;
-    private long sceneVersion;
-    private volatile bool stopping;
-    private int width = 1;
-    private int height = 1;
+    private Submission? _latestSubmission;
+    private CaptureRequest? _captureRequest;
+    private long _sceneVersion;
+    private volatile bool _stopping;
+    private int _width = 1;
+    private int _height = 1;
     public event Action<string>? StatusChanged;
     public event Action<RenderMetrics>? MetricsChanged;
 
     public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames, IFramePreparer framePreparer)
     {
-        this.hwnd = hwnd;
-        this.tiles = tiles;
-        this.textRasterizer = textRasterizer;
-        this.frames = frames;
-        this.framePreparer = framePreparer;
+        _hwnd = hwnd;
+        _tiles = tiles;
+        _textRasterizer = textRasterizer;
+        _frames = frames;
+        _framePreparer = framePreparer;
         tiles.TileReady += Invalidate;
         frames.Available += Invalidate;
-        thread = new Thread(Run) { IsBackground = true, Name = "DX12 renderer" };
-        thread.SetApartmentState(ApartmentState.STA);
+        _thread = new Thread(Run) { IsBackground = true, Name = "DX12 renderer" };
+        _thread.SetApartmentState(ApartmentState.STA);
     }
-    public void Start() => thread.Start();
+
+    public void Start() => _thread.Start();
+
     public void Resize(int width, int height)
     {
-        Volatile.Write(ref this.width, width);
-        Volatile.Write(ref this.height, height);
-        wake.Set();
+        Volatile.Write(ref _width, width);
+        Volatile.Write(ref _height, height);
+        _wake.Set();
     }
+
     public void Invalidate()
     {
-        if (stopping)
+        if (_stopping)
+        {
             return;
+        }
+
         try
         {
-            wake.Set();
+            _wake.Set();
         }
-        catch (ObjectDisposedException) when (stopping)
+        catch (ObjectDisposedException) when (_stopping)
         {
             // 구독 해제 직전에 생산자가 이미 가져간 콜백은 종료 이후 도착할 수 있다.
         }
@@ -63,31 +69,32 @@ public sealed class RenderWorker : IDisposable
 
     public void Submit(RenderScene value)
     {
-        var submission = new Submission(Interlocked.Increment(ref sceneVersion), value);
-        Volatile.Write(ref latestSubmission, submission);
+        var submission = new Submission(Interlocked.Increment(ref _sceneVersion), value);
+        Volatile.Write(ref _latestSubmission, submission);
         Invalidate();
     }
 
     public void Capture(string path)
     {
-        var minimumSceneVersion = Volatile.Read(ref latestSubmission)?.Version ?? 0;
-        Interlocked.Exchange(ref captureRequest, new(minimumSceneVersion, path));
+        var minimumSceneVersion = Volatile.Read(ref _latestSubmission)?.Version ?? 0;
+        Interlocked.Exchange(ref _captureRequest, new(minimumSceneVersion, path));
         Invalidate();
     }
+
     private void Run()
     {
         try
         {
             using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"));
-            using var surface = new Dx12Surface(gpu, hwnd, width, height);
+            using var surface = new Dx12Surface(gpu, _hwnd, _width, _height);
             using var pipeline = new SpritePipeline(gpu);
             using var roiPipeline = new RoiPipeline(gpu);
             using var gpuTimer = new GpuTimer(gpu);
             using var metrics = new FrameMetrics();
             using var profile = new RenderProfile();
             var painter = new ScenePainter();
-            using var labels = new GpuLabelCache(textRasterizer, gpu);
-            using var images = new GpuImageResources(gpu, pipeline, tiles, framePreparer);
+            using var labels = new GpuLabelCache(_textRasterizer, gpu);
+            using var images = new GpuImageResources(gpu, pipeline, _tiles, _framePreparer);
             using var filters = new GpuFilterPreview();
             GpuTexture? white = null;
             VideoFrame? retainedFrame = null;
@@ -96,23 +103,31 @@ public sealed class RenderWorker : IDisposable
             StatusChanged?.Invoke($"DX12 · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
             try
             {
-                while (!stopping)
+                while (!_stopping)
                 {
-                    wake.WaitOne();
-                    if (stopping)
+                    _wake.WaitOne();
+                    if (_stopping)
+                    {
                         break;
-                    var targetWidth = Volatile.Read(ref width);
-                    var targetHeight = Volatile.Read(ref height);
+                    }
+
+                    var targetWidth = Volatile.Read(ref _width);
+                    var targetHeight = Volatile.Read(ref _height);
                     if (targetWidth <= 0 || targetHeight <= 0)
+                    {
                         continue;
-                    var submission = Volatile.Read(ref latestSubmission);
+                    }
+
+                    var submission = Volatile.Read(ref _latestSubmission);
                     var current = submission?.Scene;
                     var nothingChanged = ReferenceEquals(current, presentedScene)
                         && targetWidth == surface.Width && targetHeight == surface.Height
-                        && !frames.HasPending && !tiles.HasReady && !labels.HasPending
-                        && Volatile.Read(ref captureRequest) is null && white is not null;
+                        && !_frames.HasPending && !_tiles.HasReady && !labels.HasPending
+                        && Volatile.Read(ref _captureRequest) is null && white is not null;
                     if (nothingChanged)
+                    {
                         continue;
+                    }
 
                     // Begin은 프레임 슬롯의 GPU 완료를 기다린다. 이후에만 그 슬롯의 업로드 공간을 재사용한다.
                     var cpuStart = Stopwatch.GetTimestamp();
@@ -128,14 +143,17 @@ public sealed class RenderWorker : IDisposable
                         pixel.Span.Fill(255);
                         white = pipeline.Upload(pixel, surface);
                     }
-                    var videoFrame = frames.Take();
+                    var videoFrame = _frames.Take();
                     if (videoFrame is not null)
                     {
                         retainedFrame?.Dispose();
                         retainedFrame = videoFrame;
                     }
                     if (current?.IsLive == true && retainedFrame is null)
-                        retainedFrame = frames.RetainLatest();
+                    {
+                        retainedFrame = _frames.RetainLatest();
+                    }
+
                     if (current?.IsLive != true)
                     {
                         retainedFrame?.Dispose();
@@ -144,7 +162,10 @@ public sealed class RenderWorker : IDisposable
                     if (current is not null && current.Width > 0 && current.Height > 0)
                     {
                         if (images.Update(current, retainedFrame, surface, frame))
+                        {
                             Invalidate();
+                        }
+
                         filters.Update(current.FilterPreview, pipeline, surface);
                         labels.Begin();
                         var paintStart = Stopwatch.GetTimestamp();
@@ -155,7 +176,9 @@ public sealed class RenderWorker : IDisposable
                         profile.Record(current, cpuStart, paintStart, submitStart, Stopwatch.GetTimestamp(), allocationStart, mesh, roiPipeline, labels);
                         labels.End(surface);
                         if (labels.HasPending)
+                        {
                             Invalidate();
+                        }
                     }
                     var capture = TryTakeReadyCapture(submission, images, labels);
                     using var readback = capture is null ? null : new FrameReadback(gpu, surface);
@@ -165,11 +188,17 @@ public sealed class RenderWorker : IDisposable
                     surface.Present();
                     presentedScene = current;
                     var measurement = metrics.Record(cpuElapsed, gpuElapsed, Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds, videoFrame?.Timestamp,
-                        frames.Dropped, images.Bytes, videoFrame?.Sequence);
+                        _frames.Dropped, images.Bytes, videoFrame?.Sequence);
                     if (frame % MetricsNotificationFrameInterval == 0)
+                    {
                         MetricsChanged?.Invoke(measurement);
+                    }
+
                     foreach (var message in gpu.ReadDebugMessages())
+                    {
                         StatusChanged?.Invoke("D3D12 " + message);
+                    }
+
                     if (readback is not null)
                     {
                         gpu.Flush();
@@ -190,33 +219,41 @@ public sealed class RenderWorker : IDisposable
                 }
             }
         }
-        catch (Exception ex) { StatusChanged?.Invoke($"렌더 오류: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            StatusChanged?.Invoke($"렌더 오류: {ex.Message}");
+        }
     }
 
     private string? TryTakeReadyCapture(Submission? submission, GpuImageResources images, GpuLabelCache labels)
     {
-        var request = Volatile.Read(ref captureRequest);
+        var request = Volatile.Read(ref _captureRequest);
         var current = submission?.Scene;
         var overviewReady = current?.Image is not { } image
             || (current.IsLive ? images.LiveOverview is not null : images.Tiles.ContainsKey(new(image.Levels - 1, 0, 0)));
 
         // 이전 장면을 그리던 중 들어온 캡처 요청에 이전 화면을 저장하면 안 된다.
         if (request is null || (submission?.Version ?? 0) < request.Version || !overviewReady || labels.HasPending)
+        {
             return null;
+        }
 
         // 준비 중 새 캡처가 도착했다면 새 요청을 지우지 않고 다음 프레임에 처리한다.
-        var claimedRequest = Interlocked.CompareExchange(ref captureRequest, null, request);
+        var claimedRequest = Interlocked.CompareExchange(ref _captureRequest, null, request);
         return ReferenceEquals(claimedRequest, request) ? request.Path : null;
     }
 
     public void Dispose()
     {
-        tiles.TileReady -= Invalidate;
-        frames.Available -= Invalidate;
-        stopping = true;
-        wake.Set();
-        if (thread.IsAlive)
-            thread.Join();
-        wake.Dispose();
+        _tiles.TileReady -= Invalidate;
+        _frames.Available -= Invalidate;
+        _stopping = true;
+        _wake.Set();
+        if (_thread.IsAlive)
+        {
+            _thread.Join();
+        }
+
+        _wake.Dispose();
     }
 }

@@ -1,72 +1,103 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using TeachingToolWpf.Rendering;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Core.Imaging;
 using TeachingToolWpf.Core.Interaction;
+using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Presentation;
-using System.Windows.Input;
+using TeachingToolWpf.Rendering;
 
 namespace TeachingToolWpf.Controls;
 
 public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 {
-    private RenderWorker? renderer;
-    private RenderScene? scene;
-    private bool closed;
-    private Window? ownerWindow;
+    private RenderWorker? _renderer;
+    private RenderScene? _scene;
+    private bool _closed;
+    private Window? _ownerWindow;
+
     public Dx12Viewport()
     {
         Loaded += (_, _) =>
         {
             var owner = Window.GetWindow(this);
-            if (ownerWindow != owner)
+            if (_ownerWindow != owner)
             {
-                if (ownerWindow is not null)
-                    ownerWindow.StateChanged -= WindowStateChanged;
-                ownerWindow = owner;
-                if (ownerWindow is not null)
-                    ownerWindow.StateChanged += WindowStateChanged;
+                if (_ownerWindow is not null)
+                {
+                    _ownerWindow.StateChanged -= WindowStateChanged;
+                }
+
+                _ownerWindow = owner;
+                if (_ownerWindow is not null)
+                {
+                    _ownerWindow.StateChanged += WindowStateChanged;
+                }
             }
             UpdateSize();
         };
         IsVisibleChanged += (_, _) => UpdateSize();
     }
+
     private void WindowStateChanged(object? sender, EventArgs args) => UpdateSize();
-    public TileWorker Tiles { get; } = new();
-    private readonly LatestFrameMailbox frames = new();
-    public void PublishFrame(VideoFrame frame) => frames.Publish(frame);
-    public void ClearFrames() => frames.Clear();
-    public VideoFrame? RetainFrame() => frames.RetainLatest();
+
+    public TileWorker Tiles
+    {
+        get;
+    } = new();
+
+    private readonly LatestFrameMailbox _frames = new();
+
+    public void PublishFrame(VideoFrame frame) => _frames.Publish(frame);
+
+    public void ClearFrames() => _frames.Clear();
+
+    public VideoFrame? RetainFrame() => _frames.RetainLatest();
+
     public double ViewWidth => ActualWidth;
+
     public double ViewHeight => ActualHeight;
+
     public double Dpi => VisualTreeHelper.GetDpi(this).DpiScaleX;
+
     public event Action? LayoutChanged;
+
     public InteractionController? Input
     {
-        get; set;
+        get;
+        set;
     }
+
     public Func<bool>? InputEnabled
     {
-        get; set;
+        get;
+        set;
     }
+
     public Func<Key, bool, bool, bool>? KeyAction
     {
-        get; set;
+        get;
+        set;
     }
+
     public event Action<Exception>? InputFailed;
+
     public long SetSource(ITileSource source) => Tiles.SetSource(source);
+
     public void Submit(RenderScene value)
     {
-        scene = value;
-        renderer?.Submit(value);
+        _scene = value;
+        _renderer?.Submit(value);
     }
-    public void Capture(string path) => renderer?.Capture(path);
+
+    public void Capture(string path) => _renderer?.Capture(path);
+
     public event Action<string>? RendererStatusChanged;
     public event Action<Diagnostics.RenderMetrics>? MetricsChanged;
+
     protected override HandleRef BuildWindowCore(HandleRef hwndParent)
     {
         var handle = ViewportWindow.Create(hwndParent.Handle);
@@ -74,46 +105,60 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         UpdateSize();
         return new HandleRef(this, handle);
     }
+
     private void StartRenderer(nint handle)
     {
-        renderer = new RenderWorker(handle, Tiles, new WpfTextRasterizer(), frames, new VisibleFramePreparer());
-        renderer.StatusChanged += status => Dispatcher.BeginInvoke(() => RendererStatusChanged?.Invoke(status));
-        renderer.MetricsChanged += value => Dispatcher.BeginInvoke(() => MetricsChanged?.Invoke(value));
-        renderer.Start();
-        if (scene is not null)
-            renderer.Submit(scene);
+        _renderer = new RenderWorker(handle, Tiles, new WpfTextRasterizer(), _frames, new VisibleFramePreparer());
+        _renderer.StatusChanged += status => Dispatcher.BeginInvoke(() => RendererStatusChanged?.Invoke(status));
+        _renderer.MetricsChanged += value => Dispatcher.BeginInvoke(() => MetricsChanged?.Invoke(value));
+        _renderer.Start();
+        if (_scene is not null)
+        {
+            _renderer.Submit(_scene);
+        }
     }
+
     public async Task RestartAsync()
     {
-        var previous = renderer;
-        renderer = null;
+        var previous = _renderer;
+        _renderer = null;
         if (previous is not null)
+        {
             await Task.Run(previous.Dispose);
-        if (closed || Handle == 0)
+        }
+
+        if (_closed || Handle == 0)
+        {
             return;
+        }
+
         StartRenderer(Handle);
         UpdateSize();
     }
+
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
         base.OnRenderSizeChanged(sizeInfo);
         UpdateSize();
     }
+
     protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
     {
         base.OnDpiChanged(oldDpi, newDpi);
         UpdateSize();
     }
+
     private void UpdateSize()
     {
         var dpi = VisualTreeHelper.GetDpi(this);
-        var suspended = !IsVisible || ownerWindow?.WindowState == WindowState.Minimized;
+        var suspended = !IsVisible || _ownerWindow?.WindowState == WindowState.Minimized;
         // 크기 0은 렌더 중단을 뜻한다. 편집기에는 변경된 레이아웃을 계속 알린다.
-        renderer?.Resize(
+        _renderer?.Resize(
             suspended ? 0 : (int)Math.Ceiling(ActualWidth * dpi.DpiScaleX),
             suspended ? 0 : (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY));
         LayoutChanged?.Invoke();
     }
+
     private static InputModifiers Modifiers =>
         (NativeMethods.IsKeyPressed(NativeVirtualKey.Control) ? InputModifiers.Control : 0) |
         (NativeMethods.IsKeyPressed(NativeVirtualKey.Shift) ? InputModifiers.Shift : 0) |
@@ -139,7 +184,10 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             return 1;
         }
         if (Input is null)
+        {
             return base.WndProc(hwnd, message, wParam, lParam, ref handled);
+        }
+
         try
         {
             var point = ClientPixelsToDips(NativeMethods.DecodePoint(lParam));
@@ -156,7 +204,10 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             {
                 // ReleaseCapture가 CaptureChanged를 재진입시킬 수 있으므로 먼저 편집을 끝낸다.
                 if (Input.IsDragging)
+                {
                     Input.Up(point, Modifiers);
+                }
+
                 NativeMethods.ReleaseCapture();
                 handled = true;
             }
@@ -176,7 +227,9 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
                 var virtualKey = (int)wParam;
                 handled = DispatchKeyAction(virtualKey);
                 if (virtualKey == (int)NativeVirtualKey.Escape)
+                {
                     NativeMethods.ReleaseCapture();
+                }
             }
             else if ((windowMessage is NativeWindowMessage.CaptureChanged or NativeWindowMessage.KillFocus) && Input.IsDragging)
             {
@@ -209,13 +262,15 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 
     protected override void DestroyWindowCore(HandleRef hwnd)
     {
-        closed = true;
-        frames.Dispose();
-        renderer?.Dispose();
-        renderer = null;
+        _closed = true;
+        _frames.Dispose();
+        _renderer?.Dispose();
+        _renderer = null;
         Tiles.Dispose();
         NativeMethods.DestroyWindow(hwnd.Handle);
-        if (ownerWindow is not null)
-            ownerWindow.StateChanged -= WindowStateChanged;
+        if (_ownerWindow is not null)
+        {
+            _ownerWindow.StateChanged -= WindowStateChanged;
+        }
     }
 }

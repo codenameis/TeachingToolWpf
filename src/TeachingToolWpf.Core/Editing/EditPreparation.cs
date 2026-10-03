@@ -9,10 +9,17 @@ public static class EditPreparation
         var priority = thread.Priority;
         try
         {
-            if (priority > ThreadPriority.BelowNormal) thread.Priority = ThreadPriority.BelowNormal;
+            if (priority > ThreadPriority.BelowNormal)
+            {
+                thread.Priority = ThreadPriority.BelowNormal;
+            }
+
             token.ThrowIfCancellationRequested();
             return prepare();
         }
-        finally { thread.Priority = priority; } // Never leave a shared pool thread with our scheduling policy.
+        finally
+        {
+            thread.Priority = priority;
+        } // Never leave a shared pool thread with our scheduling policy.
     }, token);
 }

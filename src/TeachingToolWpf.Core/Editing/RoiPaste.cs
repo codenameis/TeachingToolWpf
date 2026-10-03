@@ -15,11 +15,23 @@ internal static class RoiPaste
         {
             token.ThrowIfCancellationRequested();
             var id = ids[template.Id];
-            if (template.ParentId is not { } parent || !ids.ContainsKey(parent)) roots.Add(id);
-            rois.Add(id, template with { Id = id, ParentId = null, Order = ++order,
-                Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사" });
+            if (template.ParentId is not { } parent || !ids.ContainsKey(parent))
+            {
+                roots.Add(id);
+            }
+
+            rois.Add(id, template with
+            {
+                Id = id,
+                ParentId = null,
+                Order = ++order,
+                Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사"
+            });
         }
-        var result = RoiHierarchy.Rebuild(before, before.WithRois(rois.ToImmutable(), ids.Values) with { Selection = roots.ToImmutable() }, token);
+        var result = RoiHierarchy.Rebuild(before, before.WithRois(rois.ToImmutable(), ids.Values) with
+        {
+            Selection = roots.ToImmutable()
+        }, token);
         token.ThrowIfCancellationRequested();
         return result;
     }

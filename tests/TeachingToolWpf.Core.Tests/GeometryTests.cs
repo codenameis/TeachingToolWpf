@@ -14,7 +14,9 @@ public sealed class GeometryTests
     }
 
     [Theory]
-    [InlineData(0)] [InlineData(90)] [InlineData(359.9)]
+    [InlineData(0)]
+    [InlineData(90)]
+    [InlineData(359.9)]
     public void LocalWorldRoundTripPreservesLargeCoordinates(double angle)
     {
         var rect = new RoiGeometry(new PointD(24576, 131072), 300, 200, angle);
@@ -31,7 +33,9 @@ public sealed class GeometryTests
     }
 
     [Theory]
-    [InlineData(0)] [InlineData(-1)] [InlineData(double.NaN)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
     public void InvalidSizesAreRejected(double width) =>
         Assert.Throws<ArgumentOutOfRangeException>(() => new RoiGeometry(new PointD(0, 0), width, 10, 0));
 }

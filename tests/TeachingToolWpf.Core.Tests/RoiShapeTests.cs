@@ -71,9 +71,11 @@ public class RoiShapeTests
         Assert.NotEqual(id, pasted);
         Assert.Same(polygon.Shape, session.State.Rois[pasted].Geometry.Shape);
         var after = session.State;
-        session.Undo(); session.Redo();
+        session.Undo();
+        session.Redo();
         Assert.Equal(after.Rois, session.State.Rois);
-        session.Undo(); session.TranslateSelection(new(1, 0));
+        session.Undo();
+        session.TranslateSelection(new(1, 0));
         Assert.False(session.CanRedo);
     }
 
@@ -87,7 +89,9 @@ public class RoiShapeTests
         session.RotateSelection(45, new(50, 50));
         Assert.Equal(45, session.State.Rois[id].Geometry.Angle);
         Assert.True(RoiImageBounds.ContainsAll(session.State));
-        for (var handle = 0; handle < 8; handle++)
+        for (var handle = 0;
+handle < 8;
+handle++)
         {
             var resized = HandleGeometry.Resize(session.State.Rois[id].Geometry, handle, new(33, 33));
             Assert.Equal(resized.Width, resized.Height);
@@ -99,12 +103,18 @@ public class RoiShapeTests
     public void CircleResizeKeepsOneDiameterAtFractionalCoordinates()
     {
         var circle = RoiGeometry.Create(RoiShapeKind.Circle, new(24.39, 75.57), 13.7, 13.7).RotateAround(new(24.39, 75.57), 22.7);
-        for (var handle = 0; handle < 8; handle++)
-            for (var i = 0; i < 100; i++)
+        for (var handle = 0;
+handle < 8;
+handle++)
+        {
+            for (var i = 0;
+i < 100;
+i++)
             {
                 var resized = HandleGeometry.Resize(circle, handle, new(i * 1.3789, i * .7917));
                 Assert.Equal(resized.Width, resized.Height);
             }
+        }
     }
 
     [Fact]
@@ -125,7 +135,8 @@ public class RoiShapeTests
         Assert.False(parent.Contains(child.Center));
         Assert.True(parent.Contains(child));
         var editor = new EditorSession();
-        var parentId = editor.Add(parent); var childId = editor.Add(child);
+        var parentId = editor.Add(parent);
+        var childId = editor.Add(child);
         Assert.Equal(parentId, editor.State.Rois[childId].ParentId);
     }
 
@@ -143,12 +154,14 @@ public class RoiShapeTests
         Assert.True(RoiImageBounds.ContainsAll(editor.State));
         Assert.Equal(kind, editor.State.Rois[id].Geometry.Shape.Kind);
         editor.Undo();
-        editor.BeginPreview(); editor.PreviewRotation(new(50, 50), 170);
+        editor.BeginPreview();
+        editor.PreviewRotation(new(50, 50), 170);
         var preview = editor.TransformPreview!;
         Assert.True(RoiImageBounds.Fits(preview.Geometry(editor.State.Rois[id]).Bounds, editor.State.Image!));
         editor.CancelPreview();
         Assert.Equal(original, editor.State.Rois[id].Geometry);
-        var clipboard = new RoiClipboard(); clipboard.Copy(editor.State);
+        var clipboard = new RoiClipboard();
+        clipboard.Copy(editor.State);
         editor.SetImage(new("smaller", "smaller", 20, 20), ViewportTransform.Identity);
         editor.Paste(clipboard);
         Assert.True(RoiImageBounds.ContainsAll(editor.State));

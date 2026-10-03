@@ -18,7 +18,10 @@ internal static class ShaderCompiler
             if (result.Failure)
             {
                 if (diagnostics is not null)
+                {
                     throw new SharpGenException(result, diagnostics.AsString());
+                }
+
                 throw new SharpGenException(result);
             }
 

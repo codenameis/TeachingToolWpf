@@ -34,7 +34,9 @@ public class RoiGpuLayoutTests
             (nameof(RoiDrawConstants.StrokeWidths), 112)
         };
         foreach (var (field, byteOffset) in offsets)
+        {
             Assert.Equal(byteOffset, Marshal.OffsetOf<RoiDrawConstants>(field).ToInt32());
+        }
     }
 
     [Theory]
@@ -68,11 +70,13 @@ public class RoiGpuLayoutTests
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0
         };
-        for (var role = 0; role < 3; role++)
+        for (var role = 0;
+role < 3;
+role++)
         {
             var style = palette.For((RoiRole)role);
             var color = style.StrokeColor(selected);
-            var offset = 16 + role * 4;
+            var offset = 16 + (role * 4);
             expected[offset] = color.X;
             expected[offset + 1] = color.Y;
             expected[offset + 2] = color.Z;

@@ -5,7 +5,8 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class SpatialBlockTests
 {
-    [Fact] public void LabelDensityChoosesContainingParentWithoutRemovingPreciseRois()
+    [Fact]
+    public void LabelDensityChoosesContainingParentWithoutRemovingPreciseRois()
     {
         var editor = new EditorSession();
         var child = editor.Add(new(new(20, 20), 5, 5, 0));
@@ -17,9 +18,13 @@ public class SpatialBlockTests
         Assert.Equal(2, index.Intersecting(index.Bounds).Count());
         editor.Rename(parent, "updated");
         Assert.Equal("updated", Assert.Single(editor.State.Snapshot.Spatial.LabelCandidates(index.Bounds, 1, 120, 32)).Roi!.Name);
-        editor.Select([parent]); editor.DeleteSelection(); Assert.Empty(editor.State.Snapshot.Spatial.LabelCandidates(index.Bounds, 1, 120, 32));
+        editor.Select([parent]);
+        editor.DeleteSelection();
+        Assert.Empty(editor.State.Snapshot.Spatial.LabelCandidates(index.Bounds, 1, 120, 32));
     }
-    [Fact] public void HitPriorityMatchesExhaustiveRotatedQueriesAndPreviousSnapshot()
+
+    [Fact]
+    public void HitPriorityMatchesExhaustiveRotatedQueriesAndPreviousSnapshot()
     {
         var random = new Random(175);
         var rois = Enumerable.Range(0, 1000).Select(i => new Roi(Guid.NewGuid(), "ROI", new(new(random.Next(1000), random.Next(1000)), random.Next(20, 300), random.Next(20, 300), random.Next(360)), null, false, i)).ToArray();
@@ -30,17 +35,25 @@ public class SpatialBlockTests
             Assert.Equal(expected, index.HitTest(point, 3));
         }
         var overlapping = Enumerable.Range(0, 32940).Select(i => rois[0] with { Id = Guid.NewGuid(), Order = i }).ToArray();
-        var dense = new RoiSpatialIndex(overlapping); var center = rois[0].Geometry.Center;
+        var dense = new RoiSpatialIndex(overlapping);
+        var center = rois[0].Geometry.Center;
         Assert.Equal(overlapping[^1], dense.HitTest(center, 0));
         var next = dense.WithChanges([(overlapping[^1].Id, null)]);
-        Assert.Equal(overlapping[^2], next.HitTest(center, 0)); Assert.Equal(overlapping[^1], dense.HitTest(center, 0));
+        Assert.Equal(overlapping[^2], next.HitTest(center, 0));
+        Assert.Equal(overlapping[^1], dense.HitTest(center, 0));
     }
-    [Fact] public void UneditedBlocksKeepIdentityAndOldGeometryRemainsImmutable()
+
+    [Fact]
+    public void UneditedBlocksKeepIdentityAndOldGeometryRemainsImmutable()
     {
         var rois = Enumerable.Range(0, 10000).Select(i => new Roi(Guid.NewGuid(), "ROI", new(new(i * 20, i % 3 * 10), 10, 5, 12), null, false, i)).ToArray();
-        var before = new RoiSpatialIndex(rois); var bounds = before.Bounds;
+        var before = new RoiSpatialIndex(rois);
+        var bounds = before.Bounds;
         var blocks = before.Blocks(bounds).ToArray();
-        var changed = rois[100] with { Geometry = rois[100].Geometry.Translate(new(1, 1)) };
+        var changed = rois[100] with
+        {
+            Geometry = rois[100].Geometry.Translate(new(1, 1))
+        };
         var after = before.WithChanges([(changed.Id, changed)]);
         var next = after.Blocks(bounds).ToArray();
         Assert.Equal(rois.Length, blocks.Sum(b => b.Count));
@@ -49,17 +62,22 @@ public class SpatialBlockTests
         Assert.Equal(changed.Geometry, next.SelectMany(b => b.Detail(0)).Single(r => r.Roi?.Id == changed.Id).Roi!.Geometry);
         Assert.Equal(rois.Length, next.SelectMany(b => b.Detail(0)).Select(r => r.Roi!.Id).Distinct().Count());
     }
-    [Fact] public void AnalyticalBoundsMatchRotatedCornersIncludingLargeCoordinates()
+
+    [Fact]
+    public void AnalyticalBoundsMatchRotatedCornersIncludingLargeCoordinates()
     {
         foreach (var center in new[] { new PointD(100, 100), new PointD(1e12, 1e12) })
-        foreach (var angle in new[] { 0d, 1, 45, 90, 180, 270, 359.9 })
         {
-            var shape = new RoiGeometry(center, 123.456, 38.25, angle);
-            var expected = BoundsD.FromPoints(shape.FrameCorners); var actual = shape.Bounds;
-            Assert.InRange(Math.Abs(expected.Left - actual.Left), 0, .00025);
-            Assert.InRange(Math.Abs(expected.Top - actual.Top), 0, .00025);
-            Assert.InRange(Math.Abs(expected.Right - actual.Right), 0, .00025);
-            Assert.InRange(Math.Abs(expected.Bottom - actual.Bottom), 0, .00025);
+            foreach (var angle in new[] { 0d, 1, 45, 90, 180, 270, 359.9 })
+            {
+                var shape = new RoiGeometry(center, 123.456, 38.25, angle);
+                var expected = BoundsD.FromPoints(shape.FrameCorners);
+                var actual = shape.Bounds;
+                Assert.InRange(Math.Abs(expected.Left - actual.Left), 0, .00025);
+                Assert.InRange(Math.Abs(expected.Top - actual.Top), 0, .00025);
+                Assert.InRange(Math.Abs(expected.Right - actual.Right), 0, .00025);
+                Assert.InRange(Math.Abs(expected.Bottom - actual.Bottom), 0, .00025);
+            }
         }
     }
 }

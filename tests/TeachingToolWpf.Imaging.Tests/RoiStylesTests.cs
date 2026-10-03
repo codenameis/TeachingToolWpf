@@ -6,12 +6,17 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiStylesTests
 {
     [Theory]
-    [InlineData(0)] [InlineData(-1)] [InlineData(.49f)] [InlineData(8.01f)]
-    [InlineData(float.NaN)] [InlineData(float.PositiveInfinity)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(.49f)]
+    [InlineData(8.01f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
     public void InvalidWidthCannotEnterAnImmutablePalette(float width)
         => Assert.Throws<ArgumentOutOfRangeException>(() => RoiStylePalette.Standard.Parent.WithThickness(width));
 
-    [Fact] public void RoleWidthsAndFutureColorsRemainIndependent()
+    [Fact]
+    public void RoleWidthsAndFutureColorsRemainIndependent()
     {
         var standard = RoiStylePalette.Standard;
         var greenChild = new RoiStrokeStyle(new(0, 1, 0, 1), new(0, .6f, 0, 1), 3);
@@ -27,7 +32,10 @@ public class RoiStylesTests
     }
 
     [Theory]
-    [InlineData(float.NaN)] [InlineData(-.1f)] [InlineData(1.1f)] [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NaN)]
+    [InlineData(-.1f)]
+    [InlineData(1.1f)]
+    [InlineData(float.PositiveInfinity)]
     public void NonNormalizedColorsAreRejected(float channel)
         => Assert.Throws<ArgumentOutOfRangeException>(() => new RoiStrokeStyle(new(channel, 0, 0, 1), Vector4.One, 1));
 }

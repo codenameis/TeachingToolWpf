@@ -8,26 +8,32 @@ namespace TeachingToolWpf.Presentation;
 internal sealed class RoiPreviewPreparation(EditorSession session, Action<Exception> onError,
     Action? onPreparing = null, Action<DocumentState, CancellationToken>? prepare = null) : IDisposable
 {
-    private readonly SemaphoreSlim workerGate = new(1, 1);
-    private Pending? pending;
-    private int runningOperations;
-    private bool disposed;
-    private bool workerGateDisposed;
-    public bool HasPending => pending is not null;
+    private readonly SemaphoreSlim _workerGate = new(1, 1);
+    private Pending? _pending;
+    private int _runningOperations;
+    private bool _disposed;
+    private bool _workerGateDisposed;
+
+    public bool HasPending => _pending is not null;
 
     public void SubmitTranslation(PointD delta) => Submit(new(delta, 0, false));
+
     public void SubmitRotation(PointD pivot, double degrees) => Submit(new(pivot, degrees, true));
 
     private void Submit(Request request)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!session.IsPreviewing)
+        {
             throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
+        }
 
-        if (pending is { } previous && !IsCurrentOperation(previous))
+        if (_pending is { } previous && !IsCurrentOperation(previous))
+        {
             Cancel();
+        }
 
-        if (pending is { } existing)
+        if (_pending is { } existing)
         {
             existing.Latest = request;
             return;
@@ -35,7 +41,9 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
 
         // 클릭만 하고 놓으면 큰 하위 트리를 준비하거나 이력을 만들 필요가 없다.
         if (request.IsIdentity && session.TransformPreview is null)
+        {
             return;
+        }
 
         var source = session.State;
         if (CanApplyImmediately(source))
@@ -45,9 +53,9 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         }
 
         var operation = new Pending(source, session.PreviewEpoch, request);
-        pending = operation;
+        _pending = operation;
         onPreparing?.Invoke();
-        runningOperations++;
+        _runningOperations++;
         operation.Completion = RunAsync(operation);
     }
 
@@ -60,7 +68,7 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         try
         {
             // Lazy 계산은 취소 직후에도 실행 중일 수 있으므로, 실제 종료까지 worker 자리를 유지한다.
-            await workerGate.WaitAsync(operation.Cancellation.Token);
+            await _workerGate.WaitAsync(operation.Cancellation.Token);
             ownsWorker = true;
             await EditPreparation.Run(() =>
             {
@@ -69,12 +77,14 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
                 return true;
             }, operation.Cancellation.Token);
             if (!IsCurrentOperation(operation) || operation.Cancellation.IsCancellationRequested)
+            {
                 return;
+            }
 
             // 기다리는 동안 누적된 요청 중 마지막 값만 UI 스레드에서 적용한다.
             Apply(operation.Latest);
             operation.Applied = true;
-            pending = null;
+            _pending = null;
         }
         catch (OperationCanceledException) when (operation.Cancellation.IsCancellationRequested)
         {
@@ -84,14 +94,19 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         {
             operation.Failure = ExceptionDispatchInfo.Capture(ex);
             if (IsCurrentOperation(operation))
+            {
                 onError(ex);
+            }
         }
         finally
         {
             if (ownsWorker)
-                workerGate.Release();
+            {
+                _workerGate.Release();
+            }
+
             operation.Cancellation.Dispose();
-            runningOperations--;
+            _runningOperations--;
             DisposeWorkerGateWhenIdle();
         }
     }
@@ -113,29 +128,37 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
     public async Task FlushAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (pending is not { } operation)
+        if (_pending is not { } operation)
+        {
             return;
+        }
+
         try
         {
             await operation.Completion.WaitAsync(token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            if (ReferenceEquals(pending, operation))
+            if (ReferenceEquals(_pending, operation))
+            {
                 Cancel();
+            }
+
             throw;
         }
         token.ThrowIfCancellationRequested();
         operation.Failure?.Throw();
         if (!operation.Applied || !IsCurrentGesture(operation))
+        {
             throw new OperationCanceledException("선택 영역 준비가 취소되었습니다.");
+        }
     }
 
     private bool IsCurrentOperation(Pending operation)
-        => ReferenceEquals(pending, operation) && IsCurrentGesture(operation);
+        => ReferenceEquals(_pending, operation) && IsCurrentGesture(operation);
 
     private bool IsCurrentGesture(Pending operation)
-        => !disposed && session.IsPreviewing && session.PreviewEpoch == operation.Epoch
+        => !_disposed && session.IsPreviewing && session.PreviewEpoch == operation.Epoch
             && ReferenceEquals(session.State.Rois, operation.Source.Rois)
             && ReferenceEquals(session.State.Selection, operation.Source.Selection)
             && session.State.Image == operation.Source.Image;
@@ -143,24 +166,37 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
     private void Apply(Request request)
     {
         if (request.IsRotation)
+        {
             session.PreviewRotation(request.Point, request.Degrees);
+        }
         else
+        {
             session.PreviewTranslation(request.Point);
+        }
     }
 
     public void Cancel()
     {
-        if (pending is not { } operation)
+        if (_pending is not { } operation)
+        {
             return;
-        pending = null;
+        }
+
+        _pending = null;
         if (!operation.Completion.IsCompleted)
+        {
             operation.Cancellation.Cancel();
+        }
     }
+
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
+        {
             return;
-        disposed = true;
+        }
+
+        _disposed = true;
         Cancel();
         // 실행 중인 작업과 취소된 대기 작업까지 모두 끝난 뒤 gate를 해제한다.
         DisposeWorkerGateWhenIdle();
@@ -168,10 +204,13 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
 
     private void DisposeWorkerGateWhenIdle()
     {
-        if (!disposed || runningOperations != 0 || workerGateDisposed)
+        if (!_disposed || _runningOperations != 0 || _workerGateDisposed)
+        {
             return;
-        workerGateDisposed = true;
-        workerGate.Dispose();
+        }
+
+        _workerGateDisposed = true;
+        _workerGate.Dispose();
     }
 
     private readonly record struct Request(PointD Point, double Degrees, bool IsRotation)
@@ -180,18 +219,43 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
     }
     private sealed class Pending(DocumentState source, long epoch, Request latest)
     {
-        public DocumentState Source { get; } = source;
-        public long Epoch { get; } = epoch;
-        public Request Latest { get; set; } = latest;
-        public CancellationTokenSource Cancellation { get; } = new();
-        public Task Completion { get; set; } = Task.CompletedTask;
+        public DocumentState Source
+        {
+            get;
+        } = source;
+
+        public long Epoch
+        {
+            get;
+        } = epoch;
+
+        public Request Latest
+        {
+            get;
+            set;
+        } = latest;
+
+        public CancellationTokenSource Cancellation
+        {
+            get;
+        } = new();
+
+        public Task Completion
+        {
+            get;
+            set;
+        } = Task.CompletedTask;
+
         public ExceptionDispatchInfo? Failure
         {
-            get; set;
+            get;
+            set;
         }
+
         public bool Applied
         {
-            get; set;
+            get;
+            set;
         }
     }
 }

@@ -14,6 +14,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
     private const uint SummaryInstance = 1;
     private const uint EdgeInstance = 2;
     private const uint CircleInstance = 3;
+
     private static int InstanceCount(RoiGeometry geometry) => geometry.Shape.Kind is RoiShapeKind.Rectangle or RoiShapeKind.Circle ? 1 : geometry.Shape.Vertices.Length;
 
     public static RoiInstance[] Pack(RoiSpatialBlock block, double aggregateSize)
@@ -27,12 +28,20 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
             {
                 var shape = roi.Geometry;
                 if (!unique.Add(shape))
+                {
                     continue;
+                }
+
                 if (shape.Shape.Kind is RoiShapeKind.Triangle or RoiShapeKind.Polygon)
                 {
                     var points = shape.Outline;
-                    for (var i = 0; i < points.Length; i++)
+                    for (var i = 0;
+i < points.Length;
+i++)
+                    {
                         result.Add(new(Vector(points[i] - origin), Vector(points[(i + 1) % points.Length] - points[i]), default, EdgeInstance));
+                    }
+
                     continue;
                 }
                 var angle = shape.Angle * Math.PI / 180;
@@ -52,6 +61,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
         }
         return result.ToArray();
     }
+
     public static uint[] ResolveRoles(RoiSpatialBlock block, double aggregateSize, DocumentState document)
     {
         var result = new List<uint>();
@@ -68,16 +78,27 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
             if (unique.TryGetValue(roi.Geometry, out var index))
             {
                 // 같은 윤곽에는 부모 > 자식 > 일반 우선순위를 적용한다.
-                for (var i = 0; i < InstanceCount(roi.Geometry); i++) result[index + i] = Math.Max(result[index + i], role);
+                for (var i = 0;
+i < InstanceCount(roi.Geometry);
+i++)
+                {
+                    result[index + i] = Math.Max(result[index + i], role);
+                }
             }
             else
             {
                 unique.Add(roi.Geometry, result.Count);
-                for (var i = 0; i < InstanceCount(roi.Geometry); i++) result.Add(role);
+                for (var i = 0;
+i < InstanceCount(roi.Geometry);
+i++)
+                {
+                    result.Add(role);
+                }
             }
         }
         return result.ToArray();
     }
+
     private static Vector2 Vector(PointD point) => new((float)point.X, (float)point.Y);
 }
 
@@ -85,25 +106,43 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
 internal sealed class RoiRoleCache
 {
     // 작은 비가시 블록 하나가 이전 문서 전체의 계층 배열을 붙잡지 않도록 한다.
-    private WeakReference<object>? hierarchyVersion;
-    public uint[] Values { get; private set; } = [];
+    private WeakReference<object>? _hierarchyVersion;
+
+    public uint[] Values
+    {
+        get;
+        private set;
+    } = [];
+
     public bool Refresh(RoiSpatialBlock block, double aggregateSize, DocumentState document, int instanceCount)
     {
         var version = document.Snapshot.Children;
-        if (hierarchyVersion is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, version))
+        if (_hierarchyVersion is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, version))
+        {
             return false;
+        }
+
         var next = RoiInstance.ResolveRoles(block, aggregateSize, document);
         if (next.Length != instanceCount)
+        {
             throw new InvalidOperationException("ROI 역할과 형상 인스턴스 개수가 다릅니다.");
+        }
 
-        if (hierarchyVersion is null)
-            hierarchyVersion = new(version);
+        if (_hierarchyVersion is null)
+        {
+            _hierarchyVersion = new(version);
+        }
         else
-            hierarchyVersion.SetTarget(version);
+        {
+            _hierarchyVersion.SetTarget(version);
+        }
 
         // 계층 버전은 갱신하되 실제 역할이 같으면 GPU 복사를 생략한다.
         if (Values.AsSpan().SequenceEqual(next))
+        {
             return false;
+        }
+
         Values = next;
         return true;
     }

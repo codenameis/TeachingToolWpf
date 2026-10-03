@@ -12,7 +12,11 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
     public Task<FilterPreviewResult> ProcessAsync(FilterRequest request, CancellationToken cancellationToken)
         => Task.Run(async () =>
         {
-            foreach (var roi in request.Rois) roi.Filter.Validate();
+            foreach (var roi in request.Rois)
+            {
+                roi.Filter.Validate();
+            }
+
             var watch = Stopwatch.StartNew();
             using var frame = request.IsLive ? retainFrame() ?? throw new InvalidOperationException("라이브 프레임을 기다리고 있습니다.") : null;
             using var source = request.IsLive ? null : await loader.LoadAsync(request.Image, new Progress<string>(), cancellationToken).ConfigureAwait(false);
@@ -20,7 +24,11 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
             var edge = Math.Min(MaximumEdge, Math.Max(1, (int)Math.Sqrt(PixelBudget / (double)Math.Max(1, request.Rois.Count))));
             foreach (var roi in request.Rois)
             {
-                if (roi.Filter.Kind == RoiFilterKind.None) continue;
+                if (roi.Filter.Kind == RoiFilterKind.None)
+                {
+                    continue;
+                }
+
                 cancellationToken.ThrowIfCancellationRequested();
                 var geometry = request.Geometry(roi);
                 var scale = Math.Min(1, edge / Math.Max(geometry.Width, geometry.Height));

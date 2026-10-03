@@ -17,7 +17,11 @@ internal static class RotationCommitProfile
     public static void Run(string[] args)
     {
         var count = int.Parse(Option(args, "--rois", "40000"), CultureInfo.InvariantCulture);
-        if (count < 2) throw new ArgumentOutOfRangeException(nameof(args), "ROI 수는 2 이상이어야 합니다.");
+        if (count < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(args), "ROI 수는 2 이상이어야 합니다.");
+        }
+
         var fixtureStart = Stopwatch.GetTimestamp();
         var before = CreateFixture(count);
         // Source warming is outside the measured commit, just as completed selection preparation precedes a drag.
@@ -26,16 +30,30 @@ internal static class RotationCommitProfile
         _ = before.SelectionFacts.HasMultipleRoots;
         _ = before.SelectedSpatial;
         var selection = before.TransformSelection;
-        _ = selection.Moving; _ = selection.Stationary;
+        _ = selection.Moving;
+        _ = selection.Stationary;
         var pivot = selection.Bounds.Center;
         var range = selection.RotationLimits(pivot);
-        if (range.Clamp(AngleDegrees) != AngleDegrees) throw new InvalidOperationException("진단 fixture의 회전이 제한됐습니다.");
+        if (range.Clamp(AngleDegrees) != AngleDegrees)
+        {
+            throw new InvalidOperationException("진단 fixture의 회전이 제한됐습니다.");
+        }
+
         var transform = new RigidTransform2D(pivot, AngleDegrees);
-        if (!selection.PreservesHierarchy(transform)) throw new InvalidOperationException("공통 강체 변환의 계층 보존 조건이 맞지 않습니다.");
+        if (!selection.PreservesHierarchy(transform))
+        {
+            throw new InvalidOperationException("공통 강체 변환의 계층 보존 조건이 맞지 않습니다.");
+        }
+
         var fixtureMilliseconds = Stopwatch.GetElapsedTime(fixtureStart).TotalMilliseconds;
         var iterations = new List<Iteration>();
-        for (var index = 0; index < WarmupCount + SampleCount; index++)
+        for (var index = 0;
+index < WarmupCount + SampleCount;
+index++)
+        {
             iterations.Add(Profile(selection, transform, index + 1, index < WarmupCount));
+        }
+
         var samples = iterations.Where(i => !i.Warmup).ToArray();
         var stages = samples[0].Stages.Select(stage => new
         {
@@ -45,12 +63,21 @@ internal static class RotationCommitProfile
         }).ToArray();
         var output = JsonSerializer.Serialize(new
         {
-            Kind = "rotation-commit-profile", RoiCount = count, Layout = "pcb-interior", Selection = "all",
-            AngleDegrees, WarmupCount, SampleCount, FixtureMilliseconds = fixtureMilliseconds,
+            Kind = "rotation-commit-profile",
+            RoiCount = count,
+            Layout = "pcb-interior",
+            Selection = "all",
+            AngleDegrees,
+            WarmupCount,
+            SampleCount,
+            FixtureMilliseconds = fixtureMilliseconds,
             Framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
-            ProcessorCount = Environment.ProcessorCount, Stopwatch.Frequency,
+            ProcessorCount = Environment.ProcessorCount,
+            Stopwatch.Frequency,
             Note = "CPU-only; same prewarmed source per iteration; no forced GC; UI publication, rendering and Undo are excluded.",
-            MeanMilliseconds = samples.Average(s => s.Milliseconds), Stages = stages, Iterations = iterations
+            MeanMilliseconds = samples.Average(s => s.Milliseconds),
+            Stages = stages,
+            Iterations = iterations
         }, new JsonSerializerOptions { WriteIndented = true });
         Console.WriteLine(output);
         var report = Option(args, "--report", "");
@@ -77,15 +104,21 @@ internal static class RotationCommitProfile
         _ = Measure("rotation-limits", () => selected.RotationLimits(selected.Bounds.Center));
         var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         if (next.Rois.Count != source.Before.Rois.Count || edit.Changes.Length != source.Affected.Count)
+        {
             throw new InvalidOperationException("진단 확정의 ROI 수 또는 변경 수가 일치하지 않습니다.");
-        GC.KeepAlive(next); GC.KeepAlive(edit);
+        }
+
+        GC.KeepAlive(next);
+        GC.KeepAlive(edit);
         return new(index, warmup, elapsed, stages);
 
         T Measure<T>(string name, Func<T> operation)
         {
             var allocated = GC.GetAllocatedBytesForCurrentThread();
             var pause = GC.GetTotalPauseDuration();
-            var generation0 = GC.CollectionCount(0); var generation1 = GC.CollectionCount(1); var generation2 = GC.CollectionCount(2);
+            var generation0 = GC.CollectionCount(0);
+            var generation1 = GC.CollectionCount(1);
+            var generation2 = GC.CollectionCount(2);
             var stageStart = Stopwatch.GetTimestamp();
             var value = operation();
             var milliseconds = Stopwatch.GetElapsedTime(stageStart).TotalMilliseconds;
@@ -103,13 +136,16 @@ internal static class RotationCommitProfile
         var columns = (int)Math.Ceiling(Math.Sqrt(Math.Ceiling(count / 9d)));
         var cell = 4096d / columns;
         var rois = ImmutableDictionary.CreateBuilder<Guid, Roi>();
-        for (var index = 0; index < count; index++)
+        for (var index = 0;
+index < count;
+index++)
         {
-            var component = index / 9; var pad = index % 9 - 1;
-            var origin = new PointD(2048 + component % columns * cell, 2048 + component / columns * cell);
+            var component = index / 9;
+            var pad = (index % 9) - 1;
+            var origin = new PointD(2048 + (component % columns * cell), 2048 + (component / columns * cell));
             var geometry = pad < 0
                 ? new RoiGeometry(origin + new PointD(cell / 2, cell / 2), cell * .8, cell * .8, 0)
-                : new RoiGeometry(origin + new PointD(cell * (.2 + pad % 4 * .2), cell * (.3 + pad / 4 * .4)), cell * .1, cell * .12, 0);
+                : new RoiGeometry(origin + new PointD(cell * (.2 + (pad % 4 * .2)), cell * (.3 + (pad / 4 * .4))), cell * .1, cell * .12, 0);
             var id = StableId(index);
             rois.Add(id, new(id, $"ROI {index}", geometry, pad < 0 ? null : StableId(component * 9), false, index));
         }
@@ -121,8 +157,10 @@ internal static class RotationCommitProfile
     {
         // Permute keys so immutable-map enumeration is not already ordered by grid position.
         var key = unchecked((uint)index + 1);
-        key ^= key >> 16; key = unchecked(key * 0x7feb352dU);
-        key ^= key >> 15; key = unchecked(key * 0x846ca68bU);
+        key ^= key >> 16;
+        key = unchecked(key * 0x7feb352dU);
+        key ^= key >> 15;
+        key = unchecked(key * 0x846ca68bU);
         key ^= key >> 16;
         return new(unchecked((int)key), 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
     }
@@ -130,9 +168,16 @@ internal static class RotationCommitProfile
     private static string Option(string[] args, string name, string fallback)
     {
         var index = Array.IndexOf(args, name);
-        if (index < 0) return fallback;
+        if (index < 0)
+        {
+            return fallback;
+        }
+
         if (index + 1 == args.Length || args[index + 1].StartsWith("--", StringComparison.Ordinal))
+        {
             throw new ArgumentException($"{name} 값이 필요합니다.", nameof(args));
+        }
+
         return args[index + 1];
     }
 

@@ -10,16 +10,19 @@ internal static class ViewportWindow
     private const NativeWindowStyle Style = NativeWindowStyle.Child | NativeWindowStyle.Visible |
         NativeWindowStyle.ClipSiblings | NativeWindowStyle.ClipChildren | NativeWindowStyle.TabStop;
     // Keep the managed delegate alive for every window registered with this class.
-    private static readonly WindowProcedure Procedure = DefWindowProc;
-    private static readonly Lazy<ushort> RegisteredClass = new(Register);
+    private static readonly WindowProcedure s_procedure = DefWindowProc;
+    private static readonly Lazy<ushort> s_registeredClass = new(Register);
 
     public static nint Create(nint parent)
     {
-        _ = RegisteredClass.Value;
+        _ = s_registeredClass.Value;
         var handle = NativeMethods.CreateWindowEx(0, ClassName, "Vision editing canvas",
             (int)Style, 0, 0, 1, 1, parent, 0, GetModuleHandle(null), 0);
         if (handle == 0)
+        {
             throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
         return handle;
     }
 
@@ -28,14 +31,17 @@ internal static class ViewportWindow
         var definition = new WindowClass
         {
             Size = (uint)Marshal.SizeOf<WindowClass>(),
-            Procedure = Marshal.GetFunctionPointerForDelegate(Procedure),
+            Procedure = Marshal.GetFunctionPointerForDelegate(s_procedure),
             Instance = GetModuleHandle(null),
             Cursor = LoadCursor(0, (nint)NativeCursor.Arrow),
             ClassName = ClassName
         };
         var atom = RegisterClassEx(ref definition);
         if (atom == 0)
+        {
             throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
         return atom;
     }
 
@@ -47,10 +53,20 @@ internal static class ViewportWindow
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WindowClass
     {
-        public uint Size, Style;
+        public uint Size;
+
+        public uint Style;
         public nint Procedure;
-        public int ClassExtra, WindowExtra;
-        public nint Instance, Icon, Cursor, Background;
+        public int ClassExtra;
+
+        public int WindowExtra;
+        public nint Instance;
+
+        public nint Icon;
+
+        public nint Cursor;
+
+        public nint Background;
         public string? MenuName;
         public string ClassName;
         public nint SmallIcon;
@@ -58,12 +74,16 @@ internal static class ViewportWindow
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern ushort RegisterClassEx(ref WindowClass definition);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern nint DefWindowProc(nint hwnd, uint message, nint wParam, nint lParam);
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern nint GetModuleHandle(string? module);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern nint LoadCursor(nint instance, nint cursor);
+
     [DllImport("user32.dll")]
     private static extern nint SetCursor(nint cursor);
 }

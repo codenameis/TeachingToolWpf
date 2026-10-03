@@ -23,38 +23,57 @@ internal static class ShapeSmokeScenario
             Require(model.SelectedShape == kind, "visible shape selector binding");
         }
         void Pointer(int message, PointD point) => EditingSmokeScenario.Pointer(viewport, message, editor.State.Viewport.ImageToScreen(point));
-        void Click(PointD point) { Pointer(0x201, point); Pointer(0x202, point); }
+        void Click(PointD point)
+        {
+            Pointer(0x201, point);
+            Pointer(0x202, point);
+        }
         model.Fit.Execute(null);
         Choose(RoiShapeKind.Circle);
         model.AddRoi.Execute(null);
         Require(editor.State.Rois.Count == 1 && editor.State.Rois.Values.Single().Geometry.Shape.Kind == RoiShapeKind.Circle, "circle add button");
         await model.Undo.ExecuteAsync();
         model.DrawTool.Execute(null);
-        Pointer(0x201, new(1000, 1500)); Pointer(0x200, new(3000, 3500)); Pointer(0x202, new(3000, 3500));
+        Pointer(0x201, new(1000, 1500));
+        Pointer(0x200, new(3000, 3500));
+        Pointer(0x202, new(3000, 3500));
         var circle = editor.State.Selection.Single();
         Require(editor.State.Rois[circle].Geometry.Shape.Kind == RoiShapeKind.Circle && model.IsSelect, "native circle drawing");
         editor.Rename(circle, "원형 검사");
-        model.Properties.Width = "1800"; model.ApplyProperties.Execute(null);
+        model.Properties.Width = "1800";
+        model.ApplyProperties.Execute(null);
         Require(editor.State.Rois[circle].Geometry.Width == 1800 && editor.State.Rois[circle].Geometry.Height == 1800, "circle numeric diameter");
-        Choose(RoiShapeKind.Triangle); model.DrawTool.Execute(null);
-        Pointer(0x201, new(4500, 1500)); Pointer(0x200, new(6800, 3500)); Pointer(0x202, new(6800, 3500));
-        var triangle = editor.State.Selection.Single(); editor.Rename(triangle, "삼각형 검사");
+        Choose(RoiShapeKind.Triangle);
+        model.DrawTool.Execute(null);
+        Pointer(0x201, new(4500, 1500));
+        Pointer(0x200, new(6800, 3500));
+        Pointer(0x202, new(6800, 3500));
+        var triangle = editor.State.Selection.Single();
+        editor.Rename(triangle, "삼각형 검사");
         Require(editor.State.Rois[triangle].Geometry.Shape.Kind == RoiShapeKind.Triangle, "native triangle drawing");
-        Choose(RoiShapeKind.Polygon); model.DrawTool.Execute(null);
-        foreach (var p in new PointD[] { new(1600, 4500), new(5600, 4500), new(5600, 6500), new(3600, 5500), new(1600, 6500) }) Click(p);
+        Choose(RoiShapeKind.Polygon);
+        model.DrawTool.Execute(null);
+        foreach (var p in new PointD[] { new(1600, 4500), new(5600, 4500), new(5600, 6500), new(3600, 5500), new(1600, 6500) })
+        {
+            Click(p);
+        }
+
         Require(model.Input.PolygonPointCount == 5 && editor.State.Rois.Count == 2, "native polygon clicks retain draft");
         var complete = Descendants(window).OfType<Button>().Single(b => ReferenceEquals(b.Command, model.CompletePolygon));
         Require(complete.IsEnabled, "visible polygon completion button enabled");
         complete.Command.Execute(null);
-        var polygon = editor.State.Selection.Single(); editor.Rename(polygon, "오목 폴리곤 검사");
+        var polygon = editor.State.Selection.Single();
+        editor.Rename(polygon, "오목 폴리곤 검사");
         Require(editor.State.Rois[polygon].Geometry.Shape.Vertices.Length == 5 && model.IsSelect, "polygon completed");
         var before = editor.State;
         editor.Select([circle, triangle, polygon]);
-        model.RotateRight.Execute(null); await model.EditCompletion;
+        model.RotateRight.Execute(null);
+        await model.EditCompletion;
         await model.Undo.ExecuteAsync();
         Require(before.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value), "mixed shape rotation undo");
         model.Filters.SelectedFilter = RoiFilterKind.Binarize;
-        model.Filters.Preview.Execute(null); await model.Filters.WhenIdle;
+        model.Filters.Preview.Execute(null);
+        await model.Filters.WhenIdle;
         Require(model.Filters.Result?.Regions.Count == 3 && model.Filters.Result.Regions.All(r => r.Mask is not null), "OpenCV shape masks");
         await Task.Delay(700);
         viewport.Capture("artifacts/shapes-filter.png");
@@ -68,24 +87,36 @@ internal static class ShapeSmokeScenario
         editor.Select([circle, triangle, polygon]);
         model.Group.Execute(null);
         Require(editor.State.Rois.Count == 4, "mixed shape grouping");
-        await model.Delete.ExecuteAsync(); Require(editor.State.Rois.Count == 0, "mixed subtree cascade");
-        await model.Undo.ExecuteAsync(); Require(editor.State.Rois.Count == 4, "mixed subtree restore");
+        await model.Delete.ExecuteAsync();
+        Require(editor.State.Rois.Count == 0, "mixed subtree cascade");
+        await model.Undo.ExecuteAsync();
+        Require(editor.State.Rois.Count == 4, "mixed subtree restore");
         await model.Delete.ExecuteAsync();
         Choose(RoiShapeKind.Rectangle);
         model.Filters.SelectedFilter = RoiFilterKind.None;
         File.AppendAllText("artifacts/smoke.log", "Shape selector, native circle/triangle/polygon input, diameter, mixed rotation/group/delete/undo and masked OpenCV passed" + Environment.NewLine);
     }
+
     private static void Require(bool value, string description)
     {
-        if (!value) throw new InvalidOperationException("Shape smoke: " + description);
+        if (!value)
+        {
+            throw new InvalidOperationException("Shape smoke: " + description);
+        }
     }
+
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
     {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        for (var i = 0;
+i < VisualTreeHelper.GetChildrenCount(parent);
+i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
             yield return child;
-            foreach (var descendant in Descendants(child)) yield return descendant;
+            foreach (var descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
         }
     }
 }

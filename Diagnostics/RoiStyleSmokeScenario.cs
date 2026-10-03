@@ -33,12 +33,23 @@ internal static class RoiStyleSmokeScenario
         string? renderError = null;
         string? failure = null;
         var newErrors = new List<string>();
-        long? baselineCapturedEndTicks = null, styleApplyStartTicks = null, styleCapturedEndTicks = null;
+        long? baselineCapturedEndTicks = null;
+
+        long? styleApplyStartTicks = null;
+
+        long? styleCapturedEndTicks = null;
         var completed = false;
         void OnStatus(string status)
         {
-            if (status.StartsWith("렌더 오류:")) renderError = status;
-            if (status.StartsWith("렌더 오류:") || status.StartsWith("D3D12 ")) newErrors.Add(status);
+            if (status.StartsWith("렌더 오류:"))
+            {
+                renderError = status;
+            }
+
+            if (status.StartsWith("렌더 오류:") || status.StartsWith("D3D12 "))
+            {
+                newErrors.Add(status);
+            }
         }
         viewport.RendererStatusChanged += OnStatus;
         try
@@ -55,10 +66,13 @@ internal static class RoiStyleSmokeScenario
             editor.Select([]);
             var panel = Descendants(window).OfType<RoiStylePanel>().Single();
             Require(ReferenceEquals(panel.DataContext, settings), "settings panel uses the active style view model");
-            panel.BringIntoView(); window.UpdateLayout();
+            panel.BringIntoView();
+            window.UpdateLayout();
             await Capture("baseline");
             baselineCapturedEndTicks = Stopwatch.GetTimestamp();
-            var beforeStyle = editor.State; var historyBytes = editor.HistoryBytes; var undoName = editor.UndoName;
+            var beforeStyle = editor.State;
+            var historyBytes = editor.HistoryBytes;
+            var undoName = editor.UndoName;
             EnterThickness("일반 ROI 선 두께", "2");
             EnterThickness("자식 ROI 선 두께", "3");
             EnterThickness("부모 ROI 선 두께", "4");
@@ -84,14 +98,17 @@ internal static class RoiStyleSmokeScenario
                 "selection adds half a DIP independently of each role width");
             await Capture("roles");
             styleCapturedEndTicks = Stopwatch.GetTimestamp();
-            panel.BringIntoView(); window.UpdateLayout(); await Task.Delay(100);
+            panel.BringIntoView();
+            window.UpdateLayout();
+            await Task.Delay(100);
             WindowCapture.Save(window, viewport, "artifacts/roi-style-roles.png", "artifacts/roi-style-settings.png");
             editor.Select([parent, child, standalone]);
             await Capture("selected");
             editor.Select([parent]);
             await Capture("parent-selected");
 
-            editor.Select([child]); model.SelectTool.Execute(null);
+            editor.Select([child]);
+            model.SelectTool.Execute(null);
             var beforeMove = editor.State;
             var view = beforeMove.Viewport;
             var start = view.ImageToScreen(beforeMove.Rois[child].Geometry.Center);
@@ -104,46 +121,67 @@ internal static class RoiStyleSmokeScenario
             Require(editor.State.Rois[child].Geometry != beforeMove.Rois[child].Geometry, "native drag moved the child");
             AssertRoles(parent, child, standalone, attached: false);
             var detached = editor.State;
-            editor.Select([]); await Capture("detached");
+            editor.Select([]);
+            await Capture("detached");
 
             await model.Undo.ExecuteAsync();
-            AssertExact(beforeMove, editor.State); AssertRoles(parent, child, standalone, attached: true);
+            AssertExact(beforeMove, editor.State);
+            AssertRoles(parent, child, standalone, attached: true);
             Require(settings.Palette.Parent.ThicknessDip == 4, "Undo preserves the independent style preference");
             await Capture("undo");
             await model.Redo.ExecuteAsync();
-            AssertExact(detached, editor.State); AssertRoles(parent, child, standalone, attached: false);
-            var beforeReset = editor.State; historyBytes = editor.HistoryBytes;
+            AssertExact(detached, editor.State);
+            AssertRoles(parent, child, standalone, attached: false);
+            var beforeReset = editor.State;
+            historyBytes = editor.HistoryBytes;
             settings.Reset.Execute(null);
             Require(settings.Palette == RoiStylePalette.Standard, "Reset restores the standard palette");
             Require(ReferenceEquals(beforeReset, editor.State) && historyBytes == editor.HistoryBytes, "Reset is not a document edit");
             await Capture("reset");
 
-            editor.Select(editor.State.Rois.Keys); await model.Delete.ExecuteAsync();
+            editor.Select(editor.State.Rois.Keys);
+            await model.Delete.ExecuteAsync();
             Require(editor.State.Rois.Count == 0, "style fixture cleanup preserves the remaining smoke sequence");
             completed = true;
 
             void EnterThickness(string name, string value)
             {
                 var field = Descendants(panel).OfType<ValueTextBox>().Single(item => AutomationProperties.GetName(item) == name);
-                field.BringIntoView(); Keyboard.Focus(field);
+                field.BringIntoView();
+                Keyboard.Focus(field);
                 Require(field.IsKeyboardFocused, "style thickness field receives keyboard focus: " + name);
                 field.Text = value;
             }
         }
-        catch (Exception ex) { failure = ex.ToString(); throw; }
+        catch (Exception ex)
+        {
+            failure = ex.ToString();
+            throw;
+        }
         finally
         {
             model.Input.Cancel();
-            settings.DefaultThickness = originalDefault; settings.ChildThickness = originalChild; settings.ParentThickness = originalParent;
+            settings.DefaultThickness = originalDefault;
+            settings.ChildThickness = originalChild;
+            settings.ParentThickness = originalParent;
             settings.Apply.Execute(null);
             editor.SetViewport(originalView);
             viewport.RendererStatusChanged -= OnStatus;
             File.WriteAllText("artifacts/roi-style-check.json", JsonSerializer.Serialize(new
             {
-                completed, baselineCapturedEndTicks, styleApplyStartTicks, styleCapturedEndTicks,
-                stopwatchFrequency = Stopwatch.Frequency, adapter = model.GpuStatus, dpi = viewport.Dpi,
-                defaultThicknessDip = 2, childThicknessDip = 3, parentThicknessDip = 4,
-                settingsCapture = "artifacts/roi-style-settings.png", newErrors, error = failure
+                completed,
+                baselineCapturedEndTicks,
+                styleApplyStartTicks,
+                styleCapturedEndTicks,
+                stopwatchFrequency = Stopwatch.Frequency,
+                adapter = model.GpuStatus,
+                dpi = viewport.Dpi,
+                defaultThicknessDip = 2,
+                childThicknessDip = 3,
+                parentThicknessDip = 4,
+                settingsCapture = "artifacts/roi-style-settings.png",
+                newErrors,
+                error = failure
             }, new JsonSerializerOptions { WriteIndented = true }));
         }
 
@@ -157,15 +195,32 @@ internal static class RoiStyleSmokeScenario
         async Task Capture(string name)
         {
             var path = Path.GetFullPath($"artifacts/roi-style-{name}.png");
-            if (File.Exists(path)) File.Delete(path);
-            viewport.Capture(path);
-            for (var attempt = 0; attempt < 200 && !File.Exists(path); attempt++)
+            if (File.Exists(path))
             {
-                if (renderError is not null) throw new InvalidOperationException(renderError);
+                File.Delete(path);
+            }
+
+            viewport.Capture(path);
+            for (var attempt = 0;
+attempt < 200 && !File.Exists(path);
+attempt++)
+            {
+                if (renderError is not null)
+                {
+                    throw new InvalidOperationException(renderError);
+                }
+
                 await Task.Delay(50);
             }
-            if (!File.Exists(path)) throw new TimeoutException("ROI style capture did not complete: " + name);
-            if (renderError is not null) throw new InvalidOperationException(renderError);
+            if (!File.Exists(path))
+            {
+                throw new TimeoutException("ROI style capture did not complete: " + name);
+            }
+
+            if (renderError is not null)
+            {
+                throw new InvalidOperationException(renderError);
+            }
         }
     }
 
@@ -178,13 +233,24 @@ internal static class RoiStyleSmokeScenario
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        for (var i = 0;
+i < VisualTreeHelper.GetChildrenCount(root);
+i++)
         {
-            var child = VisualTreeHelper.GetChild(root, i); yield return child;
-            foreach (var descendant in Descendants(child)) yield return descendant;
+            var child = VisualTreeHelper.GetChild(root, i);
+            yield return child;
+            foreach (var descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
         }
     }
 
     private static void Require(bool condition, string message)
-    { if (!condition) throw new InvalidOperationException("ROI style smoke assertion: " + message); }
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException("ROI style smoke assertion: " + message);
+        }
+    }
 }

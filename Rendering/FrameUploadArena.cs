@@ -18,34 +18,34 @@ internal sealed class FrameUploadArena(Dx12Device gpu) : IDisposable
             Buffer.Dispose();
         }
     }
-    private readonly List<Block> blocks = [];
-    private int currentBlockIndex;
-    private ulong usedBytes;
+    private readonly List<Block> _blocks = [];
+    private int _currentBlockIndex;
+    private ulong _usedBytes;
 
     public void Reset()
     {
-        currentBlockIndex = 0;
-        usedBytes = 0;
+        _currentBlockIndex = 0;
+        _usedBytes = 0;
     }
 
     public unsafe Allocation Allocate(ulong bytes)
     {
         // 텍스처와 ROI가 같은 전송 공간을 쓰므로 텍스처 복사에 필요한 정렬을 유지한다.
-        usedBytes = AlignUp(usedBytes, UploadOffsetAlignmentBytes);
-        while (currentBlockIndex < blocks.Count && usedBytes + bytes > blocks[currentBlockIndex].Size)
+        _usedBytes = AlignUp(_usedBytes, UploadOffsetAlignmentBytes);
+        while (_currentBlockIndex < _blocks.Count && _usedBytes + bytes > _blocks[_currentBlockIndex].Size)
         {
-            currentBlockIndex++;
-            usedBytes = 0;
+            _currentBlockIndex++;
+            _usedBytes = 0;
         }
-        if (currentBlockIndex == blocks.Count)
+        if (_currentBlockIndex == _blocks.Count)
         {
             var size = Math.Max(MinimumBlockCapacityBytes, AlignUp(bytes, BufferCapacityAlignmentBytes));
             var resource = gpu.Device.CreateCommittedResource(HeapType.Upload, ResourceDescription.Buffer(size), ResourceStates.GenericRead);
-            blocks.Add(new(resource, size, (nint)resource.Map<byte>(0)));
+            _blocks.Add(new(resource, size, (nint)resource.Map<byte>(0)));
         }
-        var block = blocks[currentBlockIndex];
-        var offset = usedBytes;
-        usedBytes += bytes;
+        var block = _blocks[_currentBlockIndex];
+        var offset = _usedBytes;
+        _usedBytes += bytes;
         return new(block.Buffer, offset, block.Pointer + checked((nint)offset));
     }
 
@@ -54,7 +54,9 @@ internal sealed class FrameUploadArena(Dx12Device gpu) : IDisposable
 
     public void Dispose()
     {
-        foreach (var block in blocks)
+        foreach (var block in _blocks)
+        {
             block.Dispose();
+        }
     }
 }

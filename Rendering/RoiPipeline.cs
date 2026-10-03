@@ -30,6 +30,7 @@ internal sealed class RoiPipeline : IDisposable
     {
         public bool Equals((object Identity, int Level) a, (object Identity, int Level) b)
             => ReferenceEquals(a.Identity, b.Identity) && a.Level == b.Level;
+
         public int GetHashCode((object Identity, int Level) key)
             => HashCode.Combine(RuntimeHelpers.GetHashCode(key.Identity), key.Level);
     }
@@ -37,39 +38,51 @@ internal sealed class RoiPipeline : IDisposable
     {
         public long LastUsed
         {
-            get; set;
+            get;
+            set;
         }
+
         public ulong RoleOffset => (ulong)Count * RoiInstance.SizeInBytes;
-        public long CacheCost => AllocationBytes + (long)SourceCount * EstimatedSourceRoiBytes + (long)Count * RoiInstance.RoleSizeInBytes + ShapeBytes;
+
+        public long CacheCost => AllocationBytes + ((long)SourceCount * EstimatedSourceRoiBytes) + ((long)Count * RoiInstance.RoleSizeInBytes) + ShapeBytes;
+
         public void Dispose() => Buffer.Dispose();
     }
-    private readonly Dx12Device gpu;
-    private readonly ID3D12RootSignature root;
-    private readonly ID3D12PipelineState pipeline;
-    private readonly FrameUploadArena[] uploads;
-    private readonly Dictionary<(object Identity, int Level), Block> blocks = new(new KeyComparer());
-    private long frame, bytes;
+    private readonly Dx12Device _gpu;
+    private readonly ID3D12RootSignature _root;
+    private readonly ID3D12PipelineState _pipeline;
+    private readonly FrameUploadArena[] _uploads;
+    private readonly Dictionary<(object Identity, int Level), Block> _blocks = new(new KeyComparer());
+    private long _frame;
+
+    private long _bytes;
+
     public long UploadedBytes
     {
-        get; private set;
+        get;
+        private set;
     }
+
     public long InstanceCount
     {
-        get; private set;
+        get;
+        private set;
     }
-    public long CacheBytes => bytes;
+
+    public long CacheBytes => _bytes;
+
     public RoiPipeline(Dx12Device gpu)
     {
-        this.gpu = gpu;
-        uploads = [new(gpu), new(gpu)];
-        root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
+        _gpu = gpu;
+        _uploads = [new(gpu), new(gpu)];
+        _root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
             [new(RootParameterType.ShaderResourceView, new RootDescriptor1(GeometryShaderRegister, RegisterSpace), ShaderVisibility.Vertex),
              new(new RootConstants(OptionsShaderRegister, RegisterSpace, RoiDrawConstants.RootConstantCount), ShaderVisibility.All),
              new(RootParameterType.ShaderResourceView, new RootDescriptor1(RolesShaderRegister, RegisterSpace), ShaderVisibility.Vertex)]));
         var shaderPath = Path.Combine(AppContext.BaseDirectory, "Shaders", "Roi.hlsl");
-        pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
+        _pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
         {
-            RootSignature = root,
+            RootSignature = _root,
             VertexShader = ShaderCompiler.CompileFile(shaderPath, "VSMain", "vs_5_1"),
             PixelShader = ShaderCompiler.CompileFile(shaderPath, "PSMain", "ps_5_1"),
             PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
@@ -80,12 +93,13 @@ internal sealed class RoiPipeline : IDisposable
             SampleDescription = new(1, 0)
         });
     }
+
     public void Draw(RenderScene scene, Dx12Surface surface)
     {
-        frame++;
+        _frame++;
         UploadedBytes = 0;
         InstanceCount = 0;
-        uploads[surface.FrameIndex].Reset();
+        _uploads[surface.FrameIndex].Reset();
 
         var view = scene.Document.Viewport;
         var topLeft = view.ScreenToImage(new(-ViewportPaddingDip, -ViewportPaddingDip));
@@ -94,22 +108,30 @@ internal sealed class RoiPipeline : IDisposable
         var level = (int)Math.Floor(Math.Log2(SummarySizeDip / view.Scale));
         var aggregateSize = Math.Pow(2, level);
 
-        surface.Commands.SetGraphicsRootSignature(root);
-        surface.Commands.SetPipelineState(pipeline);
+        surface.Commands.SetGraphicsRootSignature(_root);
+        surface.Commands.SetPipelineState(_pipeline);
         surface.Commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
         if (scene.Transform is { } preview)
         {
             DrawIndex(preview.Selection.Stationary, selected: false, transform: default);
             if (preview.Selection.Affected.Count != scene.Document.Selection.Count)
+            {
                 DrawIndex(preview.Selection.Moving, selected: false, preview.Transform);
+            }
+
             DrawIndex(scene.Document.SelectedSpatial, selected: true, preview.Transform);
         }
         else
         {
             if (scene.Document.Selection.Count != scene.Document.Rois.Count)
+            {
                 DrawIndex(scene.Document.Snapshot.Spatial, selected: false, transform: default);
+            }
+
             if (scene.Document.Selection.Count > 0)
+            {
                 DrawIndex(scene.Document.SelectedSpatial, selected: true, transform: default);
+            }
         }
         EvictInactiveBlocks(surface);
 
@@ -119,7 +141,7 @@ internal sealed class RoiPipeline : IDisposable
             foreach (var region in index.Blocks(query))
             {
                 var block = GetOrUploadBlock(region, level, aggregateSize, scene.Document, surface);
-                block.LastUsed = frame;
+                block.LastUsed = _frame;
                 InstanceCount += block.Count;
                 DrawBlock(block, scene, surface, RoiDrawPass.Shadow, selected, transform);
                 DrawBlock(block, scene, surface, RoiDrawPass.Stroke, selected, transform);
@@ -130,10 +152,13 @@ internal sealed class RoiPipeline : IDisposable
     private Block GetOrUploadBlock(RoiSpatialBlock region, int level, double aggregateSize, DocumentState document, Dx12Surface surface)
     {
         var key = (region.Identity, level);
-        if (blocks.TryGetValue(key, out var block))
+        if (_blocks.TryGetValue(key, out var block))
         {
             if (block.Roles.Refresh(region, aggregateSize, document, block.Count))
+            {
                 UploadRoleChanges(block, surface);
+            }
+
             return block;
         }
 
@@ -141,23 +166,28 @@ internal sealed class RoiPipeline : IDisposable
         var roles = new RoiRoleCache();
         roles.Refresh(region, aggregateSize, document, instances.Length);
         block = UploadBlock(region, instances, roles, surface);
-        blocks.Add(key, block);
-        bytes += block.CacheCost;
+        _blocks.Add(key, block);
+        _bytes += block.CacheCost;
         return block;
     }
 
     private void EvictInactiveBlocks(Dx12Surface surface)
     {
-        if (bytes <= CacheBudgetBytes)
+        if (_bytes <= CacheBudgetBytes)
+        {
             return;
+        }
 
         // pan/zoom/Undo에 쓸 최근 형상은 남긴다. GPU가 읽는 리소스의 실제 해제는 fence 이후다.
-        foreach (var pair in blocks.Where(p => p.Value.LastUsed != frame).OrderBy(p => p.Value.LastUsed).ToArray())
+        foreach (var pair in _blocks.Where(p => p.Value.LastUsed != _frame).OrderBy(p => p.Value.LastUsed).ToArray())
         {
-            if (bytes <= CacheBudgetBytes)
+            if (_bytes <= CacheBudgetBytes)
+            {
                 break;
-            blocks.Remove(pair.Key);
-            bytes -= pair.Value.CacheCost;
+            }
+
+            _blocks.Remove(pair.Key);
+            _bytes -= pair.Value.CacheCost;
             surface.Retire(pair.Value);
         }
     }
@@ -168,18 +198,18 @@ internal sealed class RoiPipeline : IDisposable
         var roleBytes = checked((ulong)roles.Values.Length * RoiInstance.RoleSizeInBytes);
         // 하나의 리소스를 [형상][역할]로 나눠 추가 committed allocation을 피한다.
         var description = ResourceDescription.Buffer(Math.Max(geometryBytes + roleBytes, RoiInstance.SizeInBytes));
-        var allocation = gpu.Device.GetResourceAllocationInfo(0, description).SizeInBytes;
-        var buffer = gpu.Device.CreateCommittedResource(HeapType.Default, description, ResourceStates.Common);
+        var allocation = _gpu.Device.GetResourceAllocationInfo(0, description).SizeInBytes;
+        var buffer = _gpu.Device.CreateCommittedResource(HeapType.Default, description, ResourceStates.Common);
         try
         {
             surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.Common, ResourceStates.CopyDest);
             if (geometryBytes > 0)
             {
-                var geometryUpload = uploads[surface.FrameIndex].Allocate(geometryBytes);
+                var geometryUpload = _uploads[surface.FrameIndex].Allocate(geometryBytes);
                 instances.AsSpan().CopyTo(new Span<RoiInstance>((void*)geometryUpload.Pointer, instances.Length));
                 surface.Commands.CopyBufferRegion(buffer, 0, geometryUpload.Buffer, geometryUpload.Offset, geometryBytes);
 
-                var roleUpload = uploads[surface.FrameIndex].Allocate(roleBytes);
+                var roleUpload = _uploads[surface.FrameIndex].Allocate(roleBytes);
                 roles.Values.AsSpan().CopyTo(new Span<uint>((void*)roleUpload.Pointer, roles.Values.Length));
                 surface.Commands.CopyBufferRegion(buffer, geometryBytes, roleUpload.Buffer, roleUpload.Offset, roleBytes);
             }
@@ -194,13 +224,16 @@ internal sealed class RoiPipeline : IDisposable
             throw;
         }
     }
+
     private unsafe void UploadRoleChanges(Block block, Dx12Surface surface)
     {
         var roleBytes = checked((ulong)block.Roles.Values.Length * RoiInstance.RoleSizeInBytes);
         if (roleBytes == 0)
+        {
             return;
+        }
 
-        var upload = uploads[surface.FrameIndex].Allocate(roleBytes);
+        var upload = _uploads[surface.FrameIndex].Allocate(roleBytes);
         block.Roles.Values.AsSpan().CopyTo(new Span<uint>((void*)upload.Pointer, block.Roles.Values.Length));
         // 같은 direct queue에서 이전 draw 뒤에 복사한다. 형상 구간은 쓰지 않는다.
         surface.Commands.ResourceBarrierTransition(block.Buffer, ResourceStates.NonPixelShaderResource, ResourceStates.CopyDest);
@@ -208,6 +241,7 @@ internal sealed class RoiPipeline : IDisposable
         surface.Commands.ResourceBarrierTransition(block.Buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
         UploadedBytes += (long)roleBytes;
     }
+
     private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, RoiDrawPass pass, bool selected, RigidTransform2D transform)
     {
         var constants = new RoiDrawConstants(scene, block.Origin, transform, selected, pass);
@@ -216,13 +250,20 @@ internal sealed class RoiPipeline : IDisposable
         surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.Buffer.GPUVirtualAddress + block.RoleOffset);
         surface.Commands.DrawInstanced(VerticesPerInstance, (uint)block.Count, 0, 0);
     }
+
     public void Dispose()
     {
-        foreach (var block in blocks.Values)
+        foreach (var block in _blocks.Values)
+        {
             block.Dispose();
-        foreach (var upload in uploads)
+        }
+
+        foreach (var upload in _uploads)
+        {
             upload.Dispose();
-        pipeline.Dispose();
-        root.Dispose();
+        }
+
+        _pipeline.Dispose();
+        _root.Dispose();
     }
 }

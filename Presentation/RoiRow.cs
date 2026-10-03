@@ -6,8 +6,11 @@ public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
 {
     internal static string Describe(Roi roi, int children) => roi.IsGroup ? $"그룹 {children}" : children > 0 ? $"부모 {children}"
         : roi.Geometry.Shape.Kind == Core.Geometry.RoiShapeKind.Rectangle ? "ROI" : roi.Geometry.ShapeName;
+
     public double IndentWidth => Depth * 12;
+
     public string IndentedLabel => new string(' ', Depth * 3) + (Depth == 0 ? "▣  " : "└  ") + Label;
+
     public static IReadOnlyList<RoiRow> Build(DocumentState state, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

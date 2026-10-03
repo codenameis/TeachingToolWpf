@@ -7,48 +7,80 @@ namespace TeachingToolWpf.Controls;
 /// <summary>Adapts WPF's SelectedItems collection without putting selection rules in the view.</summary>
 internal sealed class RoiListBinding : IDisposable
 {
-    private readonly RoiListBox list;
-    private readonly EditorViewModel model;
-    private bool synchronizing;
-    private object? previousSelection;
-    private RoiRows? previousRows;
+    private readonly RoiListBox _list;
+    private readonly EditorViewModel _model;
+    private bool _synchronizing;
+    private object? _previousSelection;
+    private RoiRows? _previousRows;
+
     public RoiListBinding(RoiListBox list, EditorViewModel model)
     {
-        this.list = list; this.model = model;
+        _list = list;
+        _model = model;
         list.ShowPage(model.VisibleRows);
-        list.SelectionChanged += FromView; model.Session.Changed += FromModel;
+        list.SelectionChanged += FromView;
+        model.Session.Changed += FromModel;
         model.RowPageChanged += Synchronize;
         list.SingleSelectionRequested += SelectSingle;
     }
-    private void SelectSingle(RoiRow row) { if (!synchronizing) model.SelectRows([row.Id]); }
+
+    private void SelectSingle(RoiRow row)
+    {
+        if (!_synchronizing)
+        {
+            _model.SelectRows([row.Id]);
+        }
+    }
+
     private void FromView(object sender, SelectionChangedEventArgs args)
     {
-        if (synchronizing) return;
+        if (_synchronizing)
+        {
+            return;
+        }
+
         if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
-            model.SelectRows(model.Session.State.Selection.Except(args.RemovedItems.Cast<object>().Select(RoiListBox.RowFromItem).OfType<RoiRow>().Select(row => row.Id))
+        {
+            _model.SelectRows(_model.Session.State.Selection.Except(args.RemovedItems.Cast<object>().Select(RoiListBox.RowFromItem).OfType<RoiRow>().Select(row => row.Id))
                 .Union(args.AddedItems.Cast<object>().Select(RoiListBox.RowFromItem).OfType<RoiRow>().Select(row => row.Id)));
-        else model.SelectRows(list.SelectedItems.Cast<object>().Select(RoiListBox.RowFromItem).OfType<RoiRow>().Select(row => row.Id));
+        }
+        else
+        {
+            _model.SelectRows(_list.SelectedItems.Cast<object>().Select(RoiListBox.RowFromItem).OfType<RoiRow>().Select(row => row.Id));
+        }
     }
+
     private void FromModel(object? sender, EventArgs args) => Synchronize();
+
     private void Synchronize()
     {
-        var selected = model.Session.State.Selection;
-        if (ReferenceEquals(previousSelection, selected) && ReferenceEquals(previousRows, model.VisibleRows)) return;
-        synchronizing = true;
+        var selected = _model.Session.State.Selection;
+        if (ReferenceEquals(_previousSelection, selected) && ReferenceEquals(_previousRows, _model.VisibleRows))
+        {
+            return;
+        }
+
+        _synchronizing = true;
         try
         {
-            list.ShowPage(model.VisibleRows);
-            list.ApplySelection(selected.Count < model.VisibleRows.Count
-                ? selected.Select(model.VisibleRows.Find).OfType<RoiRow>()
-                : model.VisibleRows.Where(row => selected.Contains(row.Id)));
-            previousSelection = selected;
-            previousRows = model.VisibleRows;
+            _list.ShowPage(_model.VisibleRows);
+            _list.ApplySelection(selected.Count < _model.VisibleRows.Count
+                ? selected.Select(_model.VisibleRows.Find).OfType<RoiRow>()
+                : _model.VisibleRows.Where(row => selected.Contains(row.Id)));
+            _previousSelection = selected;
+            _previousRows = _model.VisibleRows;
         }
-        finally { synchronizing = false; }
+        finally
+        {
+            _synchronizing = false;
+        }
     }
+
     public void Dispose()
     {
-        list.SelectionChanged -= FromView; model.Session.Changed -= FromModel;
-        model.RowPageChanged -= Synchronize; list.SingleSelectionRequested -= SelectSingle;
+        _list.SelectionChanged -= FromView;
+        _model.Session.Changed -= FromModel;
+        _model.RowPageChanged -= Synchronize;
+        _list.SingleSelectionRequested -= SelectSingle;
     }
 }

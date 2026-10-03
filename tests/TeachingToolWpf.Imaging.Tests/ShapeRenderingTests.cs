@@ -22,9 +22,15 @@ public class ShapeRenderingTests
         Assert.Equal(count, instances.Length);
         Assert.All(instances, i => Assert.Equal(instanceKind, i.Summary));
         Assert.Equal(count, RoiInstance.ResolveRoles(block, 0, editor.State).Length);
-        if (kind == RoiShapeKind.Circle) return;
+        if (kind == RoiShapeKind.Circle)
+        {
+            return;
+        }
+
         var outline = shape.Outline;
-        for (var i = 0; i < count; i++)
+        for (var i = 0;
+i < count;
+i++)
         {
             var start = block.Bounds.Center + new PointD(instances[i].Center.X, instances[i].Center.Y);
             var end = start + new PointD(instances[i].AxisX.X, instances[i].AxisX.Y);
@@ -46,13 +52,20 @@ public class ShapeRenderingTests
         var placement = Assert.Single(page.Regions);
         using var pixels = page.Pixels();
         Assert.Equal(PixelKind.Rgba32, pixels.Kind);
-        Assert.Equal(0, mask[0]); Assert.Equal(255, mask[5050]);
-        for (var y = 0; y < 100; y++)
-            for (var x = 0; x < 100; x++)
+        Assert.Equal(0, mask[0]);
+        Assert.Equal(255, mask[5050]);
+        for (var y = 0;
+y < 100;
+y++)
+        {
+            for (var x = 0;
+x < 100;
+x++)
             {
-                var offset = (placement.Y + y) * pixels.Stride + (placement.X + x) * 4;
+                var offset = ((placement.Y + y) * pixels.Stride) + ((placement.X + x) * 4);
                 Assert.Equal(200, pixels.Span[offset]);
-                Assert.Equal(mask[y * 100 + x], pixels.Span[offset + 3]);
+                Assert.Equal(mask[(y * 100) + x], pixels.Span[offset + 3]);
             }
+        }
     }
 }

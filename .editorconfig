@@ -3,6 +3,89 @@ root = true
 [*.cs]
 indent_style = space
 indent_size = 4
+end_of_line = crlf
+charset = utf-8
 insert_final_newline = true
+trim_trailing_whitespace = true
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_around_binary_operators = before_and_after
 csharp_preserve_single_line_statements = false
 csharp_preserve_single_line_blocks = false
+csharp_prefer_braces = true:warning
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:warning
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:warning
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:warning
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary:suggestion
+dotnet_diagnostic.IDE0055.severity = warning
+dotnet_diagnostic.IDE1006.severity = warning
+
+# Constants are more specific than static/instance field rules.
+dotnet_naming_rule.constants.symbols = constants
+dotnet_naming_rule.constants.style = pascal_case
+dotnet_naming_rule.constants.severity = warning
+dotnet_naming_symbols.constants.applicable_kinds = field, local
+dotnet_naming_symbols.constants.applicable_accessibilities = *
+dotnet_naming_symbols.constants.required_modifiers = const
+
+dotnet_naming_rule.private_static_fields.symbols = private_static_fields
+dotnet_naming_rule.private_static_fields.style = static_field
+dotnet_naming_rule.private_static_fields.severity = warning
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private, internal
+dotnet_naming_symbols.private_static_fields.required_modifiers = static
+
+dotnet_naming_rule.private_fields.symbols = private_fields
+dotnet_naming_rule.private_fields.style = instance_field
+dotnet_naming_rule.private_fields.severity = warning
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private, internal
+
+dotnet_naming_rule.interfaces.symbols = interfaces
+dotnet_naming_rule.interfaces.style = interface_name
+dotnet_naming_rule.interfaces.severity = warning
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+
+dotnet_naming_rule.types_and_members.symbols = types_and_members
+dotnet_naming_rule.types_and_members.style = pascal_case
+dotnet_naming_rule.types_and_members.severity = warning
+dotnet_naming_symbols.types_and_members.applicable_kinds = class, struct, enum, delegate, property, event, method, local_function
+dotnet_naming_symbols.types_and_members.applicable_accessibilities = *
+
+dotnet_naming_rule.visible_fields.symbols = visible_fields
+dotnet_naming_rule.visible_fields.style = pascal_case
+dotnet_naming_rule.visible_fields.severity = warning
+dotnet_naming_symbols.visible_fields.applicable_kinds = field
+dotnet_naming_symbols.visible_fields.applicable_accessibilities = public, protected, protected_internal, private_protected
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+dotnet_naming_style.instance_field.capitalization = camel_case
+dotnet_naming_style.instance_field.required_prefix = _
+dotnet_naming_style.static_field.capitalization = camel_case
+dotnet_naming_style.static_field.required_prefix = s_
+dotnet_naming_style.interface_name.capitalization = pascal_case
+dotnet_naming_style.interface_name.required_prefix = I
+
+[**/{bin,obj,artifacts,.packages}/**/*.cs]
+generated_code = true

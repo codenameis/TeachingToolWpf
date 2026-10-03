@@ -38,7 +38,9 @@ internal readonly struct RoiDrawConstants
         var isShadow = pass == RoiDrawPass.Shadow;
         var shadowExpansion = 0f;
         if (isShadow)
+        {
             shadowExpansion = selected ? 1.5f : 1f;
+        }
 
         ClipScale = new((float)(2 / scene.Width), (float)(-2 / scene.Height));
         ImageScale = (float)scene.Document.Viewport.Scale;

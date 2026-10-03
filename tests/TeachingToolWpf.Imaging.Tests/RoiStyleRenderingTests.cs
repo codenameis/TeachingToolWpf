@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Rendering;
@@ -204,8 +204,11 @@ public class RoiStyleRenderingTests
 
     private static Roi Roi(string name, PointD center, double width, Guid? parent = null)
         => new(Guid.NewGuid(), name, new(center, width, width, 0), parent, false, 0);
+
     private static DocumentState State(params Roi[] rois) => new(rois.ToImmutableDictionary(roi => roi.Id), [], null, ViewportTransform.Identity);
+
     private static RoiSpatialBlock Block(DocumentState state) => state.Snapshot.Spatial.Blocks(state.Snapshot.Spatial.Bounds).Single();
+
     private static void AssertRoles(RoiSpatialBlock block, DocumentState state, uint[] roles)
     {
         var ordered = block.Detail(0).Select(item => item.Roi!).ToArray();
