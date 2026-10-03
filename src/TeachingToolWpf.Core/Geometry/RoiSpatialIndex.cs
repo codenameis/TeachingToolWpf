@@ -8,7 +8,10 @@ namespace TeachingToolWpf.Core.Geometry;
 public sealed class RoiSpatialIndex
 {
     private readonly record struct Entry(Roi Roi, BoundsD Bounds);
-    private sealed record Node(BoundsD Bounds, int Count, int Height, double MaxArea, Roi? FirstHit, Roi? Representative, Entry[]? Entries, Node? Left, Node? Right);
+    private sealed record Node(BoundsD Bounds, int Count, int Height, double MaxArea, Roi? FirstHit, Roi? Representative, Entry[]? Entries, Node? Left, Node? Right)
+    {
+        public long ShapeBytes { get; init; }
+    }
     private readonly Node root;
     private readonly ImmutableDictionary<Guid, ulong> locations;
     private readonly ImmutableDictionary<Guid, Roi>? values;
@@ -213,22 +216,24 @@ public sealed class RoiSpatialIndex
     {
         var bounds = entries.Length == 0 ? default : entries[0].Bounds;
         var maxArea = 0d; Roi? firstHit = null; Roi? representative = null;
+        var shapeBytes = 0L;
         foreach (var entry in entries)
         {
             bounds = Union(bounds, entry.Bounds);
             var roi = entry.Roi; var area = roi.Geometry.Area;
+            if (roi.Geometry.Shape.Kind == RoiShapeKind.Polygon) shapeBytes += roi.Geometry.Shape.Vertices.Length * 16L;
             if (CompareHit(roi, firstHit) < 0) firstHit = roi;
             if (representative is null || area > maxArea || area == maxArea && roi.Order < representative.Order)
                 representative = roi;
             maxArea = Math.Max(maxArea, area);
         }
-        return new(bounds, entries.Length, 0, maxArea, firstHit, representative, entries, null, null);
+        return new(bounds, entries.Length, 0, maxArea, firstHit, representative, entries, null, null) { ShapeBytes = shapeBytes };
     }
     private static Node Branch(Node left, Node right) => new(left.Count == 0 ? right.Bounds : right.Count == 0 ? left.Bounds : Union(left.Bounds, right.Bounds),
         left.Count + right.Count, 1 + Math.Max(left.Height, right.Height), Math.Max(left.MaxArea, right.MaxArea),
         CompareHit(left.FirstHit, right.FirstHit) <= 0 ? left.FirstHit : right.FirstHit,
         left.MaxArea > right.MaxArea || left.MaxArea == right.MaxArea && (left.Representative?.Order ?? long.MaxValue) <= (right.Representative?.Order ?? long.MaxValue)
-            ? left.Representative : right.Representative, null, left, right);
+            ? left.Representative : right.Representative, null, left, right) { ShapeBytes = left.ShapeBytes + right.ShapeBytes };
     private static int CompareHit(Roi? a, Roi? b)
     {
         if (a is null) return b is null ? 0 : 1;
@@ -405,7 +410,7 @@ public sealed class RoiSpatialIndex
             if (node.Count == 0 || !node.Bounds.Intersects(bounds)) continue;
             if (node.Count <= maximumCount)
             {
-                yield return new(node, node.Bounds, node.Count, size => Visible(node, node.Bounds, size));
+                yield return new(node, node.Bounds, node.Count, size => Visible(node, node.Bounds, size), node.ShapeBytes);
                 continue;
             }
             pending.Push(node.Right!); pending.Push(node.Left!);
@@ -414,8 +419,9 @@ public sealed class RoiSpatialIndex
 }
 
 /// <summary>Geometry-only immutable block; metadata is read from the current document by ID.</summary>
-public sealed class RoiSpatialBlock(object identity, BoundsD bounds, int count, Func<double, IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)>> enumerate)
+public sealed class RoiSpatialBlock(object identity, BoundsD bounds, int count, Func<double, IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)>> enumerate, long shapeBytes = 0)
 {
+    public long ShapeBytes { get; } = shapeBytes;
     public object Identity { get; } = identity;
     public BoundsD Bounds { get; } = bounds;
     public int Count { get; } = count;

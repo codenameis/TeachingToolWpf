@@ -100,6 +100,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public string SelectionTitle => Session.State.Selection.Count switch { 0 => "선택한 영역 없음", 1 => "영역 속성", _ => "여러 영역 선택" };
     public string ToolHint => Input.Tool switch
     {
+        EditorTool.Draw when Input.DrawShape == RoiShapeKind.Polygon => $"꼭짓점 {Input.PolygonPointCount}개 · 클릭으로 추가 · 완료/Enter 또는 첫 점 클릭 · 취소: Esc",
         EditorTool.Draw => "ROI를 그리면 선택 도구로 돌아갑니다. 다시 그리기: R · 취소: Esc",
         EditorTool.Pan => "드래그해 화면을 이동하세요. 휠로 확대·축소합니다.",
         _ => "클릭으로 선택 · Ctrl로 다중 선택 · 휠로 확대·축소"
@@ -108,6 +109,11 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public bool IsSelect => Input.Tool == EditorTool.Select;
     public bool IsPan => Input.Tool == EditorTool.Pan;
     public bool IsDraw => Input.Tool == EditorTool.Draw;
+    public IReadOnlyList<ShapeOption> ShapeOptions { get; } = [new(RoiShapeKind.Rectangle, "사각형"), new(RoiShapeKind.Circle, "원"), new(RoiShapeKind.Triangle, "삼각형"), new(RoiShapeKind.Polygon, "폴리곤")];
+    public RoiShapeKind SelectedShape { get => Input.DrawShape; set { Input.DrawShape = value; Notify(); } }
+    public RelayCommand CompletePolygon { get; }
+    public RelayCommand RemovePolygonPoint { get; }
+    public RelayCommand CancelPolygon { get; }
     public bool CanEdit => CanNavigate && !Images.IsBusy && editCancellation is null;
     public bool CanNavigate => !disposed;
     public bool PointSampling
@@ -269,6 +275,9 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         PanTool = Command(() => SetTool(EditorTool.Pan), navigation: true);
         DrawTool = Command(() => SetTool(EditorTool.Draw), HasImage);
         AddRoi = Command(AddRoiInView, HasImage);
+        CompletePolygon = Command(Input.CompletePolygon, () => Input.CanCompletePolygon);
+        RemovePolygonPoint = Command(Input.RemovePolygonPoint, () => Input.PolygonPointCount > 0);
+        CancelPolygon = Command(Input.Cancel, () => Input.PolygonPointCount > 0);
         ZoomIn = Command(() => Zoom(1.25), HasImage, true);
         ZoomOut = Command(() => Zoom(.8), HasImage, true);
         ApplyZoom = Command(SetZoom, HasImage, true);
@@ -428,6 +437,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     private void SessionChanged(object? sender, EventArgs e)
     {
+        Input.ValidateDraftImage();
         if (!Session.IsPreviewing)
             previewPreparation.Cancel();
         var state = Session.State;
@@ -511,7 +521,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         var screen = Session.State.Viewport.ImageToScreen(geometry.Center);
         if (screen.X < 0 || screen.Y < 0 || screen.X > viewport.ViewWidth || screen.Y > viewport.ViewHeight)
             FitImage();
-        Session.Add(geometry);
+        Session.Add(RoiGeometry.Create(SelectedShape, geometry.Center, geometry.Width, geometry.Height));
         SetTool(EditorTool.Select);
         Status = "ROI를 추가했습니다. 핸들로 크기와 회전을 조절하세요.";
     }
@@ -576,6 +586,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
             (false, _, Key.V) => SelectTool,
             (false, _, Key.H) => PanTool,
             (false, _, Key.R) => DrawTool,
+            (false, _, Key.Enter) when Input.CanCompletePolygon => CompletePolygon,
+            (false, _, Key.Back) when Input.PolygonPointCount > 0 => RemovePolygonPoint,
             (false, _, Key.F) => Fit,
             (false, _, Key.D0) => ResetAngle,
             _ => null

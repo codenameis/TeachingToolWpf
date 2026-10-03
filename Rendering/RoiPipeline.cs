@@ -19,7 +19,8 @@ internal sealed class RoiPipeline : IDisposable
     private const int RolesShaderRegister = 1;
     private const int OptionsShaderRegister = 0;
     private const int RegisterSpace = 0;
-    private const int VerticesPerRectangle = 4 * 6;
+    // 사각형은 네 변, 선분/원은 첫 여섯 정점만 사용한다. 하나의 보관 배치로 제출한다.
+    private const int VerticesPerInstance = 4 * 6;
     private const long CacheBudgetBytes = 128L * 1024 * 1024;
     private const int EstimatedSourceRoiBytes = 256;
     private const double ViewportPaddingDip = 8;
@@ -32,14 +33,14 @@ internal sealed class RoiPipeline : IDisposable
         public int GetHashCode((object Identity, int Level) key)
             => HashCode.Combine(RuntimeHelpers.GetHashCode(key.Identity), key.Level);
     }
-    private sealed record Block(ID3D12Resource Buffer, PointD Origin, int Count, int SourceCount, long AllocationBytes, RoiRoleCache Roles) : IDisposable
+    private sealed record Block(ID3D12Resource Buffer, PointD Origin, int Count, int SourceCount, long AllocationBytes, RoiRoleCache Roles, long ShapeBytes) : IDisposable
     {
         public long LastUsed
         {
             get; set;
         }
         public ulong RoleOffset => (ulong)Count * RoiInstance.SizeInBytes;
-        public long CacheCost => AllocationBytes + (long)SourceCount * EstimatedSourceRoiBytes + (long)Count * RoiInstance.RoleSizeInBytes;
+        public long CacheCost => AllocationBytes + (long)SourceCount * EstimatedSourceRoiBytes + (long)Count * RoiInstance.RoleSizeInBytes + ShapeBytes;
         public void Dispose() => Buffer.Dispose();
     }
     private readonly Dx12Device gpu;
@@ -184,7 +185,8 @@ internal sealed class RoiPipeline : IDisposable
             }
             surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
             UploadedBytes += (long)(geometryBytes + roleBytes);
-            return new(buffer, region.Bounds.Center, instances.Length, region.Count, checked((long)allocation), roles);
+            // 키가 유지하는 BVH의 폴리곤 꼭짓점 배열도 CPU 추정치에 포함한다. 공유 배열의 중복 계산은 보수적인 예산이다.
+            return new(buffer, region.Bounds.Center, instances.Length, region.Count, checked((long)allocation), roles, region.ShapeBytes);
         }
         catch
         {
@@ -212,7 +214,7 @@ internal sealed class RoiPipeline : IDisposable
         surface.Commands.SetGraphicsRoot32BitConstants(DrawConstantsRootParameter, RoiDrawConstants.RootConstantCount, &constants, 0);
         surface.Commands.SetGraphicsRootShaderResourceView(GeometryRootParameter, block.Buffer.GPUVirtualAddress);
         surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.Buffer.GPUVirtualAddress + block.RoleOffset);
-        surface.Commands.DrawInstanced(VerticesPerRectangle, (uint)block.Count, 0, 0);
+        surface.Commands.DrawInstanced(VerticesPerInstance, (uint)block.Count, 0, 0);
     }
     public void Dispose()
     {

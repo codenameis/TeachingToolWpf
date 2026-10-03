@@ -17,9 +17,24 @@ public abstract record RoiShape
     public abstract ImmutableArray<PointD> Vertices { get; }
     public virtual double Radius(double width) => 0;
     public virtual bool ContainsLocal(PointD point, double width, double height, double tolerance)
-        => PolygonMath.Contains(Vertices.Select(p => new PointD(p.X * width, p.Y * height)).ToArray(), point, tolerance);
+    {
+        var inside = false;
+        for (var i = 0; i < Vertices.Length; i++)
+        {
+            var first = Vertices[i]; var second = Vertices[(i + 1) % Vertices.Length];
+            var a = new PointD(first.X * width, first.Y * height); var b = new PointD(second.X * width, second.Y * height);
+            if (PolygonMath.Distance(point, a, b) <= Math.Max(1e-10, tolerance)) return true;
+            if ((a.Y > point.Y) != (b.Y > point.Y) &&
+                point.X < a.X + (point.Y - a.Y) * (b.X - a.X) / (b.Y - a.Y)) inside = !inside;
+        }
+        return inside;
+    }
     public virtual double Support(PointD direction, double width, double height)
-        => Vertices.Max(p => p.X * width * direction.X + p.Y * height * direction.Y);
+    {
+        var maximum = double.NegativeInfinity;
+        foreach (var p in Vertices) maximum = Math.Max(maximum, p.X * width * direction.X + p.Y * height * direction.Y);
+        return maximum;
+    }
 
     private sealed record CircleShape : RoiShape
     {
@@ -102,6 +117,10 @@ internal static class PolygonMath
         {
             var next = (i + 1) % points.Count;
             if ((points[i] - points[next]).Length < .000001) throw new ArgumentException("중복 꼭짓점은 사용할 수 없습니다.");
+            var incoming = points[i] - points[(i + points.Count - 1) % points.Count];
+            var outgoing = points[next] - points[i];
+            if (Math.Abs(Cross(incoming, outgoing)) < 1e-12 && incoming.X * outgoing.X + incoming.Y * outgoing.Y <= 0)
+                throw new ArgumentException("폴리곤의 인접한 변이 되접힐 수 없습니다.");
             for (var j = i + 1; j < points.Count; j++)
             {
                 var end = (j + 1) % points.Count;

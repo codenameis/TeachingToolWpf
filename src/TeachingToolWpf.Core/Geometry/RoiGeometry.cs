@@ -25,6 +25,7 @@ public sealed record RoiGeometry
         Height = height;
         Angle = NormalizeAngle(angle);
         Shape = shape ?? RoiShape.Rectangle;
+        if (!double.IsFinite(Area) || Area <= 0) throw new ArgumentException("도형 면적은 유한한 양수여야 합니다.", nameof(shape));
         if (Shape.Kind == RoiShapeKind.Circle && width != height) throw new ArgumentException("원의 너비와 높이는 지름으로 같아야 합니다.");
     }
 
@@ -32,6 +33,7 @@ public sealed record RoiGeometry
         => new(center, width, height, angle, Shape);
     public static RoiGeometry Create(RoiShapeKind kind, PointD center, double width, double height)
     {
+        if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (kind == RoiShapeKind.Circle) return new(center, Math.Min(width, height), Math.Min(width, height), 0, RoiShape.Circle);
         if (kind == RoiShapeKind.Triangle) return new(center, width, height, 0, RoiShape.Triangle);
         if (kind == RoiShapeKind.Polygon)
@@ -61,6 +63,14 @@ public sealed record RoiGeometry
     {
         get
         {
+            if (Radius > 0) return new(Center.X - Radius, Center.Y - Radius, Center.X + Radius, Center.Y + Radius);
+            if (Shape.Kind == RoiShapeKind.Rectangle)
+            {
+                var (sin, cos) = Math.SinCos(Angle * Math.PI / 180);
+                var x = (Width * Math.Abs(cos) + Height * Math.Abs(sin)) / 2;
+                var y = (Width * Math.Abs(sin) + Height * Math.Abs(cos)) / 2;
+                return new(Center.X - x, Center.Y - y, Center.X + x, Center.Y + y);
+            }
             return new(-Support(new(-1, 0)), -Support(new(0, -1)), Support(new(1, 0)), Support(new(0, 1)));
         }
     }

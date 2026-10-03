@@ -5,6 +5,7 @@
                 <TextBlock Text="검사 영역" FontSize="13" FontWeight="SemiBold" Height="56" Padding="0,18,0,0"/>
                 <views:FilterPanel DataContext="{Binding Filters}"/>
                 <StackPanel Visibility="{Binding Properties.HasSingleSelection, Converter={StaticResource BoolVisibility}}">
+                    <TextBlock Text="{Binding Properties.ShapeDescription}" FontWeight="SemiBold" Margin="0,12,0,6"/>
                     <TextBlock Text="이름" Style="{StaticResource Caption}"/>
                     <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.Name, UpdateSourceTrigger=PropertyChanged}" MaxLength="256" AutomationProperties.Name="ROI 이름"/>
                     <Border Height="1" Background="{StaticResource Stroke}" Margin="0,24"/>
@@ -17,7 +18,7 @@
                         <StackPanel><TextBlock Text="너비" Style="{StaticResource Caption}"/><controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.Width, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="ROI 너비"/></StackPanel>
                         <StackPanel Grid.Column="2"><TextBlock Text="높이" Style="{StaticResource Caption}"/><controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.Height, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="ROI 높이"/></StackPanel>
                     </Grid>
-                    <TextBlock Text="원본 이미지 픽셀 기준" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,9,0,0"/>
+                    <TextBlock Text="{Binding Properties.SizeHint}" TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,9,0,0"/>
                     <Border Height="1" Background="{StaticResource Stroke}" Margin="0,24"/>
                     <DockPanel Margin="0,0,0,12"><Button DockPanel.Dock="Right" Tag="{StaticResource ResetIcon}" Command="{Binding ResetAngle}" Style="{StaticResource IconButton}" ToolTip="절대 각도 0°로 초기화" AutomationProperties.Name="0도 초기화"/><TextBlock Text="회전" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
                     <DockPanel><TextBlock DockPanel.Dock="Right" Text="°" VerticalAlignment="Center" Margin="8,0,0,0"/><controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.Angle, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="이미지 기준 회전 각도"/></DockPanel>

@@ -17,7 +17,7 @@ cbuffer Options : register(b0) {
     float4 roleColors[3];
     float4 roleWidths;
 };
-struct Pixel { float4 position : SV_POSITION; float4 color : COLOR; };
+struct Pixel { float4 position : SV_POSITION; float4 color : COLOR; float2 circleOffset : TEXCOORD0; float2 circleStroke : TEXCOORD1; };
 static const uint RectangleEdgeCount = 4;
 static const uint VerticesPerEdge = 6;
 static const uint ParentRole = 2;
@@ -42,9 +42,21 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
     Instance roi = instances[instanceIndex];
     uint role = min(roles[instanceIndex], ParentRole);
     Pixel pixel;
+    pixel.circleOffset = 0;
+    pixel.circleStroke = 0;
     pixel.color = shadowPass != 0 ? shadowColor : roleColors[role];
     float2 screenPosition;
-    if (roi.summary != 0) {
+    if (roi.summary == 3) {
+        if (vertexIndex >= VerticesPerEdge) {
+            pixel.position = float4(2,2,0,1);
+            return pixel;
+        }
+        float radius = length(roi.axisX)*imageScale;
+        float halfWidth = roleWidths[role]*.5;
+        pixel.circleOffset = corners[cornerIndex[vertexIndex]]*(radius+halfWidth+1);
+        pixel.circleStroke = float2(radius, halfWidth);
+        screenPosition = ToScreen(roi.center) + pixel.circleOffset;
+    } else if (roi.summary == 1) {
         if (vertexIndex >= VerticesPerEdge || shadowPass != 0) {
             pixel.position = float4(2,2,0,1);
             return pixel;
@@ -53,12 +65,20 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
         screenPosition = ToScreen(roi.center + roi.axisX*summaryCorner.x + roi.axisY*summaryCorner.y);
         pixel.color.a *= summaryOpacity;
     } else {
+        if (roi.summary == 2 && vertexIndex >= VerticesPerEdge) {
+            pixel.position = float4(2,2,0,1);
+            return pixel;
+        }
         uint edgeIndex = vertexIndex / VerticesPerEdge;
         uint strokeCorner = cornerIndex[vertexIndex % VerticesPerEdge];
         float2 localEdgeStart = corners[edgeIndex];
         float2 localEdgeEnd = corners[(edgeIndex+1)%RectangleEdgeCount];
         float2 edgeStart = ToScreen(roi.center + roi.axisX*localEdgeStart.x + roi.axisY*localEdgeStart.y);
         float2 edgeEnd = ToScreen(roi.center + roi.axisX*localEdgeEnd.x + roi.axisY*localEdgeEnd.y);
+        if (roi.summary == 2) {
+            edgeStart = ToScreen(roi.center);
+            edgeEnd = ToScreen(roi.center + roi.axisX);
+        }
         float2 edgeDirection = edgeEnd-edgeStart;
         float2 halfWidthNormal = float2(-edgeDirection.y,edgeDirection.x)
             * (roleWidths[role]*.5/max(length(edgeDirection),.00001));
@@ -67,4 +87,11 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
     pixel.position = float4(screenPosition*clipScale + float2(-1,1),0,1);
     return pixel;
 }
-float4 PSMain(Pixel pixel) : SV_TARGET { return pixel.color; }
+float4 PSMain(Pixel pixel) : SV_TARGET {
+    if (pixel.circleStroke.x > 0) {
+        float distance = abs(length(pixel.circleOffset)-pixel.circleStroke.x);
+        pixel.color.a *= saturate(pixel.circleStroke.y + .5 - distance);
+        clip(pixel.color.a-.001);
+    }
+    return pixel.color;
+}

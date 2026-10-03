@@ -29,7 +29,7 @@ public sealed class RoiRows : IList, IReadOnlyList<RoiRow>
         {
             var roi = state.Rois[id]; var index = indices[id];
             var count = state.Snapshot.Children.GetValueOrDefault(id, []).Length;
-            items[index] = items[index] with { Label = roi.Name, Kind = roi.IsGroup ? $"그룹 {count}" : count > 0 ? $"부모 {count}" : "ROI" };
+            items[index] = items[index] with { Label = roi.Name, Kind = RoiRow.Describe(roi, count) };
         }
         return true;
     }

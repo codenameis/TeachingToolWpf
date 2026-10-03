@@ -46,7 +46,7 @@ internal sealed class ScenePainter
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
         {
             var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
-            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).FrameCorners.Select(view.ImageToScreen).ToArray(),
+            mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Outline.Select(view.ImageToScreen).ToArray(),
                 style.StrokeThickness(true), style.SelectedColor);
         }
         if (scene.Document.Selection.Count == 1)
@@ -71,8 +71,14 @@ internal sealed class ScenePainter
             var rotation = top + transform.ApplyVector(new PointD(0, -28));
             mesh.Line(white, top, rotation, 1, Accent); RotationHandle(white, rotation, Accent);
         }
-        if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.FrameCorners.Select(view.ImageToScreen).ToArray(),
+        if (scene.Overlay.Draft is { } draft) mesh.Outline(white, draft.Outline.Select(view.ImageToScreen).ToArray(),
             scene.RoiStyles.Default.StrokeThickness(true), scene.RoiStyles.Default.SelectedColor);
+        if (!scene.Overlay.PolygonPoints.IsDefaultOrEmpty)
+        {
+            var points = scene.Overlay.PolygonPoints.Select(view.ImageToScreen).ToArray();
+            for (var i = 1; i < points.Length; i++) mesh.Line(white, points[i - 1], points[i], 1.5, Accent);
+            foreach (var point in points) Handle(white, point, 5, Accent);
+        }
         if (scene.Overlay.Marquee is { } selection)
         {
             mesh.Rectangle(white, selection, Accent with { W = .08f });

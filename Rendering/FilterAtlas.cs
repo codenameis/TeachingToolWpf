@@ -14,14 +14,27 @@ internal static class FilterAtlas
             (p.X + p.Region.Width) / (double)Width, (p.Y + p.Region.Height) / (double)Height);
         public PixelBuffer Pixels()
         {
-            var pixels = new PixelBuffer(Width, Height, PixelKind.Gray8);
+            var masked = Regions.Any(p => p.Region.Mask is not null);
+            var pixels = new PixelBuffer(Width, Height, masked ? PixelKind.Rgba32 : PixelKind.Gray8);
             try
             {
                 pixels.Span.Clear();
                 foreach (var p in Regions)
                     for (var y = 0; y < p.Region.Height; y++)
-                        p.Region.Gray8.AsSpan(y * p.Region.Width, p.Region.Width)
-                            .CopyTo(pixels.Span.Slice((p.Y + y) * pixels.Stride + p.X, p.Region.Width));
+                    {
+                        if (!masked)
+                            p.Region.Gray8.AsSpan(y * p.Region.Width, p.Region.Width)
+                                .CopyTo(pixels.Span.Slice((p.Y + y) * pixels.Stride + p.X, p.Region.Width));
+                        else
+                            for (var x = 0; x < p.Region.Width; x++)
+                            {
+                                var source = y * p.Region.Width + x;
+                                var target = (p.Y + y) * pixels.Stride + (p.X + x) * 4;
+                                var value = p.Region.Gray8[source];
+                                pixels.Span[target] = pixels.Span[target + 1] = pixels.Span[target + 2] = value;
+                                pixels.Span[target + 3] = p.Region.Mask?[source] ?? 255;
+                            }
+                    }
                 return pixels;
             }
             catch { pixels.Dispose(); throw; }
@@ -35,7 +48,8 @@ internal static class FilterAtlas
         foreach (var item in regions.Select((region, index) => (region, index)).OrderByDescending(p => p.region.Height).ThenByDescending(p => p.region.Width))
         {
             var r = item.region;
-            if (r.Width <= 0 || r.Height <= 0 || r.Width > edge - 2 || r.Height > edge - 2 || r.Gray8.Length != checked(r.Width * r.Height))
+            if (r.Width <= 0 || r.Height <= 0 || r.Width > edge - 2 || r.Height > edge - 2 || r.Gray8.Length != checked(r.Width * r.Height)
+                || r.Mask is { } mask && mask.Length != r.Gray8.Length)
                 throw new ArgumentException("필터 atlas 입력 크기가 유효하지 않습니다.", nameof(regions));
             if (x + r.Width + 2 > edge) { x = 0; y += rowHeight; rowHeight = 0; }
             if (y + r.Height + 2 > edge)

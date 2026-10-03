@@ -12,6 +12,9 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
     public const int RoleSizeInBytes = sizeof(uint);
     private const uint RectangleInstance = 0;
     private const uint SummaryInstance = 1;
+    private const uint EdgeInstance = 2;
+    private const uint CircleInstance = 3;
+    private static int InstanceCount(RoiGeometry geometry) => geometry.Shape.Kind is RoiShapeKind.Rectangle or RoiShapeKind.Circle ? 1 : geometry.Shape.Vertices.Length;
 
     public static RoiInstance[] Pack(RoiSpatialBlock block, double aggregateSize)
     {
@@ -25,12 +28,20 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
                 var shape = roi.Geometry;
                 if (!unique.Add(shape))
                     continue;
+                if (shape.Shape.Kind is RoiShapeKind.Triangle or RoiShapeKind.Polygon)
+                {
+                    var points = shape.Outline;
+                    for (var i = 0; i < points.Length; i++)
+                        result.Add(new(Vector(points[i] - origin), Vector(points[(i + 1) % points.Length] - points[i]), default, EdgeInstance));
+                    continue;
+                }
                 var angle = shape.Angle * Math.PI / 180;
                 var cosine = Math.Cos(angle);
                 var sine = Math.Sin(angle);
                 var horizontalAxis = new Vector2((float)(cosine * shape.Width / 2), (float)(sine * shape.Width / 2));
                 var verticalAxis = new Vector2((float)(-sine * shape.Height / 2), (float)(cosine * shape.Height / 2));
-                result.Add(new(Vector(shape.Center - origin), horizontalAxis, verticalAxis, RectangleInstance));
+                result.Add(new(Vector(shape.Center - origin), horizontalAxis, verticalAxis,
+                    shape.Shape.Kind == RoiShapeKind.Circle ? CircleInstance : RectangleInstance));
             }
             else
             {
@@ -57,12 +68,12 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
             if (unique.TryGetValue(roi.Geometry, out var index))
             {
                 // 같은 윤곽에는 부모 > 자식 > 일반 우선순위를 적용한다.
-                result[index] = Math.Max(result[index], role);
+                for (var i = 0; i < InstanceCount(roi.Geometry); i++) result[index + i] = Math.Max(result[index + i], role);
             }
             else
             {
                 unique.Add(roi.Geometry, result.Count);
-                result.Add(role);
+                for (var i = 0; i < InstanceCount(roi.Geometry); i++) result.Add(role);
             }
         }
         return result.ToArray();

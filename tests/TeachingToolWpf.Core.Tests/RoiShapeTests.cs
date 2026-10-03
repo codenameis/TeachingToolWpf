@@ -96,11 +96,62 @@ public class RoiShapeTests
     }
 
     [Fact]
+    public void CircleResizeKeepsOneDiameterAtFractionalCoordinates()
+    {
+        var circle = RoiGeometry.Create(RoiShapeKind.Circle, new(24.39, 75.57), 13.7, 13.7).RotateAround(new(24.39, 75.57), 22.7);
+        for (var handle = 0; handle < 8; handle++)
+            for (var i = 0; i < 100; i++)
+            {
+                var resized = HandleGeometry.Resize(circle, handle, new(i * 1.3789, i * .7917));
+                Assert.Equal(resized.Width, resized.Height);
+            }
+    }
+
+    [Fact]
     public void InvalidPolygonsCannotEnterHistory()
     {
         Assert.Throws<ArgumentException>(() => RoiGeometry.Polygon([new(0, 0), new(10, 10), new(0, 10), new(10, 0)]));
         Assert.Throws<ArgumentException>(() => RoiGeometry.Polygon([new(0, 0), new(10, 0), new(20, 0)]));
         Assert.Throws<ArgumentException>(() => RoiGeometry.Polygon([new(0, 0), new(10, 0), new(10, 0), new(0, 10)]));
         Assert.Throws<ArgumentException>(() => RoiGeometry.Polygon([new(0, 0), new(double.NaN, 0), new(0, 10)]));
+        Assert.Throws<ArgumentException>(() => RoiGeometry.Polygon([new(0, 0), new(10, 0), new(5, 0), new(10, 10), new(0, 10)]));
+    }
+
+    [Fact]
+    public void ConcaveChildCanNestEvenWhenItsFrameCenterIsOutsideTheParent()
+    {
+        var parent = RoiGeometry.Polygon([new(0, 0), new(100, 0), new(100, 100), new(70, 100), new(70, 30), new(30, 30), new(30, 100), new(0, 100)]);
+        var child = RoiGeometry.Polygon([new(5, 5), new(95, 5), new(95, 95), new(75, 95), new(75, 25), new(25, 25), new(25, 95), new(5, 95)]);
+        Assert.False(parent.Contains(child.Center));
+        Assert.True(parent.Contains(child));
+        var editor = new EditorSession();
+        var parentId = editor.Add(parent); var childId = editor.Add(child);
+        Assert.Equal(parentId, editor.State.Rois[childId].ParentId);
+    }
+
+    [Theory]
+    [InlineData(RoiShapeKind.Circle)]
+    [InlineData(RoiShapeKind.Triangle)]
+    [InlineData(RoiShapeKind.Polygon)]
+    public void ShapesStayInsideImageThroughResizeRotationAndPasteToSmallerImage(RoiShapeKind kind)
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("image", "image", 100, 100), ViewportTransform.Identity);
+        var id = editor.Add(RoiGeometry.Create(kind, new(70, 40), 50, 50));
+        var original = editor.State.Rois[id].Geometry;
+        editor.SetGeometry(id, original.WithFrame(new(95, 95), 120, 120, 0));
+        Assert.True(RoiImageBounds.ContainsAll(editor.State));
+        Assert.Equal(kind, editor.State.Rois[id].Geometry.Shape.Kind);
+        editor.Undo();
+        editor.BeginPreview(); editor.PreviewRotation(new(50, 50), 170);
+        var preview = editor.TransformPreview!;
+        Assert.True(RoiImageBounds.Fits(preview.Geometry(editor.State.Rois[id]).Bounds, editor.State.Image!));
+        editor.CancelPreview();
+        Assert.Equal(original, editor.State.Rois[id].Geometry);
+        var clipboard = new RoiClipboard(); clipboard.Copy(editor.State);
+        editor.SetImage(new("smaller", "smaller", 20, 20), ViewportTransform.Identity);
+        editor.Paste(clipboard);
+        Assert.True(RoiImageBounds.ContainsAll(editor.State));
+        Assert.Equal(kind, editor.State.Rois.Values.Single().Geometry.Shape.Kind);
     }
 }

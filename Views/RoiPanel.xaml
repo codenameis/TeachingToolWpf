@@ -22,6 +22,18 @@
         </StackPanel>
         <Border Grid.Row="2" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="12">
             <StackPanel>
+                <TextBlock Text="추가할 도형" FontSize="11" Margin="2,0,0,6"/>
+                <ComboBox ItemsSource="{Binding ShapeOptions}" DisplayMemberPath="Label" SelectedValuePath="Kind"
+                          SelectedValue="{Binding SelectedShape}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="ROI 도형 선택"/>
+                <WrapPanel Margin="0,6,0,0">
+                    <Button Content="ROI 추가" Command="{Binding AddRoi}" ToolTip="선택 도형을 화면 중앙에 추가. 폴리곤 기본값은 오각형입니다."/>
+                    <Button Content="그리기" Command="{Binding DrawTool}" ToolTip="사각형·원·삼각형: 드래그 / 폴리곤: 꼭짓점 클릭"/>
+                </WrapPanel>
+                <WrapPanel Margin="0,4,0,10">
+                    <Button Content="완료" Command="{Binding CompletePolygon}" ToolTip="폴리곤 확정 · Enter · 꼭짓점 3개 이상"/>
+                    <Button Content="점 취소" Command="{Binding RemovePolygonPoint}" ToolTip="마지막 꼭짓점 제거 · Backspace"/>
+                    <Button Content="취소" Command="{Binding CancelPolygon}" ToolTip="폴리곤 그리기 취소 · Esc"/>
+                </WrapPanel>
                 <DockPanel Margin="0,0,0,8">
                     <Button DockPanel.Dock="Left" Content="‹" Command="{Binding PreviousRowPage}" ToolTip="이전 512개 영역" AutomationProperties.Name="이전 ROI 페이지"/>
                     <Button DockPanel.Dock="Right" Content="›" Command="{Binding NextRowPage}" ToolTip="다음 512개 영역" AutomationProperties.Name="다음 ROI 페이지"/>

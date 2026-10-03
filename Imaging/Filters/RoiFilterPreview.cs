@@ -29,7 +29,7 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
                 using var pixels = source is not null ? RoiPixelExtractor.FromTiles(source, geometry, width, height, cancellationToken)
                     : RoiPixelExtractor.FromFrame(frame!.Pixels, geometry, width, height);
                 var bytes = OpenCvRoiFilter.Apply(pixels, source?.Info.Pixels ?? frame!.Pixels.Kind, roi.Filter);
-                output.Add(new(roi.Id, geometry, width, height, bytes));
+                output.Add(new(roi.Id, geometry, width, height, bytes, RoiFilterMask.Create(geometry, width, height, cancellationToken)));
             }
             cancellationToken.ThrowIfCancellationRequested();
             return new FilterPreviewResult(output, watch.Elapsed.TotalMilliseconds);

@@ -4,6 +4,8 @@ namespace TeachingToolWpf.Presentation;
 
 public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
 {
+    internal static string Describe(Roi roi, int children) => roi.IsGroup ? $"그룹 {children}" : children > 0 ? $"부모 {children}"
+        : roi.Geometry.Shape.Kind == Core.Geometry.RoiShapeKind.Rectangle ? "ROI" : roi.Geometry.ShapeName;
     public double IndentWidth => Depth * 12;
     public string IndentedLabel => new string(' ', Depth * 3) + (Depth == 0 ? "▣  " : "└  ") + Label;
     public static IReadOnlyList<RoiRow> Build(DocumentState state, CancellationToken cancellationToken = default)
@@ -18,7 +20,7 @@ public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
         void Add(Roi roi, int depth)
         {
             var count = children[roi.Id].Count();
-            result.Add(new(roi.Id, roi.Name, roi.IsGroup ? $"그룹 {count}" : count > 0 ? $"부모 {count}" : "ROI", depth));
+            result.Add(new(roi.Id, roi.Name, Describe(roi, count), depth));
             foreach (var child in children[roi.Id].OrderBy(r => r.Order))
             {
                 cancellationToken.ThrowIfCancellationRequested();

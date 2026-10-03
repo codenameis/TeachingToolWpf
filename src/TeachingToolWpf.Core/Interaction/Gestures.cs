@@ -77,7 +77,7 @@ internal sealed class DrawGesture(InteractionController controller, PointD start
         var a = RoiImageBounds.Clamp(view.ScreenToImage(start), image);
         var b = RoiImageBounds.Clamp(view.ScreenToImage(screen), image);
         draft = (screen - start).Length < 4 || Math.Abs(a.X - b.X) < .01 || Math.Abs(a.Y - b.Y) < .01 ? null
-            : new((a + b) / 2, Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y), 0);
+            : RoiGeometry.Create(controller.DrawShape, (a + b) / 2, Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
         controller.Show(new(Draft: draft));
     }
     public void Complete()
@@ -102,7 +102,7 @@ internal sealed class MarqueeGesture(InteractionController controller, PointD st
         var a = baseline.Viewport.ScreenToImage(new(bounds.Left, bounds.Top));
         var b = baseline.Viewport.ScreenToImage(new(bounds.Right, bounds.Bottom));
         var ids = baseline.Snapshot.Spatial.Intersecting(new(a.X, a.Y, b.X, b.Y))
-            .Where(r => r.Geometry.FrameCorners.All(p => bounds.Contains(baseline.Viewport.ImageToScreen(p)))).Select(r => r.Id);
+            .Where(r => r.Geometry.Bounds is var box && box.Left >= a.X && box.Top >= a.Y && box.Right <= b.X && box.Bottom <= b.Y).Select(r => r.Id);
         controller.Select(additive ? baseline.Selection.Union(ids) : ids);
     }
     public void Cancel() { }

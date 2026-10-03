@@ -9,6 +9,9 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
     private Guid? id;
     private string name = "", x = "", y = "", width = "", height = "", angle = "", relative = "—";
     public bool HasSingleSelection => id is not null;
+    public string ShapeDescription => id is { } value ? editor.State.Rois[value].Geometry.ShapeName : "";
+    public string SizeHint => id is { } value && editor.State.Rois[value].Geometry.Shape.Kind == RoiShapeKind.Circle
+        ? "원: 너비·높이는 같은 지름으로 적용됩니다." : "원본 이미지 픽셀 기준";
     public string Name { get => name; set => Set(ref name, value); }
     public string X { get => x; set => Set(ref x, value); }
     public string Y { get => y; set => Set(ref y, value); }
@@ -21,6 +24,8 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
     {
         id = editor.State.Selection.Count == 1 ? editor.State.Selection.Single() : null;
         Notify(nameof(HasSingleSelection));
+        Notify(nameof(ShapeDescription));
+        Notify(nameof(SizeHint));
         if (id is not { } value) { Name = X = Y = Width = Height = Angle = ""; RelativeAngle = "—"; return; }
         var roi = editor.State.Rois[value]; var geometry = editor.TransformPreview?.Geometry(roi) ?? roi.Geometry;
         Name = roi.Name; X = Format(geometry.Center.X); Y = Format(geometry.Center.Y);

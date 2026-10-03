@@ -37,7 +37,7 @@ public sealed class RoiSnapshot
         foreach (var id in changedIds)
         {
             var old = oldRois.GetValueOrDefault(id); var next = rois.GetValueOrDefault(id);
-            rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup;
+            rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup || old.Geometry.Shape.Kind != next.Geometry.Shape.Kind;
             if (old?.ParentId != next?.ParentId)
             {
                 topologyChanged = true;
