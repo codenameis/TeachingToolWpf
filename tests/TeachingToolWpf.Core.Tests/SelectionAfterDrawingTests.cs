@@ -62,7 +62,7 @@ public class SelectionAfterDrawingTests
     }
 
     [Fact]
-    public void DrawToolCanBeReactivatedToCreateAContainedChild()
+    public void DrawToolCanBeReactivatedWithAnExplicitParent()
     {
         var editor = new EditorSession();
         var input = new InteractionController(editor) { Tool = EditorTool.Draw };
@@ -71,6 +71,7 @@ public class SelectionAfterDrawingTests
         var parent = Assert.Single(editor.State.Selection);
         Assert.Equal(EditorTool.Select, input.Tool);
 
+        input.DrawParentId = parent;
         input.Tool = EditorTool.Draw;
         input.Down(new(100, 100));
         input.Up(new(150, 150));

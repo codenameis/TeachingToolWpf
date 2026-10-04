@@ -31,12 +31,12 @@ public class RoiShapeTests
     }
 
     [Fact]
-    public void TriangleHitAndHierarchyUseActualShape()
+    public void TriangleHitUsesActualShapeAndDeletionUsesExplicitHierarchy()
     {
         var session = new EditorSession();
         var triangle = session.Add(RoiGeometry.Create(RoiShapeKind.Triangle, new(50, 50), 100, 100));
         var outside = session.Add(new(new(10, 10), 4, 4, 0));
-        var inside = session.Add(RoiGeometry.Create(RoiShapeKind.Circle, new(50, 70), 10, 10));
+        var inside = session.AddChild(triangle, RoiGeometry.Create(RoiShapeKind.Circle, new(50, 70), 10, 10));
         Assert.Null(session.State.Rois[outside].ParentId);
         Assert.Equal(triangle, session.State.Rois[inside].ParentId);
         Assert.Null(session.State.Snapshot.Spatial.HitTest(new(5, 5), 0));
@@ -136,7 +136,7 @@ i++)
         Assert.True(parent.Contains(child));
         var editor = new EditorSession();
         var parentId = editor.Add(parent);
-        var childId = editor.Add(child);
+        var childId = editor.AddChild(parentId, child);
         Assert.Equal(parentId, editor.State.Rois[childId].ParentId);
     }
 

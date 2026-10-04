@@ -9,8 +9,8 @@ public class SpatialBlockTests
     public void LabelDensityChoosesContainingParentWithoutRemovingPreciseRois()
     {
         var editor = new EditorSession();
-        var child = editor.Add(new(new(20, 20), 5, 5, 0));
         var parent = editor.Add(new(new(20, 20), 25, 25, 0));
+        var child = editor.AddChild(parent, new(new(20, 20), 5, 5, 0));
         var index = editor.State.Snapshot.Spatial;
         var candidate = Assert.Single(index.LabelCandidates(index.Bounds, 1, 120, 32));
         Assert.Equal(parent, candidate.Roi!.Id);

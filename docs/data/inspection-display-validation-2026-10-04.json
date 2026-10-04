@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-04",
+  "scope": "패턴 검사 위치·판정색·특징점 표시",
+  "tests": {
+    "status": "PASS",
+    "core": 182,
+    "app": 72,
+    "canvas": 92,
+    "algorithm": 25,
+    "total": 371,
+    "skipped": 0,
+    "log": "artifacts/inspection-all-tests.log"
+  },
+  "formatVerify": "PASS",
+  "publishedRegressionSmoke": { "status": "PASS", "exitCode": 0, "log": "artifacts/inspection-regression-runtime/artifacts/smoke.log" },
+  "releaseBuild": { "status": "PASS", "warnings": 0, "errors": 0 },
+  "selectionRegression": { "before": "FAIL: expected 2 markers, actual 0", "after": "PASS" },
+  "mutation": { "condition": "output.Truncated inverted", "failedTests": 4, "restored": true },
+  "publishedSmoke": {
+    "status": "PASS",
+    "exitCode": 0,
+    "log": "artifacts/inspection-publish-runtime/artifacts/inspection-smoke.log",
+    "image": "artifacts/inspection-publish-runtime/artifacts/inspection-app.png",
+    "adapter": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "vramGiBDisplayed": 5.9,
+    "budgetGiBDisplayed": 5.1,
+    "debug": true,
+    "input": "640x400 synthetic PNG, independent original image reader",
+    "poses": [
+      { "x": 160.000, "y": 160.000, "angleDegrees": 0.000, "scale": 1.0000 },
+      { "x": 420.051, "y": 230.030, "angleDegrees": 19.961, "scale": 1.1991 }
+    ],
+    "realSearchVerdicts": ["Pass: two refined matches", "Fail: empty selected search region"],
+    "featurePixels": { "off": 11805, "on": 15181 },
+    "injectedStylePixels": { "Pass32CD32": 12303, "FailFF6347": 12375, "WarningFFA500": 12364, "ReviewFFD700": 12410 },
+    "styleNote": "All four GPU colors tested by injecting style into real match geometry; warning/review policy tested separately with unit fixtures."
+  },
+  "notRun": ["field accuracy", "8K/24K matching time and memory", "maximum-result-count GPU load", "physical-pointer manual testing"],
+  "notImplemented": ["dimensional tolerance inspection", "expected-count inspection"]
+}

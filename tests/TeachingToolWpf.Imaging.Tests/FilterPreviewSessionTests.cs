@@ -13,7 +13,7 @@ public class FilterPreviewSessionTests
         var editor = new EditorSession();
         editor.InitializeImage(new("sample", "sample", 500, 500), ViewportTransform.Identity);
         var parent = editor.Add(new(new(200, 200), 150, 150, 10));
-        var child = editor.Add(new(new(220, 210), 20, 12, 25));
+        var child = editor.AddChild(parent, new(new(220, 210), 20, 12, 25));
         editor.SetFilters(new(RoiFilterKind.Edge));
         editor.Select([parent]);
         editor.SetFilters(new(RoiFilterKind.Binarize));

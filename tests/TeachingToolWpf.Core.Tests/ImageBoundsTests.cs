@@ -11,7 +11,7 @@ public class ImageBoundsTests
     {
         var editor = Create();
         var parent = editor.Add(new(new(50, 50), 130, 10, 45));
-        var child = editor.Add(new(new(50, 50), 10, 4, 45));
+        var child = editor.AddChild(parent, new(new(50, 50), 10, 4, 45));
         editor.Select([parent]);
         var before = editor.State.Rois[parent].Geometry;
         editor.ResetAngles();

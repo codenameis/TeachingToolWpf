@@ -150,11 +150,11 @@ public class PreparedEditingTests
     }
 
     [Fact]
-    public async Task ParentAndSelectedChildMoveOnceAndReparentOnCommit()
+    public async Task ParentAndSelectedChildMoveOnceWithoutAutomaticReparenting()
     {
         var editor = Create();
         var parent = editor.Add(new(new(200, 300), 200, 200, 10));
-        var child = editor.Add(new(new(210, 300), 30, 20, 15));
+        var child = editor.AddChild(parent, new(new(210, 300), 30, 20, 15));
         var destination = editor.Add(new(new(800, 300), 500, 500, 0));
         var other = editor.Add(new(new(1500, 1200), 20, 20, 0));
         editor.Select([parent, child]);
@@ -173,7 +173,7 @@ public class PreparedEditingTests
         Assert.Equal(view, editor.State.Viewport);
         Assert.Equal(before.Rois[parent].Geometry.Translate(new(600, 0)), editor.State.Rois[parent].Geometry);
         Assert.Equal(before.Rois[child].Geometry.Translate(new(600, 0)), editor.State.Rois[child].Geometry);
-        Assert.Equal(destination, editor.State.Rois[parent].ParentId);
+        Assert.Null(editor.State.Rois[parent].ParentId);
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         Assert.Equal(before.Rois[other], editor.State.Rois[other]);
         var after = editor.State;
@@ -188,7 +188,7 @@ public class PreparedEditingTests
     {
         var editor = Create();
         var child = editor.Add(new(new(300, 300), 100, 100, 0));
-        var grandchild = editor.Add(new(new(300, 300), 20, 20, 25));
+        var grandchild = editor.AddChild(child, new(new(300, 300), 20, 20, 25));
         editor.SetFilters(new(RoiFilterKind.Edge));
         var sibling = editor.Add(new(new(500, 300), 40, 40, 0));
         editor.Select([child, sibling]);

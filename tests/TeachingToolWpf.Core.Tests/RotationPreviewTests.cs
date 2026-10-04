@@ -49,7 +49,7 @@ public class RotationPreviewTests
     {
         var editor = Create();
         var parent = editor.Add(new(new(300, 300), 200, 160, 15));
-        var child = editor.Add(new(new(320, 300), 20, 15, 25));
+        var child = editor.AddChild(parent, new(new(320, 300), 20, 15, 25));
         var other = editor.Add(new(new(800, 800), 25, 20, 0));
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         editor.Select([parent, child]);
@@ -82,12 +82,12 @@ public class RotationPreviewTests
     }
 
     [Fact]
-    public void RotatingOnlyChildReparentsAtCommitAndHistoryRestoresExactValues()
+    public void RotatingOnlyChildPreservesParentAndHistoryRestoresExactValues()
     {
         var editor = Create();
         var first = editor.Add(new(new(400, 500), 80, 80, 0));
         var second = editor.Add(new(new(600, 500), 80, 80, 0));
-        var child = editor.Add(new(new(400, 500), 20, 12, 0));
+        var child = editor.AddChild(first, new(new(400, 500), 20, 12, 0));
         editor.SetFilters(new(RoiFilterKind.Edge));
         editor.Rename(child, "child");
         Assert.Equal(first, editor.State.Rois[child].ParentId);
@@ -97,7 +97,7 @@ public class RotationPreviewTests
         Assert.Equal(first, editor.State.Rois[child].ParentId);
         Near(new(600, 500), editor.TransformPreview!.Geometry(before.Rois[child]).Center);
         editor.CommitPreview("회전");
-        Assert.Equal(second, editor.State.Rois[child].ParentId);
+        Assert.Equal(first, editor.State.Rois[child].ParentId);
         Assert.Equal(before.Rois[first], editor.State.Rois[first]);
         Assert.Equal(before.Rois[second], editor.State.Rois[second]);
         var after = editor.State;

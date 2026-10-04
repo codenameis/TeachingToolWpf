@@ -1,0 +1,226 @@
+using System.Collections.Immutable;
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using TeachingToolWpf.Controls;
+using TeachingToolWpf.Imaging;
+using TeachingToolWpf.Imaging.Matching;
+using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Rendering;
+using TeachingToolWpf.Views;
+
+namespace TeachingToolWpf.Diagnostics;
+
+/// <summary>실제 파일 reader→학습/검사→WPF 바인딩→DX12 캡처를 검증한다.</summary>
+internal static class InspectionSmoke
+{
+    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    {
+        window.ShowInTaskbar = false;
+        window.Left = -10000;
+        window.Top = -10000;
+        window.Width = 1440;
+        window.Height = 960;
+        Directory.CreateDirectory("artifacts");
+        File.WriteAllText("artifacts/inspection-smoke.log", "");
+        var renderErrors = new List<string>();
+        viewport.RendererStatusChanged += status =>
+        {
+            Log(status);
+            if (status.StartsWith("렌더 오류:") || status.StartsWith("D3D12 "))
+            {
+                renderErrors.Add(status);
+            }
+        };
+        window.Loaded += async (_, _) =>
+        {
+            try
+            {
+                var path = Path.GetFullPath("artifacts/inspection-fixture.png");
+                CreateFixture(path);
+                await model.Images.ReplaceAsync(new(path, "", 0, 0, DiskPyramidSource.Version(path)));
+                model.Session.Add(new(new(160, 160), 80, 80, 0));
+                var matching = model.Matching;
+                matching.MinimumAngle = -30;
+                matching.MaximumAngle = 30;
+                matching.AngleStep = 5;
+                matching.EnableScale = true;
+                matching.MinimumScale = 1;
+                matching.MaximumScale = 1.2;
+                var panel = Descendants(window).OfType<ShapeMatchingPanel>().Single();
+                Require(ReferenceEquals(panel.DataContext, matching), "matching panel binding");
+                await Invoke(matching.Train);
+                Require(matching.Model is not null, "real file training: " + matching.Status);
+                await Invoke(matching.Search);
+                Log(matching.Status + Environment.NewLine + matching.Results);
+                Require(matching.Markers.Length == 2, "real two-pattern search");
+                Require(matching.Markers.Any(marker => (marker.ReferencePoint - new Core.Geometry.PointD(420, 230)).Length < .6), "source coordinate pose");
+                var result = matching.Overlay!;
+                var originalState = model.Session.State;
+                var historyBytes = model.Session.HistoryBytes;
+                await Capture("inspection-features-off");
+                var checkbox = Descendants(panel).OfType<CheckBox>().Single(box => Equals(box.Content, "특징점 표시"));
+                checkbox.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+                Require(matching.ShowFeatures && matching.Overlay!.ShowFeatures, "feature checkbox binding");
+                await Capture("inspection-features-on");
+                var off = PixelCounts("artifacts/inspection-features-off.png", result.Color);
+                var on = PixelCounts("artifacts/inspection-features-on.png", result.Color);
+                Require(on > off + 50, $"visible feature pixels: off={off} on={on}");
+                Require(ReferenceEquals(originalState, model.Session.State) && historyBytes == model.Session.HistoryBytes, "display options preserve document/history");
+                model.Session.Select([]);
+                Require(matching.Markers.Length == 2, "selection change preserves results");
+                var locate = Descendants(panel).OfType<Button>().Single(button => ReferenceEquals(button.Command, matching.Locate));
+                Require(locate.IsEnabled, "locate button enabled");
+                locate.Command.Execute(null);
+                Require(matching.Markers.Length == 2 && historyBytes == model.Session.HistoryBytes, "locate changes only viewport");
+                panel.BringIntoView();
+                window.UpdateLayout();
+                await Capture("inspection-located");
+                WindowCapture.Save(window, viewport, "artifacts/inspection-located.png", "artifacts/inspection-app.png");
+
+                // 네 가지 지정색은 동일한 실제 검출 윤곽을 이용해 GPU 출력까지 개별 확인한다.
+                foreach (var verdict in Enum.GetValues<InspectionVerdict>())
+                {
+                    var color = InspectionResultPresentation.Color(verdict);
+                    var displayed = result with
+                    {
+                        Summary = InspectionResultPresentation.Name(verdict) + " · 표시 검증",
+                        Color = color,
+                        ShowFeatures = true,
+                        Matches = result.Matches.Select(marker => marker with { Color = color }).ToImmutableArray()
+                    };
+                    viewport.Submit(new(model.Session.State, model.Images.Image, model.Images.Generation, viewport.ViewWidth, viewport.ViewHeight,
+                        viewport.Dpi, model.Input.Overlay, Inspection: displayed));
+                    var name = "inspection-color-" + verdict;
+                    await Capture(name);
+                    var count = PixelCounts("artifacts/" + name + ".png", color);
+                    Require(count > 200, $"GPU {verdict} pixels: {count}");
+                    Log($"GPU {verdict} {InspectionResultPresentation.Hex(verdict)}: {count} pixels");
+                }
+
+                model.Session.Add(new(new(65, 330), 80, 80, 0));
+                matching.UseSelection = true;
+                await Invoke(matching.Search);
+                Require(matching.Verdict == InspectionVerdict.Fail && matching.Markers.IsEmpty, "real empty region yields NG without fabricated position");
+                model.Fit.Execute(null);
+                await Capture("inspection-no-match");
+                Require(PixelCounts("artifacts/inspection-no-match.png", InspectionResultPresentation.Color(InspectionVerdict.Fail)) > 100, "NG search boundary/banner pixels");
+                Require(renderErrors.Count == 0, string.Join(Environment.NewLine, renderErrors));
+                Log($"PASS: file training/search, 2 poses, feature toggle ({off}→{on}), selection, navigation, four GPU colors, actual no-match, no renderer errors");
+
+                async Task Invoke(AsyncCommand command)
+                {
+                    var button = Descendants(panel).OfType<Button>().Single(item => ReferenceEquals(item.Command, command));
+                    Require(button.IsEnabled, "visible command enabled");
+                    button.Command.Execute(null);
+                    var timer = Stopwatch.StartNew();
+                    while (!matching.IsIdle)
+                    {
+                        Require(timer.Elapsed < TimeSpan.FromSeconds(40), "inspection command timeout");
+                        await Task.Delay(50);
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                Log(error.ToString());
+                Environment.ExitCode = 1;
+            }
+            finally
+            {
+                window.Close();
+            }
+        };
+
+        async Task Capture(string name)
+        {
+            await Task.Delay(350);
+            var path = "artifacts/" + name + ".png";
+            viewport.Capture(path);
+            var timer = Stopwatch.StartNew();
+            while (!File.Exists(path))
+            {
+                Require(timer.Elapsed < TimeSpan.FromSeconds(10), "capture timeout: " + name);
+                await Task.Delay(50);
+            }
+            await Task.Delay(100);
+        }
+    }
+
+    private static int PixelCounts(string path, System.Numerics.Vector4 color)
+    {
+        using var stream = File.OpenRead(path);
+        var bitmap = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+        var converted = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
+        var pixels = new byte[converted.PixelWidth * converted.PixelHeight * 4];
+        converted.CopyPixels(pixels, converted.PixelWidth * 4, 0);
+        var count = 0;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            if (Math.Abs(pixels[index] - (color.Z * 255)) < 2 && Math.Abs(pixels[index + 1] - (color.Y * 255)) < 2 &&
+                Math.Abs(pixels[index + 2] - (color.X * 255)) < 2)
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static void CreateFixture(string path)
+    {
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen())
+        {
+            drawing.DrawRectangle(new SolidColorBrush(Color.FromRgb(25, 25, 25)), null, new(0, 0, 640, 400));
+            Pattern(160, 160, 0, 1);
+            Pattern(420, 230, 20, 1.2);
+            void Pattern(double x, double y, double angle, double scale)
+            {
+                drawing.PushTransform(new TranslateTransform(x, y));
+                drawing.PushTransform(new RotateTransform(angle));
+                drawing.PushTransform(new ScaleTransform(scale, scale));
+                drawing.DrawRectangle(Brushes.LightGray, null, new(-26, -30, 12, 56));
+                drawing.DrawRectangle(Brushes.LightGray, null, new(-14, 14, 42, 12));
+                drawing.DrawRectangle(Brushes.LightGray, null, new(-14, -30, 32, 10));
+                drawing.DrawEllipse(Brushes.LightGray, null, new(14, -4), 7, 7);
+                drawing.Pop();
+                drawing.Pop();
+                drawing.Pop();
+            }
+        }
+        var bitmap = new RenderTargetBitmap(640, 400, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            yield return child;
+            foreach (var descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private static void Require(bool condition, string message)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException("Inspection smoke: " + message);
+        }
+    }
+
+    private static void Log(string message) => File.AppendAllText("artifacts/inspection-smoke.log", message + Environment.NewLine);
+}

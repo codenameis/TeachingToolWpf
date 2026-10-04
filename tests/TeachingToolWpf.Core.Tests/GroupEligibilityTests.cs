@@ -10,9 +10,9 @@ public class GroupEligibilityTests
     {
         var editor = new EditorSession();
         var parent = editor.Add(new(new(300, 300), 300, 300, 0));
-        var middle = editor.Add(new(new(300, 300), 100, 100, 0));
-        var child = editor.Add(new(new(300, 300), 20, 20, 0));
-        var sibling = editor.Add(new(new(380, 300), 20, 20, 0));
+        var middle = editor.AddChild(parent, new(new(300, 300), 100, 100, 0));
+        var child = editor.AddChild(middle, new(new(300, 300), 20, 20, 0));
+        var sibling = editor.AddChild(parent, new(new(380, 300), 20, 20, 0));
 
         editor.Select([]);
         Assert.False(editor.State.SelectionFacts.HasMultipleRoots);

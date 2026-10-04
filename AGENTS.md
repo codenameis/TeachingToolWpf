@@ -10,7 +10,11 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 2026-10-02 현재 사용자 구현 요청에 따라 DX12 렌더러, ROI 편집/계층/이력, 타일 파일 읽기, 8K 합성 영상과 테스트를 구현했다. 실행법은 [README](README.md), 실측과 미검증 범위는 [런타임 검증](docs/runtime-validation.md)과 [성능 기록](docs/performance-baseline.md)을 따른다. 계획서의 목표 수치를 달성 결과로 표현하지 않는다.
 
+2026-10-04 추가된 `VisionAlgorithm`과 패턴 티칭·검사는 [구현 계획](tasks/pattern-matching-plan.md), [ADR-013](docs/decisions/0013-vision-algorithm-and-inspection.md), [진행 상태](tasks/todo.md)를 따른다. 사용자는 PoseMatch-TDCM의 딥러닝 사용을 확인한 뒤 **딥러닝 제외·전통적 패턴 매칭으로 변경**했다. 이전 요청을 근거로 Python·PyTorch·TorchSharp·ONNX Runtime·학습 가중치를 추가하지 않는다. 구현과 검증의 완료 여부는 작업 목록의 `PASS/FAIL/NOT_RUN/BLOCKED` 증거로 판단하고, 합성 성능을 현장 검출률로 표현하지 않는다.
+
 ## 작업 원칙
+
+2026-10-04 검사 표시 후속: [ADR-015](docs/decisions/0015-inspection-result-display.md)를 따른다. 정상 LimeGreen, 불량 Tomato, 경고 Orange, 사용자 확인 Gold다. 불완전 검색·취소·오류를 제품 NG로 판정하지 않는다. 전체 이미지 검사 결과는 단순 ROI 선택·탐색 후 유지하고 검사 입력 변경과 새 실행에서 무효화한다. 특징점 옵션은 모델 윤곽점을 검출 pose로 변환해 표시하는 기능이며 측정 대응점으로 표현하지 않는다. Canvas에는 판정 정책/공급자 의존성을 추가하지 않는다.
 
 - 사용자와의 설명 및 프로젝트 문서는 한국어, 코드의 식별자는 영어를 사용한다.
 - 먼저 이 파일, `tasks/plan.md`, `tasks/todo.md`와 수정할 코드 주변을 읽는다. 사용자 변경과 완료되지 않은 작업을 보존한다.
@@ -61,11 +65,27 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - C# / .NET 10 / WPF / Windows x64를 유지한다. DX12 하드웨어 지원은 시작 시 검사한다.
 - 1차 렌더러는 Direct3D 12 + DXGI flip-model swap chain + `HwndHost`가 소유한 전용 자식 HWND다.
 - DX12 바인딩/셰이더 컴파일은 Vortice 3.8.3, 파일 디코드는 NetVips 3.2.0 및 Native.win-x64 8.18.6으로 고정한다. 네이티브 의존성/배포 고지는 `THIRD-PARTY-NOTICES.md`를 따른다.
-- ROI 미리보기는 OpenCvSharp4 및 Windows slim runtime 4.13.0.20260627을 사용한다. OpenCV 타입은 `Imaging/Filters` 안에 격리하고 Core에 추가하지 않는다.
+- ROI 미리보기는 OpenCvSharp4 및 Windows slim runtime 4.13.0.20260627을 사용한다. 기존 미리보기의 OpenCV 타입은 `Imaging/Filters` 안에 격리한다. 현재 `VisionAlgorithm`은 순수 C# Gray8 입력을 사용하고 OpenCV 참조가 없다. 향후 OpenCV 알고리즘 경로를 추가한다면 Mat은 `VisionAlgorithm/OpenSrc/PatternMatching/Imaging` 내부에만 두고 공개 계약·Core·WPF ViewModel·검사 입력 adapter에 노출하지 않는다.
 - WPF는 툴바·ROI 트리·속성 패널을 담당한다. 이미지, ROI, 선택 핸들, 마퀴, 각도 표시, 부모 이름표는 같은 GPU 뷰포트에서 그린다.
 - `D3DImage`에 DX12 텍스처를 직접 연결할 수 있다고 가정하지 않는다. `HwndHost` 위에 WPF `Canvas`, `Adorner`, 반투명 패널을 겹치는 설계도 사용하지 않는다.
 - Vulkan 전환은 실제 대상 장비에서의 재현 가능한 비교 또는 플랫폼 요구 변경에 근거한다. 추측으로 두 렌더러를 동시에 구현하지 않는다.
 - WPF와 DX12 타입이 없는 Core를 두어 좌표·ROI·계층·선택 로직을 GPU 없이 검증한다. 사용처 없는 범용 엔진이나 플러그인 시스템은 만들지 않는다.
+
+## VisionAlgorithm과 검사 확장 지침
+
+다음은 2026-10-04 매칭 구현과 앱 연결의 경계다. 미완료 비교 경로 및 실측 범위는 `tasks/todo.md`와 `tasks/pattern-matching-plan.md`를 따른다.
+
+- 프로젝트 이름은 `VisionAlgorithm`, 경로는 `src/VisionAlgorithm`이다. `TeachingToolWpf`가 명시적으로 참조한다. `Cognex`, `Halcon`, `OpenSrc/PatternMatching` 폴더로 공급자 경계를 나누고, 실제 사용 전에는 상용 SDK 의존성이나 실행 가능한 가짜 공급자를 넣지 않는다.
+- VisionAlgorithm은 WPF·DX12·TeachingToolWpf·Core를 참조하지 않는다. Core와 향후 VisionCanvas에도 알고리즘/공급자 참조를 추가하지 않는다. 앱 조립 지점과 typed 어댑터가 이미지·ROI·알고리즘을 연결한다.
+- CPU의 전통적 C# 매칭이 대상이다. 현재 주력 경로는 방향 응답맵 기반 피라미드 후보 검색→연속 gradient 방향 검증→robust point-to-line 정밀화다. 검색 범위는 학습 ROI 기준 회전 편차로 만들고 반환각은 원본 이미지 기준 절대각으로 둔다. E1/FDCM 착안, E2/FNM 착안, E3/BOLD는 OpenSrc/Comparisons의 별도 CPU 비교 경로이며 앱 기본 검사에 모두 결합하지 않는다. 실제 현장 데이터 없이 상용 shape matcher와 동등한 성능/정확도를 주장하지 않는다.
+- 비교 경로의 알고리즘·용량 제한은 `src/VisionAlgorithm/OpenSrc/Comparisons/README.md`에 둔다. BOLD는 최대 262,144 pixel을 처리하는 비교기이며 8K/24K 원본 요구를 충족한 것으로 간주하지 않는다. 비교 benchmark도 실촬영 성능 근거로 사용하지 않는다.
+- 검사에는 원본 기준의 해상도·명암 정책·도형 마스크·crop/scale 변환을 명시한다. 화면 캡처, 표시 LOD, 기존 1024px/5Hz 필터 미리보기로 검사 입력을 대체하지 않는다. 마스크 밖 픽셀과 padding을 유효 대상으로 계산하지 않는다.
+- 등록 템플릿/검색 조건은 앱의 독립 레시피다. ROI에는 실행 객체·검사 결과를 넣지 않는다. 수동 이미지 교체의 ROI/선택 초기화·실패 원자성을 유지하면서 등록 템플릿은 보존한다. 검색 영역이 새 이미지 밖이면 실행을 막고 자동 스케일하지 않는다.
+- ROI와 레시피 편집은 앱에서 하나의 원자적 이력 순서를 사용한다. 템플릿 자산 참조/메모리 예산도 관리하고, 두 개의 독립 Undo 스택을 이벤트로 뒤늦게 동기화하지 않는다. 검사 실행·결과는 편집 이력에 쌓지 않는다.
+- 결과는 source generation/frame ID/recipe revision/template version/run ID와 함께 검증해 게시한다. 오류·취소·오래된 결과·불완전 검색을 OK 또는 제품 NG로 위장하지 않는다. 라이브 검사 드롭과 표시 드롭은 구별한다.
+- renderer가 소유한 `ITileSource`를 검사 worker에서 동시 읽기/해제하지 않는다. 독립 reader lease 또는 소유자가 직렬화한 요청으로 읽고, native 호출 종료 전에 모델/버퍼를 반환하지 않는다. 단일 실행+최신 대기 하나와 작업 메모리 예산을 지킨다.
+- 오른쪽 패널은 영역/패턴 티칭/검사/결과의 책임을 분리한다. 기존 편집/필터/표시 기능을 보존하고 결과는 DX12의 공급자 비의존 overlay로 표시한다. MainWindow와 EditorViewModel에 검색/판정/자원 수명을 몰아넣지 않는다.
+- 2026-10-04 사용자 요청으로 `src/VisionCanvas`를 분리했다. HWND 입력·DX12·셰이더·영상/타일·필터 표시와 좁은 viewport 계약을 소유하고 Core만 참조한다. 앱은 `src/TeachingToolWpf`, 검사·공급자 UI는 앱에 남긴다. 기존 namespace는 호환성을 위해 유지하며 프로젝트 경계는 참조 그래프로 검증한다. [ADR-014](docs/decisions/0014-canvas-and-explicit-hierarchy.md)를 따른다.
 
 ## 좌표와 ROI 불변 조건
 
@@ -74,10 +94,10 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - ROI를 사각형으로 가정하지 않는다. 사각형·원·삼각형·단순 폴리곤을 지원한다. 공통 `RoiGeometry`는 중심·양수 너비/높이·각도와 불변 `RoiShape`를 보유한다. 원은 두 축이 같은 지름이며, 폴리곤은 오목 형상을 허용하되 자기 교차·중복 점·0 면적을 거부한다. [ADR-012](docs/decisions/0012-roi-shapes.md)를 따른다.
 - 회전은 시계 방향 양수, 표시 범위는 `[0, 360)`도다. 기본 각도 필드와 0도 초기화는 **이미지 기준 절대 각도**다. 부모 기준 상대 각도는 별도 필드로 표시한다.
 - 포함 판정에 편집 프레임/AABB를 실제 윤곽으로 사용하지 않는다. 원은 반지름·경계 거리, 폴리곤은 꼭짓점과 변 전체의 포함을 검사한다. 오목 부모의 홈을 가로지르는 자식 변을 거부한다. 원의 렌더용 근사 점을 정확한 포함·회전 경계 판정에 사용하지 않는다.
-- 완전 포함하는 후보 중 면적이 가장 작은 ROI를 직접 부모로 한다. 같은 크기의 일치 ROI는 서로 부모가 될 수 없다. 동률은 안정적인 ID로 결정한다.
-- 형상의 기준 저장값은 이미지 좌표의 `double`이다. 관계 변경 시 도형 종류·위치·크기·방향·정규화 꼭짓점을 보존한다. 순환·자기 참조를 금지하며 생성·삭제·변형 확정 시 관계를 재평가한다. 계층의 후보 검색은 BVH, 최종 판정은 실제 도형이다.
+- **계층은 명시적 ParentId로 관리한다.** 부모 추가/그리기는 독립 루트, 자식 추가/그리기는 선택한 ROI 하나에 연결한다. 위치·겹침·포함으로 부모를 추론하지 않는다. 자식은 부모 밖에서도 관계를 유지하며 이미지 경계만 제한한다.
+- 형상의 기준 저장값은 이미지 좌표의 double이다. 생성 시 명시적 부모를 지정하고 기존 ID를 새 자식의 부모로 사용해 순환·자기 참조를 막는다. 이동·회전·resize·속성·붙여넣기에서 자동 재부모화하지 않는다. BVH는 공간 조회·hit·표시에 사용한다.
 - 부모 이동·회전은 하위 ROI에 한 번만 적용한다. 부모 크기 조절은 초안대로 자식 크기와 부모 기준 상대 위치를 유지하며, 핸들 조절로 이동한 부모 중심의 변위는 자식에도 적용한다.
-- 부모 크기 조절 또는 자식 편집 후 완전 포함이 깨지면 확정 시 다른 유효 부모 또는 루트로 재배치한다. 드래그 도중 부모를 매번 바꾸지 않는다.
+- 부모 크기 조절 또는 자식 편집 후에도 ParentId를 유지한다. 자손은 부모 밖에 있을 수 있으므로 변형 경계와 그룹 외곽은 전체 명시적 하위 트리를 고려한다.
 - 다중 선택 변형은 선택된 조상이 없는 선택 ROI를 대상으로 한다. 선택된 부모와 자식을 중복 변형하지 않는다.
 - **부모 삭제는 선택 여부와 관계없이 모든 하위 자손을 함께 삭제한다.** 선택된 조상이 없는 선택 ROI를 삭제 루트로 삼아 하위 집합을 중복 없이 계산한다. 관계 없는 ROI는 삭제하지 않는다. 전체 삭제는 하나의 원자적 명령이며 Undo로 전체 하위 트리·ID·형상·이름·선택 상태가 복원되어야 한다.
 - 한 번의 사용자 편집은 하나의 취소 가능한 트랜잭션이다. `Escape` 또는 포인터 캡처 상실 시 시작 상태로 복원한다.
@@ -99,14 +119,14 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - `이동` 버튼은 좌클릭 드래그를 pan으로 바꾸는 도구다. `ROI 추가`는 보이는 이미지 중앙에 즉시 생성하고, 별도의 `ROI 그리기` 도구(R)는 드래그로 범위를 지정한다. 활성 도구를 표시한다.
 - ROI 그리기는 한 개를 성공적으로 생성한 뒤 선택 도구로 자동 복귀해 기존 ROI를 바로 클릭할 수 있게 한다. 추가 그리기는 R 또는 버튼으로 시작한다. 취소·빈 드래그·생성 실패 시에는 도구를 자동 전환하지 않는다.
 - 왼쪽 도형 선택을 즉시 추가/그리기 모두에 적용한다. 폴리곤 즉시 추가는 오각형, 그리기는 꼭짓점 클릭 후 완료 버튼/Enter/첫 점 클릭으로 확정한다. 점 취소/Backspace와 취소/Escape를 제공한다. 초안 점들은 이력을 만들지 않으며 유효 도형 확정 한 번만 기록한다.
-- 복사/붙여넣기는 버튼과 Ctrl+C/Ctrl+V를 제공한다. 앱 내부 클립보드는 선택된 조상이 없는 선택 ROI와 전체 자손의 값만 보관한다. 새 ID·필터 설정·그룹 메타데이터를 복제하고 이미지 경계에 맞춰 이동/필요시 집합 균일 축소한 뒤 포함 관계를 재평가한다. 붙여넣기 한 번은 한 명령이다. Del은 연쇄 삭제이며 텍스트 입력 중에는 텍스트 편집 단축키를 보존한다. 상세 계약은 [ADR-005](docs/decisions/0005-filter-registration-and-roi-copy.md)를 따른다.
+- 복사/붙여넣기는 버튼과 Ctrl+C/Ctrl+V를 제공한다. 앱 내부 클립보드는 선택된 조상이 없는 선택 ROI와 전체 자손의 값만 보관한다. 새 ID·필터 설정·그룹 메타데이터를 복제하고 이미지 경계에 맞춰 이동/필요시 집합 균일 축소한 뒤 명시적 내부 관계를 보존한다. 복사한 내부 ParentId는 새 ID로 매핑하고 복사 루트는 독립 루트로 둔다. 붙여넣기 한 번은 한 명령이다. Del은 연쇄 삭제이며 텍스트 입력 중에는 텍스트 편집 단축키를 보존한다. 상세 계약은 [ADR-005](docs/decisions/0005-filter-registration-and-roi-copy.md)를 따른다.
 - 대량 붙여넣기는 불변 스냅샷에서 작업 스레드로 준비하고 현재 문서/이미지/순서의 유효성을 검사한 뒤 UI에서 한 명령으로 확정한다. 준비 중 pan/zoom은 보존하고 Esc 취소·실패·오래된 결과는 이력을 바꾸지 않는다. UI 명령 반환 시간과 전체 완료 시간·Dispatcher 지연을 구별한다. [ADR-007](docs/decisions/0007-bulk-paste-and-minimap.md)을 따른다.
 - 대량 편집·선택·이력 준비는 앱에서 한 번에 하나만 수행하고, immutable prepare → UI validate → publish 경계를 지킨다. 문서/선택/preview revision·epoch, history identity/revision/cursor, clipboard 내용/붙여넣기 번호/ROI 순서를 검사한다. 준비 중 탐색은 허용하며 ROI-only 이력은 현재 뷰, 이미지 이력은 기록 뷰를 유지한다. source 교체는 기존 라이브 종료 직전까지만 취소하고 종료 시작 후 late-cancel은 준비된 교체를 완료한다. [ADR-009](docs/decisions/0009-responsive-bulk-editing.md)을 따른다.
 - 미니맵은 GPU 뷰포트 우하단에서 전체 이미지와 현재 가시 영역을 표시하며 클릭/드래그 탐색을 제공한다. 입력/표시가 Core의 DIP 레이아웃을 공유하고 ROI·선택·배율·이력을 보존한다. Esc/캡처 상실/resize 시 드래그를 취소한다. 정적 최저 해상도 타일을 재사용하고 라이브 개요는 최대 2Hz로 갱신한다. WPF 오버레이로 구현하지 않는다.
 - 버튼·단축키·포인터는 같은 응용 명령과 편집 이력을 사용한다. `CanExecute`, 활성 도구, 선택 개수, 현재 배율, 로딩 상태를 모델과 동기화하고 실행 불가 이유를 툴팁/상태 문구로 제공한다. 단순 뷰 이동은 편집 이력에 넣지 않는다.
 - **그룹화는 선택 ROI들을 감싸는 새 부모 ROI를 생성한다.** 선택 집합을 저장하는 별도 논리 그룹을 만들지 않는다. 새 부모도 기존 ROI와 같은 형상·이름표·포함 판정·변형·삭제 규칙을 따른다. 구체적 계약은 [ADR-002](docs/decisions/0002-toolbar-and-parent-grouping.md)와 계획서에 둔다.
-- 새 그룹 부모는 선택한 ROI의 실제 윤곽 경계(원은 정확한 극점)를 감싸는 0도 사각형에 이미지 좌표 여백을 더해 만든다. 그룹화 전에 중복 선택된 자손을 정리하고 기존 완전 포함 규칙으로 최종 계층을 검증한다. 수동으로 부정확한 부모 관계를 강제하지 않는다.
-- 새 부모가 선택되지 않은 ROI도 완전히 포함하면 기존 규칙에 따라 관계를 반영하고 결과에 알린다. 기존 계층 때문에 모든 선택 ROI가 새 부모 아래에 들어갈 수 없으면 상태/이력을 바꾸지 않고 해당 기존 부모 선택이 필요함을 안내한다.
+- 새 그룹 부모는 유효 선택 루트와 전체 자손의 실제 윤곽 경계를 감싸는 0도 사각형이다. 선택 루트만 새 부모에 연결하고 선택되지 않은 독립 ROI는 겹쳐도 연결하지 않는다.
+- 그룹 대상 루트의 기존 부모가 같으면 그 아래 새 그룹을 두고, 서로 다르면 새 그룹을 루트로 둔다. 그룹 해제는 제거하지 않은 가장 가까운 조상으로 연결한다. 그룹화 이전 관계의 정확한 복원은 Undo가 담당한다.
 - `그룹 해제`는 그룹화로 만든 부모만 제거하고 자손의 이미지 기준 형상을 유지한 채 재부모화한다. `삭제`는 같은 부모를 대상으로 하더라도 **모든 자손을 연쇄 삭제**한다. 서로 다른 명령·레이블·설명으로 제공한다.
 - 그룹화/해제는 각각 한 번의 Undo/Redo로 생성 부모·기존 관계·이름·선택을 복원한다. 그룹화로 만든 부모인지 나타내는 메타데이터도 이력에 포함한다.
 
@@ -171,7 +191,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 구조 및 명령
 
-앱 프로젝트는 루트 `TeachingToolWpf.csproj`다. `Presentation/`, `Controls/`, `Rendering/`, `Imaging/`, 순수 Core, 테스트 2개와 CPU 벤치마크를 분리했다. **루트 SDK 프로젝트의 재귀 파일 포함에서 `src/`, `tests/`, `benchmarks/`, `.packages/`, `artifacts/`를 제외**한다.
+앱 프로젝트는 `src/TeachingToolWpf/TeachingToolWpf.csproj`다. `src/VisionCanvas`는 캔버스, `src/TeachingToolWpf.Core`는 순수 기하·계층·이력, `src/VisionAlgorithm`은 알고리즘이다. 각 프로젝트는 자기 폴더의 파일만 컴파일한다. `tests`의 4개 프로젝트와 `benchmarks`의 2개 프로젝트는 솔루션의 같은 이름 폴더로 묶는다.
 
 현재 프로젝트의 명령:
 
@@ -179,7 +199,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 dotnet restore .\TeachingToolWpf.slnx
 dotnet build .\TeachingToolWpf.slnx -c Debug --no-restore
 dotnet build .\TeachingToolWpf.slnx -c Release --no-restore
-dotnet run --project .\TeachingToolWpf.csproj -c Release
+dotnet run --project .\src\TeachingToolWpf\TeachingToolWpf.csproj -c Release
 ```
 
 테스트/CPU 측정 명령:

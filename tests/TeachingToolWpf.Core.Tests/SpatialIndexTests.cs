@@ -28,7 +28,7 @@ public class SpatialIndexTests
     }
 
     [Fact]
-    public void IncrementalEditingMatchesFullHierarchyAndUndoRestoresIndexedGeometry()
+    public void IncrementalEditingPreservesExplicitHierarchyAndIndexedGeometry()
     {
         var editor = new EditorSession();
         var random = new Random(53);
@@ -43,8 +43,7 @@ i++)
             var before = editor.State;
             editor.TranslateSelection(new(random.Next(-100, 100), random.Next(-100, 100)));
             var after = editor.State;
-            var expected = RoiHierarchy.Rebuild(after.Rois);
-            Assert.All(after.Rois.Values, roi => Assert.Equal(expected[roi.Id].ParentId, roi.ParentId));
+            Assert.All(after.Rois.Values, roi => Assert.Equal(before.Rois[roi.Id].ParentId, roi.ParentId));
             editor.Undo();
             Assert.Equal(before.Rois[id], editor.State.Rois[id]);
             Assert.Contains(id, editor.State.Snapshot.Spatial.At(before.Rois[id].Geometry.Center).Select(r => r.Id));
@@ -111,16 +110,20 @@ i++)
     }
 
     [Fact]
-    public void IndexedHierarchyMatchesExhaustiveRotatedContainment()
+    public void IndexedContainmentMatchesExhaustiveGeometryWithoutChangingParents()
     {
         var random = new Random(123);
         var rois = Enumerable.Range(0, 300).Select(i => new Roi(Guid.NewGuid(), $"R{i}",
             new(new(random.Next(1000), random.Next(1000)), random.Next(10, 700), random.Next(10, 700), random.Next(360)), null, false, i)).ToImmutableDictionary(r => r.Id);
-        var hierarchy = RoiHierarchy.Rebuild(rois);
+        var index = new RoiSpatialIndex(rois.Values);
         foreach (var child in rois.Values)
         {
             var expected = rois.Values.Where(candidate => candidate.Geometry.Contains(child.Geometry)).OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id).FirstOrDefault()?.Id;
-            Assert.Equal(expected, hierarchy[child.Id].ParentId);
+            var actual = index.At(child.Geometry.ContainmentAnchor, child.Geometry.Area)
+                .Where(candidate => candidate.Geometry.Contains(child.Geometry))
+                .OrderBy(r => r.Geometry.Area).ThenBy(r => r.Id).FirstOrDefault()?.Id;
+            Assert.Equal(expected, actual);
+            Assert.Null(child.ParentId);
         }
     }
 

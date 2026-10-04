@@ -16,7 +16,7 @@ public class HistoryAndHierarchyTests
         var b = editor.Add(new(new(100, 0), 20, 20, 0));
         editor.Add(new(new(500, 500), 20, 20, 0));
         editor.Undo();
-        editor.Select([a, b]);
+        editor.Select([a]);
         var before = editor.State;
         Assert.Throws<InvalidOperationException>(() => editor.GroupSelection());
         Assert.Same(before, editor.State);
@@ -24,11 +24,11 @@ public class HistoryAndHierarchyTests
     }
 
     [Fact]
-    public void ParentResizePreservesChildSizeAndRelativePositionAndReparentsOnCommit()
+    public void ParentResizePreservesChildSizeRelativePositionAndExplicitParent()
     {
         var editor = new EditorSession();
         var parent = editor.Add(new(new(100, 100), 100, 100, 0));
-        var child = editor.Add(new(new(75, 75), 20, 20, 0));
+        var child = editor.AddChild(parent, new(new(75, 75), 20, 20, 0));
         var shape = editor.State.Rois[child].Geometry;
         editor.Select([parent]);
         editor.BeginPreview();
@@ -36,7 +36,7 @@ public class HistoryAndHierarchyTests
         Assert.Equal(shape.Translate(new(25, 25)), editor.State.Rois[child].Geometry);
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         editor.CommitPreview("resize");
-        Assert.Null(editor.State.Rois[child].ParentId);
+        Assert.Equal(parent, editor.State.Rois[child].ParentId);
         editor.Undo();
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         Assert.Equal(shape, editor.State.Rois[child].Geometry);

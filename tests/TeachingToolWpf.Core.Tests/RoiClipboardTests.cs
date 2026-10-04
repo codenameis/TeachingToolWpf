@@ -17,7 +17,7 @@ public class RoiClipboardTests
     {
         var editor = Create();
         var parent = editor.Add(new(new(200, 200), 100, 100, 30));
-        var child = editor.Add(new(new(200, 200), 20, 20, 30));
+        var child = editor.AddChild(parent, new(new(200, 200), 20, 20, 30));
         editor.SetFilters(new(RoiFilterKind.Edge));
         editor.Select([parent, child]);
         var clipboard = new RoiClipboard();

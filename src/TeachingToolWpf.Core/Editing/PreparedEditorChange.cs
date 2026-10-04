@@ -68,7 +68,7 @@ public sealed partial class EditorSession
             {
                 Selection = before.Selection.Except(ids)
             };
-        }, false, token);
+        }, token);
 
     public Task<PreparedEditorChange> PrepareSelectAllAsync(CancellationToken token = default)
         => PrepareChangeAsync(null, before => before.Selection.Count == before.Rois.Count ? before
@@ -79,7 +79,7 @@ public sealed partial class EditorSession
         token.ThrowIfCancellationRequested();
         return id;
     }).ToImmutableHashSet()
-            }, false, token);
+            }, token);
 
     public Task<PreparedEditorChange> PrepareSelectionAsync(IEnumerable<Guid> ids, CancellationToken token = default)
         => PrepareChangeAsync(null, before =>
@@ -93,7 +93,7 @@ public sealed partial class EditorSession
             {
                 Selection = selection
             };
-        }, false, token);
+        }, token);
 
     public Task<PreparedEditorChange> PrepareTranslationAsync(PointD delta, CancellationToken token = default)
         => PrepareChangeAsync("ROI 이동", before =>
@@ -101,8 +101,8 @@ public sealed partial class EditorSession
             var selection = before.TransformSelection;
             var transform = new RigidTransform2D(default, 0, selection.Constrain(delta));
             var next = selection.Apply(transform, token);
-            return selection.PreservesHierarchy(transform) ? next : RoiHierarchy.Rebuild(before, next, token);
-        }, false, token);
+            return next;
+        }, token);
 
     public Task<PreparedEditorChange> PrepareRotationAsync(double delta, PointD pivot, CancellationToken token = default)
         => PrepareChangeAsync("ROI 회전", before =>
@@ -110,8 +110,8 @@ public sealed partial class EditorSession
             var selection = before.TransformSelection;
             var transform = new RigidTransform2D(pivot, selection.RotationLimits(pivot).Clamp(delta));
             var next = selection.Apply(transform, token);
-            return selection.PreservesHierarchy(transform) ? next : RoiHierarchy.Rebuild(before, next, token);
-        }, false, token);
+            return next;
+        }, token);
 
     public Task<PreparedEditorChange> PreparePreviewAsync(string name, CancellationToken token = default)
     {
@@ -119,11 +119,11 @@ public sealed partial class EditorSession
         var transform = TransformPreview;
         var displayed = State;
         return PrepareChangeAsync(name, _ => transform is { } move ? move.Selection.Apply(move.Transform, token) : displayed,
-            transform is null || !transform.Selection.PreservesHierarchy(transform.Transform), token, before);
+            token, before);
     }
 
     private Task<PreparedEditorChange> PrepareChangeAsync(string? name, Func<DocumentState, DocumentState> prepare,
-        bool rebuild, CancellationToken token, DocumentState? preview = null)
+        CancellationToken token, DocumentState? preview = null)
     {
         if (_previewStart is not null && preview is null)
         {
@@ -137,11 +137,6 @@ public sealed partial class EditorSession
         {
             token.ThrowIfCancellationRequested();
             var next = prepare(before);
-            if (rebuild && !ReferenceEquals(before.Rois, next.Rois))
-            {
-                next = RoiHierarchy.Rebuild(before, next, token);
-            }
-
             token.ThrowIfCancellationRequested();
             var edit = name is null ? null : new DocumentEdit(name, before, next, cancellationToken: token);
             Warm(next, token);

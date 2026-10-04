@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $projectRoot
 try {
-    dotnet publish TeachingToolWpf.csproj -c Release --no-restore -o artifacts/publish
+    dotnet publish src/TeachingToolWpf/TeachingToolWpf.csproj -c Release --no-restore -o artifacts/publish
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed. Run dotnet restore before publishing.' }
     # Keep existing measurement evidence browsable from the bundled documentation.
     $evidenceRoot = 'artifacts/publish/artifacts'

@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-04",
+  "scope": "프로젝트 폴더 정리, VisionCanvas 분리, 명시적 ROI 부모/자식 생성",
+  "baselineTests": { "status": "PASS", "passed": 331 },
+  "finalTests": { "status": "PASS", "passed": 339, "failed": 0, "skipped": 0, "core": 182, "app": 45, "canvas": 87, "algorithm": 25 },
+  "releaseBuild": { "status": "PASS", "warnings": 0, "errors": 0 },
+  "formatVerify": { "status": "PASS", "exitCode": 0, "workspaceLoadWarnings": 0 },
+  "mutation": { "status": "PASS", "change": "AddChild의 ParentId를 null로 강제", "detectedByTests": 5, "restored": true },
+  "publishedSmoke": {
+    "status": "PASS",
+    "exitCode": 0,
+    "adapter": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "driver": "581.83",
+    "memoryMiB": 6144,
+    "reportedDxgiBudgetGiB": 5.1,
+    "debugLayer": true,
+    "checks": ["부모/자식 WPF 버튼", "네이티브 그리기", "겹침 독립", "부모 밖 자식 연결 유지", "연쇄 삭제 및 Undo/Redo", "ROI 역할 색과 두께", "도형/폴리곤", "OpenCV 필터", "미니맵", "8K 합성 라이브", "렌더러 재시작"],
+    "log": "artifacts/canvas-publish-runtime/artifacts/smoke.log",
+    "screenshot": "artifacts/canvas-publish-runtime/artifacts/explicit-hierarchy-app.png"
+  },
+  "notRun": ["물리 마우스 전체 E2E", "실촬영 검사 정확성", "실카메라", "새 계층 정책의 24K 실파일 및 대량 ROI 성능 재측정"],
+  "approvedDesignExceptions": []
+}

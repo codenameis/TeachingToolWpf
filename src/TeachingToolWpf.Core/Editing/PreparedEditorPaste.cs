@@ -44,7 +44,7 @@ public sealed partial class EditorSession
         var order = _nextOrder;
         var step = new PointD(20 / State.Viewport.Scale, 20 / State.Viewport.Scale);
         var prepared = await PrepareChangeAsync("ROI 붙여넣기", before =>
-            RoiPaste.Prepare(before, content.Place(image, step, token), order, token), false, token);
+            RoiPaste.Prepare(before, content.Place(image, step, token), order, token), token);
         return new(prepared, clipboard, content, order);
     }
 

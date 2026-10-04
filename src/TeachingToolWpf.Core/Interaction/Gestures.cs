@@ -147,7 +147,7 @@ internal sealed class DrawGesture(InteractionController controller, PointD start
             return;
         }
 
-        controller.Editor.Add(_draft);
+        controller.AddDrawnRoi(_draft);
         controller.Tool = EditorTool.Select;
     }
 

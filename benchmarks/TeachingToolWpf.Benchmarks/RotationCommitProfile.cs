@@ -40,11 +40,6 @@ internal static class RotationCommitProfile
         }
 
         var transform = new RigidTransform2D(pivot, AngleDegrees);
-        if (!selection.PreservesHierarchy(transform))
-        {
-            throw new InvalidOperationException("공통 강체 변환의 계층 보존 조건이 맞지 않습니다.");
-        }
-
         var fixtureMilliseconds = Stopwatch.GetElapsedTime(fixtureStart).TotalMilliseconds;
         var iterations = new List<Iteration>();
         for (var index = 0;

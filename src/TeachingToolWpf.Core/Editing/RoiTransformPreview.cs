@@ -106,19 +106,6 @@ public sealed class RoiTransformSelection
         return cached.Limits.Value;
     }
 
-    public bool PreservesHierarchy(RigidTransform2D transform)
-    {
-        if (Affected.Count != Before.Rois.Count)
-        {
-            return false;
-        }
-        // Coordinate-scaled containment tolerance can change beyond 1e6; rebuild there.
-        const double Extent = 1_000_000;
-        static bool Within(BoundsD b) => Math.Max(Math.Abs(b.Left), Math.Abs(b.Right)) <= Extent &&
-            Math.Max(Math.Abs(b.Top), Math.Abs(b.Bottom)) <= Extent;
-        return Within(Moving.Bounds) && Within(transform.TransformBounds(Moving.Bounds));
-    }
-
     public DocumentState Apply(RigidTransform2D transform, CancellationToken token = default)
     {
         if (transform.IsIdentity || Affected.Count == 0)

@@ -13,8 +13,8 @@ public sealed class EditingTests
     {
         var editor = new EditorSession();
         var parent = Add(editor, 100, 100, 180, 180);
-        var child = Add(editor, 100, 100, 80, 80);
-        var grandchild = Add(editor, 100, 100, 20, 20);
+        var child = editor.AddChild(parent, new(new(100, 100), 80, 80, 0));
+        var grandchild = editor.AddChild(child, new(new(100, 100), 20, 20, 0));
         editor.Select([parent, grandchild]);
         editor.DeleteSelection();
         Assert.Empty(editor.State.Rois);
@@ -32,7 +32,7 @@ public sealed class EditingTests
     {
         var editor = new EditorSession();
         var parent = Add(editor, 100, 100, 100, 100);
-        var child = Add(editor, 100, 100, 10, 10);
+        var child = editor.AddChild(parent, new(new(100, 100), 10, 10, 0));
         editor.Select([parent, child]);
         editor.TranslateSelection(new(20, 30));
         Assert.Equal(new PointD(120, 130), editor.State.Rois[child].Geometry.Center);
@@ -79,7 +79,7 @@ public sealed class EditingTests
     {
         var editor = new EditorSession();
         var parent = Add(editor, 100, 100, 200, 200, 45);
-        var child = Add(editor, 120, 100, 10, 10, 60);
+        var child = editor.AddChild(parent, new(new(120, 100), 10, 10, 60));
         editor.Select([parent]);
         editor.ResetAngles();
         Assert.Equal(0, editor.State.Rois[parent].Geometry.Angle);

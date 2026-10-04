@@ -18,11 +18,11 @@ foreach (var count in new[] { 1000, 10000 })
     var rois = Enumerable.Range(0, count).Select(i => new Roi(Guid.NewGuid(), $"ROI {i}",
         new(new(i % 100 * 100, i / 100 * 100), 30 + random.Next(20), 30 + random.Next(20), random.Next(360)), null, false, i)).ToImmutableDictionary(r => r.Id);
     var timer = Stopwatch.StartNew();
-    var rebuilt = RoiHierarchy.Rebuild(rois);
+    var index = new RoiSpatialIndex(rois.Values);
     results.Add(new
     {
         Count = count,
-        HierarchyMilliseconds = timer.Elapsed.TotalMilliseconds,
+        SpatialIndexMilliseconds = timer.Elapsed.TotalMilliseconds,
         AllocatedBytes = GC.GetTotalAllocatedBytes()
     });
 }

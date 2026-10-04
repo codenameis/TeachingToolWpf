@@ -23,15 +23,15 @@ internal static class RoiPaste
             rois.Add(id, template with
             {
                 Id = id,
-                ParentId = null,
+                ParentId = template.ParentId is { } originalParent && ids.TryGetValue(originalParent, out var copiedParent) ? copiedParent : null,
                 Order = ++order,
                 Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사"
             });
         }
-        var result = RoiHierarchy.Rebuild(before, before.WithRois(rois.ToImmutable(), ids.Values) with
+        var result = before.WithRois(rois.ToImmutable(), ids.Values) with
         {
             Selection = roots.ToImmutable()
-        }, token);
+        };
         token.ThrowIfCancellationRequested();
         return result;
     }

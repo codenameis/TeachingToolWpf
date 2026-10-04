@@ -15,6 +15,11 @@ function Invoke-CodeFormat {
 
 Push-Location $projectRoot
 try {
+    # WPF 디자인타임 로더가 분리된 Canvas 컨트롤을 해석할 Debug 참조 어셈블리가 필요하다.
+    & dotnet build src/VisionCanvas/VisionCanvas.csproj -c Debug --no-restore --nologo --verbosity quiet
+    if ($LASTEXITCODE -ne 0) {
+        throw 'VisionCanvas 참조 어셈블리 준비에 실패했습니다.'
+    }
     if (-not $Verify) {
         # 중첩 수식은 첫 수정 이후 안쪽 규칙이 드러날 수 있어 한 번 더 적용한다.
         for ($pass = 0; $pass -lt 2; $pass++) {

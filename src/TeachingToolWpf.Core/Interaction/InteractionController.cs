@@ -24,6 +24,30 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     private RoiShapeKind _drawShape;
     private readonly List<PointD> _polygonPoints = [];
     private ImageReference? _polygonImage;
+    private Guid? _drawParentId;
+
+    public Guid? DrawParentId
+    {
+        get => _drawParentId;
+        set
+        {
+            Cancel();
+            _drawParentId = value;
+            Changed?.Invoke();
+        }
+    }
+
+    internal void AddDrawnRoi(RoiGeometry geometry)
+    {
+        if (DrawParentId is { } parentId)
+        {
+            editor.AddChild(parentId, geometry);
+        }
+        else
+        {
+            editor.Add(geometry);
+        }
+    }
 
     public RoiShapeKind DrawShape
     {
@@ -322,7 +346,7 @@ i++)
         }
 
         var geometry = RoiGeometry.Polygon(_polygonPoints);
-        editor.Add(geometry);
+        AddDrawnRoi(geometry);
         Tool = EditorTool.Select;
     }
 

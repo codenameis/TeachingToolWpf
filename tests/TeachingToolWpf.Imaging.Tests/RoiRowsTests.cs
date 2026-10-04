@@ -180,8 +180,8 @@ public class RoiRowsTests
     public void CancelledRowBuildDoesNotPublishPartialRowsOrChangeTheDocument()
     {
         var editor = new EditorSession();
-        editor.Add(new(new(100, 100), 80, 80, 0));
-        editor.Add(new(new(100, 100), 20, 20, 0));
+        var parent = editor.Add(new(new(100, 100), 80, 80, 0));
+        editor.AddChild(parent, new(new(100, 100), 20, 20, 0));
         var before = editor.State;
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

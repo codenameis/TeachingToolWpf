@@ -1,5 +1,55 @@
 # 단계별 작업 목록
 
+## 2026-10-04 검사 위치·판정색·특징점 표시
+
+기준: [ADR-015](../docs/decisions/0015-inspection-result-display.md). 아래는 기존 패턴 구현 이후 추가 검증이며 당시 NOT_RUN 기록과 구분한다.
+
+- [x] 전체 이미지 검사 결과가 ROI 선택 해제 때 사라지는 버그: 테스트 FAIL 재현 → 수정 PASS. 검색 입력/세대 변경 시에는 기존·늦은 결과를 폐기한다. 새 실행/오류/취소에 이전 성공 위치가 남지 않도록 수정.
+- [x] 정상 LimeGreen / 불량 Tomato / 경고 Orange / 사용자 확인 Gold. 불완전 검색·오류·취소와 제품 불량을 구분하고 정밀화/회전각 불확실성을 사용자 확인으로 표시. 배너·검색 경계·기준점·방향·검출 경계·원본 좌표/점수 연결.
+- [x] 검사 위치/특징점 표시 옵션과 검출 위치 화면 맞춤 버튼. 모델 특징점을 검출 pose로 변환하며 재검사/문서/이력을 변경하지 않음.
+- [x] 실제 PNG 파일 640×400을 UI 명령으로 학습/검색하고 RTX 3060 Laptop DX12 debug에서 두 패턴 검출. X160/Y160/0°, X420.051/Y230.030/19.961°/scale1.1991. 원본 파일 reader, WPF 체크박스·버튼 바인딩, 선택 후 결과 유지, 화면 맞춤, 실제 빈 검색 영역 NG 확인. artifacts/inspection-runtime/artifacts/inspection-smoke.log 및 inspection-app.png. 합성 생성 PNG이며 현장 데이터가 아님.
+- [x] 동일 캡처 조건에서 특징점 off/on 판정색 픽셀 11,805→15,181. 네 색은 실제 검출 형상에 지정색을 주입해 GPU 출력 검증(Pass 12,303 / Fail 12,375 / Warning 12,364 / Review 12,410 pixels). 경고·사용자 확인의 판정 조건은 별도 단위 테스트로 검증. 주입 화면을 실제 불량/경고 검출 결과로 표현하지 않음.
+- [x] 전체 회귀 **371개 PASS**(Core 182/앱 72/Canvas 92/Algorithm 25), skip 0. artifacts/inspection-all-tests.log 및 프로젝트별 TestResults/inspection-results.trx.
+- [x] 코드 규칙 적용·`pwsh -File scripts/Format-Code.ps1 -Verify`: PASS. Release 빌드 경고/오류 0. artifacts/inspection-format-verify.log, inspection-build.log. git diff --check PASS.
+- [x] 변이 검증: 검색 불완전 조건 반전 시 5개 중 4개 FAIL. 즉시 원복 후 위 전체 회귀 PASS. artifacts/inspection-mutation.log. 독립 읽기 전용 코드 리뷰: 확정적 수정 필요 사항 없음.
+- [x] 배포 실행 파일 검사 smoke PASS, exit 0. artifacts/inspection-publish-runtime/artifacts/inspection-smoke.log 및 inspection-app.png. 네 GPU 색/특징점/실제 검출·미검출 재확인.
+- [x] 배포 실행 파일 기존 전체 smoke도 PASS, exit 0. 명시적 부모/자식·도형·이력·필터·미니맵·8K 라이브 시작/정지 회귀 확인. artifacts/inspection-regression-runtime/artifacts/smoke.log.
+- [ ] 현장 촬영 데이터 정확도, 치수/공차/기대 개수 판정, 8K/24K 매칭 시간·메모리, 최대 결과 수 GPU 성능: NOT_RUN/미구현. 기존 8K 표시 smoke와 구별.
+
+## 2026-10-04 프로젝트 정리·VisionCanvas·명시적 ROI 계층
+
+기준: [ADR-014](../docs/decisions/0014-canvas-and-explicit-hierarchy.md). 이 항목은 이전 자동 포함·재부모화 요구를 대체하며 기존 실측 기록을 소급 변경하지 않는다.
+
+- [x] 앱을 src/TeachingToolWpf로 이동, src/VisionCanvas와 tests/VisionCanvas.Tests 분리. 솔루션 src/tests/benchmarks 그룹, 참조·XAML assembly·셰이더·배포 경로 갱신. 기존 미커밋 검사 기능 보존.
+- [x] 부모/자식 별도 추가·그리기, 겹침 자동 계층 제거. 자식의 부모 밖 이동에도 관계 유지. 복사 ID 매핑·선택 트리만 그룹화·중첩 해제·연쇄 삭제·대량 편집/이력 보존.
+- [x] 이동 단계 331개 PASS, 변경 후 전체 339개 PASS(Core 182/앱 45/Canvas 87/Algorithm 25), skip 0. Release 빌드 경고/오류 0. 로그: artifacts/canvas-hierarchy-tests.log, artifacts/canvas-build.log.
+- [x] RTX 3060/DX12 debug 실행에서 새 버튼·그리기·이력·겹침 독립·기존 도형/필터/미니맵/8K 라이브 확인. artifacts/canvas-hierarchy-runtime/artifacts/smoke.log 및 PNG.
+- [x] `pwsh -File scripts/Format-Code.ps1 -Verify`: PASS. 분리 컨트롤의 Debug 참조 어셈블리를 먼저 준비해 WPF 디자인타임 로딩 경고도 해결했다.
+- [x] 배포 산출물 smoke: PASS, 종료 코드 0. RTX 3060 Laptop / driver 581.83 / 6144 MiB / 실행 budget 5.1 GiB. artifacts/canvas-publish-runtime/artifacts/smoke.log, exit-code.txt. 셰이더·네이티브 필터·문서/고지 동봉 확인.
+- [x] 변이 검증: AddChild의 부모 연결을 임시 제거하면 신규 테스트 5개 실패. 원상복원 후 전체 339개 PASS. artifacts/hierarchy-mutation.log. [검증 요약 JSON](../docs/data/canvas-hierarchy-validation-2026-10-04.json).
+- [ ] 물리 포인터 전체 E2E, 새 정책의 24K 실파일/대량 ROI 부하 성능 재측정: NOT_RUN.
+## 2026-10-04 VisionAlgorithm 고전적 2D 형상 매칭
+
+기준: [구현 계획](pattern-matching-plan.md), [ADR-013](../docs/decisions/0013-vision-algorithm-and-inspection.md), [검증 보고](../docs/shape-matching-validation.md). 딥러닝 제외 확정. 주력은 LINE-2D 계열 후보 검색 → 연속 방향 검증 → robust point-to-line 정밀화 → NMS 결합이다. 이전 NCC 중심 계획을 대체하며, 아래 상태는 기존의 미완료 UI/GPU/대용량 작업 상태를 덮지 않는다.
+
+검증 표기: `PASS`는 실행 근거 있음, `FAIL`은 실행했으나 실패, `NOT_RUN`은 실행하지 않음, `BLOCKED`는 환경/권한에 막힘이다. 합성 fixture와 현장 품질을 구분한다.
+
+- [x] 프로젝트 경계: `src/VisionAlgorithm`, 앱 명시적 참조, OpenSrc/Cognex/Halcon 폴더. algorithm 프로젝트는 WPF/Core/OpenCV/native SDK 참조가 없다.
+- [x] 주력 엔진: 불변 모델, ROI mask/기준점, 회전·균일 배율, 제한 후보, 다중 대상 NMS, polarity/continuous score, robust subpixel point-to-line, 취소/diagnostics.
+- [x] 앱 연결 코드: 원본 타일/프레임 reader, 기존 ROI adapter, 오른쪽 학습/검사 패널, async/stale 결과 폐기, DX12 read-only markers.
+- [x] 정확성 수정: 결과 각도는 이미지 기준 절대각이고 검색 범위는 학습 ROI 기준 편차. NMS/마커 경계는 희소 gradient 점 대신 학습 mask의 전체 pixel-cell bounds.
+- [x] `dotnet test TeachingToolWpf.slnx -c Release --no-build --no-restore`: 331/331 PASS(Core 174, Imaging/WPF 132, VisionAlgorithm 25), skip 0.
+- [x] 주력 경로와 E1/E2/E3 비교 benchmark 실행, 종료 코드 0; 입력 641×385 합성 positive 3개/상수 negative. E1 2/3, E2 3/3, E3 BOLD 3/3 (비교 위치 허용 10 px); 원시 결과는 [JSON](../docs/data/shape-matching-benchmark-2026-10-04.json).
+- [x] `pwsh -File scripts/Format-Code.ps1 -Verify`: PASS, exit 0.
+- [x] `dotnet build TeachingToolWpf.slnx -c Release --no-restore`: PASS, 경고/오류 0. Windows SDK 메타데이터 읽기 권한이 필요했다.
+- [x] WPF 통합 테스트: 132/132 PASS. 추가한 matcher 연계 테스트 3개 포함.
+- [x] `TeachingToolWpf.exe --smoke --gpu-debug`: PASS, exit 0. 기존 DX12/ROI 앱 경로 확인이며 실제 패턴 패널을 클릭한 smoke는 아니다.
+- [ ] 패턴 패널의 수동 클릭·실제 ROI/타일 원본 검사는 CUA native 창 입력 미제공으로 NOT_RUN. RTX adapter 정보 측정, 8K/24K 실파일 정확성·시간·메모리도 NOT_RUN. 합성 641×385 결과를 실물 달성으로 확대하지 않는다.
+- [x] E1 directional chamfer, E2 gray-gradient fusion, E3 BOLD식 CPU 비교기를 OpenSrc/Comparisons에 분리하고 같은 합성 데이터로 측정했다. E1/FDCM 원문 충실 구현, E2 Winograd FNM/가속, E3 BOLD 원문 detector와 전체 매칭 절차의 재현은 미완료다. 실측 오차·시간·메모리와 구현 차이는 [비교 보고](../docs/shape-matching-validation.md)에 기록했다.
+- [ ] 알고리즘 자체의 원본 코드 포팅/원본 출력 비교 및 HALCON/Cognex 비교: 미수행. `meiqua/shape_based_matching` commit `3df935f8e4b8c8a8ed72984211543e1b7696452e` (BSD-2-Clause), OpenFDCM commit `5c6c1d422afc8010edf6eeb149329f353b2e77ce` (MIT)를 참조/감사했으나 코드는 복사하지 않았다.
+
+이번 작업 검증의 상세 측정, 오차, 제한과 설계 리뷰는 [shape matching 검증 보고](../docs/shape-matching-validation.md)에 기록한다. 테스트를 생략하거나 기준을 완화하여 완료 표시하지 않는다.
+
 ## 2026-10-03 Microsoft C# 코드 컨벤션
 
 - [x] C1: 앱·Core·테스트·벤치마크의 Allman 중괄호, 4칸 공백, 한 문장/선언씩 배치, 명확한 수식 괄호, `_camelCase`/`s_camelCase`/PascalCase 이름과 참조를 정리했다.

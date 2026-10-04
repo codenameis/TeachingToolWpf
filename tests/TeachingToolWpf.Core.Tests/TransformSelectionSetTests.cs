@@ -10,8 +10,8 @@ public class TransformSelectionSetTests
     {
         var editor = new EditorSession();
         var parent = editor.Add(new(new(400, 400), 200, 200, 0));
-        var child = editor.Add(new(new(410, 400), 80, 80, 0));
-        var grandchild = editor.Add(new(new(420, 400), 20, 20, 0));
+        var child = editor.AddChild(parent, new(new(410, 400), 80, 80, 0));
+        var grandchild = editor.AddChild(child, new(new(420, 400), 20, 20, 0));
         var other = editor.Add(new(new(800, 800), 20, 20, 0));
         editor.Select([parent, child]);
         var before = editor.State;

@@ -43,28 +43,58 @@ public sealed partial class EditorSession
     public bool HasPreviewChanges => _previewStart is { } before &&
         (TransformPreview is { Transform.IsIdentity: false } || !ReferenceEquals(State.Rois, before.Rois));
 
-    public Guid Add(RoiGeometry geometry)
+    public Guid Add(RoiGeometry geometry) => AddRoi(geometry, null);
+
+    public Guid AddChild(Guid parentId, RoiGeometry geometry)
+    {
+        if (!State.Rois.ContainsKey(parentId))
+        {
+            throw new ArgumentException("자식 ROI를 추가할 부모가 없습니다.", nameof(parentId));
+        }
+
+        return AddRoi(geometry, parentId);
+    }
+
+    private Guid AddRoi(RoiGeometry geometry, Guid? parentId)
     {
         geometry = RoiImageBounds.ClipNew(geometry, State.Image);
-        var roi = new Roi(Guid.NewGuid(), $"ROI {++_nextOrder:000}", geometry, null, false, _nextOrder);
-        Commit("ROI 추가", State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
+        var order = _nextOrder + 1;
+        var roi = new Roi(Guid.NewGuid(), $"ROI {order:000}", geometry, parentId, false, order);
+        Commit(parentId is null ? "부모 ROI 추가" : "자식 ROI 추가", State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
         {
             Selection = [roi.Id]
         });
+        _nextOrder = order;
         return roi.Id;
     }
 
     public void AddRange(IEnumerable<RoiGeometry> geometries)
+        => AddRange(geometries.Select(geometry => new RoiCreation(geometry)));
+
+    public void AddRange(IEnumerable<RoiCreation> definitions)
     {
         var rois = State.Rois.ToBuilder();
         var added = new List<Guid>();
-        foreach (var geometry in geometries)
+        var order = _nextOrder;
+        foreach (var definition in definitions)
         {
-            var roi = new Roi(Guid.NewGuid(), $"ROI {++_nextOrder:000}", RoiImageBounds.ClipNew(geometry, State.Image), null, false, _nextOrder);
+            Guid? parent = null;
+            if (definition.ParentIndex is { } index)
+            {
+                if (index < 0 || index >= added.Count)
+                {
+                    throw new ArgumentException("부모는 같은 배치에서 자식보다 먼저 정의해야 합니다.", nameof(definitions));
+                }
+
+                parent = added[index];
+            }
+
+            var roi = new Roi(Guid.NewGuid(), $"ROI {++order:000}", RoiImageBounds.ClipNew(definition.Geometry, State.Image), parent, false, order);
             rois.Add(roi.Id, roi);
             added.Add(roi.Id);
         }
         Commit("ROI 일괄 추가", State.WithRois(rois.ToImmutable(), added));
+        _nextOrder = order;
     }
 
     public void Select(IEnumerable<Guid> ids)
@@ -87,7 +117,7 @@ public sealed partial class EditorSession
         }
 
         var templates = clipboard.Place(State.Image, new(20 / State.Viewport.Scale, 20 / State.Viewport.Scale));
-        Commit("ROI 붙여넣기", RoiPaste.Prepare(State, templates, _nextOrder, CancellationToken.None), rebuild: false);
+        Commit("ROI 붙여넣기", RoiPaste.Prepare(State, templates, _nextOrder, CancellationToken.None));
         _nextOrder += templates.Length;
         clipboard.Pasted();
     }
@@ -114,7 +144,7 @@ public sealed partial class EditorSession
         Viewport = view,
         Rois = ImmutableDictionary<Guid, Roi>.Empty,
         Selection = []
-    }, rebuild: false, replacesImage: true);
+    }, replacesImage: true);
 
     public void InitializeImage(ImageReference image, ViewportTransform view)
     {
@@ -155,17 +185,17 @@ public sealed partial class EditorSession
         Commit("이름 변경", State.WithRois(State.Rois.SetItem(id, State.Rois[id] with
         {
             Name = name.Trim()
-        }), [id]), rebuild: false);
+        }), [id]));
     }
 
     public void DeleteSelection()
     {
         var ids = RoiHierarchy.Subtree(State, RoiHierarchy.EffectiveRoots(State));
-        // Removing complete subtrees cannot change a surviving ROI's smallest containing parent.
+        // 명시적으로 연결된 하위 트리만 삭제하며, 겹치는 독립 ROI는 보존한다.
         Commit("선택 ROI 삭제", State.WithRois(State.Rois.RemoveRange(ids), ids) with
         {
             Selection = State.Selection.Except(ids)
-        }, rebuild: false);
+        });
     }
 
     public void SetFilters(FilterSettings settings)
@@ -180,7 +210,7 @@ public sealed partial class EditorSession
             };
         }
 
-        Commit("ROI 필터 등록", State.WithRois(rois.ToImmutable(), State.Selection), rebuild: false);
+        Commit("ROI 필터 등록", State.WithRois(rois.ToImmutable(), State.Selection));
     }
 
     public void TranslateSelection(PointD delta)
@@ -190,7 +220,7 @@ public sealed partial class EditorSession
         Commit("ROI 이동", selection.Apply(transform) with
         {
             Viewport = State.Viewport
-        }, rebuild: !selection.PreservesHierarchy(transform));
+        });
     }
 
     public void RotateSelection(double delta, PointD pivot)
@@ -200,7 +230,7 @@ public sealed partial class EditorSession
         Commit("ROI 회전", selection.Apply(transform) with
         {
             Viewport = State.Viewport
-        }, rebuild: !selection.PreservesHierarchy(transform));
+        });
     }
 
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));
@@ -215,20 +245,30 @@ public sealed partial class EditorSession
             throw new InvalidOperationException("독립적인 ROI를 2개 이상 선택하세요.");
         }
 
-        var bounds = new RoiSpatialIndex(roots.Select(id => State.Rois[id])).Bounds;
+        var members = RoiHierarchy.Subtree(State, roots);
+        var bounds = new RoiSpatialIndex(members.Select(id => State.Rois[id])).Bounds;
         var padding = Math.Max(1, Math.Max(Math.Abs(bounds.Center.X), Math.Abs(bounds.Center.Y)) * 1e-10);
-        var group = new Roi(Guid.NewGuid(), $"그룹 {++_nextOrder:000}",
-            RoiImageBounds.ClipNew(new(bounds.Center, bounds.Width + (padding * 2), bounds.Height + (padding * 2), 0), State.Image), null, true, _nextOrder);
-        var next = RoiHierarchy.Rebuild(State, State.WithRois(State.Rois.Add(group.Id, group), [group.Id]) with
+        var parents = roots.Select(id => State.Rois[id].ParentId).Distinct().ToArray();
+        var parentId = parents.Length == 1 ? parents[0] : null;
+        var order = _nextOrder + 1;
+        var group = new Roi(Guid.NewGuid(), $"그룹 {order:000}",
+            RoiImageBounds.ClipNew(new(bounds.Center, bounds.Width + (padding * 2), bounds.Height + (padding * 2), 0), State.Image), parentId, true, order);
+        var rois = State.Rois.Add(group.Id, group).ToBuilder();
+        foreach (var id in roots)
         {
-            Selection = [group.Id]
-        });
-        if (roots.Any(id => !RoiHierarchy.IsDescendant(next, id, group.Id)))
-        {
-            throw new InvalidOperationException("기존 부모와 충돌합니다. 해당 부모 ROI까지 선택한 뒤 그룹화하세요.");
+            rois[id] = rois[id] with
+            {
+                ParentId = group.Id
+            };
         }
 
-        Commit("부모 ROI로 그룹화", next, rebuild: false);
+        var next = State.WithRois(rois.ToImmutable(), roots.Append(group.Id)) with
+        {
+            Selection = [group.Id]
+        };
+
+        Commit("부모 ROI로 그룹화", next);
+        _nextOrder = order;
         return group.Id;
     }
 
@@ -236,7 +276,22 @@ public sealed partial class EditorSession
     {
         var groups = State.Selection.Where(id => State.Rois[id].IsGroup).ToHashSet();
         var children = groups.SelectMany(id => State.Snapshot.Children.GetValueOrDefault(id, [])).ToImmutableHashSet();
-        Commit("그룹 해제", State.WithRois(State.Rois.RemoveRange(groups), groups) with
+        var rois = State.Rois.RemoveRange(groups).ToBuilder();
+        foreach (var id in children.Except(groups))
+        {
+            var parent = State.Rois[id].ParentId;
+            while (parent is { } ancestor && groups.Contains(ancestor))
+            {
+                parent = State.Rois[ancestor].ParentId;
+            }
+
+            rois[id] = rois[id] with
+            {
+                ParentId = parent
+            };
+        }
+
+        Commit("그룹 해제", State.WithRois(rois.ToImmutable(), groups.Concat(children)) with
         {
             Selection = children.Except(groups)
         });
@@ -356,8 +411,7 @@ public sealed partial class EditorSession
         // 이력은 시작 상태를 기준으로 기록한다. 확정에 실패하면 시작 ROI와 현재 탐색 위치를 유지한다.
         try
         {
-            var requiresHierarchyRebuild = preview is null || !preview.Selection.PreservesHierarchy(preview.Transform);
-            Commit(name, next, rebuild: requiresHierarchyRebuild);
+            Commit(name, next);
         }
         catch
         {
@@ -404,7 +458,7 @@ public sealed partial class EditorSession
             Viewport = State.Viewport
         };
 
-    private void Commit(string name, DocumentState next, bool rebuild = true, bool replacesImage = false)
+    private void Commit(string name, DocumentState next, bool replacesImage = false)
     {
         if (_previewStart is not null)
         {
@@ -414,11 +468,6 @@ public sealed partial class EditorSession
         if (!replacesImage && ReferenceEquals(State.Rois, next.Rois) && State.Image == next.Image)
         {
             return;
-        }
-
-        if (rebuild)
-        {
-            next = RoiHierarchy.Rebuild(State, next);
         }
 
         var edit = new DocumentEdit(name, State, next, replacesImage);

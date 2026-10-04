@@ -52,11 +52,11 @@ i++)
     }
 
     [Fact]
-    public void ParentChangingUndoRedoKeepsIndexesCurrentWithoutDeferredChains()
+    public void ChildMovementUndoRedoKeepsExplicitHierarchyAndIndexesCurrent()
     {
         var editor = new EditorSession();
         var parent = editor.Add(new(new(100, 100), 100, 100, 0));
-        var child = editor.Add(new(new(100, 100), 10, 10, 0));
+        var child = editor.AddChild(parent, new(new(100, 100), 10, 10, 0));
         editor.TranslateSelection(new(200, 0));
         for (var i = 0;
 i < 2000;
@@ -65,8 +65,8 @@ i++)
             editor.Undo();
             editor.Redo();
         }
-        Assert.Null(editor.State.Rois[child].ParentId);
-        Assert.Empty(editor.State.Snapshot.Children);
+        Assert.Equal(parent, editor.State.Rois[child].ParentId);
+        Assert.Equal(child, Assert.Single(editor.State.Snapshot.Children[parent]));
         editor.Undo();
         Assert.Equal(child, Assert.Single(editor.State.Snapshot.Children[parent]));
         Assert.Contains(child, editor.State.Snapshot.Spatial.At(new(100, 100)).Select(r => r.Id));

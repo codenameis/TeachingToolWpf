@@ -27,11 +27,11 @@ public class InteractionTests
     }
 
     [Fact]
-    public void MarqueeAddsMultipleAndDrawingCreatesContainedChild()
+    public void MarqueeAddsMultipleAndDrawingCreatesExplicitChild()
     {
         var editor = new EditorSession();
         var parent = editor.Add(new(new(200, 200), 300, 300, 0));
-        var input = new InteractionController(editor) { Tool = EditorTool.Draw };
+        var input = new InteractionController(editor) { Tool = EditorTool.Draw, DrawParentId = parent };
         input.Down(new(100, 100));
         input.Move(new(140, 150));
         input.Up(new(140, 150));
