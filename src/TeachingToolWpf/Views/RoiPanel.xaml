@@ -26,14 +26,15 @@
                 <ComboBox ItemsSource="{Binding ShapeOptions}" DisplayMemberPath="Label" SelectedValuePath="Kind"
                           SelectedValue="{Binding SelectedShape}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="ROI 도형 선택"/>
                 <WrapPanel Margin="0,6,0,0">
-                    <Button Content="부모 추가" Command="{Binding AddRoi}" ToolTip="독립적인 부모 ROI를 추가합니다. 겹쳐도 자동으로 연결하지 않습니다."/>
+                    <Button Content="부모 추가" Command="{Binding AddRoi}" ToolTip="독립 ROI를 추가합니다. 폴리곤은 점을 클릭해 그리기를 시작합니다."/>
                     <Button Content="부모 그리기" Command="{Binding DrawTool}" ToolTip="새 부모 ROI를 그립니다. 사각형·원·삼각형: 드래그 / 폴리곤: 꼭짓점 클릭"/>
                 </WrapPanel>
                 <WrapPanel Margin="0,4,0,0">
-                    <Button Content="자식 추가" Command="{Binding AddChildRoi}" ToolTip="부모로 사용할 ROI 하나를 먼저 선택하세요." ToolTipService.ShowOnDisabled="True"/>
+                    <Button Content="자식 추가" Command="{Binding AddChildRoi}" ToolTip="부모로 사용할 ROI 하나를 먼저 선택하세요. 폴리곤은 점을 클릭해 자식을 그립니다." ToolTipService.ShowOnDisabled="True"/>
                     <Button Content="자식 그리기" Command="{Binding DrawChildRoi}" ToolTip="ROI 하나를 선택한 뒤 해당 ROI의 자식을 그립니다." ToolTipService.ShowOnDisabled="True"/>
                 </WrapPanel>
                 <TextBlock Text="자식 추가: 부모로 쓸 ROI 1개 선택" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="2,4,0,0"/>
+                <TextBlock Text="폴리곤: 점 클릭으로 연결 · 선 교차 시 자동 완성" TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="2,4,0,0"/>
                 <WrapPanel Margin="0,4,0,10">
                     <Button Content="완료" Command="{Binding CompletePolygon}" ToolTip="폴리곤 확정 · Enter · 꼭짓점 3개 이상"/>
                     <Button Content="점 취소" Command="{Binding RemovePolygonPoint}" ToolTip="마지막 꼭짓점 제거 · Backspace"/>

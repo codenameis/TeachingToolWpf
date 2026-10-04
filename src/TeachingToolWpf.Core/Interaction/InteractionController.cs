@@ -176,12 +176,19 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         {
             _gesture?.Cancel();
             _gesture = new NoGesture();
+            var point = RoiImageBounds.Clamp(editor.State.Viewport.ScreenToImage(screen), editor.State.Image);
+            if (PolygonClosure.Find(_polygonPoints, point) is { } closed)
+            {
+                CompletePolygon(closed);
+                return;
+            }
+
             if (CanCompletePolygon && (editor.State.Viewport.ImageToScreen(_polygonPoints[0]) - screen).Length < 8)
             {
                 CompletePolygon();
                 return;
             }
-            var point = RoiImageBounds.Clamp(editor.State.Viewport.ScreenToImage(screen), editor.State.Image);
+
             if (_polygonPoints.Count == 0)
             {
                 _polygonImage = editor.State.Image;
@@ -345,7 +352,12 @@ i++)
             return;
         }
 
-        var geometry = RoiGeometry.Polygon(_polygonPoints);
+        CompletePolygon(PolygonClosure.Find(_polygonPoints, _polygonPoints[0]) ?? _polygonPoints.ToArray());
+    }
+
+    private void CompletePolygon(IEnumerable<PointD> points)
+    {
+        var geometry = RoiGeometry.Polygon(points);
         AddDrawnRoi(geometry);
         Tool = EditorTool.Select;
     }
@@ -361,7 +373,15 @@ i++)
     }
 
     private void ShowPolygon(PointD? cursor = null)
-        => Show(new(PolygonPoints: (cursor is { } point ? _polygonPoints.Append(point) : _polygonPoints).ToImmutableArray()));
+    {
+        if (cursor is { } point && PolygonClosure.Find(_polygonPoints, point) is { Length: >= 3 } closed)
+        {
+            Show(new(PolygonPoints: closed.Append(closed[0]).ToImmutableArray()));
+            return;
+        }
+
+        Show(new(PolygonPoints: (cursor is { } end ? _polygonPoints.Append(end) : _polygonPoints).ToImmutableArray()));
+    }
 
     public void Wheel(PointD screen, double notches)
     {

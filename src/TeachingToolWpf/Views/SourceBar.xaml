@@ -19,7 +19,7 @@
                 <Button Command="{Binding Undo}" Tag="{StaticResource UndoIcon}" Style="{StaticResource IconButton}" ToolTip="{Binding UndoHint}" AutomationProperties.Name="실행 취소"/>
                 <Button Command="{Binding Redo}" Tag="{StaticResource RedoIcon}" Style="{StaticResource IconButton}" ToolTip="{Binding RedoHint}" AutomationProperties.Name="다시 실행"/>
                 <Border Width="1" Background="{StaticResource Stroke}" Margin="12,6"/>
-                <Button Content="부모 ROI 추가" Tag="{StaticResource AddIcon}" Style="{StaticResource PrimaryButton}" Command="{Binding AddRoi}" ToolTip="보이는 이미지 중앙에 ROI를 바로 만듭니다." Padding="14,0"/>
+                <Button Content="부모 ROI 추가" Tag="{StaticResource AddIcon}" Style="{StaticResource PrimaryButton}" Command="{Binding AddRoi}" ToolTip="기본 도형은 이미지 중앙에 추가하고, 폴리곤은 꼭짓점 클릭으로 그리기를 시작합니다." Padding="14,0"/>
             </StackPanel>
         </DockPanel>
     </Border>

@@ -169,7 +169,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     public string ToolHint => Input.Tool switch
     {
-        EditorTool.Draw when Input.DrawShape == RoiShapeKind.Polygon => $"꼭짓점 {Input.PolygonPointCount}개 · 클릭으로 추가 · 완료/Enter 또는 첫 점 클릭 · 취소: Esc",
+        EditorTool.Draw when Input.DrawShape == RoiShapeKind.Polygon => $"꼭짓점 {Input.PolygonPointCount}개 · 클릭으로 연결 · 교차점에서 자동 완성 · 완료/Enter/첫 점 · 취소: Esc",
         EditorTool.Draw => $"{(Input.DrawParentId is null ? "부모" : "자식")} ROI 그리기 · 완료 후 선택 도구 복귀 · 취소: Esc",
         EditorTool.Pan => "드래그해 화면을 이동하세요. 휠로 확대·축소합니다.",
         _ => "클릭으로 선택 · Ctrl로 다중 선택 · 휠로 확대·축소"

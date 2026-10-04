@@ -52,7 +52,9 @@ internal static class ShapeSmokeScenario
         editor.Rename(triangle, "삼각형 검사");
         Require(editor.State.Rois[triangle].Geometry.Shape.Kind == RoiShapeKind.Triangle, "native triangle drawing");
         Choose(RoiShapeKind.Polygon);
-        model.DrawTool.Execute(null);
+        var add = Descendants(window).OfType<Button>().First(b => ReferenceEquals(b.Command, model.AddRoi) && b.IsEnabled);
+        add.Command.Execute(null);
+        Require(model.IsDraw && editor.State.Rois.Count == 2 && model.Input.PolygonPointCount == 0, "polygon add starts empty point drawing instead of pentagon");
         foreach (var p in new PointD[] { new(1600, 4500), new(5600, 4500), new(5600, 6500), new(3600, 5500), new(1600, 6500) })
         {
             Click(p);
@@ -66,6 +68,28 @@ internal static class ShapeSmokeScenario
         editor.Rename(polygon, "오목 폴리곤 검사");
         Require(editor.State.Rois[polygon].Geometry.Shape.Vertices.Length == 5 && model.IsSelect, "polygon completed");
         var before = editor.State;
+        var addChild = Descendants(window).OfType<Button>().Single(b => ReferenceEquals(b.Command, model.AddChildRoi));
+        Require(addChild.IsEnabled, "visible polygon child add enabled");
+        addChild.Command.Execute(null);
+        foreach (var p in new PointD[] { new(1800, 4700), new(3000, 5900), new(1800, 5900) })
+        {
+            Click(p);
+        }
+        Pointer(0x200, new(3000, 4700));
+        Require(editor.State.Rois.Count == 3, "crossing preview does not commit");
+        Click(new(3000, 4700));
+        var crossed = editor.State.Rois[editor.State.Selection.Single()];
+        Require(model.IsSelect && crossed.ParentId == polygon && crossed.Geometry.Shape.Vertices.Length == 3,
+            "native crossing creates triangular child at intersection");
+        Require(crossed.Geometry.Outline.Any(p => (p - new PointD(2400, 5300)).Length < 30), "new intersection vertex matches native input rounding");
+        await Task.Delay(300);
+        viewport.Capture("artifacts/polygon-crossing.png");
+        await Task.Delay(500);
+        await model.Undo.ExecuteAsync();
+        Require(before.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value) && editor.State.Rois.Count == 3, "polygon closure is one undo");
+        await model.Redo.ExecuteAsync();
+        Require(editor.State.Rois[crossed.Id] == crossed, "polygon closure exact redo");
+        await model.Undo.ExecuteAsync();
         editor.Select([circle, triangle, polygon]);
         model.RotateRight.Execute(null);
         await model.EditCompletion;
@@ -94,7 +118,7 @@ internal static class ShapeSmokeScenario
         await model.Delete.ExecuteAsync();
         Choose(RoiShapeKind.Rectangle);
         model.Filters.SelectedFilter = RoiFilterKind.None;
-        File.AppendAllText("artifacts/smoke.log", "Shape selector, native circle/triangle/polygon input, diameter, mixed rotation/group/delete/undo and masked OpenCV passed" + Environment.NewLine);
+        File.AppendAllText("artifacts/smoke.log", "Shape selector, polygon add point drawing, native crossing closure/child/undo/redo, circle/triangle input, mixed grouping and masked OpenCV passed" + Environment.NewLine);
     }
 
     private static void Require(bool value, string description)
