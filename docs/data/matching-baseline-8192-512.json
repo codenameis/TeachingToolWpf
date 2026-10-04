@@ -1,0 +1,220 @@
+{
+  "Timestamp": "2026-10-04T10:44:15.6553286+09:00",
+  "Dimension": 8192,
+  "RoiSize": 512,
+  "Input": "8192-class application procedural sample, original reader, full-image search",
+  "TimeoutSeconds": 120,
+  "PeakWorkingSet": 413605888,
+  "Results": [
+    {
+      "Repetition": 0,
+      "Status": "PASS",
+      "TrainingMilliseconds": 85.6154,
+      "TotalMilliseconds": 30422.0657,
+      "ReadMilliseconds": 5850.454700000002,
+      "Windows": 225,
+      "Truncated": false,
+      "Matches": 9,
+      "Preprocessing": 20015.90959999999,
+      "Candidates": 4431.361000000002,
+      "Verification": 58.46490000000002,
+      "Refinement": 48.36310000000004,
+      "Poses": [
+        {
+          "X": 4096,
+          "Y": 4096,
+          "Angle": -1.9057852133384988E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 4096,
+          "Angle": -1.2445005846953428E-16,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 6144,
+          "Angle": -2.632996035952356E-17,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 2048,
+          "Angle": -2.7413873741094744E-17,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 4096,
+          "Angle": -3.5686440097887704E-17,
+          "Scale": 1
+        },
+        {
+          "X": 4096,
+          "Y": 2048,
+          "Angle": -1.823059549770569E-16,
+          "Scale": 1
+        },
+        {
+          "X": 4096,
+          "Y": 6144,
+          "Angle": -1.8122204159548574E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 6144,
+          "Angle": -1.1509357873117007E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 2048,
+          "Angle": -1.1617749211274123E-16,
+          "Scale": 1
+        }
+      ]
+    },
+    {
+      "Repetition": 1,
+      "Status": "PASS",
+      "TrainingMilliseconds": 33.5669,
+      "TotalMilliseconds": 30830.0002,
+      "ReadMilliseconds": 5866.435299999994,
+      "Windows": 225,
+      "Truncated": false,
+      "Matches": 9,
+      "Preprocessing": 20479.064199999997,
+      "Candidates": 4418.6842,
+      "Verification": 42.85070000000002,
+      "Refinement": 20.28889999999996,
+      "Poses": [
+        {
+          "X": 4096,
+          "Y": 4096,
+          "Angle": -1.9057852133384988E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 4096,
+          "Angle": -1.2445005846953428E-16,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 6144,
+          "Angle": -2.632996035952356E-17,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 2048,
+          "Angle": -2.7413873741094744E-17,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 4096,
+          "Angle": -3.5686440097887704E-17,
+          "Scale": 1
+        },
+        {
+          "X": 4096,
+          "Y": 2048,
+          "Angle": -1.823059549770569E-16,
+          "Scale": 1
+        },
+        {
+          "X": 4096,
+          "Y": 6144,
+          "Angle": -1.8122204159548574E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 6144,
+          "Angle": -1.1509357873117007E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 2048,
+          "Angle": -1.1617749211274123E-16,
+          "Scale": 1
+        }
+      ]
+    },
+    {
+      "Repetition": 2,
+      "Status": "PASS",
+      "TrainingMilliseconds": 44.3756,
+      "TotalMilliseconds": 30966.079,
+      "ReadMilliseconds": 5861.844899999998,
+      "Windows": 225,
+      "Truncated": false,
+      "Matches": 9,
+      "Preprocessing": 20618.092800000002,
+      "Candidates": 4419.559099999999,
+      "Verification": 43.81559999999999,
+      "Refinement": 20.206299999999963,
+      "Poses": [
+        {
+          "X": 4096,
+          "Y": 4096,
+          "Angle": -1.9057852133384988E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 4096,
+          "Angle": -1.2445005846953428E-16,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 6144,
+          "Angle": -2.632996035952356E-17,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 2048,
+          "Angle": -2.7413873741094744E-17,
+          "Scale": 1
+        },
+        {
+          "X": 6144,
+          "Y": 4096,
+          "Angle": -3.5686440097887704E-17,
+          "Scale": 1
+        },
+        {
+          "X": 4096,
+          "Y": 2048,
+          "Angle": -1.823059549770569E-16,
+          "Scale": 1
+        },
+        {
+          "X": 4096,
+          "Y": 6144,
+          "Angle": -1.8122204159548574E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 6144,
+          "Angle": -1.1509357873117007E-16,
+          "Scale": 1
+        },
+        {
+          "X": 2048,
+          "Y": 2048,
+          "Angle": -1.1617749211274123E-16,
+          "Scale": 1
+        }
+      ]
+    }
+  ]
+}

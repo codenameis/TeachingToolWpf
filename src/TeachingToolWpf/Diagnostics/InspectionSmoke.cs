@@ -17,7 +17,7 @@ using TeachingToolWpf.Views;
 namespace TeachingToolWpf.Diagnostics;
 
 /// <summary>실제 파일 reader→학습/검사→WPF 바인딩→DX12 캡처를 검증한다.</summary>
-internal static class InspectionSmoke
+internal static partial class InspectionSmoke
 {
     public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
     {
@@ -41,9 +41,7 @@ internal static class InspectionSmoke
         {
             try
             {
-                var path = Path.GetFullPath("artifacts/inspection-fixture.png");
-                CreateFixture(path);
-                await model.Images.ReplaceAsync(new(path, "", 0, 0, DiskPyramidSource.Version(path)));
+                await VerifyStartupAsync(window, viewport, model, Capture);
                 model.Session.Add(new(new(160, 160), 80, 80, 0));
                 var matching = model.Matching;
                 matching.MinimumAngle = -30;
@@ -103,6 +101,22 @@ internal static class InspectionSmoke
                     Log($"GPU {verdict} {InspectionResultPresentation.Hex(verdict)}: {count} pixels");
                 }
 
+                model.Session.Select([model.Session.State.Rois.Keys.Single()]);
+                var methodSelector = Descendants(panel).OfType<ComboBox>().Single(box =>
+                    System.Windows.Automation.AutomationProperties.GetName(box) == "매칭 방식");
+                methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.OpenCvTemplate);
+                Require(matching.Method == PatternMatchingMethod.OpenCvTemplate && !checkbox.IsEnabled, "OpenCV method selector disables unsupported features");
+                matching.MinimumScore = .98;
+                await Invoke(matching.Train);
+                await Invoke(matching.Search);
+                Require(matching.TemplateModel is not null && matching.Verdict == InspectionVerdict.Pass && matching.Markers.Length == 1, "OpenCV real template search");
+                Require((matching.Markers[0].ReferencePoint - new Core.Geometry.PointD(160, 160)).Length < .01, "OpenCV source reference point");
+                Log(matching.Status);
+                await Capture("inspection-opencv");
+                WindowCapture.Save(window, viewport, "artifacts/inspection-opencv.png", "artifacts/inspection-opencv-app.png");
+                methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.Shape);
+                matching.MinimumScore = .72;
+                Require(matching.Model is not null, "switching methods preserves shape model");
                 model.Session.Add(new(new(65, 330), 80, 80, 0));
                 matching.UseSelection = true;
                 await Invoke(matching.Search);
@@ -110,6 +124,9 @@ internal static class InspectionSmoke
                 model.Fit.Execute(null);
                 await Capture("inspection-no-match");
                 Require(PixelCounts("artifacts/inspection-no-match.png", InspectionResultPresentation.Color(InspectionVerdict.Fail)) > 100, "NG search boundary/banner pixels");
+                await VerifyBoundariesAsync(window, viewport, model, Capture, Invoke);
+                await VerifyGeometricQualityAsync(window, viewport, model, Capture, Invoke);
+                await VerifyPrimitiveControlsAsync(window, viewport, model, Capture);
                 Require(renderErrors.Count == 0, string.Join(Environment.NewLine, renderErrors));
                 Log($"PASS: file training/search, 2 poses, feature toggle ({off}→{on}), selection, navigation, four GPU colors, actual no-match, no renderer errors");
 
@@ -169,36 +186,6 @@ internal static class InspectionSmoke
             }
         }
         return count;
-    }
-
-    private static void CreateFixture(string path)
-    {
-        var visual = new DrawingVisual();
-        using (var drawing = visual.RenderOpen())
-        {
-            drawing.DrawRectangle(new SolidColorBrush(Color.FromRgb(25, 25, 25)), null, new(0, 0, 640, 400));
-            Pattern(160, 160, 0, 1);
-            Pattern(420, 230, 20, 1.2);
-            void Pattern(double x, double y, double angle, double scale)
-            {
-                drawing.PushTransform(new TranslateTransform(x, y));
-                drawing.PushTransform(new RotateTransform(angle));
-                drawing.PushTransform(new ScaleTransform(scale, scale));
-                drawing.DrawRectangle(Brushes.LightGray, null, new(-26, -30, 12, 56));
-                drawing.DrawRectangle(Brushes.LightGray, null, new(-14, 14, 42, 12));
-                drawing.DrawRectangle(Brushes.LightGray, null, new(-14, -30, 32, 10));
-                drawing.DrawEllipse(Brushes.LightGray, null, new(14, -4), 7, 7);
-                drawing.Pop();
-                drawing.Pop();
-                drawing.Pop();
-            }
-        }
-        var bitmap = new RenderTargetBitmap(640, 400, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(visual);
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var stream = File.Create(path);
-        encoder.Save(stream);
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

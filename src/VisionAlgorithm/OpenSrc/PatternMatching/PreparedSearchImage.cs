@@ -18,7 +18,7 @@ public sealed class PreparedSearchImage
     {
         get;
     }
-    public long EstimatedBytes => Gradients.Sum(g => ((long)g.Width * g.Height * 17) + (g.EdgePoints.LongLength * 40)) +
+    public long EstimatedBytes => Gradients.Sum(g => g.EstimatedBytes) +
         Maps.Sum(m => (long)m.Step * m.Step * m.PlaneLength * 8);
     internal ImmutableArray<GradientImage> Gradients
     {
@@ -39,9 +39,26 @@ public sealed class PreparedSearchImage
     }
 
     public static PreparedSearchImage Create(GrayImage image, float minimumGradient, int levels,
-        CancellationToken cancellationToken = default, bool tiled = false)
+        CancellationToken cancellationToken = default, bool tiled = false, int maximumPixels = MaximumPixels,
+        IImagePreprocessor? preprocessor = null)
+        => Build(image, minimumGradient, levels, cancellationToken, tiled, maximumPixels, true, true, preprocessor);
+
+    internal static PreparedSearchImage CreateForSearch(GrayImage image, float minimumGradient, int levels,
+        bool extractEdges, CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor)
+        => Build(image, minimumGradient, levels, cancellationToken, tiled, MaximumPixels, true, extractEdges, preprocessor);
+
+    internal static PreparedSearchImage CreateForRefinement(GrayImage image, float minimumGradient, int levels,
+        CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor = null, bool extractEdges = true)
+        => Build(image, minimumGradient, levels, cancellationToken, tiled, ShapeTrainer.MaximumPixels, false, extractEdges, preprocessor);
+
+    private static PreparedSearchImage Build(GrayImage image, float minimumGradient, int levels,
+        CancellationToken cancellationToken, bool tiled, int maximumPixels, bool responseMaps, bool extractEdges,
+        IImagePreprocessor? preprocessor)
     {
-        ValidateSize(image);
+        if (maximumPixels > ShapeTrainer.MaximumPixels || (long)image.Width * image.Height > maximumPixels)
+        {
+            throw new ArgumentException("전처리 영상이 작업 메모리 예산을 초과했습니다.", nameof(image));
+        }
         if (!float.IsFinite(minimumGradient) || minimumGradient <= 0 || levels is < 1 or > 6)
         {
             throw new ArgumentOutOfRangeException(nameof(minimumGradient));
@@ -53,11 +70,19 @@ public sealed class PreparedSearchImage
         for (var level = 0; level < levels; level++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var gradient = tiled ? GradientImage.CreateTiled(current, minimumGradient, cancellationToken)
-                : GradientImage.Create(current, minimumGradient, cancellationToken);
+            // 상위 레벨은 방향 검색/검증만 소비하며 실제 에지 대응은 원본 level-0에서만 수행한다.
+            var levelEdges = extractEdges && level == 0;
+            var gradient = tiled ? GradientImage.CreateTiled(current, minimumGradient, cancellationToken, preprocessor, levelEdges)
+                : GradientImage.Create(current, minimumGradient, cancellationToken, preprocessor, levelEdges);
             gradients.Add(gradient);
-            maps.Add(OrientationMaps.Create(gradient.Bits, current.Width, current.Height, 2, 4, cancellationToken));
-            current = GradientImage.Reduce(current);
+            if (responseMaps)
+            {
+                maps.Add(OrientationMaps.Create(gradient.Bits, current.Width, current.Height, 2, 4, cancellationToken));
+            }
+            if (level + 1 < levels)
+            {
+                current = GradientImage.Reduce(current);
+            }
         }
         return new(minimumGradient, gradients.ToImmutable(), maps.ToImmutable(), timer.Elapsed.TotalMilliseconds);
     }

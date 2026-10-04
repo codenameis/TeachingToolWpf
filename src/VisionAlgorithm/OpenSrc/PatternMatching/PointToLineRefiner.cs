@@ -117,11 +117,7 @@ public static class PointToLineRefiner
         }
         var score = ContinuousVerifier.Score(image.Gradients[0], model, pose);
         var finalPairs = Correspond(image.Gradients[0], model, pose);
-        finalResidual = finalPairs.Count > 0 ? Math.Sqrt(finalPairs.Average(p =>
-        {
-            var (r, _) = ResidualAndJacobian(p.Feature, p.Edge, pose);
-            return r * r;
-        })) : double.NaN;
+        finalResidual = ResidualRms(finalPairs, pose);
         if (status is RefinementStatus.Converged or RefinementStatus.IterationLimit &&
             (score.Score < options.MinimumScore || score.Support < options.MinimumSupport ||
             finalResidual > initialResidual + 0.01 || Math.Abs(pose.X - initial.X) > 6 || Math.Abs(pose.Y - initial.Y) > 6))
@@ -131,15 +127,21 @@ public static class PointToLineRefiner
         if (status is RefinementStatus.InsufficientSupport or RefinementStatus.IllConditioned or RefinementStatus.Rejected)
         {
             pose = initial;
-            score = new(match.Score, match.Support, match.SupportedQuadrants);
+            score = new(match.DirectionScore, match.Support, match.SupportedQuadrants);
+            finalPairs = Correspond(image.Gradients[0], model, pose);
+            finalResidual = ResidualRms(finalPairs, pose);
         }
         return match with
         {
+            // 공개 정밀화 API는 새 영상이나 자세에 이전 품질값을 재사용하지 않는다.
+            Geometry = null,
+            ClutterRatio = null,
             Pose = pose,
             Score = score.Score,
+            DirectionScore = score.Score,
             Support = score.Support,
             SupportedQuadrants = score.Quadrants,
-            Refinement = new(status, initial, initialResidual, finalResidual, iterations, count, observable)
+            Refinement = new(status, initial, initialResidual, finalResidual, iterations, finalPairs.Count, observable)
         };
     }
 
@@ -206,6 +208,13 @@ public static class PointToLineRefiner
         }
         return sum;
     }
+
+    private static double ResidualRms(List<Correspondence> pairs, MatchPose pose)
+        => pairs.Count > 0 ? Math.Sqrt(pairs.Average(pair =>
+        {
+            var (residual, _) = ResidualAndJacobian(pair.Feature, pair.Edge, pose);
+            return residual * residual;
+        })) : double.NaN;
 
     private static bool TrySolve(double[,] matrix, double[] right, out double[] solution)
     {

@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
     <InternalsVisibleTo Include="VisionAlgorithm.Tests" />
     <InternalsVisibleTo Include="VisionAlgorithm.Benchmarks" />
   </ItemGroup>

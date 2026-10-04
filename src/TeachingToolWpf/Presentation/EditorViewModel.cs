@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Input;
 using Microsoft.Win32;
 using TeachingToolWpf.Core.Editing;
@@ -86,6 +87,11 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     }
 
     public ShapeMatchingViewModel Matching
+    {
+        get;
+    }
+
+    public InspectionToolsViewModel Inspections
     {
         get;
     }
@@ -362,6 +368,16 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         get;
     }
 
+    public AsyncCommand PatternSample
+    {
+        get;
+    }
+
+    public AsyncCommand PrimitiveSample
+    {
+        get;
+    }
+
     public AsyncCommand Undo
     {
         get;
@@ -386,19 +402,21 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     }
 
     public EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
-        Imaging.Matching.IShapeMatchingService? shapeMatching = null)
-        : this(viewport, loader, live, filterPreview, null, shapeMatching)
+        Imaging.Matching.IShapeMatchingService? shapeMatching = null, Imaging.Matching.ITemplateMatchingService? templateMatching = null,
+        Imaging.Matching.IPrimitiveShapeDetectionService? primitiveShapes = null)
+        : this(viewport, loader, live, filterPreview, null, shapeMatching, templateMatching, primitiveShapes)
     {
     }
 
     internal EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
         Action<DocumentState, CancellationToken>? preparePreview)
-        : this(viewport, loader, live, filterPreview, preparePreview, null)
+        : this(viewport, loader, live, filterPreview, preparePreview, null, null, null)
     {
     }
 
     private EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
-        Action<DocumentState, CancellationToken>? preparePreview, Imaging.Matching.IShapeMatchingService? shapeMatching)
+        Action<DocumentState, CancellationToken>? preparePreview, Imaging.Matching.IShapeMatchingService? shapeMatching, Imaging.Matching.ITemplateMatchingService? templateMatching,
+        Imaging.Matching.IPrimitiveShapeDetectionService? primitiveShapes)
     {
         _viewport = viewport;
         StyleSettings.Changed += Publish;
@@ -416,9 +434,12 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         _previewPreparation = new(Session, Fail, () => Status = "선택 영역 준비 중… 최신 포인터 위치 반영", preparePreview);
         Input = new(Session, CompletePreview, CompleteSelection, _previewPreparation.SubmitTranslation, _previewPreparation.SubmitRotation);
         Images = new(Session, viewport, loader, Live.CloseAsync, PrepareRowsAsync);
-        Matching = new(shapeMatching ?? new Imaging.Matching.ShapeMatchingService(loader, () => null));
-        Matching.Changed += Publish;
+        Matching = new(shapeMatching ?? new Imaging.Matching.ShapeMatchingService(loader, () => null),
+            templateMatching ?? new Imaging.Matching.TemplateMatchingService(loader, () => null));
+        Inspections = new(Matching, new(primitiveShapes ?? new Imaging.Matching.PrimitiveShapeDetectionService(loader, () => null)));
+        Inspections.Changed += Publish;
         Matching.LocateRequested += LocateInspection;
+        Inspections.Shapes.LocateRequested += LocateInspection;
         Properties = new(Session);
         PreviousRowPage = Command(() => ChangeRowPage(_rowPage - 1), () => _rowPage > 0);
         NextRowPage = Command(() => ChangeRowPage(_rowPage + 1), () => (_rowPage + 1) * RowPageSize < Rows.Count);
@@ -454,6 +475,16 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         OpenImage = Async(OpenAsync);
         Sample8K = Async(() => LoadSampleAsync(8192, 8192));
         Sample24K = Async(() => LoadSampleAsync(24576, 32768));
+        PatternSample = Async(LoadPatternSampleAsync);
+        PrimitiveSample = Async(async () =>
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "primitive-shapes.png");
+            await Images.ReplaceAsync(new(path, "일반 도형 샘플", 640, 480, DiskPyramidSource.Version(path)));
+            if (Session.State.Image?.Key == path)
+            {
+                Inspections.Selected = InspectionToolKind.PrimitiveShapes;
+            }
+        }, () => Inspections.IsIdle);
         Undo = Async(() => EditCompletion = HistoryAsync(false), () => Session.CanUndo);
         Redo = Async(() => EditCompletion = HistoryAsync(true), () => Session.CanRedo);
         StartLive = Async(StartLiveAsync, () => !Live.IsRunning);
@@ -688,7 +719,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     {
         Input.NavigationOnly = !CanEdit;
         Filters.Update(Session.State, Live.Image is not null, Session.TransformPreview);
-        Matching.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing);
+        Inspections.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing);
         Notify(nameof(CanEdit));
         Notify(nameof(CanNavigate));
         Notify(nameof(SelectionSummary));
@@ -770,10 +801,16 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     private Task LoadSampleAsync(int width, int height) => Images.ReplaceAsync(new($"sample:{width}:{height}", "", width, height));
 
+    private Task LoadPatternSampleAsync()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "pattern-matching.png");
+        return Images.ReplaceAsync(new(path, "", 0, 0, DiskPyramidSource.Version(path)));
+    }
+
     public void Publish()
     {
         Input.SetViewportSize(_viewport.ViewWidth, _viewport.ViewHeight);
-        _viewport.Submit(new(Session.State, DisplayImage, Images.Generation, _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview, StyleSettings.Palette, Matching.Overlay));
+        _viewport.Submit(new(Session.State, DisplayImage, Images.Generation, _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview, StyleSettings.Palette, Inspections.Overlay));
     }
 
     public void SelectRows(IEnumerable<Guid> ids)
@@ -856,9 +893,10 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         _filterTimer.Stop();
         Filters.Changed -= Publish;
         Filters.Dispose();
-        Matching.Changed -= Publish;
+        Inspections.Changed -= Publish;
         Matching.LocateRequested -= LocateInspection;
-        Matching.Dispose();
+        Inspections.Shapes.LocateRequested -= LocateInspection;
+        Inspections.Dispose();
         Live.Dispose();
         Live.Changed -= Refresh;
         Images.Dispose();

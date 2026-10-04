@@ -25,7 +25,9 @@
 | ROI 필터 미리보기 | [FilterPreviewViewModel](../src/TeachingToolWpf/Presentation/FilterPreviewViewModel.cs), [Imaging/Filters](../src/VisionCanvas/Imaging/Filters) | OpenCV는 영상 처리 경계 안에서 사용 |
 | 형상 모델 학습·검색 계약 | [ShapeTrainer](../src/VisionAlgorithm/OpenSrc/PatternMatching/ShapeTrainer.cs), [ShapeMatcher](../src/VisionAlgorithm/OpenSrc/PatternMatching/ShapeMatcher.cs) | 순수 C# Gray8 입력, 불변 모델, 원본 픽셀 좌표 |
 | 오른쪽 패턴 티칭 UI 상태 | [ShapeMatchingViewModel](../src/TeachingToolWpf/Presentation/ShapeMatchingViewModel.cs), [ShapeMatchingPanel](../src/TeachingToolWpf/Views/ShapeMatchingPanel.xaml) | worker 취소, source epoch 검사, ROI 편집 이력과 분리 |
-| 원본 타일/프레임 adapter | [ShapeMatchingService](../src/TeachingToolWpf/Imaging/Matching/ShapeMatchingService.cs), [MatchingImageReader](../src/TeachingToolWpf/Imaging/Matching/MatchingImageReader.cs) | display preview를 재사용하지 않고 독립 source를 열어 필요한 영역을 읽음 |
+| 원본 타일/프레임 adapter | [ShapeMatchingService](../src/VisionInspection/Matching/ShapeMatchingService.cs), [MatchingImageReader](../src/VisionInspection/Matching/MatchingImageReader.cs) | display preview를 재사용하지 않고 독립 source를 열어 필요한 영역을 읽음 |
+| 화면 없는 검사 실행 | [RecipeRunner](../src/VisionInspection.Cli/RecipeRunner.cs), [CLI](../src/VisionInspection.Cli/README.md) | WPF와 같은 검사 서비스를 JSON 레시피로 호출 |
+| CUDA 검사 전처리 | [CudaImagePreprocessor](../src/VisionCompute.ILGPU/CudaImagePreprocessor.cs) | 평활화·Sobel만 GPU, 공통 CPU 정규화·검색. 화면 DX12와 분리 |
 | 검사 판정·표시 변환 | [InspectionDecision](../src/TeachingToolWpf/Imaging/Matching/InspectionDecision.cs), [InspectionResultPresentation](../src/TeachingToolWpf/Presentation/InspectionResultPresentation.cs) | 완전성·정밀화 진단 → 판정색, 원본 좌표의 검출 경계·특징점 |
 | GPU 결과 marker | [MatchMarker / ResultOverlay](../src/VisionCanvas/Rendering/MatchMarker.cs), [ResultOverlayPainter](../src/VisionCanvas/Rendering/ResultOverlayPainter.cs) | algorithm 참조 없이 배너·검색 윤곽·기준점·방향·특징점을 표시 |
 
@@ -43,12 +45,16 @@
 ## ROI에서 형상 검사까지
 
 1. `EditorViewModel.RefreshMatchingState`가 기존 문서에서 단일 선택 ROI, 이미지 참조와 generation을 가져와 `ShapeMatchingViewModel`에 전달한다. 등록 버튼은 ROI를 새로 만들거나 편집 이력을 수정하지 않는다.
-2. `ShapeMatchingService.TrainAsync`는 원본 tile source/정지 프레임에 대한 별도 수명을 만들고, 픽셀 중심 기준 ROI 마스크와 중심·기준각을 `TrainingRegion`으로 바꾼다. 파일 입력은 512px tile을 읽고 최대 2 Mpx 작업 window 안에서 `ShapeTrainer`를 실행한다.
+2. `ShapeMatchingService.TrainAsync`는 원본 tile source/정지 프레임에 대한 별도 수명을 만들고, 픽셀 중심 기준 ROI 마스크와 중심·기준각을 `TrainingRegion`으로 바꾼다. 파일 입력은 512px tile을 읽고 최대 8 Mpx 학습 영상에서 `ShapeTrainer`를 실행한다.
 3. `ShapeTrainer`는 gradient pyramid와 분산된 oriented feature를 불변 `ShapeModel`로 만든다. 내부 feature는 학습 ROI 기준 방향 좌표, `TrainingOptions` 회전 값은 기준 ROI 대비 편차다.
 4. 검색은 응답 map pyramid에서 제한 후보를 만들고 원본 해상도 continuous gradient 및 point-to-line 정밀화를 연결한다. `MatchPose.Angle`은 결과 게시 시 이미지 기준 절대각이다. 점수/support/잔차가 임계값에 미달하거나 후보 예산이 잘린 결과는 진단으로 남는다.
 5. ViewModel은 실행 당시 source epoch/token과 model identity가 현재 상태와 같은지 확인한 뒤에만 결과를 게시한다. 입력 변경으로 폐기된 결과는 게시하지 않으며, 사용자 취소·오류는 위치 없는 경고로 표시한다. InspectionDecision이 판정하고 InspectionResultPresentation이 좌표·특징점·색으로 변환한다. `RenderScene.Inspection`의 ResultOverlay를 ResultOverlayPainter가 그리며 ROI 상태·선택·undo/redo에 포함되지 않는다.
 
-현재 `VisionAlgorithm`은 OpenCV, WPF, Core, DX12 의존성이 없는 CPU C# 프로젝트다. 논문/참조 코드 대응과 합성 실측의 경계는 [형상 매칭 검증 기록](shape-matching-validation.md)에 있다.
+`ShapePyramidSearch`는 큰 원본의 검사 피라미드 후보 검색과 원본 crop 정밀화를 연결한다. `MatchingImageReader.ReadReduced`는 원본 level-0만 읽고 학습과 동일하게 축소한다. `TemplateMatchingService`는 별도 OpenCV 기본 템플릿 흐름, `ShapeMatchingViewModel.TemplateMatching`은 선택·명령·게시를 담당한다. `CorrelationMatcher.FindCandidates`는 창별 억제 전 후보를 반환하고 앱에서 전역 `Suppress`를 한 번 수행한다.
+
+`VisionAlgorithm`은 WPF/Core/Canvas/DX12 참조가 없으며 OpenCvSharp Mat은 `OpenSrc/PatternMatching/Imaging`에만 둔다. 논문과의 정확한 차이·새 예산은 [ADR-016](decisions/0016-template-matching-and-pyramid-search.md), 합성 실측은 [8K 성능 기록](matching-performance-2026-10-04.md)에 있다.
+
+`EditorViewModel.PatternSample`은 앱의 `Assets/pattern-matching.png`를 기존 이미지 교체 명령으로 연다. `ShapeMatchingViewModel`은 실행/실패 상태도 범용 overlay로 전달한다. 원본 후보 정밀화는 `PreparedSearchImage.CreateForRefinement`의 gradient 피라미드를 사용하며 전체 응답맵은 재생성하지 않는다. 변경 이유와 수렴 범위 한계는 [ADR-017](decisions/0017-default-chip-inspection.md), 실제 시작 화면 검증은 `Diagnostics/InspectionSmoke.Startup.cs`를 참고한다.
 
 ## GPU 코드에서 자주 보이는 말
 

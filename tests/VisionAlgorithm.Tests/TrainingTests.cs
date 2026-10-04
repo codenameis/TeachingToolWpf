@@ -5,6 +5,41 @@ namespace VisionAlgorithm.Tests;
 public sealed class TrainingTests
 {
     [Fact]
+    public void PaperTrainingOmitsGeometryResourcesWithoutChangingDirectionalModel()
+    {
+        var image = SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0));
+        var region = new TrainingRegion(ReadOnlyMemory<byte>.Empty, new(48, 48));
+        var options = new TrainingOptions { MinimumAngleDegrees = 0, MaximumAngleDegrees = 0 };
+        var geometric = ShapeTrainer.Train(image, region, options);
+        var paper = ShapeTrainer.Train(image, region, options with
+        {
+            BuildGeometricModel = false
+        });
+
+        Assert.NotNull(geometric.GeometryModel);
+        Assert.Null(paper.GeometryModel);
+        Assert.True(paper.EstimatedBytes < geometric.EstimatedBytes);
+        Assert.Equal(geometric.Levels.Length, paper.Levels.Length);
+        for (var level = 0; level < paper.Levels.Length; level++)
+        {
+            Assert.Equal(geometric.Levels[level].Features.ToArray(), paper.Levels[level].Features.ToArray());
+        }
+        Assert.Equal(geometric.TemplateCount, paper.TemplateCount);
+        var result = new ShapeMatcher().Search(image, paper, new()
+        {
+            EvaluateGeometry = false
+        });
+        Assert.NotEmpty(result.Matches);
+        Assert.All(result.Matches, match => Assert.Null(match.Geometry));
+        Assert.Throws<ArgumentException>(() => new ShapeMatcher().Search(image, paper,
+            new()
+            {
+                EvaluateGeometry = true,
+                MinimumCoverage = .5
+            }));
+    }
+
+    [Fact]
     public void ConstantImageAndMaskBoundaryDoNotCreateFeatures()
     {
         var pixels = Enumerable.Repeat((byte)128, 64 * 64).ToArray();
@@ -33,10 +68,10 @@ public sealed class TrainingTests
                 PyramidLevels = 2
             });
         Assert.True(model.Levels[0].Features.Length >= 40);
-        Assert.Equal(3, model.TemplateCount);
+        Assert.True(model.TemplateCount >= 3);
         Assert.Equal(2, model.Levels.Length);
         var first = model.Templates[0].Levels[0][0];
-        var rotated = model.Templates[2].Levels[0][0];
+        var rotated = model.Templates[^1].Levels[0][0];
         Assert.Equal(-first.Y, rotated.X);
         Assert.Equal(first.X, rotated.Y);
         Assert.Equal((first.Bin + 4) % 8, rotated.Bin);

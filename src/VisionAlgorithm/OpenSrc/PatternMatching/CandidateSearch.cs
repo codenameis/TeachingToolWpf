@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace VisionAlgorithm.OpenSrc.PatternMatching;
 
-internal readonly record struct PoseCandidate(MatchPose Pose, double Score, int Template);
+internal readonly record struct PoseCandidate(MatchPose Pose, double Score, int Template, VerifiedScore? Verification = null);
 internal sealed record CandidateBatch(List<PoseCandidate> Candidates, bool BudgetExceeded, int EvaluatedTemplates);
 
 internal static class CandidateSearch
@@ -44,6 +44,10 @@ internal static class CandidateSearch
                             var candidate = new PoseCandidate(new(((x * map.Step) + 0.5) * factor,
                                 ((y * map.Step) + 0.5) * factor, template.Angle, template.Scale),
                                 scores[i] / (100d * features.Length), index);
+                            if (!(options.Region?.ContainsWithin(candidate.Pose.X, candidate.Pose.Y, 4 * factor) ?? true))
+                            {
+                                continue;
+                            }
                             candidates.Enqueue(candidate, candidate.Score);
                             if (candidates.Count > options.MaximumCandidates)
                             {
@@ -59,54 +63,116 @@ internal static class CandidateSearch
         {
             ArrayPool<ushort>.Shared.Return(scores);
         }
-        var refined = new List<PoseCandidate>(candidates.Count);
-        while (candidates.TryDequeue(out var candidate, out _))
+        var ordered = new PoseCandidate[candidates.Count];
+        for (var index = 0; index < ordered.Length; index++)
         {
             token.ThrowIfCancellationRequested();
-            for (var level = top - 1; level >= 0; level--)
+            ordered[index] = candidates.Dequeue();
+        }
+        if (options.MaximumParallelism == 1 || ordered.Length <= 1)
+        {
+            for (var index = 0; index < ordered.Length; index++)
             {
-                var nextFactor = model.Levels[level].Factor;
-                var cx = (int)Math.Round((candidate.Pose.X / nextFactor) - 0.5);
-                var cy = (int)Math.Round((candidate.Pose.Y / nextFactor) - 0.5);
-                var bestScore = -1d;
-                var bestX = cx;
-                var bestY = cy;
-                for (var y = cy - 4; y <= cy + 4; y++)
-                {
-                    for (var x = cx - 4; x <= cx + 4; x++)
-                    {
-                        if (x < 0 || y < 0 || x >= image.Maps[level].Width || y >= image.Maps[level].Height)
-                        {
-                            continue;
-                        }
-                        var score = Score(image.Maps[level], model.Templates[candidate.Template].Levels[level], x, y);
-                        if (score > bestScore)
-                        {
-                            bestScore = score;
-                            bestX = x;
-                            bestY = y;
-                        }
-                    }
-                }
-                candidate = candidate with
-                {
-                    Pose = candidate.Pose with
-                    {
-                        X = (bestX + 0.5) * nextFactor,
-                        Y = (bestY + 0.5) * nextFactor
-                    },
-                    Score = bestScore
-                };
+                token.ThrowIfCancellationRequested();
+                ordered[index] = Refine(image, model, ordered[index], options, token);
             }
-            if (candidate.Score >= options.CandidateThreshold)
+        }
+        else
+        {
+            // 전처리는 불변이며 각 worker는 고정된 결과 슬롯만 쓴다. 완료 순서가 후보 우선순위를 바꾸지 않는다.
+            Parallel.For(0, ordered.Length, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = options.MaximumParallelism,
+                CancellationToken = token
+            }, index =>
+            {
+                ordered[index] = Refine(image, model, ordered[index], options, token);
+            });
+        }
+        var refined = new List<PoseCandidate>(ordered.Length);
+        foreach (var candidate in ordered)
+        {
+            token.ThrowIfCancellationRequested();
+            if (candidate.Verification is { } verification && (verification.Score < options.MinimumScore || verification.Support < options.MinimumSupport))
+            {
+                continue;
+            }
+            if (options.Verify || candidate.Score >= options.CandidateThreshold)
             {
                 refined.Add(candidate);
             }
         }
-        refined.Sort((a, b) => b.Score != a.Score ? b.Score.CompareTo(a.Score) :
+        refined.Sort((a, b) => (b.Verification?.Score ?? b.Score) != (a.Verification?.Score ?? a.Score)
+            ? (b.Verification?.Score ?? b.Score).CompareTo(a.Verification?.Score ?? a.Score) :
             a.Pose.Y != b.Pose.Y ? a.Pose.Y.CompareTo(b.Pose.Y) :
             a.Pose.X != b.Pose.X ? a.Pose.X.CompareTo(b.Pose.X) : a.Template.CompareTo(b.Template));
-        return new(refined, exceeded, groups.Count);
+        // 다른 템플릿에서 완전히 같은 연속 자세로 수렴한 후보는 동일한 정밀화 결과를 낸다.
+        // 근접 자세를 반올림하거나 IoU로 미리 제거하지 않는다.
+        return new(refined.DistinctBy(candidate => candidate.Pose).ToList(), exceeded, groups.Count);
+    }
+
+    internal static PoseCandidate Refine(PreparedSearchImage image, ShapeModel model, PoseCandidate candidate,
+        SearchOptions options, CancellationToken token)
+    {
+        // 각 단계에서 위치뿐 아니라 연속 각도·배율도 보정한 후 다음 해상도로 내려간다.
+        for (var level = model.Levels.Length - 1; level >= 0; level--)
+        {
+            token.ThrowIfCancellationRequested();
+            var factor = model.Levels[level].Factor;
+            var pose = candidate.Pose with
+            {
+                X = candidate.Pose.X / factor,
+                Y = candidate.Pose.Y / factor
+            };
+            var cx = (int)Math.Round(pose.X - 0.5);
+            var cy = (int)Math.Round(pose.Y - 0.5);
+            var cos = Math.Cos(pose.Angle);
+            var sin = Math.Sin(pose.Angle);
+            var features = model.Levels[level].Features.Select(feature => new QuantizedFeature(
+                (int)Math.Round(pose.Scale * ((cos * feature.X) - (sin * feature.Y))),
+                (int)Math.Round(pose.Scale * ((sin * feature.X) + (cos * feature.Y))),
+                OrientationMaps.Quantize((cos * feature.NormalX) - (sin * feature.NormalY),
+                    (sin * feature.NormalX) + (cos * feature.NormalY)))).ToImmutableArray();
+            var bestScore = -1d;
+            for (var y = Math.Max(0, cy - 4); y <= Math.Min(image.Maps[level].Height - 1, cy + 4); y++)
+            {
+                for (var x = Math.Max(0, cx - 4); x <= Math.Min(image.Maps[level].Width - 1, cx + 4); x++)
+                {
+                    var score = Score(image.Maps[level], features, x, y);
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        pose = pose with
+                        {
+                            X = x + 0.5,
+                            Y = y + 0.5
+                        };
+                    }
+                }
+            }
+            if (options.Verify)
+            {
+                var result = ContinuousVerifier.Optimize(image.Gradients[level], model, pose, options, token, level);
+                pose = result.Pose;
+                if (level == 0)
+                {
+                    candidate = candidate with
+                    {
+                        Verification = result.Score
+                    };
+                }
+            }
+            candidate = candidate with
+            {
+                Pose = pose with
+                {
+                    X = pose.X * factor,
+                    Y = pose.Y * factor
+                },
+                Score = bestScore
+            };
+        }
+        return candidate;
     }
 
     internal static void Accumulate(OrientationMaps map, ImmutableArray<QuantizedFeature> features,

@@ -7,6 +7,13 @@ using VisionAlgorithm.OpenSrc.Comparisons;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.Tests;
 
+if (args.Contains("--geometric-robustness", StringComparer.Ordinal) ||
+    args.Contains("--geometric-budget-probe", StringComparer.Ordinal))
+{
+    GeometricRobustnessBenchmark.Run(args);
+    return;
+}
+
 var trainingImage = SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0));
 var trainingOptions = new TrainingOptions { MinimumScale = 0.9, MaximumScale = 1.2 };
 var trainingTimer = Stopwatch.StartNew();

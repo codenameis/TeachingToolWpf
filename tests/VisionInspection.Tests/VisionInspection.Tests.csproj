@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VisionInspection/VisionInspection.csproj" />
+    <ProjectReference Include="../../src/VisionInspection.Cli/VisionInspection.Cli.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
+    <Using Include="Xunit" />
+    <Using Include="TeachingToolWpf.Imaging" />
+    <Compile Include="../VisionAlgorithm.Tests/SyntheticScene.cs" Link="Fixtures/SyntheticScene.cs" />
+    <Compile Include="../Shared/PrimitiveShapeFixture.cs" Link="Fixtures/PrimitiveShapeFixture.cs" />
+  </ItemGroup>
+  <Import Project="../../build/InspectionNativeRuntime.props" />
+</Project>

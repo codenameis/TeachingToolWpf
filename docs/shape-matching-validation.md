@@ -1,5 +1,7 @@
 # Shape matching 구현 검증 기록
 
+최신 후속(2026-10-04): OpenCV 기본 템플릿 매칭 추가와 큰 ROI 검색 구조 변경의 8K 반복 실측은 [별도 기록](matching-performance-2026-10-04.md), 원문 대조/설계는 [ADR-016](decisions/0016-template-matching-and-pyramid-search.md)에 있다. 아래 소형 benchmark와 scalar 기본값 설명은 변경 전 당시 결과로 보존한다.
+
 기록 시각: 2026-10-04 (KST). 설계와 논문 대응은 [구현 계획](../tasks/pattern-matching-plan.md), 현재 상태는 [진행 목록](../tasks/todo.md), 결정은 [ADR-013](decisions/0013-vision-algorithm-and-inspection.md)을 따른다.
 
 같은 날 검사 표시 후속: 640×400 합성 PNG 파일을 실제 reader로 학습/검사하고 WPF 명령·특징점 체크박스·DX12 결과 픽셀을 검증했다. 네 가지 판정, 결과 수명, 371개 전체 테스트와 증거는 [ADR-015](decisions/0015-inspection-result-display.md) 및 todo의 검사 표시 항목을 따른다. 아래 표는 최초 알고리즘 구현 당시 기록이며, 물리 포인터 수동 시험과 현장 8K/24K 검증은 여전히 NOT_RUN이다.

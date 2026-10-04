@@ -4,14 +4,21 @@
     <Project Path="src/TeachingToolWpf.Core/TeachingToolWpf.Core.csproj" />
     <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
+    <Project Path="src/VisionImaging/VisionImaging.csproj" />
+    <Project Path="src/VisionInspection/VisionInspection.csproj" />
+    <Project Path="src/VisionInspection.Cli/VisionInspection.Cli.csproj" />
+    <Project Path="src/VisionCompute.ILGPU/VisionCompute.ILGPU.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/VisionCanvas.Tests/VisionCanvas.Tests.csproj" />
     <Project Path="tests/TeachingToolWpf.Core.Tests/TeachingToolWpf.Core.Tests.csproj" />
     <Project Path="tests/TeachingToolWpf.Imaging.Tests/TeachingToolWpf.Imaging.Tests.csproj" />
     <Project Path="tests/VisionAlgorithm.Tests/VisionAlgorithm.Tests.csproj" />
+    <Project Path="tests/VisionInspection.Tests/VisionInspection.Tests.csproj" />
+    <Project Path="tests/VisionCompute.Tests/VisionCompute.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/TeachingToolWpf.Matching.Benchmarks/TeachingToolWpf.Matching.Benchmarks.csproj" />
     <Project Path="benchmarks/TeachingToolWpf.Benchmarks/TeachingToolWpf.Benchmarks.csproj" />
     <Project Path="benchmarks/VisionAlgorithm.Benchmarks/VisionAlgorithm.Benchmarks.csproj" />
   </Folder>

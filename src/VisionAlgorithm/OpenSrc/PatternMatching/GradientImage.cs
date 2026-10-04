@@ -30,30 +30,32 @@ internal sealed class GradientImage
     }
     private readonly int[] _edgeIndex;
     public EdgePoint[] EdgePoints { get; private set; } = [];
+    public long EstimatedBytes => ((long)Width * Height * 13) + (_edgeIndex.LongLength * 4) + (EdgePoints.LongLength * 40);
 
     public EdgePoint? EdgeAt(int x, int y)
     {
-        var index = _edgeIndex[(y * Width) + x];
+        var index = _edgeIndex.Length == 0 ? 0 : _edgeIndex[(y * Width) + x];
         return index == 0 ? null : EdgePoints[index - 1];
     }
 
-    private GradientImage(int width, int height)
+    private GradientImage(int width, int height, GradientPlanes? planes = null, bool extractEdges = true)
     {
         Width = width;
         Height = height;
         var count = checked(width * height);
-        X = new float[count];
-        Y = new float[count];
-        Magnitude = new float[count];
-        Bits = new byte[count];
-        _edgeIndex = new int[count];
+        X = planes?.X ?? new float[count];
+        Y = planes?.Y ?? new float[count];
+        Magnitude = planes?.Magnitude ?? new float[count];
+        Bits = planes?.Bits ?? new byte[count];
+        _edgeIndex = extractEdges ? new int[count] : [];
     }
 
-    public static GradientImage CreateTiled(GrayImage image, float threshold, CancellationToken token)
+    public static GradientImage CreateTiled(GrayImage image, float threshold, CancellationToken token,
+        IImagePreprocessor? preprocessor = null, bool extractEdges = true)
     {
         const int Interior = 128;
         const int Halo = 4;
-        var output = new GradientImage(image.Width, image.Height);
+        var output = new GradientImage(image.Width, image.Height, extractEdges: extractEdges);
         var edges = new List<EdgePoint>();
         for (var top = 0; top < image.Height; top += Interior)
         {
@@ -65,7 +67,7 @@ internal sealed class GradientImage
                 var x1 = Math.Min(image.Width, left + Interior + Halo);
                 var y1 = Math.Min(image.Height, top + Interior + Halo);
                 var pixels = image.Pixels.Slice((y0 * image.Stride) + x0);
-                var tile = Create(new(pixels, x1 - x0, y1 - y0, image.Stride), threshold, token);
+                var tile = Create(new(pixels, x1 - x0, y1 - y0, image.Stride), threshold, token, preprocessor, extractEdges);
                 for (var y = top; y < Math.Min(image.Height, top + Interior); y++)
                 {
                     for (var x = left; x < Math.Min(image.Width, left + Interior); x++)
@@ -76,7 +78,7 @@ internal sealed class GradientImage
                         output.Y[target] = tile.Y[source];
                         output.Magnitude[target] = tile.Magnitude[source];
                         output.Bits[target] = tile.Bits[source];
-                        if (tile.EdgeAt(x - x0, y - y0) is { } edge)
+                        if (extractEdges && tile.EdgeAt(x - x0, y - y0) is { } edge)
                         {
                             edges.Add(edge with
                             {
@@ -93,9 +95,85 @@ internal sealed class GradientImage
         return output;
     }
 
-    public static GradientImage Create(GrayImage image, float threshold, CancellationToken token)
+    public static GradientImage Create(GrayImage image, float threshold, CancellationToken token,
+        IImagePreprocessor? preprocessor = null, bool extractEdges = true)
     {
-        var result = new GradientImage(image.Width, image.Height);
+        token.ThrowIfCancellationRequested();
+        GradientImage result;
+        if (preprocessor is null)
+        {
+            result = CreateCpuGradient(image, threshold, token, extractEdges);
+        }
+        else
+        {
+            var planes = preprocessor.Prepare(image, threshold, token);
+            var count = checked(image.Width * image.Height);
+            if (planes?.X?.Length != count || planes.Y?.Length != count ||
+                planes.Magnitude?.Length != count || planes.Bits?.Length != count)
+            {
+                throw new InvalidOperationException("전처리 공급자가 영상 크기와 다른 gradient 배열을 반환했습니다.");
+            }
+            result = new(image.Width, image.Height, planes, extractEdges);
+        }
+        token.ThrowIfCancellationRequested();
+        if (!extractEdges)
+        {
+            return result;
+        }
+        var edges = new List<EdgePoint>();
+        for (var y = 2; y < image.Height - 2; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = 2; x < image.Width - 2; x++)
+            {
+                var i = (y * image.Width) + x;
+                if (result.Bits[i] == 0)
+                {
+                    continue;
+                }
+                var nx = result.X[i];
+                var ny = result.Y[i];
+                var a = Sample(result.Magnitude, image.Width, image.Height, (double)x - nx, (double)y - ny);
+                var b = result.Magnitude[i];
+                var c = Sample(result.Magnitude, image.Width, image.Height, (double)x + nx, (double)y + ny);
+                if (b < a || b < c)
+                {
+                    continue;
+                }
+                var denominator = a - (2 * b) + c;
+                var offset = Math.Abs(denominator) > 1e-6 ? Math.Clamp(0.5 * (a - c) / denominator, -0.5, 0.5) : 0;
+                edges.Add(new(x + 0.5 + (nx * offset), y + 0.5 + (ny * offset), nx, ny, b));
+                result._edgeIndex[i] = edges.Count;
+            }
+        }
+        result.EdgePoints = edges.ToArray();
+        return result;
+    }
+
+    private static GradientImage CreateCpuGradient(GrayImage image, float threshold, CancellationToken token, bool extractEdges)
+    {
+        var result = new GradientImage(image.Width, image.Height, extractEdges: extractEdges);
+        var planes = new GradientPlanes(result.X, result.Y, result.Magnitude, result.Bits);
+        var smooth = Smooth(image, token);
+        for (var y = 1; y < image.Height - 1; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = 1; x < image.Width - 1; x++)
+            {
+                var i = (y * image.Width) + x;
+                var w = image.Width;
+                var dx = (smooth[i - w + 1] + (2 * smooth[i + 1]) + smooth[i + w + 1] -
+                    smooth[i - w - 1] - (2 * smooth[i - 1]) - smooth[i + w - 1]) / 8;
+                var dy = (smooth[i + w - 1] + (2 * smooth[i + w]) + smooth[i + w + 1] -
+                    smooth[i - w - 1] - (2 * smooth[i - w]) - smooth[i - w + 1]) / 8;
+                GradientPlanes.NormalizeSample(planes, i, dx, dy, threshold);
+            }
+        }
+        return result;
+    }
+
+    private static float[] Smooth(GrayImage image, CancellationToken token)
+    {
         var horizontal = new float[checked(image.Width * image.Height)];
         var smooth = new float[horizontal.Length];
         ReadOnlySpan<int> kernel = [1, 4, 6, 4, 1];
@@ -126,55 +204,7 @@ internal sealed class GradientImage
                 smooth[(y * image.Width) + x] = sum / 16;
             }
         }
-        for (var y = 1; y < image.Height - 1; y++)
-        {
-            token.ThrowIfCancellationRequested();
-            for (var x = 1; x < image.Width - 1; x++)
-            {
-                var i = (y * image.Width) + x;
-                var w = image.Width;
-                var dx = (smooth[i - w + 1] + (2 * smooth[i + 1]) + smooth[i + w + 1] -
-                    smooth[i - w - 1] - (2 * smooth[i - 1]) - smooth[i + w - 1]) / 8;
-                var dy = (smooth[i + w - 1] + (2 * smooth[i + w]) + smooth[i + w + 1] -
-                    smooth[i - w - 1] - (2 * smooth[i - w]) - smooth[i - w + 1]) / 8;
-                var magnitude = MathF.Sqrt((dx * dx) + (dy * dy));
-                result.Magnitude[i] = magnitude;
-                if (magnitude >= threshold)
-                {
-                    result.X[i] = dx / magnitude;
-                    result.Y[i] = dy / magnitude;
-                    result.Bits[i] = (byte)(1 << OrientationMaps.Quantize(dx, dy));
-                }
-            }
-        }
-        var edges = new List<EdgePoint>();
-        for (var y = 2; y < image.Height - 2; y++)
-        {
-            token.ThrowIfCancellationRequested();
-            for (var x = 2; x < image.Width - 2; x++)
-            {
-                var i = (y * image.Width) + x;
-                if (result.Bits[i] == 0)
-                {
-                    continue;
-                }
-                var nx = result.X[i];
-                var ny = result.Y[i];
-                var a = Sample(result.Magnitude, image.Width, image.Height, (double)x - nx, (double)y - ny);
-                var b = result.Magnitude[i];
-                var c = Sample(result.Magnitude, image.Width, image.Height, (double)x + nx, (double)y + ny);
-                if (b < a || b < c)
-                {
-                    continue;
-                }
-                var denominator = a - (2 * b) + c;
-                var offset = Math.Abs(denominator) > 1e-6 ? Math.Clamp(0.5 * (a - c) / denominator, -0.5, 0.5) : 0;
-                edges.Add(new(x + 0.5 + (nx * offset), y + 0.5 + (ny * offset), nx, ny, b));
-                result._edgeIndex[i] = edges.Count;
-            }
-        }
-        result.EdgePoints = edges.ToArray();
-        return result;
+        return smooth;
     }
 
     internal static float Sample(float[] values, int width, int height, double x, double y)

@@ -1,0 +1,1388 @@
+{
+  "RecordedAt": "2026-10-04T14:43:02.947413+09:00",
+  "AlgorithmAssemblySha256": "5709CA4D2999713BA33E0F34727FAD962CD6A2EE1D5DD781676A0150B23F2231",
+  "FrameworkDescription": ".NET 10.0.12",
+  "OSDescription": "Microsoft Windows 10.0.26200",
+  "Processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+  "ProcessorCount": 12,
+  "ImageWidth": 193,
+  "ImageHeight": 181,
+  "Model": {
+    "TemplateCount": 365,
+    "Options": {
+      "PyramidLevels": 3,
+      "MaximumFeatures": 160,
+      "MinimumGradient": 8,
+      "MinimumAngleDegrees": -180,
+      "MaximumAngleDegrees": 180,
+      "AngleStepDegrees": 5,
+      "MinimumScale": 0.8,
+      "MaximumScale": 1.2,
+      "ScaleStep": 0.1,
+      "MaximumTemplates": 2048,
+      "Polarity": 0
+    },
+    "EstimatedBytes": 1246856
+  },
+  "Search": {
+    "CandidateThreshold": 0.65,
+    "MinimumScore": 0.72,
+    "MinimumSupport": 0.6,
+    "MaximumCandidates": 2048,
+    "MaximumVerifiedCandidates": 64,
+    "MaximumCoarseVerifiedCandidates": 256,
+    "MaximumMatches": 16,
+    "MaximumOverlap": 0.3,
+    "Refine": true,
+    "Verify": true,
+    "EvaluateGeometry": true,
+    "GeometricTolerancePixels": 3,
+    "MinimumCoverage": 0,
+    "MaximumFitErrorPixels": "Infinity",
+    "MaximumClutterRatio": 1,
+    "UseSimd": true,
+    "TiledPreprocessing": false,
+    "GroupTemplates": false,
+    "MaximumParallelism": 1,
+    "Region": null
+  },
+  "Scope": "\uC790\uCCB4 \uD569\uC131 18\uAC74, 1\uD68C \uC6CC\uBC0D\uC5C5 \uD6C4 3\uD68C. \uC2E4\uC81C \uD604\uC7A5/\uC0C1\uC6A9 matcher/8K\u00B724K \uC131\uB2A5 \uADFC\uAC70\uAC00 \uC544\uB2D8.",
+  "Occlusion": "\uD559\uC2B5 \uB3C4\uD615 \uACBD\uACC4 \uC0C1\uC790 39\u00D742\uC758 \uC624\uB978\uCABD 25%; \uAC00\uB824\uC9C4 \uBAA8\uB378 \uD2B9\uC9D5 \uBE44\uC728\uC744 \uB73B\uD558\uC9C0 \uC54A\uC74C.",
+  "PoseLimits": {
+    "PositionPixels": 0.75,
+    "AngleDegrees": 1.5,
+    "ScaleAbsolute": 0.025
+  },
+  "Rows": [
+    {
+      "Name": "rotation-minus179-scale080",
+      "Scenario": {
+        "Name": "rotation-minus179-scale080",
+        "Degrees": -179.4,
+        "Scale": 0.8,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": -3.131120678077827,
+        "Scale": 0.8
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.009229395455284221,
+      "AngleErrorDegrees": 0.04001435823302564,
+      "ScaleAbsoluteError": 0.00011384150532256498,
+      "Milliseconds": [
+        304.9542,
+        273.1772,
+        276.5675
+      ],
+      "MedianMilliseconds": 276.5675,
+      "AllocatedBytes": [
+        6222176,
+        6222456,
+        6222456
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 5.2922,
+        "CandidateMilliseconds": 261.0377,
+        "VerificationMilliseconds": 0.0314,
+        "RefinementMilliseconds": 10.0925,
+        "SuppressionMilliseconds": 0.0956,
+        "TemplatesEvaluated": 365,
+        "Candidates": 56,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175349,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34107515246471,
+            "Y": 87.64764865210104,
+            "Angle": -3.130422295778588,
+            "Scale": 0.8001138415053226
+          },
+          "CandidateScore": 1,
+          "Score": 0.9989511914437497,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.29718840927086104,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 193
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation-minus135-scale090",
+      "Scenario": {
+        "Name": "rotation-minus135-scale090",
+        "Degrees": -135.3,
+        "Scale": 0.9,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": -2.361430477948328,
+        "Scale": 0.9
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.019128029619127643,
+      "AngleErrorDegrees": 0.07883658510590554,
+      "ScaleAbsoluteError": 0.00035289045274800035,
+      "Milliseconds": [
+        315.1107,
+        296.3673,
+        341.7723
+      ],
+      "MedianMilliseconds": 315.1107,
+      "AllocatedBytes": [
+        6617544,
+        6617488,
+        6618160
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.958,
+        "CandidateMilliseconds": 323.777,
+        "VerificationMilliseconds": 0.0417,
+        "RefinementMilliseconds": 13.8969,
+        "SuppressionMilliseconds": 0.0776,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177661,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.33380941545447,
+            "Y": 87.63981439794689,
+            "Angle": -2.3628064359294547,
+            "Scale": 0.900352890452748
+          },
+          "CandidateScore": 0.861375,
+          "Score": 0.9993068148236013,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.2909672715725011,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 242
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation-minus90-scale100",
+      "Scenario": {
+        "Name": "rotation-minus90-scale100",
+        "Degrees": -90.2,
+        "Scale": 1,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": -1.5742869852988852,
+        "Scale": 1
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.036183900525079644,
+      "AngleErrorDegrees": 0.2686129447743702,
+      "ScaleAbsoluteError": 0.0010298183687402762,
+      "Milliseconds": [
+        387.9174,
+        386.9452,
+        375.006
+      ],
+      "MedianMilliseconds": 386.9452,
+      "AllocatedBytes": [
+        5620472,
+        5620416,
+        5621088
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 10.7279,
+        "CandidateMilliseconds": 351.4537,
+        "VerificationMilliseconds": 0.0381,
+        "RefinementMilliseconds": 12.6919,
+        "SuppressionMilliseconds": 0.0745,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1176165,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.32029456108293,
+            "Y": 87.67066062815971,
+            "Angle": -1.5789751655986757,
+            "Scale": 1.0010298183687403
+          },
+          "CandidateScore": 1,
+          "Score": 0.9993937488749968,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.37700273348630564,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 236
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation-minus45-scale110",
+      "Scenario": {
+        "Name": "rotation-minus45-scale110",
+        "Degrees": -45.1,
+        "Scale": 1.1,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": -0.7871434926494426,
+        "Scale": 1.1
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.012786704708395834,
+      "AngleErrorDegrees": 0.009740399740250063,
+      "ScaleAbsoluteError": 0.0008713308956118659,
+      "Milliseconds": [
+        300.8939,
+        264.5829,
+        263.5449
+      ],
+      "MedianMilliseconds": 264.5829,
+      "AllocatedBytes": [
+        6619104,
+        6619048,
+        6619720
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.5525,
+        "CandidateMilliseconds": 249.3842,
+        "VerificationMilliseconds": 0.0363,
+        "RefinementMilliseconds": 11.4594,
+        "SuppressionMilliseconds": 0.0845,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1180301,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34608339944229,
+            "Y": 87.66217210160043,
+            "Angle": -0.7873134946953704,
+            "Scale": 1.0991286691043882
+          },
+          "CandidateScore": 0.9313125,
+          "Score": 0.999650564097425,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.3187552149443626,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 276
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation-zero-scale120",
+      "Scenario": {
+        "Name": "rotation-zero-scale120",
+        "Degrees": 0.3,
+        "Scale": 1.2,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 0.005235987755982988,
+        "Scale": 1.2
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.033762727318274156,
+      "AngleErrorDegrees": 0.028132045126771966,
+      "ScaleAbsoluteError": 0.000955462686328401,
+      "Milliseconds": [
+        254.5261,
+        247.9789,
+        259.3681
+      ],
+      "MedianMilliseconds": 254.5261,
+      "AllocatedBytes": [
+        5733440,
+        5733384,
+        5734056
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.7311,
+        "CandidateMilliseconds": 248.4438,
+        "VerificationMilliseconds": 0.0456,
+        "RefinementMilliseconds": 7.0706,
+        "SuppressionMilliseconds": 0.0666,
+        "TemplatesEvaluated": 365,
+        "Candidates": 39,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179973,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.31679608056096,
+            "Y": 87.65611731067173,
+            "Angle": 0.0057269845687647845,
+            "Scale": 1.1990445373136716
+          },
+          "CandidateScore": 1,
+          "Score": 0.9995985892903082,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.3087027045209053,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 289
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation45-scale080",
+      "Scenario": {
+        "Name": "rotation45-scale080",
+        "Degrees": 45.2,
+        "Scale": 0.8,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 0.7888888219014369,
+        "Scale": 0.8
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.18027756377320103,
+      "AngleErrorDegrees": 0.20000000000000664,
+      "ScaleAbsoluteError": 0.006249999999999423,
+      "Milliseconds": [
+        278.9381,
+        272.9484,
+        268.9933
+      ],
+      "MedianMilliseconds": 272.9484,
+      "AllocatedBytes": [
+        7816688,
+        7817304,
+        7816632
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.7166,
+        "CandidateMilliseconds": 253.1815,
+        "VerificationMilliseconds": 0.0263,
+        "RefinementMilliseconds": 14,
+        "SuppressionMilliseconds": 0.0591,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1176485,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25,
+            "Y": 87.5,
+            "Angle": 0.7853981633974482,
+            "Scale": 0.8062499999999995
+          },
+          "CandidateScore": 1,
+          "Score": 0.9992233664223317,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.3429444892389193,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 214
+          },
+          "RefinementStatus": "Rejected",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation90-scale090",
+      "Scenario": {
+        "Name": "rotation90-scale090",
+        "Degrees": 90.4,
+        "Scale": 0.9,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 1.5777776438028739,
+        "Scale": 0.9
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.02219886215401772,
+      "AngleErrorDegrees": 0.04842677009464648,
+      "ScaleAbsoluteError": 0.0004623184958715276,
+      "Milliseconds": [
+        267.3084,
+        256.8294,
+        255.8151
+      ],
+      "MedianMilliseconds": 256.8294,
+      "AllocatedBytes": [
+        6043160,
+        6043776,
+        6043104
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.6685,
+        "CandidateMilliseconds": 245.3195,
+        "VerificationMilliseconds": 0.0272,
+        "RefinementMilliseconds": 8.7381,
+        "SuppressionMilliseconds": 0.0519,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175181,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.36891933471323,
+            "Y": 87.63838758186502,
+            "Angle": 1.5786228503871318,
+            "Scale": 0.8995376815041285
+          },
+          "CandidateScore": 0.86725,
+          "Score": 0.9992943598821966,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.28933537159933864,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 212
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation135-scale110",
+      "Scenario": {
+        "Name": "rotation135-scale110",
+        "Degrees": 135.3,
+        "Scale": 1.1,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 2.361430477948328,
+        "Scale": 1.1
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.007547945094836879,
+      "AngleErrorDegrees": 0.056042776203652556,
+      "ScaleAbsoluteError": 0.0004798399233556516,
+      "Milliseconds": [
+        259.9059,
+        270.7999,
+        280.7937
+      ],
+      "MedianMilliseconds": 270.7999,
+      "AllocatedBytes": [
+        5819816,
+        5820432,
+        5819760
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8279,
+        "CandidateMilliseconds": 269.5454,
+        "VerificationMilliseconds": 0.046,
+        "RefinementMilliseconds": 9.2851,
+        "SuppressionMilliseconds": 0.074,
+        "TemplatesEvaluated": 365,
+        "Candidates": 36,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1178669,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.346854588832,
+            "Y": 87.65686133104718,
+            "Angle": 2.36240860891504,
+            "Scale": 1.1004798399233557
+          },
+          "CandidateScore": 1,
+          "Score": 0.99956950402985,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.31874416828145385,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 272
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "rotation179-scale120",
+      "Scenario": {
+        "Name": "rotation179-scale120",
+        "Degrees": 179.4,
+        "Scale": 1.2,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 3.131120678077827,
+        "Scale": 1.2
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.03535533905933541,
+      "AngleErrorDegrees": 0.02500000000002389,
+      "ScaleAbsoluteError": 2.220446049250313E-16,
+      "Milliseconds": [
+        239.8132,
+        231.8807,
+        234.0206
+      ],
+      "MedianMilliseconds": 234.0206,
+      "AllocatedBytes": [
+        5299552,
+        5300168,
+        5299496
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.7311,
+        "CandidateMilliseconds": 225.3699,
+        "VerificationMilliseconds": 0.0163,
+        "RefinementMilliseconds": 6.8558,
+        "SuppressionMilliseconds": 0.0385,
+        "TemplatesEvaluated": 365,
+        "Candidates": 26,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179429,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.625,
+            "Angle": 3.130684345764828,
+            "Scale": 1.1999999999999997
+          },
+          "CandidateScore": 1,
+          "Score": 0.9995247484747439,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.29452517519139876,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 318
+          },
+          "RefinementStatus": "Rejected",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "contrast-half",
+      "Scenario": {
+        "Name": "contrast-half",
+        "Degrees": 13.4,
+        "Scale": 1.07,
+        "Contrast": 0.5,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 0.23387411976724018,
+        "Scale": 1.07
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.010026634791963147,
+      "AngleErrorDegrees": 0.016199648947088148,
+      "ScaleAbsoluteError": 0.0006483417225600085,
+      "Milliseconds": [
+        260.879,
+        261.6401,
+        265.563
+      ],
+      "MedianMilliseconds": 261.6401,
+      "AllocatedBytes": [
+        5642696,
+        5643312,
+        5642640
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.5804,
+        "CandidateMilliseconds": 256.226,
+        "VerificationMilliseconds": 0.0176,
+        "RefinementMilliseconds": 7.6974,
+        "SuppressionMilliseconds": 0.034,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177885,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.35868868902817,
+            "Y": 87.65500400721653,
+            "Angle": 0.2341568569790341,
+            "Scale": 1.07064834172256
+          },
+          "CandidateScore": 1,
+          "Score": 0.9995686622571694,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.26517512918461567,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 261
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "right-quarter-occlusion",
+      "Scenario": {
+        "Name": "right-quarter-occlusion",
+        "Degrees": 13.4,
+        "Scale": 1.07,
+        "Contrast": 1,
+        "Occluded": true,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 0.23387411976724018,
+        "Scale": 1.07
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.10056834231388333,
+      "AngleErrorDegrees": 0.20725912029254845,
+      "ScaleAbsoluteError": 0.0019070109201537733,
+      "Milliseconds": [
+        266.3953,
+        264.3369,
+        270.0524
+      ],
+      "MedianMilliseconds": 266.3953,
+      "AllocatedBytes": [
+        8278760,
+        8279376,
+        8278704
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.6133,
+        "CandidateMilliseconds": 254.5357,
+        "VerificationMilliseconds": 0.0172,
+        "RefinementMilliseconds": 13.8313,
+        "SuppressionMilliseconds": 0.0476,
+        "TemplatesEvaluated": 365,
+        "Candidates": 58,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177285,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25218924781223,
+            "Y": 87.67338906223485,
+            "Angle": 0.23749147382113214,
+            "Scale": 1.0680929890798463
+          },
+          "CandidateScore": 0.9946875,
+          "Score": 0.8369480769454881,
+          "Support": 0.81875,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 0.85625,
+            "FitErrorPixels": 0.5328765668901689,
+            "ClutterRatio": 0.10328638497652583,
+            "MatchedFeatures": 137,
+            "ModelFeatures": 160,
+            "SceneEdges": 213
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 137,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "background-clutter",
+      "Scenario": {
+        "Name": "background-clutter",
+        "Degrees": -17.2,
+        "Scale": 0.93,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": true,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": false,
+      "PosePassed": true,
+      "Complete": false,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": -0.30019663134302466,
+        "Scale": 0.93
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.003839181492071899,
+      "AngleErrorDegrees": 0.013524055772962573,
+      "ScaleAbsoluteError": 6.758359414593684E-05,
+      "Milliseconds": [
+        1358.7123,
+        1360.8048,
+        1352.2203
+      ],
+      "MedianMilliseconds": 1358.7123,
+      "AllocatedBytes": [
+        15365872,
+        15366488,
+        15365816
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8524,
+        "CandidateMilliseconds": 1338.1001,
+        "VerificationMilliseconds": 0.0166,
+        "RefinementMilliseconds": 12.199,
+        "SuppressionMilliseconds": 0.0453,
+        "TemplatesEvaluated": 365,
+        "Candidates": 54,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1283773,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34776882606214,
+            "Y": 87.65312428830106,
+            "Angle": -0.2999605920415631,
+            "Scale": 0.9299324164058541
+          },
+          "CandidateScore": 1,
+          "Score": 0.999401956830306,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.3085971631380603,
+            "ClutterRatio": 0.35127478753541075,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 353
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "occlusion-clutter-half-contrast",
+      "Scenario": {
+        "Name": "occlusion-clutter-half-contrast",
+        "Degrees": 13.4,
+        "Scale": 1.07,
+        "Contrast": 0.5,
+        "Occluded": true,
+        "Clutter": true,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": true,
+      "Passed": false,
+      "PosePassed": true,
+      "Complete": false,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 0.23387411976724018,
+        "Scale": 1.07
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.10070985818403431,
+      "AngleErrorDegrees": 0.2052207721274924,
+      "ScaleAbsoluteError": 0.001924081025181934,
+      "Milliseconds": [
+        1347.3284,
+        1363.6848,
+        1354.2154
+      ],
+      "MedianMilliseconds": 1354.2154,
+      "AllocatedBytes": [
+        16105464,
+        16106080,
+        16105408
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8784,
+        "CandidateMilliseconds": 1336.8283,
+        "VerificationMilliseconds": 0.0177,
+        "RefinementMilliseconds": 15.4343,
+        "SuppressionMilliseconds": 0.0477,
+        "TemplatesEvaluated": 365,
+        "Candidates": 55,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1282981,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25204130380341,
+            "Y": 87.6733788232149,
+            "Angle": 0.23745589793434993,
+            "Scale": 1.0680759189748181
+          },
+          "CandidateScore": 0.9735,
+          "Score": 0.8305592231872184,
+          "Support": 0.81875,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 0.85625,
+            "FitErrorPixels": 0.5326989575779812,
+            "ClutterRatio": 0.6953748006379585,
+            "MatchedFeatures": 137,
+            "ModelFeatures": 160,
+            "SceneEdges": 627
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 137,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "empty",
+      "Scenario": {
+        "Name": "empty",
+        "Degrees": 0,
+        "Scale": 1,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": true
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": false,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": null,
+      "MatchCount": 0,
+      "PositionErrorPixels": null,
+      "AngleErrorDegrees": null,
+      "ScaleAbsoluteError": null,
+      "Milliseconds": [
+        4.6302,
+        5.7681,
+        5.5774
+      ],
+      "MedianMilliseconds": 5.5774,
+      "AllocatedBytes": [
+        1614144,
+        1613416,
+        1613416
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.0247,
+        "CandidateMilliseconds": 2.5451,
+        "VerificationMilliseconds": 0.0012,
+        "RefinementMilliseconds": 0.0001,
+        "SuppressionMilliseconds": 0.0028,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1155061,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": []
+    },
+    {
+      "Name": "clutter-only",
+      "Scenario": {
+        "Name": "clutter-only",
+        "Degrees": 0,
+        "Scale": 1,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": true,
+        "Inverted": false,
+        "SimilarDistractor": false,
+        "Empty": true
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": false,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": null,
+      "MatchCount": 0,
+      "PositionErrorPixels": null,
+      "AngleErrorDegrees": null,
+      "ScaleAbsoluteError": null,
+      "Milliseconds": [
+        1465.4405,
+        1395.8627,
+        1347.6678
+      ],
+      "MedianMilliseconds": 1395.8627,
+      "AllocatedBytes": [
+        10519888,
+        10519832,
+        10520504
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.5019,
+        "CandidateMilliseconds": 1345.1438,
+        "VerificationMilliseconds": 0.004,
+        "RefinementMilliseconds": 0.0006,
+        "SuppressionMilliseconds": 0.008,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1261221,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": []
+    },
+    {
+      "Name": "similar-distractor",
+      "Scenario": {
+        "Name": "similar-distractor",
+        "Degrees": 13.4,
+        "Scale": 1,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": false,
+        "SimilarDistractor": true,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": false,
+      "Passed": false,
+      "PosePassed": false,
+      "Complete": false,
+      "Expected": null,
+      "MatchCount": 1,
+      "PositionErrorPixels": 2.6595347337457405,
+      "AngleErrorDegrees": 177.15,
+      "ScaleAbsoluteError": 0.08749999999999969,
+      "Milliseconds": [
+        304.9928,
+        289.8361,
+        310.424
+      ],
+      "MedianMilliseconds": 304.9928,
+      "AllocatedBytes": [
+        13780304,
+        13780920,
+        13780248
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.0967,
+        "CandidateMilliseconds": 273.179,
+        "VerificationMilliseconds": 0.0143,
+        "RefinementMilliseconds": 35.0904,
+        "SuppressionMilliseconds": 0.04,
+        "TemplatesEvaluated": 365,
+        "Candidates": 160,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1181453,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.125,
+            "Y": 85,
+            "Angle": -2.8579766501407144,
+            "Scale": 1.0874999999999997
+          },
+          "CandidateScore": 0.831,
+          "Score": 0.8306447108253462,
+          "Support": 0.78125,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 0.84375,
+            "FitErrorPixels": 1.1934807575007953,
+            "ClutterRatio": 0.19615384615384615,
+            "MatchedFeatures": 135,
+            "ModelFeatures": 160,
+            "SceneEdges": 260
+          },
+          "RefinementStatus": "Rejected",
+          "Correspondences": 135,
+          "AngleObservable": true
+        }
+      ]
+    },
+    {
+      "Name": "inverted",
+      "Scenario": {
+        "Name": "inverted",
+        "Degrees": 137.4,
+        "Scale": 1.07,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": true,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "Preserve",
+      "ShouldFind": false,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": null,
+      "MatchCount": 0,
+      "PositionErrorPixels": null,
+      "AngleErrorDegrees": null,
+      "ScaleAbsoluteError": null,
+      "Milliseconds": [
+        272.6535,
+        277.6282,
+        269.2054
+      ],
+      "MedianMilliseconds": 272.6535,
+      "AllocatedBytes": [
+        3336768,
+        3337384,
+        3336712
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8884,
+        "CandidateMilliseconds": 267.3082,
+        "VerificationMilliseconds": 0.0008,
+        "RefinementMilliseconds": 0.0002,
+        "SuppressionMilliseconds": 0.0032,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175101,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": []
+    },
+    {
+      "Name": "inverted",
+      "Scenario": {
+        "Name": "inverted",
+        "Degrees": 137.4,
+        "Scale": 1.07,
+        "Contrast": 1,
+        "Occluded": false,
+        "Clutter": false,
+        "Inverted": true,
+        "SimilarDistractor": false,
+        "Empty": false
+      },
+      "Polarity": "IgnoreLocal",
+      "ShouldFind": true,
+      "Passed": true,
+      "PosePassed": true,
+      "Complete": true,
+      "Expected": {
+        "X": 103.35,
+        "Y": 87.65,
+        "Angle": 2.398082392240209,
+        "Scale": 1.07
+      },
+      "MatchCount": 1,
+      "PositionErrorPixels": 0.007610151093373374,
+      "AngleErrorDegrees": 0.020939062535986493,
+      "ScaleAbsoluteError": 0.0004357616098271677,
+      "Milliseconds": [
+        265.335,
+        272.5449,
+        281.4279
+      ],
+      "MedianMilliseconds": 272.5449,
+      "AllocatedBytes": [
+        5104544,
+        5105160,
+        5104488
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8437,
+        "CandidateMilliseconds": 272.3851,
+        "VerificationMilliseconds": 0.0151,
+        "RefinementMilliseconds": 7.1457,
+        "SuppressionMilliseconds": 0.0348,
+        "TemplatesEvaluated": 365,
+        "Candidates": 29,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1178813,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34243391449806,
+            "Y": 87.65081777126471,
+            "Angle": 2.3984478478237428,
+            "Scale": 1.0704357616098272
+          },
+          "CandidateScore": 0.9488125,
+          "Score": 0.9996210407962961,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0.29460229291995343,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 293
+          },
+          "RefinementStatus": "Converged",
+          "Correspondences": 160,
+          "AngleObservable": true
+        }
+      ]
+    }
+  ]
+}

@@ -14,6 +14,16 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 작업 원칙
 
+2026-10-04 사용자 승인: [플랫폼 독립 검사 계획](tasks/portable-inspection-plan.md)에 따라 **검사용 DX12를 제거**하고 Windows·Linux 공통 원본 I/O·검사 실행과 선택형 ILGPU CUDA 경로를 구성한다. WPF·VisionCanvas의 표시 DX12는 유지한다. 이전 ADR-022의 GPU 백엔드 선택은 이 후속 결정으로 대체하며, 원본·점수·취소·메모리 계약은 유지한다. 후보 축소로 검출력을 떨어뜨리는 빠른 프리셋은 재현 근거로 개선하거나 삭제한다. Linux 실실행 검증 전에는 지원 완료를 주장하지 않는다.
+
+2026-10-04 커스텀 점수/실행 제어/일반 도형은 [ADR-022](docs/decisions/0022-inspection-scoring-execution-and-primitives.md), 이후 후보 예산·플랫폼·CUDA 교체는 [ADR-023](docs/decisions/0023-portable-inspection-and-candidate-budget.md)을 따른다. 앱의 두 커스텀 방식은 원본 pose에서 추가 윤곽 감점을 적용하고 방향 점수를 별도 보존한다. OpenCV NCC는 유지한다. GPU 선택은 별도 VisionCompute.ILGPU의 CUDA 평활화·Sobel 전처리이며 정규화·검색·검증은 CPU다. 알고리즘/Core/검사에 DX12 의존성을 추가하지 않는다. CPU/GPU 원본 결과 동등성과 전송 포함 시간을 검증한다. 일반 도형은 독립 서비스/패널과 실제 윤곽을 사용하고 패턴과 동시에 실행하지 않는다. 시간 초과·잘림·예산 상한은 불완전 경고다.
+
+2026-10-04 논문 형상 일부 표시/읽기 후속은 [ADR-021](docs/decisions/0021-shape-output-and-original-tile-reuse.md)을 따른다. 세 방식의 앱 출력 기본값은 각각256개이고 라이브러리 기본16개와 구별한다. 독립 검사 reader의 원본 Gray8 타일 LRU는 실제 대여 배열 기준16MiB다. 검사·소스 간 공유하지 않고 퇴출/종료/변환실패에서 풀 버퍼를 반환한다. 원본 명암·crop 후 면적 평균·검출 조건을 보존하고 캐시 한도를 프로세스 전체 메모리 상한으로 표현하지 않는다.
+
+2026-10-04 매칭 방식/출력 제한 후속은 [ADR-020](docs/decisions/0020-matching-modes-and-result-limits.md)을 따른다. OpenCV·논문 기반 형상·자체 기하 형상의 모델/학습 ROI/설정을 독립 보관한다. 논문 모드는 기하 모델 생성/평가를 하지 않고 자체 기하 모드만 최종 윤곽 품질을 추가한다. 출력 상한 `MatchLimitExceeded`와 후보 예산 `Truncated`를 구별하고 둘 다 경고로 표시한다. 학습 조건이 변경되면 재학습 전 검사를 막고 숫자 파싱 오류에서 이전 값으로 실행하지 않는다. 사용자 파라미터는 [안내](docs/matching-parameters.md)를 따른다.
+
+2026-10-04 검출 윤곽 후속은 [ADR-018](docs/decisions/0018-inspection-boundaries.md)을 따른다. 검출 경계는 학습 성공 시 보관한 실제 ROI 도형을 검출 pose로 변환하며 NMS용 AABB나 crop 사각형으로 대신하지 않는다. OpenCV는 학습 각도·크기를 유지한 평행 이동이다. 검색 범위는 점선, 검출 경계는 닫힌 실선으로 구분하고 Canvas는 공급자 비의존을 유지한다.
+
 2026-10-04 검사 표시 후속: [ADR-015](docs/decisions/0015-inspection-result-display.md)를 따른다. 정상 LimeGreen, 불량 Tomato, 경고 Orange, 사용자 확인 Gold다. 불완전 검색·취소·오류를 제품 NG로 판정하지 않는다. 전체 이미지 검사 결과는 단순 ROI 선택·탐색 후 유지하고 검사 입력 변경과 새 실행에서 무효화한다. 특징점 옵션은 모델 윤곽점을 검출 pose로 변환해 표시하는 기능이며 측정 대응점으로 표현하지 않는다. Canvas에는 판정 정책/공급자 의존성을 추가하지 않는다.
 
 - 사용자와의 설명 및 프로젝트 문서는 한국어, 코드의 식별자는 영어를 사용한다.
@@ -65,13 +75,19 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - C# / .NET 10 / WPF / Windows x64를 유지한다. DX12 하드웨어 지원은 시작 시 검사한다.
 - 1차 렌더러는 Direct3D 12 + DXGI flip-model swap chain + `HwndHost`가 소유한 전용 자식 HWND다.
 - DX12 바인딩/셰이더 컴파일은 Vortice 3.8.3, 파일 디코드는 NetVips 3.2.0 및 Native.win-x64 8.18.6으로 고정한다. 네이티브 의존성/배포 고지는 `THIRD-PARTY-NOTICES.md`를 따른다.
-- ROI 미리보기는 OpenCvSharp4 및 Windows slim runtime 4.13.0.20260627을 사용한다. 기존 미리보기의 OpenCV 타입은 `Imaging/Filters` 안에 격리한다. 현재 `VisionAlgorithm`은 순수 C# Gray8 입력을 사용하고 OpenCV 참조가 없다. 향후 OpenCV 알고리즘 경로를 추가한다면 Mat은 `VisionAlgorithm/OpenSrc/PatternMatching/Imaging` 내부에만 두고 공개 계약·Core·WPF ViewModel·검사 입력 adapter에 노출하지 않는다.
+- ROI 미리보기와 OpenCV 기본 템플릿 매칭은 OpenCvSharp4 및 Windows slim runtime 4.13.0.20260627을 사용한다. 미리보기의 OpenCV 타입은 `VisionCanvas/Imaging/Filters`, 매칭의 Mat은 `VisionAlgorithm/OpenSrc/PatternMatching/Imaging` 내부에만 둔다. 공개 계약·Core·WPF ViewModel·검사 입력 adapter에 Mat을 노출하지 않는다. 형상 경로는 C# Gray8 계산을 유지한다.
 - WPF는 툴바·ROI 트리·속성 패널을 담당한다. 이미지, ROI, 선택 핸들, 마퀴, 각도 표시, 부모 이름표는 같은 GPU 뷰포트에서 그린다.
 - `D3DImage`에 DX12 텍스처를 직접 연결할 수 있다고 가정하지 않는다. `HwndHost` 위에 WPF `Canvas`, `Adorner`, 반투명 패널을 겹치는 설계도 사용하지 않는다.
 - Vulkan 전환은 실제 대상 장비에서의 재현 가능한 비교 또는 플랫폼 요구 변경에 근거한다. 추측으로 두 렌더러를 동시에 구현하지 않는다.
 - WPF와 DX12 타입이 없는 Core를 두어 좌표·ROI·계층·선택 로직을 GPU 없이 검증한다. 사용처 없는 범용 엔진이나 플러그인 시스템은 만들지 않는다.
 
 ## VisionAlgorithm과 검사 확장 지침
+
+2026-10-04 속도·숫자 입력 후속은 [ADR-024](docs/decisions/0024-matching-throughput-and-decimal-input.md)를 따른다. 원본16MiB와 축소4MiB의 검사별 LRU는 실제 대여 버퍼 예산이며 프로세스 총 메모리 상한이 아니다. 원본 읽기는 단일 소유자, 독립 crop 계산만 병렬 실행하고 합2Mpx(기존 단일crop은8Mpx)를 지킨다. 공간순 실행 결과를 원래 후보 순서로 복원해 동점·NMS를 보존한다. 병렬 진단 시간 합을 전체 wall time의 분해로 해석하지 않는다. 숫자 입력 회귀는 완성 문자열뿐 아니라 `0`→`0.`→`0.72`의 실제 편집 경로를 확인한다.
+
+2026-10-04 기하 매칭 확장은 [ADR-019](docs/decisions/0019-geometric-match-quality.md)와 [단계별 계획](tasks/geometric-matching-plan.md)을 따른다. PatMax 공개 기능을 요구사항으로 참고한 자체 C# 구현이며 Cognex 소스/SDK 포팅이나 동등 성능으로 표현하지 않는다. 선택 특징 대응비율·유클리드 대응 거리 RMS·학습 마스크 안의 불필요 윤곽비율을 최종 원본 pose에서 측정한다. 전체 학습 윤곽과 마스크는 모델 소유 불변 자료이며 예산 초과를 조용한 특징 생략으로 처리하지 않는다. 기본 방향 점수와 후보 예산을 보존하고 확대 검사/품질 기준은 명시적 설정이다. 기본값/확대값의 실측과 불완전 검색 경고를 구별한다.
+
+2026-10-04 속도/논문 재검토 후속은 [ADR-016](docs/decisions/0016-template-matching-and-pyramid-search.md)을 따른다. 형상/OpenCV 템플릿 방식을 분리하고 고정 방향·크기 상관 검색과 회전·배율 형상 검색의 기능을 구별한다. 큰 이미지의 거친 검색은 원본 level-0 타일을 학습과 같은 면적 평균으로 축소하며 최종 판정은 원본 crop에서 수행한다. 학습/정밀화 crop은 최대 8 Mpx, 형상 거친/일반 검색은 2 Mpx, OpenCV 검색 창은 16 Mpx다. 내부 seed를 포함한 예산 잘림은 경고로 보고한다. 원 논문 전체 재현/상용 동등성으로 표현하지 않는다. 측정 조건과 한계는 [실측](docs/matching-performance-2026-10-04.md)을 따른다.
 
 다음은 2026-10-04 매칭 구현과 앱 연결의 경계다. 미완료 비교 경로 및 실측 범위는 `tasks/todo.md`와 `tasks/pattern-matching-plan.md`를 따른다.
 
@@ -85,7 +101,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - 결과는 source generation/frame ID/recipe revision/template version/run ID와 함께 검증해 게시한다. 오류·취소·오래된 결과·불완전 검색을 OK 또는 제품 NG로 위장하지 않는다. 라이브 검사 드롭과 표시 드롭은 구별한다.
 - renderer가 소유한 `ITileSource`를 검사 worker에서 동시 읽기/해제하지 않는다. 독립 reader lease 또는 소유자가 직렬화한 요청으로 읽고, native 호출 종료 전에 모델/버퍼를 반환하지 않는다. 단일 실행+최신 대기 하나와 작업 메모리 예산을 지킨다.
 - 오른쪽 패널은 영역/패턴 티칭/검사/결과의 책임을 분리한다. 기존 편집/필터/표시 기능을 보존하고 결과는 DX12의 공급자 비의존 overlay로 표시한다. MainWindow와 EditorViewModel에 검색/판정/자원 수명을 몰아넣지 않는다.
-- 2026-10-04 사용자 요청으로 `src/VisionCanvas`를 분리했다. HWND 입력·DX12·셰이더·영상/타일·필터 표시와 좁은 viewport 계약을 소유하고 Core만 참조한다. 앱은 `src/TeachingToolWpf`, 검사·공급자 UI는 앱에 남긴다. 기존 namespace는 호환성을 위해 유지하며 프로젝트 경계는 참조 그래프로 검증한다. [ADR-014](docs/decisions/0014-canvas-and-explicit-hierarchy.md)를 따른다.
+- 2026-10-04 사용자 요청으로 `src/VisionCanvas`를 분리했다. HWND 입력·DX12·셰이더·영상/타일·필터 표시와 좁은 viewport 계약을 소유한다. 이후 ADR-023에 따라 공통 원본 I/O를 VisionImaging으로 옮겼으며 Canvas의 프로젝트 참조는 Core와 VisionImaging이다. 알고리즘/검사 공급자를 참조하지 않는다. 앱은 `src/TeachingToolWpf`, 검사·공급자 UI는 앱에 남긴다. 기존 namespace는 호환성을 위해 유지하며 프로젝트 경계는 참조 그래프로 검증한다. [ADR-014](docs/decisions/0014-canvas-and-explicit-hierarchy.md)와 ADR-023을 따른다.
 
 ## 좌표와 ROI 불변 조건
 
@@ -191,7 +207,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 구조 및 명령
 
-앱 프로젝트는 `src/TeachingToolWpf/TeachingToolWpf.csproj`다. `src/VisionCanvas`는 캔버스, `src/TeachingToolWpf.Core`는 순수 기하·계층·이력, `src/VisionAlgorithm`은 알고리즘이다. 각 프로젝트는 자기 폴더의 파일만 컴파일한다. `tests`의 4개 프로젝트와 `benchmarks`의 2개 프로젝트는 솔루션의 같은 이름 폴더로 묶는다.
+앱 프로젝트는 `src/TeachingToolWpf/TeachingToolWpf.csproj`다. `src/VisionCanvas`는 캔버스, `src/TeachingToolWpf.Core`는 순수 기하·계층·이력, `src/VisionAlgorithm`은 알고리즘이다. VisionImaging은 원본 I/O, VisionInspection은 공통 검사, VisionCompute.ILGPU는 선택형 CUDA, VisionInspection.Cli는 화면 없는 실행 호스트다. 각 프로젝트는 자기 폴더의 파일만 컴파일한다. `tests`의 6개 프로젝트와 `benchmarks`의 3개 프로젝트는 솔루션의 같은 이름 폴더로 묶는다. `PortableInspection.slnx`는 WPF 없는 CPU 검사 검증 대상이며 GPU 테스트는 별도 선택한다. `TeachingToolWpf.Matching.Benchmarks`는 원본 reader를 포함한 큰 ROI 형상/OpenCV 검사 재현용이다.
 
 현재 프로젝트의 명령:
 

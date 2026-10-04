@@ -1,5 +1,128 @@
 # 단계별 작업 목록
 
+## 2026-10-04 형상 검사 속도와 소수점 입력 후속
+
+기준: [ADR-024](../docs/decisions/0024-matching-throughput-and-decimal-input.md), [실측과 검증](../docs/matching-throughput-validation.md).
+
+- [x] PASS: 숫자 바인딩 `0.`→`0` 재현 및 필드별 편집 문자열 보존. 패턴 3방식·일반 도형 숫자 회귀 20개. 실제 앱에서 문자별 `0.720` 입력과 Tab 후 유지 확인.
+- [x] PASS: 방향 후보 정밀화의 실제 CPU 병렬화, 고정 배율 중복 계산 제거, 미사용 상위 NMS 생략. 알고리즘 169개 통과.
+- [x] PASS: 원본 16 MiB+축소 4 MiB LRU, 행 변환과 복사 제거, 공간 순서 원본 읽기, 결과 원래 순서 복원. 병렬 crop 합 2 Mpx·단일 8 Mpx 한도, 장치 직렬화/취소/해제 집중 39개 통과.
+- [x] PASS: 8K 256핀·24576×8192 768핀 전체 검사, 워밍업 1/측정 3회 CPU 4/CUDA 4에서 완전 검출·위치 1 px·변경 전 record 동등. 원본 읽기 768→512, 2982→1536회.
+- [x] PASS: 최종 CPU 1 실측 8K 3130.67 ms/24K 9562.48 ms. 앱 기본 CPU 4는 2149.90/6532.94 ms, 기존 4253.36/16455.00 ms 대비 49.5%/60.3% 감소. CUDA 4는 2338.15/7190.75 ms로 CPU보다 느림. 3회 중앙값·합성 입력 한계 명시.
+- [x] PASS: 전체 746(Core 182/Algorithm 169/Inspection 68/CUDA 27/Canvas 100/앱 200), skip 0. `Format-Code.ps1 -Verify` PASS, 빌드 경고 0/오류 0, diff 검사 PASS. 최종 포맷 로그 `artifacts/inspection-speed-format-verified.log`, 별도 게시물 `artifacts/publish-inspection-speed-verified`.
+- [x] PASS: 최종 배포 DX12 debug 통합 검사 exit 0. CPU/CUDA 256개, 회전 패턴 2개, 도형 4종, 폴리곤·검색 점선·Undo/Redo·문자 입력, 렌더 오류 없음. `artifacts/inspection-speed-runtime-final/artifacts/inspection-smoke.log`. 첫 smoke의 접힌 고급 패널 탐색 실패는 테스트가 Expander를 열도록 수정한 뒤 통과했다.
+- [x] PASS: 새 앱에서 핀 하나(159특징/3단계/37템플릿)를 학습하고 CPU 4로 8192×8192 전체 검사. 256개/3117.7 ms(읽기 1214.3 ms)/OK, 검출 사각형·검색 점선 확인. 단일 UI 실행과 반복 중앙값 2149.90 ms를 구별한다. 실제 OS 화면·접근성 기록 `artifacts/inspection-speed-user-state/final-inspection.jpg`, `.txt`. 앱은 검사 결과 표시 상태로 유지.
+
+## 2026-10-04 플랫폼 독립 검사와 후보 축소 개선
+
+기준: [승인된 작업 계획](portable-inspection-plan.md).
+
+- [x] PASS: 공통 VisionImaging / VisionInspection net10.0 추출. 원본·취소·마스크·타일·예산·플랫폼 참조 경계 회귀. Canvas는 Core+VisionImaging만 프로젝트 참조하며 공급자 미참조.
+- [x] PASS: 빠르게 선택지 제거, 과거 enum0은 기본으로 정규화. 같은40패턴 기본예산2048/64에서11→40검출, 중앙값347.1→342.5ms(워밍업1/측정5). 최소점수.72와감점1/예산/정밀화유지, 불완전경고유지. pose분산순서신규9+기존58=67집중PASS, 앱프리셋5회귀PASS.
+- [x] PASS: 검사 DX12 제거, ILGPU1.5.3 CUDA 평활화+Sobel·공통CPU정규화. 실제RTX3060 22동등성/수명+5정리실패주입=27PASS. 최종pose·score·quality완전일치. 전체시간은 후속 측정 항목 참조.
+- [x] PASS: JSON 레시피 CLI, 원본파일4방식실행(2/2/1/4검출), 부분옵션기본값보존·실패/취소/원자적출력/덮어쓰기보호. Linux x64 ELF/native cross-publish 및 고지포함 PASS, WPF/Windowsnative미포함. 실제Linux실행과구별.
+- [x] PASS: 최종 전체687(Core182/Algorithm152/검사CLI46/CUDA27/Canvas100/앱180), skip0. `artifacts/portable-verified-tests.log` 및 TRX. 컨벤션Verify PASS, 빌드경고/오류0. 원칙예외없음.
+- [x] PASS: 8K256핀6설정 각각워밍업1/측정3. CPU/CUDA pose·score·support·clutter완전일치, 정답매핑256개/1px통과. 호출전체중앙값 CPU4046.41/CUDA4084.50ms로 약0.9%느림. CPU기본유지, 가속달성주장하지않음. `docs/data/portable-cuda-benchmark-20261004.json`.
+- [x] PASS: 별도게시물 `artifacts/publish-portable-inspection`, DX12 debug smoke exit0. 실제CPU/CUDA256핀·OpenCV256·회전기하2·도형4·폐폴리곤·검색점선·Undo/Redo, 렌더오류없음. `artifacts/portable-inspection-runtime/artifacts/inspection-smoke.log`.
+- [x] PASS: 새앱직접실행·핀1개모델학습·CUDA모드전체검사256개/4424.6ms/OK. 새후보예산명칭·CUDA선택·실선검출위치·검색점선확인. 실제OS창원본스크린샷과접근성기록 `artifacts/portable-inspection-user-state/cuda-pins.jpg`, `.txt`. 단일UI실행시간은반복중앙값과구별. 새앱은결과표시상태로유지.
+- [ ] Linux 실실행: 실행 환경 없음. Windows 통과나 Linux cross-publish를 실제 Linux PASS로 표시하지 않음.
+
+## 2026-10-04 추가 윤곽 점수·실행 제어·일반 도형
+
+기준: [계획](inspection-controls-plan.md), [ADR-022](../docs/decisions/0022-inspection-scoring-execution-and-primitives.md).
+
+- [x] 점수 재현 RED9 FAIL/6 PASS → 집중56 PASS. 합성 대각선 핀 방향1.000/추가윤곽25.2%/최종.748, 깨끗한 핀1.000. 실제 마스크/회전/가림/정밀화/최종 최소점수·정렬·NMS 검증. 앱 두 방식 기본비중1, OpenCV식 유지.
+- [x] 실행 프리셋/병렬도/시간 한도/방식별 설정과 GPU 실제 경로 구현. RTX3060 GPU14+fence4+중립계약5 PASS. 오류 시 무폴백, fence 완료 후 반환. 결과에실제adapter/처리량/시간 표시.
+- [x] 원본8K 핀ROI 설정별워밍업1/측정3 PASS. 모든설정256/256, 1px 위치기준, CPU/GPU pose·점수동등, 최저점수약.79. 중앙값CPU균형4213.4/GPU4508.4ms. 속도프리셋효과는입력에의존하며가속달성으로표현하지않음. `docs/data/inspection-controls-20261004.json`.
+- [x] 일반 도형 알고리즘 18개 / 앱 13개 집중 PASS. 회전 십자가와 타원·T/L/I·링 음성, 크기·잘림·원본 ROI·시간 한도·늦은 결과를 검증했다. 별도 패널·검사 도구 선택·샘플 버튼 연결. 실제 PNG 로더의 307,200개 원본 픽셀 일치와 4종 각 1개 검출 PASS.
+- [x] 최종 Release 전체 **647개 PASS**(Core 182 / 앱 227 / Algorithm 138 / Canvas 100), skip 0. `artifacts/inspection-controls-verified-tests.log`, 프로젝트별 `inspection-controls-verified.trx`. 시간 초과 예외·원본 모델 검증·Signal 실패·정지 라이브 도구 전환 회귀 포함.
+- [x] `pwsh -File scripts/Format-Code.ps1 -Verify` PASS, 빌드 경고·오류 0. `artifacts/inspection-controls-format-verified.log`. 별도 배포본 `artifacts/publish-inspection-controls` 생성. SOLID 5개·GRASP 9개 검토, 원칙 예외 없음.
+- [x] 배포 DX12 debug smoke PASS(exit 0), 렌더 오류·D3D12 버퍼 경고 없음. CPU 256개 / GPU 256개, 일반 도형 4종, 검색 점선·닫힌 폴리곤·판정색·숫자 검증·검사 중 잠금·샘플 Undo/Redo를 확인했다. `artifacts/inspection-controls-runtime-verified/artifacts/inspection-smoke.log`. 초기 smoke에서 발견한 기본 힙 버퍼 초기 상태 경고와 BMP 샘플 디코드 실패를 수정했으며 실패 기록도 보존했다.
+- [x] 새 배포 앱을 직접 실행하여 **도형 샘플 → 도형 검출** PASS. 640×480 PNG에서 4종 각 1개 / 78.9ms, 실제 닫힌 윤곽·위치·종류와 검색 점선 확인. OS 창 원본 스크린샷과 접근성 상태: `artifacts/inspection-controls-user-state/primitives.jpg`, `primitives.txt`. 새 앱을 검사 완료 상태로 유지하고 기존 사용자 창은 보존했다.
+- [ ] 실촬영8K/24K검출률·실시간FPS·전체GPU검색·테두리도형/붙음/가림지원 NOT_RUN/미구현. 완료로표현하지않음.
+
+## 2026-10-04 논문 형상 일부 검출과 원본 읽기 개선
+
+기준: [ADR-021](../docs/decisions/0021-shape-output-and-original-tile-reuse.md).
+
+- [x] 현재 사용자 앱 조사 PASS. 논문 모드/사용자 핀 ROI/점수 .72/출력16에서16개와 생략 경고. 같은 모델 상한1000→256개/5,611.7ms/읽기3,225.2ms/64창/OK. 후보 예산 누락은 이 입력에서 재현되지 않았음. `artifacts/paper-user-state` OS 화면·접근성 상태 보존.
+- [x] 앱 형상 두 모드도 독립 기본256 적용, 라이브러리16 유지. 원본 타일16MiB LRU와 풀 버퍼 소유/반환 구현. 원본 명암·축소·점수·후보 조건 변경 없음. cache 회귀 RED6개 실패→focused PASS,32MiB 예산 변이2개 실패→즉시 원복 확인. `artifacts/paper-cache-*.log`.
+- [x] Release 워밍업1/측정3 반복 PASS. 256/256 핀 일대일 검출, 최대 위치오차 .205px, 전후 모든 pose/점수/지지/정밀화 결과 정확 동일. 중앙값5,825.9→4,392.8ms(24.6% 감소), 타일1604→768회. pooled 버퍼로 일반 배열 캐시의 추가 약200MB 할당 제거. 프로세스 peak104,951,808→148,307,968bytes와 cache16MiB 한도를 구별. `docs/data/paper-pins-*.json`.
+- [x] Release 전체561개 PASS(Core182/앱187/Canvas100/Algorithm92), skip0, 빌드 경고/오류0. `artifacts/paper-matching-tests.log`, 프로젝트별 `paper-matching-results.trx`. `Format-Code.ps1 -Verify` PASS(`paper-format-verify.log`). 독립 리뷰 SOLID5/GRASP9·캐시 풀 소유/반환 검토 PASS, 원칙 예외 없음.
+- [x] 별도 배포본 `artifacts/publish-paper-matching/TeachingToolWpf.exe` RTX3060 Laptop/DX12 debug smoke PASS(exit0). 논문 핀16개 Warning→256개/4,206.0ms/64창/OK, 각16칩에서16개. 기존 OpenCV256/숫자검증/기하 품질/폴리곤·점선/판정색/Undo 회귀 및 렌더 오류없음. `artifacts/paper-matching-runtime/artifacts/inspection-smoke.log`. 실제 GPU 진단 수치는 단일 실행이며 반복 벤치마크와 구별.
+- [x] 새 배포본 직접 실행→ROI 속성 입력→핀 학습→기본상한256 전체 검사 PASS. 실제 OS 창에서256개/5,005.5ms/읽기2,068.3ms/64창/OK 확인. `artifacts/paper-user-state/fixed-paper-256.jpg`, `fixed-paper-256.txt`. 이 단일 첫 실행 수치를 워밍업 반복 중앙값4.39초와 구별하며 새 앱은 검사 완료 상태로 유지했다.
+- [ ] 실촬영8K/24K 검출률·지연·장시간 메모리/실시간 FPS NOT_RUN. 합성 핀 결과와 구별. 약4.4초 검사는 실시간 성능 달성이 아님.
+
+## 2026-10-04 OpenCV 일부 검출과 세 방식 분리
+
+기준: [ADR-020](../docs/decisions/0020-matching-modes-and-result-limits.md), [파라미터 안내](../docs/matching-parameters.md).
+
+- [x] 실행 중 사용자 앱 원형 보존하여 조사 PASS. 8K 샘플/핀 107×130/점수 .72에서 최대 결과 수16 때문에 16개만 표시했고 OK로 보고한 결함 확인. 동일 모델 상한1000→256개/16창/10,169.4ms. 전후 OS 캡처 `artifacts/opencv-user-state`; 코드 수정 전 실측.
+- [x] NMS 후 N+1 독립 결과 유무로 출력 생략 감지, 후보 예산과 별도 경고 및 개별 검출 Orange 표시. 정확상한·중복·여러 검색창·동시경고 회귀 PASS. 알고리즘91개 및 앱 판정15개 focused PASS.
+- [x] 세 방식별 모델/설정, 추가 파라미터, 학습 dirty·숫자 검증·취소/늦은 결과 회귀 PASS. 논문 모드는 기하 자원 생성/평가 제외, 기하 모드만 별도 학습/품질 검증. 형상 일반/피라미드의 출력 상한 누락도 독립 리뷰로 찾아 N+1 진단과 경고를 통일.
+- [x] Release 전체 **542개 PASS**(Core182 / 앱168 / Canvas100 / Algorithm92), skip0: `artifacts/matching-modes-tests.log`. 신규 테스트 준비의 잘못된 이미지 초기화 호출/ImmutableArray 참조 비교를 수정하고 정확한 이미지 교체·요소 비교로 검증. 재학습 차단 조건 제거 변이에서11개 FAIL→원복 후 모드21개 PASS: `matching-modes-mutation.log`, `matching-modes-restored.log`.
+- [x] `pwsh -File scripts/Format-Code.ps1 -Verify` PASS, 빌드 경고/오류0. `artifacts/matching-modes-format.log`. 독립 리뷰의 파라미터/상태/취소/수명 검토, SOLID5/GRASP9 확인. 원칙 예외 없음.
+- [x] 별도 배포본 `artifacts/publish-matching-modes/TeachingToolWpf.exe` 실제 RTX3060 Laptop/DX12 debug 검사 smoke PASS(exit0), 렌더 오류 없음. 사용자 핀 ROI 재현: cap16 Warning(10,500.0ms)→cap256 정확히256개 Pass(9,610.9ms), 모든16칩에서각16개. 단일 실행 수치이며 속도 개선 비교 아님. 숫자 abc/범위오류 차단·복구·방식전환, 기하 전용 설정 바인딩·검사 중 잠금, 기존 폴리곤·점선·4판정색 회귀 PASS: `artifacts/matching-modes-runtime/artifacts/inspection-smoke.log`.
+- [x] 새 배포본 직접 실행→ROI 속성 입력→OpenCV 선택→핀1개 학습→전체8K 검사 PASS. 기본상한256에서256개/16창/9,496.1ms/OK 확인. 실제 OS 창 스크린샷과 접근성 텍스트 `artifacts/opencv-user-state/fixed-app-256.jpg`, `fixed-app-256.txt`, 세 방식 목록 `three-modes-window.jpg`. 수정 앱을 검사 완료 상태로 유지하고 기존 사용자 앱도 보존했다.
+- [ ] 실촬영 8K/24K 검출률/시간·상용 동등성·모델/설정 영구 저장 NOT_RUN/후속. 합성 핀256개 성공으로 대체하지 않는다.
+
+## 2026-10-04 기하 형상 매칭 1차 확장
+
+기준: [ADR-019](../docs/decisions/0019-geometric-match-quality.md), [단계별 계획](geometric-matching-plan.md), [실측 보고](../docs/geometric-matching-validation.md). PatMax 공개 기능을 참고한 자체 C# 확장이며 Cognex 소스/SDK 포팅·동등 성능을 주장하지 않는다.
+
+- [x] 최종 원본 pose의 선택 윤곽 특징 대응비율, 실제 에지 거리 RMS, 전체 학습 윤곽 기반 clutter와 선택형 합격 기준 구현 PASS. 정확한 마스크/기준각/배율/극성/가림 고정 분모/원본 crop/취소/8 Mpx·262,144점 제한 검증. 기본 방향 점수·기존 후보 제한 유지.
+- [x] 오른쪽 기하 검증 패널, 후보 확대 4096/256 옵션, 결과 수치·미계산·측정 불가 구분, 형상/유휴 상태 제한, 조건 변경 무효화·늦은 결과 차단, 축소 후보 계산 생략·원본 기준 적용 PASS. 앱 신규 20개 회귀 포함.
+- [x] 기존 기본 정책은 추가 전후 15/18이며 한계를 그대로 기록. 명시적 정밀 정책(후보4096/256, coverage .75, fit1px, clutter .75)에서 합성18/18 PASS. 최대 위치오차 .18028px/각도 .26862°/배율 .00625. 기본 후보 예산 경고 회귀2개 보존. 정밀 정책은 주변 획/복합에서 더 느리며 현장 성능과 구별.
+- [x] 정밀화 거절 시 반환 pose와 다른 잔차/대응 개수 보고 수정. 공개 정밀화 재호출의 오래된 Geometry 유지도 독립 리뷰에서 발견해 RED 재현 후 null 무효화. ShapeMatcher는 최종 pose에서 다시 계산. SOLID 5/GRASP 9 검토, 원칙 예외 없음.
+- [x] 전체 **491개 PASS**(Core182 / 앱123 / Canvas100 / Algorithm86), skip0. `artifacts/geometric-solution-tests.log`, 프로젝트별 `geometric-results.trx`. `Format-Code.ps1 -Verify` PASS(`artifacts/geometric-format-verify.log`), 빌드 경고/오류0, git diff --check PASS.
+- [x] 새 배포본 `artifacts/publish-geometric/TeachingToolWpf.exe`의 RTX3060 Laptop / DX12 debug 검사 PASS(exit0). 실제 원본 학습→8K 칩16개, 회전 폴리곤·실선/검색점선, 두 패턴, OpenCV, 특징점, 기존 판정색·미검출 회귀 확인. 새 품질 옵션 실제 WPF 바인딩·검사 중 비활성·원본 품질 표시 PASS. `artifacts/geometric-runtime-final/artifacts/inspection-smoke.log`. 초기 진단은 펼친 Expander 레이아웃 갱신 전 요소 탐색으로 실패했고 절차 수정 후 재검증 PASS; 기준 완화 없음.
+- [x] 두 패턴 품질 검사 91.9ms 단일 실행, 둘 다 특징160/160·clutter0, RMS0.000/0.328px. 회전 패턴은 정밀화 Rejected이므로 CHECK 유지. `artifacts/geometric-runtime-final/artifacts/inspection-geometric-quality-app.png`는 WPF+DX12 readback 진단 캡처이며 OS 창 스크린샷이 아님.
+- [ ] 새 배포본 직접 조작·OS 창 스크린샷: NOT_RUN/중단. 새 앱 실행까지 진행했으나 사용자 Escape로 Computer Use가 중단되어 추가 조작/촬영을 멈췄다. 기존 앱 종료는 자동 승인 검토가 미저장 상태 손실 이유로 거절해 기존 `artifacts/publish`와 창을 보존하고 별도 배포했다. 기존 이미지·페이지를 최신 OS 캡처로 표현하지 않는다.
+- [ ] 실촬영 8K/24K·독립 holdout 검출률·실시간 FPS·상용 비교 NOT_RUN. 비균일 배율/affine·비선형 변형·CAD 학습·모델/레시피 저장은 후속 계획이며 이번 1차 완료와 구별.
+
+
+## 2026-10-04 검출 박스·폴리곤과 검색 점선
+
+기준: [ADR-018](../docs/decisions/0018-inspection-boundaries.md). NMS 마스크 AABB/crop 사각형을 표시 경계로 재사용하는 원인 확인.
+
+- [x] 학습 도형의 불변 스냅샷을 방식별 모델과 함께 보관. 회전 사각형·삼각형·원·오목 폴리곤의 실제 윤곽, 형상 검출 절대각/배율, OpenCV 고정 방향/크기 검증 PASS. 학습 후 ROI 편집·이미지 교체, 재학습 실패·취소·오래된 결과에서 기존 모델/도형 보존 PASS.
+- [x] 검색 범위는 화면 DIP 기준 8/5 점선, 검출 윤곽은 닫힌 실선과 대비용 배경 획으로 구분. 짧은 번호/점수 라벨을 먼저 그려 인접 윤곽 가림 방지. 화면 밖 구간을 자른 뒤 대시를 만들며 꼭짓점·닫는 변·클리핑의 위상 유지. 배율/DPI·거대 화면 밖 선·오목 윤곽의 모든 변 회귀 PASS.
+- [x] Release 빌드와 전체 **422개 PASS**(Core 182 / 앱 103 / Canvas 100 / Algorithm 37), skip 0. 근거: `artifacts/inspection-boundary-solution-tests.log`. 독립 읽기 전용 리뷰에서 이번 변경의 확정 결함 없음, SOLID 5/GRASP 9 확인. 원칙 예외 없음.
+- [x] RTX 3060 Laptop / DX12 debug 실제 파일 학습·검사 smoke PASS(exit 0), 렌더 오류 없음. 8K 합성 칩 16개(검사 6072.7 ms), 기존 형상 2개/OpenCV 1개·특징점·선택 유지·미검출 회귀 포함. 근거: `artifacts/boundary-runtime/artifacts/inspection-smoke.log`. 해당 1회 수치를 현장 성능으로 확대하지 않음.
+- [x] 640×400 합성 PNG의 오목 6각형 ROI를 실제로 학습하고 별도 검색 폴리곤 안에서 회전 패턴 1개 검출: X419.875/Y230.125, 20.156°, 1.2000배, 점수 .999, 60.9 ms. 알려진 정답 대비 각 꼭짓점 오차 1.5px 미만, GPU 닫힌 6개 변과 검색 대시/공백 89/31개 표본·18회 전환 확인. 정밀화 `Rejected`는 CHECK/Gold로 유지하며 OK로 바꾸지 않음.
+- [x] `artifacts/boundary-runtime/artifacts/inspection-polygon-boundaries-app.png` 직접 확인. 검색 점선 사이 기존 파란 선택 ROI 선/핸들을 보존하며, 검출된 학습 폴리곤의 회전·오목 꼭짓점은 Gold 실선으로 표시. 이 PNG는 실제 WPF UI와 DX12 readback을 합친 **진단 캡처**이며 OS 앱 창 스크린샷이 아님.
+- [x] `pwsh -File scripts/Format-Code.ps1 -Verify` PASS, 빌드 경고/오류 0. `artifacts/inspection-boundary-format.log`, `inspection-boundary-publish.log`. `git diff --check` PASS.
+- [x] 수정 배포본 `artifacts/publish/TeachingToolWpf.exe`를 직접 실행해 마우스로 칩 ROI 생성→학습→검사. 8K 합성 칩 16개/OK, 각 칩의 실선 박스·짧은 라벨과 전체 이미지 검색 점선 직접 확인. OS 앱 창 스크린샷: `artifacts/actual-app-screenshot-20261004/inspection-boundaries-window.jpg`. 앱을 검사 완료 상태로 유지.
+
+## 2026-10-04 기본 칩 학습·검사 후속
+
+기준: [ADR-017](../docs/decisions/0017-default-chip-inspection.md). 기본 8K의 칩 내부/테두리 ROI를 구분해 재현했다. 아래 검증은 이전 중앙 교차선 512 ROI 시험과 다른 입력이다.
+
+- [x] 평평한 512 ROI는 윤곽 부족 학습 실패를 재현. 학습 기준을 낮추지 않고 ROI 테두리·핀 포함 안내를 패널 상단과 캔버스 경고에 연결. 이전 모델 보존 여부도 명시. 처리 중 GPU 배너·진행 막대·취소·입력 무효화 안내 PASS.
+- [x] 원본 후보 정밀화의 전체 방향 응답맵 재생성 제거, gradient 피라미드 연속 pose 최적화/point-to-line 유지. 큰 원본·비정수 위치/회전/배율·작은 원형 검색 영역 회귀 PASS. 수렴 초기 오차 범위의 전 입력 동등성은 주장하지 않음.
+- [x] 동일 8192²/1600×1120 칩 ROI 3회 중앙값 **4567.4→3460.7ms**, 약 24% 감소. 각각 16개/불완전 false. 원시 JSON `docs/data/chip-before-8192.json`, `chip-after-8192.json`. UI native ROI 첫 실행 약 5.3초는 별도 기록.
+- [x] **패턴 샘플** 상단 버튼, 자체 제작 기존 640×400 PNG 자산 배포 동봉. 실제 버튼 파일 열기·ROI 초기화·모델 보존·Undo/Redo PASS. 오른쪽 도형 검출을 위한 배율 검색/최대 1.2 이상 안내.
+- [x] RTX 3060 Laptop/DX12 debug: 실제 HWND ROI 그리기→학습→16개 위치/오차 1px 미만·GPU 윤곽 확인. 평평한 ROI 실패·처리 중 캡처, 전용 샘플/기존 형상·OpenCV·특징점/네 색/NG smoke PASS. `artifacts/chip-ui/artifacts/inspection-smoke.log` 및 PNG.
+- [x] 독립 읽기 전용 리뷰의 샘플 최대 배율 안내 누락 수정. IsBusy 조건 반전 시 회귀 테스트 FAIL 확인 후 원복. `artifacts/chip-mutation.log`. SOLID 5/GRASP 9 검토, 원칙 예외 없음.
+- [x] 최종 전체 **389개 PASS**(Core 182 / 앱 78 / Canvas 92 / Algorithm 37), skip 0. `artifacts/chip-all-tests.log`, 각 TestResults/chip-results.trx. `pwsh -File scripts/Format-Code.ps1 -Verify` PASS(`artifacts/chip-format-verify.log`). 빌드 경고/오류 0, git diff --check PASS.
+- [x] 최종 배포본 검사 smoke PASS(exit 0): `artifacts/chip-publish-runtime/artifacts/inspection-smoke.log`, native 칩 ROI 16개/약 5.2초, 패턴 샘플 자산/Undo/Redo/두 pose/OpenCV/색/특징점 확인. 기존 앱 smoke도 PASS(exit 0): `artifacts/chip-regression-runtime/artifacts/smoke.log`, 명시적 계층·도형·이력·필터·미니맵·8K 라이브 보존. 배포 경로 `artifacts/publish/TeachingToolWpf.exe`, 자산 SHA-256 원본/배포 일치.
+- [ ] 현장 영상 8K/24K 정확도/속도, 가림·저대비 변화 통계, 실시간 검사 FPS: NOT_RUN. 기본 합성 이미지 성공과 구별.
+
+## 2026-10-04 OpenCV 기본 템플릿·큰 ROI 검색·논문 재검토
+
+기준: [ADR-016](../docs/decisions/0016-template-matching-and-pyramid-search.md), [성능·검증](../docs/matching-performance-2026-10-04.md). 사용자 재현은 ROI 하나 추가→학습→검사(크기 512 이상 추정)이며 기본 8K 합성 샘플로 확인했다.
+
+- [x] OpenCV CCOEFF_NORMED 방식 선택, 별도 모델·원본 crop/도형 mask·검출 위치/점수/판정 표시. 고정 각도/배율과 특징점 미지원 명시. Mat은 알고리즘 Imaging 내부에 격리. 전환/취소/세대 변경의 오래된 결과 제거와 모델 보존 PASS.
+- [x] 기존 원본 반복 전처리 구조를 원본 타일 검사 피라미드→후보 주변 원본 정밀화로 변경. 특징 분산·반경 기반 각도/배율 샘플·피라미드 단계별 자세 보정·정확한 검색 ROI·SIMD/scalar 동등성 PASS. 최종 동일 자세 중복은 값이 완전히 일치할 때만 제거.
+- [x] 동일 8192²/512 ROI 전체 검색 3회: 이전 중앙값 30,830ms→최종 3,258ms, 약 9.46배. 모두 9개/잘림 없음, 원본 중심 위치 유지. OpenCV 중앙값 2,807ms/9개. 768 ROI 5,004ms, 기본 크기 2621×1966 ROI 5,945ms는 각 1회. 원시 JSON을 docs/data에 보존. 현장 검출률 근거로 사용하지 않음.
+- [x] P1 TPAMI 2012와 Steger ISPRS 2002 원문 대조. 2001 제목/2002 링크 혼용 수정. RGB 방향 채택, signed score, 조기 종료, 4D 보간, 정밀화 법선/가중치의 미구현·차이를 명시. 논문 전체 재현/상용 동등성으로 표현하지 않음.
+- [x] 전체 **385개 PASS**(Core 182 / 앱 76 / Canvas 92 / Algorithm 35), skip 0. artifacts/matching-all-tests.log와 각 TestResults/matching-results.trx. 큰 패턴의 비정수 이동·회전·배율, 지름 2px 원 검색, 원본 타일 축소, OpenCV mask/NaN/stride/cancel/NMS 경계 포함.
+- [x] 독립 리뷰 4건 수정: 내부 seed 잘림 경고, OpenCV 전역 NMS 1회, 작은 뷰의 원본 전체 복사 방지, 초기 pose 유효성. 후속 읽기 전용 리뷰에서 추가 확정 결함 없음. NMS 버그를 임시 재주입하면 새 테스트 FAIL(2개 예상/1개 실제), 복원 후 PASS. artifacts/matching-mutation.log.
+- [x] 최종 `pwsh -File scripts/Format-Code.ps1 -Verify` PASS. artifacts/matching-format-verify.log. Mat 공개/앱 유출 없음, SOLID 5/GRASP 9 검토, 승인되지 않은 예외 없음.
+- [x] 최종 빌드 GPU 검사 smoke PASS: 실제 PNG reader·WPF 방식 선택/버튼·두 형상 위치·OpenCV 1개·특징점 토글·선택 유지·네 색·실제 미검출. RTX 3060 Laptop/DX12 debug, 렌더 오류 없음. artifacts/matching-final-runtime/artifacts/inspection-smoke.log. 배율 상한의 두 번째 형상은 정밀화 Rejected로 사용자 확인 표시를 유지했으며 정상으로 숨기지 않음.
+- [x] 배포본 검사 smoke와 기존 앱 smoke 모두 PASS, exit 0. artifacts/matching-publish-runtime/artifacts/inspection-smoke.log, artifacts/matching-regression-runtime/artifacts/smoke.log. 명시적 부모/자식·이력·도형·필터·미니맵·8K 라이브 회귀 확인. 배포 경로 artifacts/publish/TeachingToolWpf.exe, docs/의 실측 JSON·논문 대조·라이선스 동봉.
+- [ ] 현장 촬영 영상의 8K/24K 검출률·시간, 실시간 검사 FPS, 상용 matcher 비교: NOT_RUN. 8K/24K 표시 검증과 구별.
+
 ## 2026-10-04 검사 위치·판정색·특징점 표시
 
 기준: [ADR-015](../docs/decisions/0015-inspection-result-display.md). 아래는 기존 패턴 구현 이후 추가 검증이며 당시 NOT_RUN 기록과 구분한다.

@@ -4,14 +4,14 @@ internal readonly record struct VerifiedScore(double Score, double Support, int 
 
 internal static class ContinuousVerifier
 {
-    public static VerifiedScore Score(GradientImage image, ShapeModel model, MatchPose pose)
+    public static VerifiedScore Score(GradientImage image, ShapeModel model, MatchPose pose, int level = 0)
     {
         var sum = 0d;
         var supported = 0;
         var quadrants = 0;
         var cos = Math.Cos(pose.Angle);
         var sin = Math.Sin(pose.Angle);
-        foreach (var feature in model.Levels[0].Features)
+        foreach (var feature in model.Levels[level].Features)
         {
             var x = pose.X + (pose.Scale * ((cos * feature.X) - (sin * feature.Y))) - 0.5;
             var y = pose.Y + (pose.Scale * ((sin * feature.X) + (cos * feature.Y))) - 0.5;
@@ -29,17 +29,18 @@ internal static class ContinuousVerifier
                 quadrants |= 1 << ((feature.X >= 0 ? 1 : 0) + (feature.Y >= 0 ? 2 : 0));
             }
         }
-        var count = model.Levels[0].Features.Length;
+        var count = model.Levels[level].Features.Length;
         return new(sum / count, supported / (double)count, System.Numerics.BitOperations.PopCount((uint)quadrants));
     }
 
     public static (MatchPose Pose, VerifiedScore Score) Optimize(GradientImage image, ShapeModel model,
-        MatchPose initial, SearchOptions options, CancellationToken token)
+        MatchPose initial, SearchOptions options, CancellationToken token, int level = 0)
     {
         var pose = initial;
-        var best = Score(image, model, pose);
-        var rotation = model.Options.AngleStepDegrees * Math.PI / 360;
-        var scale = model.Options.MaximumScale > model.Options.MinimumScale ? model.Options.ScaleStep / 2 : 0;
+        var best = Score(image, model, pose, level);
+        var radius = model.Levels[level].Features.Max(feature => Math.Sqrt((feature.X * feature.X) + (feature.Y * feature.Y)));
+        var rotation = Math.Min(model.Options.AngleStepDegrees * Math.PI / 360, 2 / (radius * pose.Scale));
+        var scale = model.Options.MaximumScale > model.Options.MinimumScale ? Math.Min(model.Options.ScaleStep / 2, 2 / radius) : 0;
         for (var resolution = 0; resolution < 5; resolution++)
         {
             var translation = 2d / (1 << resolution);
@@ -49,6 +50,11 @@ internal static class ContinuousVerifier
                 var changed = false;
                 for (var dimension = 0; dimension < 4; dimension++)
                 {
+                    // 고정 배율의 두 제안은 현재 자세와 같으므로 점수를 다시 계산할 필요가 없다.
+                    if (dimension == 3 && scale == 0)
+                    {
+                        continue;
+                    }
                     var original = pose;
                     for (var sign = -1; sign <= 1; sign += 2)
                     {
@@ -63,7 +69,7 @@ internal static class ContinuousVerifier
                         {
                             continue;
                         }
-                        var score = Score(image, model, proposal);
+                        var score = Score(image, model, proposal, level);
                         if (score.Score > best.Score + 1e-10)
                         {
                             pose = proposal;

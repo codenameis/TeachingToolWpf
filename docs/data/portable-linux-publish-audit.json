@@ -1,0 +1,41 @@
+{
+  "Runtime": "linux-x64",
+  "CrossPublish": "PASS",
+  "LinuxExecution": "NOT_RUN",
+  "UnexpectedWindowsFiles": [],
+  "NativeFiles": [
+    {
+      "File": "VisionInspection.Cli",
+      "Elf": true,
+      "Bytes": 78256
+    },
+    {
+      "File": "libOpenCvSharpExtern.so",
+      "Elf": true,
+      "Bytes": 61146808
+    },
+    {
+      "File": "libvips.so.42",
+      "Elf": true,
+      "Bytes": 18392056
+    }
+  ],
+  "Frameworks": {
+    "name": "Microsoft.NETCore.App",
+    "version": "10.0.0"
+  },
+  "LicenseFiles": [
+    "GPL-3.0.txt",
+    "ILGPU-LICENSE.txt",
+    "ILGPU-THIRD-PARTY.txt",
+    "ILGPU.Algorithms-LICENSE.txt",
+    "ILGPU.Algorithms-THIRD-PARTY.txt",
+    "LGPL-3.0.txt",
+    "NetVips.Native-THIRD-PARTY-NOTICES.md",
+    "NetVips.Native-versions.json",
+    "NetVips.Native.linux-x64-THIRD-PARTY-NOTICES.md",
+    "NetVips.Native.linux-x64-versions.json",
+    "OpenCV-LICENSE.txt",
+    "OpenCvSharp-LICENSE.txt"
+  ]
+}

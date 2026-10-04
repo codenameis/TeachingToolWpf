@@ -13,6 +13,40 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class ShapeMatchingIntegrationTests
 {
     [Fact]
+    public async Task OpenCvModeUsesOriginalPixelsAndKeepsIndependentModelsAndHistory()
+    {
+        var loader = new Loader();
+        var editor = new EditorSession();
+        editor.InitializeImage(new("fixture", "fixture", 1536, 256), ViewportTransform.Identity);
+        editor.Add(new(new(80, 90), 65, 65, 0));
+        using var viewModel = new ShapeMatchingViewModel(new ShapeMatchingService(loader, () => null), new TemplateMatchingService(loader, () => null));
+        viewModel.Update(editor.State, 1, false, true);
+        await viewModel.Train.ExecuteAsync();
+        var shape = viewModel.Model;
+        var state = editor.State;
+        viewModel.Method = PatternMatchingMethod.OpenCvTemplate;
+        viewModel.MinimumScore = .98;
+        Assert.False(viewModel.Search.CanExecute(null));
+        await viewModel.Train.ExecuteAsync();
+        var template = viewModel.TemplateModel;
+        Assert.NotNull(template);
+        await viewModel.Search.ExecuteAsync();
+        var marker = Assert.Single(viewModel.Markers);
+        Assert.Equal(new PointD(80, 90), marker.ReferencePoint);
+        Assert.Empty(marker.Features);
+        Assert.Equal(InspectionVerdict.Pass, viewModel.Verdict);
+        Assert.Same(state, editor.State);
+        Assert.Equal(loader.Opened, loader.Disposed);
+        viewModel.Method = PatternMatchingMethod.Shape;
+        Assert.Same(shape, viewModel.Model);
+        Assert.Empty(viewModel.Markers);
+        viewModel.Method = PatternMatchingMethod.OpenCvTemplate;
+        Assert.Same(template, viewModel.TemplateModel);
+        viewModel.Update(editor.State, 2, false, true);
+        Assert.Same(template, viewModel.TemplateModel);
+    }
+
+    [Fact]
     public async Task ExistingRoiTrainsAndSearchesAcrossTileBoundaryWithoutEditingDocument()
     {
         var loader = new Loader();

@@ -8,7 +8,7 @@ using VisionAlgorithm.OpenSrc.PatternMatching;
 namespace TeachingToolWpf.Presentation;
 
 /// <summary>세션의 불변 모델과 일회 검사 결과. ROI 문서/편집 이력은 변경하지 않는다.</summary>
-public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
+public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposable
 {
     private readonly IShapeMatchingService _service;
     private ImageReference? _image;
@@ -16,15 +16,12 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
     private long _generation;
     private bool _live;
     private bool _canExecute;
+    private bool _inputAvailable;
     private bool _disposed;
     private CancellationTokenSource? _cancellation;
     private long _epoch;
-    private ShapeModel? _model;
     private string _status = "ROI 하나를 선택해 모델을 학습하세요. 모델은 이 세션에서 이미지 교체 후에도 유지됩니다.";
-    private bool _useSelection;
     private bool _training;
-    private double _minimumScore = 0.72;
-    private int _maximumMatches = 16;
     private bool _showFeatures;
     private bool _showOverlay = true;
     private ResultOverlay? _result;
@@ -49,7 +46,8 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
         get;
     }
     public bool IsIdle => !_disposed && _cancellation is null;
-    public ShapeModel? Model => _model;
+    public bool IsBusy => _cancellation is not null;
+    public ShapeModel? Model => ActiveShapeState.Model;
     public ImmutableArray<MatchMarker> Markers => _result?.Matches ?? [];
     public ResultOverlay? Overlay => ShowOverlay ? _result : null;
     public InspectionVerdict? Verdict
@@ -62,49 +60,14 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
     {
         get;
     }
-    public string ModelSummary => _model is null ? "학습된 모델 없음" : $"특징 {_model.Levels[0].Features.Length}개 · {_model.Levels.Length}단계 · 템플릿 {_model.TemplateCount}개";
+    public string ModelSummary => !IsShapeMethod ? TemplateSummary : Model is not { } model ? "학습된 모델 없음" :
+        $"특징 {model.Levels[0].Features.Length}개 · {model.Levels.Length}단계(자동) · 템플릿 {model.TemplateCount}개" +
+        (IsTrainingDirty ? " · 학습 설정 변경: 다시 학습하세요." : "");
     public string Status
     {
         get => _status; private set => Set(ref _status, value);
     }
     public string Results { get; private set; } = "검사 결과 없음";
-    public double MinimumAngle { get; set; } = -180;
-    public double MaximumAngle { get; set; } = 180;
-    public double AngleStep { get; set; } = 10;
-    public bool EnableScale
-    {
-        get; set;
-    }
-    public double MinimumScale { get; set; } = 0.9;
-    public double MaximumScale { get; set; } = 1.1;
-    public bool IgnorePolarity
-    {
-        get; set;
-    }
-    public double MinimumScore
-    {
-        get => _minimumScore;
-        set
-        {
-            if (Set(ref _minimumScore, value))
-            {
-                Invalidate();
-            }
-        }
-    }
-
-    public int MaximumMatches
-    {
-        get => _maximumMatches;
-        set
-        {
-            if (Set(ref _maximumMatches, value))
-            {
-                Invalidate();
-            }
-        }
-    }
-
     public bool ShowFeatures
     {
         get => _showFeatures;
@@ -138,24 +101,18 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
 
     public bool UseSelection
     {
-        get => _useSelection;
-        set
-        {
-            if (Set(ref _useSelection, value))
-            {
-                Invalidate();
-                RefreshCommands();
-            }
-        }
+        get => ActiveSearchSettings.UseSelection;
+        set => ChangeSearchSettings(ActiveSearchSettings with { UseSelection = value });
     }
 
-    public ShapeMatchingViewModel(IShapeMatchingService service)
+    public ShapeMatchingViewModel(IShapeMatchingService service, ITemplateMatchingService? templateService = null)
     {
         _service = service;
-        Train = new(TrainAsync, Failed, () => IsIdle && _canExecute && _image is not null && _selection is not null);
-        Search = new(SearchAsync, Failed, () => IsIdle && _canExecute && _image is not null && _model is not null && (!UseSelection || _selection is not null));
+        _templateService = templateService;
+        Train = new(TrainAsync, Failed, () => IsIdle && _canExecute && _image is not null && _selection is not null && OptionsError.Length == 0 && (IsShapeMethod || _templateService is not null));
+        Search = new(SearchAsync, Failed, () => IsIdle && _canExecute && _image is not null && HasModel && !IsTrainingDirty && OptionsError.Length == 0 && (!UseSelection || _selection is not null));
         Cancel = new(() => _cancellation?.Cancel(), () => _cancellation is not null);
-        Clear = new(() => { _model = null; Invalidate(); Notify(nameof(ModelSummary)); RefreshCommands(); }, () => IsIdle && _model is not null);
+        Clear = new(ClearModel, () => IsIdle && HasModel);
         Locate = new(() =>
         {
             var points = Markers.SelectMany(marker => marker.Bounds).ToArray();
@@ -163,12 +120,12 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
         }, () => _canExecute && IsIdle && !Markers.IsEmpty);
     }
 
-    public void Update(DocumentState state, long generation, bool live, bool canExecute)
+    public void Update(DocumentState state, long generation, bool live, bool canExecute, bool toolAvailable = true)
     {
         var selection = state.Selection.Count == 1 ? state.Rois[state.Selection.Single()].Geometry : null;
         if (_image != state.Image || _generation != generation || _live != live ||
             ((UseSelection || _training) && _selection != selection) ||
-            (_live && _canExecute && !canExecute))
+            (_live && _inputAvailable && !canExecute))
         {
             Invalidate();
         }
@@ -176,37 +133,43 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
         _generation = generation;
         _selection = selection;
         _live = live;
-        _canExecute = canExecute;
+        _inputAvailable = canExecute;
+        _canExecute = canExecute && toolAvailable;
         RefreshCommands();
     }
 
     private async Task TrainAsync()
     {
         _training = true;
+        if (!IsShapeMethod)
+        {
+            await TrainTemplateAsync();
+            return;
+        }
         var image = _image!;
         var roi = _selection!;
         var live = _live;
-        var options = new TrainingOptions
-        {
-            MinimumAngleDegrees = MinimumAngle,
-            MaximumAngleDegrees = MaximumAngle,
-            AngleStepDegrees = AngleStep,
-            MinimumScale = EnableScale ? MinimumScale : 1,
-            MaximumScale = EnableScale ? MaximumScale : 1,
-            Polarity = IgnorePolarity ? ContrastPolarity.IgnoreLocal : ContrastPolarity.Preserve
-        };
+        var method = Method;
+        var state = ActiveShapeState;
+        var training = state.Training;
+        var options = training.ToOptions(IsGeometricMethod);
         await RunAsync(async (token, epoch) =>
         {
             Status = "원본 ROI 특징으로 모델 생성 중…";
             var output = await _service.TrainAsync(image, live, roi, options, token);
-            if (!Current(epoch, token))
+            if (!Current(epoch, token, method))
             {
                 return;
             }
-            _model = output.Model;
-            Results = "학습 완료 · 검사할 이미지와 범위를 선택하세요.";
+            state.Model = output.Model;
+            state.TeachingRegion = roi;
+            state.TrainedSettings = training;
+            PresentActivity("학습 완료 · 검사 실행을 누르세요.");
             Status = $"읽기/변환/마스크 {output.ReadMilliseconds:F1} ms · 학습 {output.TrainingMilliseconds:F1} ms";
             Notify(nameof(ModelSummary));
+            Notify(nameof(Model));
+            Notify(nameof(HasModel));
+            Notify(nameof(IsTrainingDirty));
             Notify(nameof(Results));
             Changed?.Invoke();
         });
@@ -214,29 +177,42 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
 
     private async Task SearchAsync()
     {
+        if (!IsShapeMethod)
+        {
+            await SearchTemplateAsync();
+            return;
+        }
         var image = _image!;
-        var model = _model!;
+        var method = Method;
+        var state = ActiveShapeState;
+        var model = state.Model!;
+        var teachingRegion = state.TeachingRegion!;
         var roi = UseSelection ? _selection : null;
         var live = _live;
-        var options = new SearchOptions { MinimumScore = MinimumScore, MaximumMatches = MaximumMatches };
+        var options = CreateShapeSearchOptions();
         await RunAsync(async (token, epoch) =>
         {
-            Status = "원본 해상도 검색 중… 취소 가능";
+            Status = options.ComputeMode == InspectionComputeMode.GpuPreprocessing
+                ? "GPU 전처리 + CPU 원본 검색 중… 취소 가능" : "CPU 원본 해상도 검색 중… 취소 가능";
             var output = await _service.SearchAsync(image, live, model, roi, options, token);
-            if (!Current(epoch, token) || !ReferenceEquals(model, _model))
+            if (!Current(epoch, token, method) || !ReferenceEquals(model, state.Model))
             {
                 return;
             }
             var decision = InspectionDecision.Evaluate(output);
-            var boundary = roi?.Outline.ToImmutableArray() ?? [new(0, 0), new(image.Width, 0), new(image.Width, image.Height), new(0, image.Height)];
+            var boundary = SearchBoundary(image, roi);
             Verdict = decision.Verdict;
             _result = new($"{InspectionResultPresentation.Name(decision.Verdict)} · 검출 {output.Matches.Length}개",
-                InspectionResultPresentation.Color(decision.Verdict), boundary, InspectionResultPresentation.Markers(model, output), ShowFeatures);
-            Results = decision.Reason + (output.Matches.IsEmpty ? "\n검출 위치 없음" : "\n\n" + string.Join("\n\n", output.Matches.Select((m, i) =>
-                $"{i + 1} · X {m.Pose.X:F3} / Y {m.Pose.Y:F3}\n각도 {RoiGeometry.NormalizeAngle(m.Pose.Angle * 180 / Math.PI):F3}° · 배율 {m.Pose.Scale:F4}\n점수 {m.Score:F3} · 지지 {m.Support:P0}\n정밀화 {m.Refinement.Status} · 회전 관측 {(m.Refinement.AngleObservable ? "가능" : "불가")}")));
+                InspectionResultPresentation.Color(decision.Verdict), boundary, InspectionResultPresentation.Markers(model, teachingRegion, output), ShowFeatures);
+            Results = decision.Reason + (output.Matches.IsEmpty ? "\n검출 위치 없음" : "\n\n" + string.Join("\n\n", output.Matches.Select((match, index) => FormatShapeMatch(match, index, method == PatternMatchingMethod.GeometricShape))));
             Results += output.Matches.IsEmpty ? "" : "\n\n좌표: 원본 이미지 픽셀 · 각도: 이미지 기준 시계 방향";
+            Results += output.Preprocessing is { } preprocessing
+                ? $"\n\n{preprocessing.Backend} · {preprocessing.AdapterName}\nGPU 전처리 {preprocessing.Calls}회 · {preprocessing.ProcessedPixels:N0} px · 전송/대기 포함 {preprocessing.TotalMilliseconds:F1} ms"
+                : "\n\n실행 장치: CPU";
             Status = $"{output.Matches.Length}개 · {output.TotalMilliseconds:F1} ms (읽기/변환 {output.ReadMilliseconds:F1}) · 창 {output.Windows}개" +
-                (output.Truncated ? " · 후보 예산 초과: 검색 불완전" : "");
+                (output.Preprocessing is not null ? " · GPU 전처리" : " · CPU") +
+                (output.Truncated ? " · 후보 예산 초과: 검색 불완전" : "") +
+                (output.MatchLimitExceeded ? " · 최대 결과 수 도달: 일부 검출 결과 생략" : "");
             PublishResult();
         });
     }
@@ -244,27 +220,40 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
     private async Task RunAsync(Func<CancellationToken, long, Task> action)
     {
         using var cancellation = new CancellationTokenSource();
+        using var timeLimit = new CancellationTokenSource();
+        using var combined = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token, timeLimit.Token);
+        if (!_training && SearchTimeoutSeconds > 0)
+        {
+            timeLimit.CancelAfter(TimeSpan.FromSeconds(SearchTimeoutSeconds));
+        }
         _cancellation = cancellation;
         var epoch = ++_epoch;
-        ResetResult("처리 중 · 이전 결과를 지웠습니다.");
+        PresentActivity(_training ? "학습 중 · 원본 ROI의 특징을 추출하고 있습니다." : "검사 중 · 원본 이미지에서 검색하고 있습니다. 취소 가능",
+            _training ? [] : SearchBoundary(_image!, UseSelection ? _selection : null));
         RefreshCommands();
         try
         {
-            await action(cancellation.Token, epoch);
-            cancellation.Token.ThrowIfCancellationRequested();
+            await action(combined.Token, epoch);
+            combined.Token.ThrowIfCancellationRequested();
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (combined.IsCancellationRequested)
         {
             if (!_disposed && epoch == _epoch)
             {
-                PresentWarning("작업 취소 · 판정하지 않았습니다.");
+                PresentWarning(timeLimit.IsCancellationRequested && !cancellation.IsCancellationRequested
+                    ? "시간 한도 도달 · 검색 불완전 · 판정하지 않았습니다."
+                    : "작업 취소 · 판정하지 않았습니다.");
             }
         }
         catch (Exception error)
         {
-            if (Current(epoch, cancellation.Token))
+            if (!_disposed && epoch == _epoch)
             {
-                PresentWarning($"{(_training ? "학습" : "검사")} 오류 · " + error.Message);
+                var operation = _training ? "학습" : "검사";
+                var interruption = timeLimit.IsCancellationRequested ? "시간 한도 도달 · 검색 불완전 · "
+                    : cancellation.IsCancellationRequested ? "작업 취소 · " : "";
+                PresentWarning(interruption + $"{operation} 실패 · " + error.Message + (HasModel && _training ? "\n이전 모델은 유지됩니다. 다시 학습한 뒤 검사하세요." : ""),
+                    $"{operation} 실패 · 오른쪽 패턴 패널의 안내를 확인하세요.");
             }
         }
         finally
@@ -276,6 +265,9 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
     }
 
     private bool Current(long epoch, CancellationToken token) => !_disposed && !token.IsCancellationRequested && epoch == _epoch;
+
+    private bool Current(long epoch, CancellationToken token, PatternMatchingMethod method)
+        => Current(epoch, token) && Method == method;
 
     private void Invalidate()
     {
@@ -291,16 +283,29 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
     {
         _result = null;
         Verdict = null;
+        Status = message;
         Results = message;
         PublishResult();
     }
 
-    private void PresentWarning(string message)
+    private static ImmutableArray<PointD> SearchBoundary(ImageReference image, RoiGeometry? region)
+        => region?.Outline.ToImmutableArray() ?? [new(0, 0), new(image.Width, 0), new(image.Width, image.Height), new(0, image.Height)];
+
+    private void PresentActivity(string message, ImmutableArray<PointD> boundary = default)
+    {
+        Verdict = null;
+        Status = message;
+        Results = message;
+        _result = new(message, new(0.58f, 0.64f, 0.72f, 1), boundary.IsDefault ? [] : boundary, []);
+        PublishResult();
+    }
+
+    private void PresentWarning(string message, string? summary = null)
     {
         Verdict = InspectionVerdict.Warning;
         Results = message;
         Status = message;
-        _result = new("WARN · 경고 · 판정 미완료", InspectionResultPresentation.Color(InspectionVerdict.Warning), [], []);
+        _result = new("WARN · " + (summary ?? message), InspectionResultPresentation.Color(InspectionVerdict.Warning), [], []);
         PublishResult();
     }
 
@@ -324,7 +329,9 @@ public sealed class ShapeMatchingViewModel : ObservableObject, IDisposable
     private void RefreshCommands()
     {
         Notify(nameof(IsIdle));
+        Notify(nameof(IsBusy));
         Notify(nameof(VerdictText));
+        Notify(nameof(OptionsError));
         Train.Refresh();
         Search.Refresh();
         Cancel.Refresh();

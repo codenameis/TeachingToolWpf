@@ -14,6 +14,9 @@
     <ProjectReference Include="..\TeachingToolWpf.Core\TeachingToolWpf.Core.csproj" />
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
+    <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
+    <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
+    <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README.md;..\..\AGENTS.md;..\..\Agent.MD;..\..\THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -23,4 +26,10 @@
     <None Include="..\..\scripts\Summarize-*.ps1" Link="scripts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Assets\pattern-matching.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Assets\primitive-shapes.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Import Project="../../build/InspectionNativeRuntime.props" />
 </Project>

@@ -1,6 +1,6 @@
 # VisionAlgorithm
 
-순수 C# CPU 형상 매칭 프로젝트다. .NET 10을 대상으로 하고 WPF, TeachingToolWpf.Core, DX12, OpenCV와 상용 SDK를 참조하지 않는다. 앱에서 `VisionAlgorithm`을 사용하고, 영상·ROI 변환은 앱의 `Imaging/Matching` 어댑터가 맡는다.
+.NET 10 비전 알고리즘 프로젝트다. 기본 CPU의 C# 형상 매칭과 OpenCvSharp4 4.13.0.20260627의 템플릿 매칭을 제공한다. WPF, TeachingToolWpf.Core, VisionCanvas, DX12와 상용 SDK를 참조하지 않는다. `VisionInspection/Matching` 어댑터가 원본 영상·ROI를 연결한다. `Mat`은 `OpenSrc/PatternMatching/Imaging` 내부에만 두며 공개 계약은 GrayImage와 불변 모델/결과 값이다. 선택형 GPU 전처리는 중립 계약만 받으며 실제 CUDA 구현은 VisionCompute.ILGPU에 있다.
 
 주력 구현은 [OpenSrc/PatternMatching](OpenSrc/PatternMatching/README.md)의 응답맵 후보 검색 → 연속 gradient 검증 → point-to-line 정밀화다. `GrayImage`는 Gray8 buffer와 width/height/stride, `TrainingRegion`은 학습 마스크와 기준점·각도, `ShapeModel`은 불변 학습 결과를 표현한다. 학습 ROI 기준 각도 범위를 넣으면 검색 결과는 이미지 기준 절대각으로 반환한다.
 

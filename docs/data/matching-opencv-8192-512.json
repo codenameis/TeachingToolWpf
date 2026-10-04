@@ -1,0 +1,156 @@
+{
+  "Timestamp": "2026-10-04T11:19:48.7921623+09:00",
+  "Method": "opencv",
+  "Dimension": 8192,
+  "RoiSize": 512,
+  "RoiHeight": 512,
+  "Input": "8192-class application procedural sample, original reader, full-image search",
+  "TimeoutSeconds": 120,
+  "PeakWorkingSet": 277262336,
+  "Results": [
+    {
+      "Repetition": 0,
+      "Status": "PASS",
+      "TrainingMilliseconds": 29.5747,
+      "TotalMilliseconds": 2855.3093,
+      "ReadMilliseconds": 850.4249000000001,
+      "Windows": 16,
+      "Truncated": false,
+      "Matches": 9,
+      "Poses": [
+        {
+          "X": 2048,
+          "Y": 2048
+        },
+        {
+          "X": 4096,
+          "Y": 2048
+        },
+        {
+          "X": 6144,
+          "Y": 2048
+        },
+        {
+          "X": 2048,
+          "Y": 4096
+        },
+        {
+          "X": 4096,
+          "Y": 4096
+        },
+        {
+          "X": 6144,
+          "Y": 4096
+        },
+        {
+          "X": 2048,
+          "Y": 6144
+        },
+        {
+          "X": 4096,
+          "Y": 6144
+        },
+        {
+          "X": 6144,
+          "Y": 6144
+        }
+      ]
+    },
+    {
+      "Repetition": 1,
+      "Status": "PASS",
+      "TrainingMilliseconds": 12.5396,
+      "TotalMilliseconds": 2775.5812,
+      "ReadMilliseconds": 841.9139,
+      "Windows": 16,
+      "Truncated": false,
+      "Matches": 9,
+      "Poses": [
+        {
+          "X": 2048,
+          "Y": 2048
+        },
+        {
+          "X": 4096,
+          "Y": 2048
+        },
+        {
+          "X": 6144,
+          "Y": 2048
+        },
+        {
+          "X": 2048,
+          "Y": 4096
+        },
+        {
+          "X": 4096,
+          "Y": 4096
+        },
+        {
+          "X": 6144,
+          "Y": 4096
+        },
+        {
+          "X": 2048,
+          "Y": 6144
+        },
+        {
+          "X": 4096,
+          "Y": 6144
+        },
+        {
+          "X": 6144,
+          "Y": 6144
+        }
+      ]
+    },
+    {
+      "Repetition": 2,
+      "Status": "PASS",
+      "TrainingMilliseconds": 15.1042,
+      "TotalMilliseconds": 2807.447,
+      "ReadMilliseconds": 837.4780000000001,
+      "Windows": 16,
+      "Truncated": false,
+      "Matches": 9,
+      "Poses": [
+        {
+          "X": 2048,
+          "Y": 2048
+        },
+        {
+          "X": 4096,
+          "Y": 2048
+        },
+        {
+          "X": 6144,
+          "Y": 2048
+        },
+        {
+          "X": 2048,
+          "Y": 4096
+        },
+        {
+          "X": 4096,
+          "Y": 4096
+        },
+        {
+          "X": 6144,
+          "Y": 4096
+        },
+        {
+          "X": 2048,
+          "Y": 6144
+        },
+        {
+          "X": 4096,
+          "Y": 6144
+        },
+        {
+          "X": 6144,
+          "Y": 6144
+        }
+      ]
+    }
+  ]
+}

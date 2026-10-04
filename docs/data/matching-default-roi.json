@@ -1,0 +1,250 @@
+{
+  "Timestamp": "2026-10-04T11:35:08.4989937+09:00",
+  "Method": "shape",
+  "Dimension": 8192,
+  "RoiSize": 2621,
+  "RoiHeight": 1966,
+  "Input": "8192-class application procedural sample, original reader, full-image search",
+  "TimeoutSeconds": 120,
+  "PeakWorkingSet": 1038372864,
+  "Results": [
+    {
+      "Repetition": 0,
+      "Status": "PASS",
+      "TrainingMilliseconds": 491.7531,
+      "TotalMilliseconds": 5945.4742,
+      "ReadMilliseconds": 1550.0052999999998,
+      "Windows": 1,
+      "Truncated": false,
+      "Matches": 9,
+      "Diagnostics": [
+        {
+          "PreprocessingMilliseconds": 6.1898,
+          "CandidateMilliseconds": 251.7509,
+          "VerificationMilliseconds": 6.1684,
+          "RefinementMilliseconds": 0.138,
+          "SuppressionMilliseconds": 7.3301,
+          "TemplatesEvaluated": 73,
+          "Candidates": 54,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 1825312,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 558.036,
+          "CandidateMilliseconds": 2.5477,
+          "VerificationMilliseconds": 0.0532,
+          "RefinementMilliseconds": 8.1647,
+          "SuppressionMilliseconds": 0.0572,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 543.8038,
+          "CandidateMilliseconds": 2.1452,
+          "VerificationMilliseconds": 0.0319,
+          "RefinementMilliseconds": 0.4429,
+          "SuppressionMilliseconds": 0.024,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 444.5319,
+          "CandidateMilliseconds": 2.3237,
+          "VerificationMilliseconds": 0.0321,
+          "RefinementMilliseconds": 0.4922,
+          "SuppressionMilliseconds": 0.0278,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 450.9062,
+          "CandidateMilliseconds": 2.1537,
+          "VerificationMilliseconds": 0.0296,
+          "RefinementMilliseconds": 0.3117,
+          "SuppressionMilliseconds": 0.0301,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 422.9976,
+          "CandidateMilliseconds": 2.2642,
+          "VerificationMilliseconds": 0.0374,
+          "RefinementMilliseconds": 7.1699,
+          "SuppressionMilliseconds": 0.0257,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 414.404,
+          "CandidateMilliseconds": 2.1784,
+          "VerificationMilliseconds": 0.0308,
+          "RefinementMilliseconds": 0.2903,
+          "SuppressionMilliseconds": 0.0249,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 409.0547,
+          "CandidateMilliseconds": 2.1684,
+          "VerificationMilliseconds": 0.0323,
+          "RefinementMilliseconds": 0.2728,
+          "SuppressionMilliseconds": 0.036,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 417.6341,
+          "CandidateMilliseconds": 2.1203,
+          "VerificationMilliseconds": 0.0488,
+          "RefinementMilliseconds": 0.2869,
+          "SuppressionMilliseconds": 0.0339,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        },
+        {
+          "PreprocessingMilliseconds": 404.7037,
+          "CandidateMilliseconds": 2.0968,
+          "VerificationMilliseconds": 0.0292,
+          "RefinementMilliseconds": 0.2861,
+          "SuppressionMilliseconds": 0.0295,
+          "TemplatesEvaluated": 0,
+          "Candidates": 1,
+          "CandidateBudgetExceeded": false,
+          "VerificationBudgetExceeded": false,
+          "EstimatedWorkspaceBytes": 263584358,
+          "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+          "MatchLimitExceeded": false
+        }
+      ],
+      "Levels": [
+        {
+          "Factor": 1,
+          "Features": 160
+        },
+        {
+          "Factor": 2,
+          "Features": 160
+        },
+        {
+          "Factor": 4,
+          "Features": 160
+        },
+        {
+          "Factor": 8,
+          "Features": 160
+        },
+        {
+          "Factor": 16,
+          "Features": 160
+        },
+        {
+          "Factor": 32,
+          "Features": 160
+        }
+      ],
+      "Preprocessing": 4072.2618,
+      "Candidates": 271.7493,
+      "Verification": 6.493700000000001,
+      "Refinement": 17.8555,
+      "Poses": [
+        {
+          "X": 2047.999995693842,
+          "Y": 2048.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 4095.999995693842,
+          "Y": 2048.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 6143.999995693842,
+          "Y": 2048.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 2047.999995693842,
+          "Y": 4096.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 4095.999995693842,
+          "Y": 4096.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 6143.999995693842,
+          "Y": 4096.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 2047.999995693842,
+          "Y": 6144.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 4095.999995693842,
+          "Y": 6144.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        },
+        {
+          "X": 6143.999995693842,
+          "Y": 6144.000050956004,
+          "Angle": -4.6097587900589257E-08,
+          "Scale": 1
+        }
+      ]
+    }
+  ]
+}

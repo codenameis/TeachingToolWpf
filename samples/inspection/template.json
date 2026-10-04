@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "method": "template",
+  "trainingImage": "../../src/TeachingToolWpf/Assets/pattern-matching.png",
+  "teachingRoi": {
+    "shape": "rectangle",
+    "centerX": 160,
+    "centerY": 160,
+    "width": 80,
+    "height": 80
+  },
+  "inspectionImage": "../../src/TeachingToolWpf/Assets/pattern-matching.png",
+  "searchOptions": {
+    "minimumScore": 0.98,
+    "maximumMatches": 256,
+    "maximumCandidates": 2048,
+    "computeMode": "cpu"
+  },
+  "timeoutSeconds": 60
+}

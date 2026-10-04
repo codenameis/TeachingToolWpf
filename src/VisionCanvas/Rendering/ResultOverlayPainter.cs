@@ -13,13 +13,25 @@ internal static class ResultOverlayPainter
             return;
         }
         var view = scene.Document.Viewport;
+        var clip = new BoundsD(-3, -3, scene.Width + 3, scene.Height + 3);
+        // 모든 라벨 배경을 먼저 그려 인접한 검출 윤곽을 덮어 지우지 않는다.
+        foreach (var match in result.Matches)
+        {
+            var center = view.ImageToScreen(match.ReferencePoint);
+            if (center.X >= 0 && center.X <= scene.Width && center.Y >= 0 && center.Y <= scene.Height &&
+                deferredLabel(match.Label) is { } text)
+            {
+                DrawLabel(mesh, scene, white, text, LabelOrigin(scene, match, text), match.Color);
+            }
+        }
         if (!result.SearchBoundary.IsDefaultOrEmpty)
         {
-            mesh.Outline(white, result.SearchBoundary.Select(view.ImageToScreen).ToArray(), 1.5, result.Color);
+            DrawStroke(mesh, white, OverlayStrokeGeometry.ClosedOutline(result.SearchBoundary.Select(view.ImageToScreen).ToArray(), clip, 8, 5),
+                1.5, result.Color);
         }
         foreach (var match in result.Matches)
         {
-            mesh.Outline(white, match.Bounds.Select(view.ImageToScreen).ToArray(), 2, match.Color);
+            DrawStroke(mesh, white, OverlayStrokeGeometry.ClosedOutline(match.Bounds.Select(view.ImageToScreen).ToArray(), clip), 2, match.Color);
             if (result.ShowFeatures)
             {
                 foreach (var feature in match.Features)
@@ -40,18 +52,40 @@ internal static class ResultOverlayPainter
             mesh.Line(white, center, end, 2, match.Color);
             mesh.Line(white, end, end - (direction * 6) + (normal * 4), 2, match.Color);
             mesh.Line(white, end, end - (direction * 6) - (normal * 4), 2, match.Color);
-            if (center.X >= 0 && center.X <= scene.Width && center.Y >= 0 && center.Y <= scene.Height)
-            {
-                if (deferredLabel(match.Label) is { } text)
-                {
-                    var x = Math.Max(8, Math.Min(center.X + 12, scene.Width - (text.Width / scene.Dpi) - 8));
-                    var y = Math.Max(48, Math.Min(center.Y + 12, scene.Height - (text.Height / scene.Dpi) - 8));
-                    DrawLabel(mesh, scene, white, text, new(x, y), match.Color);
-                }
-            }
         }
         // 미검출·취소 또는 화면 밖 결과도 현재 판정을 확인할 수 있다.
         DrawLabel(mesh, scene, white, label(result.Summary), new(14, 12), result.Color);
+    }
+
+    private static void DrawStroke(SpriteMesh mesh, GpuTexture white, IEnumerable<OverlayStrokeSegment> segments, double thickness, Vector4 color)
+    {
+        var strokes = segments.ToArray();
+        foreach (var segment in strokes)
+        {
+            mesh.Line(white, segment.Start, segment.End, thickness + 2, new(.02f, .02f, .02f, .9f));
+        }
+        foreach (var segment in strokes)
+        {
+            mesh.Line(white, segment.Start, segment.End, thickness, color);
+        }
+    }
+
+    private static PointD LabelOrigin(RenderScene scene, MatchMarker match, GpuTexture text)
+    {
+        var view = scene.Document.Viewport;
+        var bounds = match.Bounds.IsDefaultOrEmpty
+            ? BoundsD.FromPoints([view.ImageToScreen(match.ReferencePoint)])
+            : BoundsD.FromPoints(match.Bounds.Select(view.ImageToScreen));
+        var width = text.Width / scene.Dpi;
+        var height = text.Height / scene.Dpi;
+        var x = Math.Max(8, Math.Min(bounds.Left + 6, scene.Width - width - 8));
+        var y = bounds.Top - height - 10;
+        if (y < 48)
+        {
+            y = bounds.Bottom + 10;
+        }
+        y = Math.Max(48, Math.Min(y, scene.Height - height - 8));
+        return new(x, y);
     }
 
     private static void DrawLabel(SpriteMesh mesh, RenderScene scene, GpuTexture white, GpuTexture text, PointD origin, Vector4 color)

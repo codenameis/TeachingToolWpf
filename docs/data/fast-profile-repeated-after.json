@@ -1,0 +1,4196 @@
+{
+  "Scope": "40 repeated synthetic patterns. One warmup and five measurements per profile. Same score/support/clutter settings.",
+  "Rows": [
+    {
+      "Profile": "removed-fast",
+      "Options": {
+        "CandidateThreshold": 0.65,
+        "MinimumScore": 0.72,
+        "ClutterWeight": 1,
+        "MinimumSupport": 0.6,
+        "MaximumCandidates": 512,
+        "MaximumVerifiedCandidates": 32,
+        "MaximumCoarseVerifiedCandidates": 64,
+        "MaximumMatches": 1000,
+        "MaximumOverlap": 0.3,
+        "Refine": false,
+        "Verify": true,
+        "EvaluateGeometry": true,
+        "GeometricTolerancePixels": 3,
+        "MinimumCoverage": 0,
+        "MaximumFitErrorPixels": "Infinity",
+        "MaximumClutterRatio": 1,
+        "UseSimd": true,
+        "TiledPreprocessing": false,
+        "GroupTemplates": false,
+        "MaximumParallelism": 1,
+        "ComputeMode": 0,
+        "Region": null
+      },
+      "ExpectedMatches": 40,
+      "MatchCount": 32,
+      "Milliseconds": [
+        342.1616,
+        336.7765,
+        324.738,
+        331.5855,
+        322.5571
+      ],
+      "MedianMilliseconds": 331.5855,
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 23.5684,
+        "CandidateMilliseconds": 295.7626,
+        "VerificationMilliseconds": 0.065,
+        "RefinementMilliseconds": 2.8864,
+        "SuppressionMilliseconds": 0.2118,
+        "TemplatesEvaluated": 13,
+        "Candidates": 240,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 13047296,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 48,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 144,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 240,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 336,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 432,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 528,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 624,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 720,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 48,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.502635368779045E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 144,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 7.105427357601002E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 240,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 6.355287432313019E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 336,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 432,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 528,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 624,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 144,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 720,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 48,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.502635368779045E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 144,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 7.105427357601002E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 240,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 6.355287432313019E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 336,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 432,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 528,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 624,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 240,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 720,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 48,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 144,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 240,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 336,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 432,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 528,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 624,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 0,
+            "InitialPose": {
+              "X": 720,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": "NaN",
+            "FinalResidual": "NaN",
+            "Iterations": 0,
+            "Correspondences": 0,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        }
+      ]
+    },
+    {
+      "Profile": "standard-budget",
+      "Options": {
+        "CandidateThreshold": 0.65,
+        "MinimumScore": 0.72,
+        "ClutterWeight": 1,
+        "MinimumSupport": 0.6,
+        "MaximumCandidates": 2048,
+        "MaximumVerifiedCandidates": 64,
+        "MaximumCoarseVerifiedCandidates": 256,
+        "MaximumMatches": 1000,
+        "MaximumOverlap": 0.3,
+        "Refine": true,
+        "Verify": true,
+        "EvaluateGeometry": true,
+        "GeometricTolerancePixels": 3,
+        "MinimumCoverage": 0,
+        "MaximumFitErrorPixels": "Infinity",
+        "MaximumClutterRatio": 1,
+        "UseSimd": true,
+        "TiledPreprocessing": false,
+        "GroupTemplates": false,
+        "MaximumParallelism": 1,
+        "ComputeMode": 0,
+        "Region": null
+      },
+      "ExpectedMatches": 40,
+      "MatchCount": 40,
+      "Milliseconds": [
+        344.6537,
+        334.3175,
+        332.7176,
+        371.9493,
+        342.4697
+      ],
+      "MedianMilliseconds": 342.4697,
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 27.6346,
+        "CandidateMilliseconds": 302.9397,
+        "VerificationMilliseconds": 0.0755,
+        "RefinementMilliseconds": 11.2355,
+        "SuppressionMilliseconds": 0.5596,
+        "TemplatesEvaluated": 13,
+        "Candidates": 240,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 13051392,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.779700630900381E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.779700630900381E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.779700630900381E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.8300134067098116E-15,
+            "FinalResidual": 2.8300134067098116E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 6.355287432313019E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.8300134067098116E-15,
+            "FinalResidual": 2.8300134067098116E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 6.355287432313019E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 3.1776435278938635E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 48,
+            "Angle": -8.475248278111621E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.211212590399257E-15,
+            "FinalResidual": 4.211212590399257E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 336,
+            "Angle": -8.475248278111621E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.211212590399257E-15,
+            "FinalResidual": 4.211212590399257E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 432,
+            "Angle": -8.475248278111621E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.211212590399257E-15,
+            "FinalResidual": 4.211212590399257E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 144,
+            "Angle": -3.6508904788506947E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.244590883261485E-15,
+            "FinalResidual": 4.244590883261485E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 7.105427357601002E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 240,
+            "Angle": -3.6508904788506947E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.244590883261485E-15,
+            "FinalResidual": 4.244590883261485E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 7.105427357601002E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        }
+      ]
+    },
+    {
+      "Profile": "expanded-budget",
+      "Options": {
+        "CandidateThreshold": 0.65,
+        "MinimumScore": 0.72,
+        "ClutterWeight": 1,
+        "MinimumSupport": 0.6,
+        "MaximumCandidates": 8192,
+        "MaximumVerifiedCandidates": 256,
+        "MaximumCoarseVerifiedCandidates": 1024,
+        "MaximumMatches": 1000,
+        "MaximumOverlap": 0.3,
+        "Refine": true,
+        "Verify": true,
+        "EvaluateGeometry": true,
+        "GeometricTolerancePixels": 3,
+        "MinimumCoverage": 0,
+        "MaximumFitErrorPixels": "Infinity",
+        "MaximumClutterRatio": 1,
+        "UseSimd": true,
+        "TiledPreprocessing": false,
+        "GroupTemplates": false,
+        "MaximumParallelism": 1,
+        "ComputeMode": 0,
+        "Region": null
+      },
+      "ExpectedMatches": 40,
+      "MatchCount": 40,
+      "Milliseconds": [
+        359.6255,
+        361.6739,
+        358.1967,
+        359.359,
+        356.2704
+      ],
+      "MedianMilliseconds": 359.359,
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 20.9523,
+        "CandidateMilliseconds": 300.2293,
+        "VerificationMilliseconds": 0.0369,
+        "RefinementMilliseconds": 32.9575,
+        "SuppressionMilliseconds": 2.0632,
+        "TemplatesEvaluated": 13,
+        "Candidates": 240,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 13073920,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 2.808666774861361E-16,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 0,
+            "FinalResidual": 0,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 0,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 48,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.779700630900381E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 144,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 144,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 144,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 144,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 144,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 144,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 144,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 144,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 144,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 144,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 144,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 144,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 48,
+            "Y": 240,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 48,
+              "Y": 240,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 336,
+            "Y": 240,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 336,
+              "Y": 240,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 432,
+            "Y": 240,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 432,
+              "Y": 240,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 528,
+            "Y": 240,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 528,
+              "Y": 240,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 624,
+            "Y": 240,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 624,
+              "Y": 240,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 720,
+            "Y": 240,
+            "Angle": 1.3549108473073109E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 720,
+              "Y": 240,
+              "Angle": -3.469446951953614E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 3.1776435278938635E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 336,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.779700630900381E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 432,
+            "Angle": -8.326672684688674E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.779700630900381E-15,
+            "FinalResidual": 2.779700630900381E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 4.4938668397781774E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 144,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.8300134067098116E-15,
+            "FinalResidual": 2.8300134067098116E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 6.355287432313019E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 240,
+            "Y": 240,
+            "Angle": -3.5023148854277483E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 240,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 2.8300134067098116E-15,
+            "FinalResidual": 2.8300134067098116E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 6.355287432313019E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 48,
+            "Angle": -8.475248278111621E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 48,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.211212590399257E-15,
+            "FinalResidual": 4.211212590399257E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 336,
+            "Angle": -8.475248278111621E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 336,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.211212590399257E-15,
+            "FinalResidual": 4.211212590399257E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 432,
+            "Angle": -8.475248278111621E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 432,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.211212590399257E-15,
+            "FinalResidual": 4.211212590399257E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 5.503840364735051E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 144,
+            "Angle": -3.6508904788506947E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 144,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.244590883261485E-15,
+            "FinalResidual": 4.244590883261485E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 7.105427357601002E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        },
+        {
+          "Pose": {
+            "X": 144,
+            "Y": 240,
+            "Angle": -3.6508904788506947E-17,
+            "Scale": 1
+          },
+          "CandidateScore": 1,
+          "Score": 0.999915222667892,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 144,
+              "Y": 240,
+              "Angle": -8.326672684688674E-17,
+              "Scale": 1
+            },
+            "InitialResidual": 4.244590883261485E-15,
+            "FinalResidual": 4.244590883261485E-15,
+            "Iterations": 1,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "DirectionScore": 0.999915222667892,
+          "ClutterRatio": 0,
+          "Geometry": {
+            "Coverage": 1,
+            "FitErrorPixels": 7.105427357601002E-15,
+            "ClutterRatio": 0,
+            "MatchedFeatures": 160,
+            "ModelFeatures": 160,
+            "SceneEdges": 388
+          }
+        }
+      ]
+    }
+  ]
+}

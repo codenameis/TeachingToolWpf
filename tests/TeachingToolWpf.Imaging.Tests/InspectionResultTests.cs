@@ -105,6 +105,7 @@ public sealed class InspectionResultTests
         Assert.Empty(viewModel.Markers);
         Assert.Null(viewModel.Overlay);
         Assert.Null(viewModel.Verdict);
+        Assert.Contains("입력 변경", viewModel.Status);
     }
 
     [Fact]
@@ -118,11 +119,43 @@ public sealed class InspectionResultTests
         var pending = viewModel.Search.ExecuteAsync();
         Assert.Empty(viewModel.Markers);
         Assert.Null(viewModel.Verdict);
+        Assert.True(viewModel.IsBusy);
+        Assert.Contains("검사 중", viewModel.Overlay!.Summary);
+        Assert.False(viewModel.Search.CanExecute(null));
+        Assert.True(viewModel.Cancel.CanExecute(null));
         viewModel.Cancel.Execute(null);
         service.Pending.SetResult(service.Output);
         await pending;
         Assert.Equal(InspectionVerdict.Warning, viewModel.Verdict);
         Assert.Empty(viewModel.Markers);
+        Assert.False(viewModel.IsBusy);
+        Assert.Contains("취소", viewModel.Overlay!.Summary);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedTrainingShowsActionableWarningAndPreservesPreviousModel(bool previousModel)
+    {
+        var (service, editor, viewModel) = await CreateAsync();
+        using var lifetime = viewModel;
+        if (!previousModel)
+        {
+            viewModel.Clear.Execute(null);
+        }
+        var model = viewModel.Model;
+        var state = editor.State;
+        service.TrainingError = new ArgumentException("윤곽이 부족합니다. 테두리·핀을 포함하도록 ROI를 넓혀 다시 학습하세요.");
+        await viewModel.Train.ExecuteAsync();
+        Assert.Same(model, viewModel.Model);
+        Assert.Same(state, editor.State);
+        Assert.Equal(previousModel, viewModel.Search.CanExecute(null));
+        Assert.Equal(InspectionVerdict.Warning, viewModel.Verdict);
+        Assert.Contains("학습 실패", viewModel.Overlay!.Summary);
+        Assert.Contains("테두리·핀", viewModel.Status);
+        Assert.Equal(previousModel, viewModel.Status.Contains("이전 모델"));
+        Assert.Empty(viewModel.Markers);
+        Assert.False(viewModel.IsBusy);
     }
 
     [Fact]
@@ -221,13 +254,17 @@ public sealed class InspectionResultTests
         {
             get; set;
         }
+        public Exception? TrainingError
+        {
+            get; set;
+        }
         public int Searches
         {
             get; private set;
         }
 
         public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
-            => Task.FromResult(new ShapeTrainingOutput(Model, 0, 0));
+            => TrainingError is { } error ? Task.FromException<ShapeTrainingOutput>(error) : Task.FromResult(new ShapeTrainingOutput(Model, 0, 0));
 
         public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
         {

@@ -3,7 +3,15 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <TextBlock Text="검사 영역" FontSize="13" FontWeight="SemiBold" Height="56" Padding="0,18,0,0"/>
-                <views:ShapeMatchingPanel DataContext="{Binding Matching}"/>
+                <ComboBox ItemsSource="{Binding Inspections.Tools}" DisplayMemberPath="Name" SelectedValuePath="Kind"
+                          SelectedValue="{Binding Inspections.Selected}" IsEnabled="{Binding Inspections.IsIdle}"
+                          AutomationProperties.Name="검사 도구" Margin="0,0,0,12"/>
+                <StackPanel Visibility="{Binding Inspections.ShowPatterns, Converter={StaticResource BoolVisibility}}">
+                    <views:ShapeMatchingPanel DataContext="{Binding Matching}"/>
+                </StackPanel>
+                <StackPanel Visibility="{Binding Inspections.ShowShapes, Converter={StaticResource BoolVisibility}}">
+                    <views:PrimitiveShapeDetectionPanel DataContext="{Binding Inspections.Shapes}"/>
+                </StackPanel>
                 <views:FilterPanel DataContext="{Binding Filters}"/>
                 <StackPanel Visibility="{Binding Properties.HasSingleSelection, Converter={StaticResource BoolVisibility}}">
                     <TextBlock Text="{Binding Properties.ShapeDescription}" FontWeight="SemiBold" Margin="0,12,0,6"/>

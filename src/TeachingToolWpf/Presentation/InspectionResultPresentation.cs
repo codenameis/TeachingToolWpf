@@ -10,6 +10,19 @@ namespace TeachingToolWpf.Presentation;
 /// <summary>알고리즘 결과를 공급자와 무관한 캔버스 표시 값으로 변환한다.</summary>
 internal static class InspectionResultPresentation
 {
+    public static ImmutableArray<MatchMarker> Markers(RoiGeometry teachingRegion, TemplateSearchOutput output)
+    {
+        var color = Color(InspectionDecision.Evaluate(output).Verdict);
+        return output.Matches.Select((match, index) =>
+        {
+            var referencePoint = new PointD(match.ReferencePoint.X, match.ReferencePoint.Y);
+            // 고정 방향 템플릿은 crop AABB가 아니라 학습 도형을 평행 이동한다.
+            var detectedRegion = teachingRegion.WithFrame(referencePoint, teachingRegion.Width, teachingRegion.Height, teachingRegion.Angle);
+            return new MatchMarker(detectedRegion.Outline.ToImmutableArray(), referencePoint, teachingRegion.Angle * Math.PI / 180,
+                $"#{index + 1} NCC {match.Score:F3}", color, []);
+        }).ToImmutableArray();
+    }
+
     public static string Name(InspectionVerdict verdict) => verdict switch
     {
         InspectionVerdict.Pass => "OK · 정상",
@@ -37,10 +50,12 @@ internal static class InspectionResultPresentation
         _ => throw new ArgumentOutOfRangeException(nameof(verdict))
     };
 
-    public static ImmutableArray<MatchMarker> Markers(ShapeModel model, ShapeSearchOutput output)
-        => output.Matches.Select((match, index) =>
+    public static ImmutableArray<MatchMarker> Markers(ShapeModel model, RoiGeometry teachingRegion, ShapeSearchOutput output)
+    {
+        var warning = InspectionDecision.Evaluate(output).Verdict == InspectionVerdict.Warning;
+        return output.Matches.Select((match, index) =>
         {
-            var verdict = output.Truncated ? InspectionVerdict.Warning : InspectionDecision.Evaluate(match).Verdict;
+            var verdict = warning ? InspectionVerdict.Warning : InspectionDecision.Evaluate(match).Verdict;
             var pose = match.Pose;
             var angle = RoiGeometry.NormalizeAngle(pose.Angle * 180 / Math.PI);
             var cosine = Math.Cos(pose.Angle) * pose.Scale;
@@ -49,10 +64,14 @@ internal static class InspectionResultPresentation
             var features = model.Levels[0].Features.Select(feature => new PointD(
                 pose.X + (cosine * feature.X) - (sine * feature.Y),
                 pose.Y + (sine * feature.X) + (cosine * feature.Y))).ToImmutableArray();
+            // NMS용 마스크 AABB는 실제 ROI 윤곽과 다르다. 절대각을 한 번만 적용한다.
+            var detectedRegion = teachingRegion.WithFrame(new(pose.X, pose.Y),
+                teachingRegion.Width * pose.Scale, teachingRegion.Height * pose.Scale, angle);
             return new MatchMarker(
-                MatchSuppression.TransformBounds(model, pose).Select(p => new PointD(p.X, p.Y)).ToImmutableArray(),
+                detectedRegion.Outline.ToImmutableArray(),
                 new(pose.X, pose.Y), pose.Angle,
-                $"#{index + 1} {Name(verdict)} | {match.Score:F3} | X {pose.X:F1} Y {pose.Y:F1} θ {angle:F1}°",
+                $"#{index + 1} 점수 {match.Score:F3}",
                 Color(verdict), features);
         }).ToImmutableArray();
+    }
 }

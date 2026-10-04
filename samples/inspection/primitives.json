@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "method": "primitives",
+  "inspectionImage": "../../src/TeachingToolWpf/Assets/primitive-shapes.png",
+  "primitiveOptions": {
+    "automaticThreshold": true,
+    "polarity": "auto",
+    "minimumSize": 12,
+    "maximumSize": 256,
+    "minimumScore": 0.8,
+    "shapes": "all",
+    "maximumResults": 256
+  },
+  "timeoutSeconds": 60
+}

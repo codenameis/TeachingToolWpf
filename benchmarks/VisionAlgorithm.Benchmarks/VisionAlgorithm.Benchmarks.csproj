@@ -3,5 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/VisionAlgorithm/VisionAlgorithm.csproj"/>
     <Compile Include="../../tests/VisionAlgorithm.Tests/SyntheticScene.cs" Link="Fixtures/SyntheticScene.cs"/>
+    <Compile Include="../../tests/VisionAlgorithm.Tests/RobustGeometricScene.cs" Link="Fixtures/RobustGeometricScene.cs"/>
   </ItemGroup>
+  <Import Project="../../build/InspectionNativeRuntime.props" />
 </Project>

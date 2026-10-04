@@ -5,6 +5,8 @@
                 <Button Content="이미지 열기" Tag="{StaticResource OpenIcon}" Command="{Binding OpenImage}" Style="{StaticResource SecondaryButton}" ToolTip="이미지 열기 / 교체 · Ctrl+O" Margin="0,0,12,0"/>
                 <Button Content="8K 샘플" Command="{Binding Sample8K}" ToolTip="8,192 × 8,192 검사 이미지"/>
                 <Button Content="24K 샘플" Command="{Binding Sample24K}" ToolTip="24,576 × 32,768 대용량 이미지"/>
+                <Button Content="패턴 샘플" Command="{Binding PatternSample}" ToolTip="패턴 매칭용 이미지 열기 · 왼쪽 도형 전체를 ROI로 학습하세요. 오른쪽도 찾으려면 형상 매칭의 배율 검색을 켜고 최대 배율을 1.2 이상으로 설정한 뒤 학습하세요."/>
+                <Button Content="도형 샘플" Command="{Binding PrimitiveSample}" IsEnabled="{Binding Inspections.IsIdle}" ToolTip="회전된 삼각형·사각형·십자가와 원을 엽니다. 오른쪽 도형 검출을 누르세요."/>
                 <Border Width="1" Background="{StaticResource Stroke}" Margin="12,6"/>
                 <ComboBox ItemsSource="{Binding LiveFormats}" SelectedItem="{Binding LiveFormat}" Width="94" ToolTip="라이브 픽셀 형식" AutomationProperties.Name="라이브 픽셀 형식" Margin="0,0,8,0"/>
                 <Button Content="라이브 시작" Tag="{StaticResource PlayIcon}" Command="{Binding StartLive}" ToolTip="7680 × 4320 합성 영상 시작">

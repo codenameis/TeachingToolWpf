@@ -1,5 +1,21 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-04 플랫폼 독립 검사 승인:** [공통 검사·ILGPU·후보 예산 계획](portable-inspection-plan.md)에 따라 검사용 DX12를 제거하고 원본 I/O·검사 실행을 `net10.0` 라이브러리로 분리한다. WPF와 표시 DX12는 유지한다. Linux 실실행과 Windows 검증을 구별한다.
+
+- **2026-10-04 검사 확장:** [작업 계획](inspection-controls-plan.md)과 [ADR-022](../docs/decisions/0022-inspection-scoring-execution-and-primitives.md)에 따라 커스텀 추가 윤곽 점수, 속도/시간/CPU·GPU 실행 제어, 학습 없는 기본 도형 검출을 추가한다. 검증 상태는 작업 목록을 따른다.
+
+- **2026-10-04 논문 형상 후속:** 세 방식의 앱 출력 기본값을 각각256개로 맞추고, 독립 검사 reader 안에서16MiB 원본 Gray8 타일을 재사용한다. 검출 조건과 원본 축소 정책은 유지하며 [ADR-021](../docs/decisions/0021-shape-output-and-original-tile-reuse.md)의 반복 측정/메모리/수명 계약을 따른다.
+
+- **2026-10-04 매칭 방식 분리:** 사용자 앱의 OpenCV 16개 상한에서 결과 생략 무고지 재현과 세 방식별 모델·설정/사용자 파라미터는 [ADR-020](../docs/decisions/0020-matching-modes-and-result-limits.md)을 따른다. 같은 학습 모델로 상한만 올려 256개를 확인했고 수정 후 검증은 todo에 기록한다.
+
+- **2026-10-04 기하 매칭 확장:** PatMax 공개 기능을 참고한 자체 C# 윤곽 품질·검사 기준 확장은 [ADR-019](../docs/decisions/0019-geometric-match-quality.md), 단계와 미구현 범위는 [기하 매칭 계획](geometric-matching-plan.md)을 따른다. 상용 소스 포팅/동등 성능과 구별한다.
+
+- **2026-10-04 검출 윤곽 후속:** 학습 ROI 도형 보존, 검출 pose 변환, 검색 점선과 검출 실선 구분은 [ADR-018](../docs/decisions/0018-inspection-boundaries.md)을 따른다. NMS용 바운딩 박스와 화면 표시 윤곽을 구별한다.
+
+- **2026-10-04 기본 칩 후속:** 학습 실패/진행 상태 가시화, 원본 정밀화 비용 개선, 패턴 샘플 버튼은 [ADR-017](../docs/decisions/0017-default-chip-inspection.md)을 따른다. 칩 ROI의 실측과 이전 중앙 교차선 ROI의 실측을 구분한다.
+
+- **2026-10-04 최신 후속:** VisionCanvas 분리와 명시적 ROI 계층은 ADR-014, 검사 표시/판정은 ADR-015, OpenCV 기본 템플릿 매칭·큰 ROI 검색 개선·논문 대조는 [ADR-016](../docs/decisions/0016-template-matching-and-pyramid-search.md)을 따른다. 구현/검증 상태는 todo, 8K 검사 실측은 [성능 기록](../docs/matching-performance-2026-10-04.md)이 최신이며 아래 최초 계획 서술과 구분한다.
+
 - **2026-10-04 확장 계획:** [VisionAlgorithm 전통적 패턴 매칭과 검사 화면](pattern-matching-plan.md). 사용자 최종 선택은 **딥러닝 제외**다. PoseMatch-TDCM 도입/C# 이식 대신 전통적 패턴 매칭을 C# 중심으로 구현한다. 프로젝트 경계, 오른쪽 패널, 검사 흐름, 향후 VisionCanvas 분리와 검증 순서는 이 확장 계획 및 [ADR-013](../docs/decisions/0013-vision-algorithm-and-inspection.md)을 따른다. 현재는 계획만 작성했으며 구현·검증 완료를 뜻하지 않는다. 기존 미완료 작업은 유지한다.
 
 - 작성일: 2026-10-01

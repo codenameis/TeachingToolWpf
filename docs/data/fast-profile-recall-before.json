@@ -1,0 +1,2103 @@
+{
+  "Scope": "Same synthetic input and acceptance settings. One measurement per row without warmup; timing is diagnostic only.",
+  "Profiles": {
+    "removed-fast": {
+      "CandidateThreshold": 0.65,
+      "MinimumScore": 0.72,
+      "ClutterWeight": 1,
+      "MinimumSupport": 0.6,
+      "MaximumCandidates": 512,
+      "MaximumVerifiedCandidates": 32,
+      "MaximumCoarseVerifiedCandidates": 64,
+      "MaximumMatches": 16,
+      "MaximumOverlap": 0.3,
+      "Refine": false,
+      "Verify": true,
+      "EvaluateGeometry": true,
+      "GeometricTolerancePixels": 3,
+      "MinimumCoverage": 0,
+      "MaximumFitErrorPixels": "Infinity",
+      "MaximumClutterRatio": 1,
+      "UseSimd": true,
+      "TiledPreprocessing": false,
+      "GroupTemplates": false,
+      "MaximumParallelism": 1,
+      "ComputeMode": 0,
+      "Region": null
+    },
+    "fast-with-refinement": {
+      "CandidateThreshold": 0.65,
+      "MinimumScore": 0.72,
+      "ClutterWeight": 1,
+      "MinimumSupport": 0.6,
+      "MaximumCandidates": 512,
+      "MaximumVerifiedCandidates": 32,
+      "MaximumCoarseVerifiedCandidates": 64,
+      "MaximumMatches": 16,
+      "MaximumOverlap": 0.3,
+      "Refine": true,
+      "Verify": true,
+      "EvaluateGeometry": true,
+      "GeometricTolerancePixels": 3,
+      "MinimumCoverage": 0,
+      "MaximumFitErrorPixels": "Infinity",
+      "MaximumClutterRatio": 1,
+      "UseSimd": true,
+      "TiledPreprocessing": false,
+      "GroupTemplates": false,
+      "MaximumParallelism": 1,
+      "ComputeMode": 0,
+      "Region": null
+    },
+    "standard-budget": {
+      "CandidateThreshold": 0.65,
+      "MinimumScore": 0.72,
+      "ClutterWeight": 1,
+      "MinimumSupport": 0.6,
+      "MaximumCandidates": 2048,
+      "MaximumVerifiedCandidates": 64,
+      "MaximumCoarseVerifiedCandidates": 256,
+      "MaximumMatches": 16,
+      "MaximumOverlap": 0.3,
+      "Refine": true,
+      "Verify": true,
+      "EvaluateGeometry": true,
+      "GeometricTolerancePixels": 3,
+      "MinimumCoverage": 0,
+      "MaximumFitErrorPixels": "Infinity",
+      "MaximumClutterRatio": 1,
+      "UseSimd": true,
+      "TiledPreprocessing": false,
+      "GroupTemplates": false,
+      "MaximumParallelism": 1,
+      "ComputeMode": 0,
+      "Region": null
+    },
+    "expanded-budget": {
+      "CandidateThreshold": 0.65,
+      "MinimumScore": 0.72,
+      "ClutterWeight": 1,
+      "MinimumSupport": 0.6,
+      "MaximumCandidates": 8192,
+      "MaximumVerifiedCandidates": 256,
+      "MaximumCoarseVerifiedCandidates": 1024,
+      "MaximumMatches": 16,
+      "MaximumOverlap": 0.3,
+      "Refine": true,
+      "Verify": true,
+      "EvaluateGeometry": true,
+      "GeometricTolerancePixels": 3,
+      "MinimumCoverage": 0,
+      "MaximumFitErrorPixels": "Infinity",
+      "MaximumClutterRatio": 1,
+      "UseSimd": true,
+      "TiledPreprocessing": false,
+      "GroupTemplates": false,
+      "MaximumParallelism": 1,
+      "ComputeMode": 0,
+      "Region": null
+    }
+  },
+  "Rows": [
+    {
+      "Name": "rotation-minus179-scale080",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.625,
+            "Angle": -3.1334114227210685,
+            "Scale": 0.8000000000000003
+          },
+          "Score": 0.9989696173811415,
+          "DirectionScore": 0.9989696173811415,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 5.836,
+        "CandidateMilliseconds": 448.7582,
+        "VerificationMilliseconds": 8.1002,
+        "RefinementMilliseconds": 14.8431,
+        "SuppressionMilliseconds": 7.4236,
+        "TemplatesEvaluated": 365,
+        "Candidates": 56,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1172277,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 489.7562
+    },
+    {
+      "Name": "rotation-minus179-scale080",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34107515246471,
+            "Y": 87.64764865210104,
+            "Angle": -3.130422295778588,
+            "Scale": 0.8001138415053226
+          },
+          "Score": 0.9989511914437497,
+          "DirectionScore": 0.9989511914437497,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.8683,
+        "CandidateMilliseconds": 247.2017,
+        "VerificationMilliseconds": 0.0652,
+        "RefinementMilliseconds": 38.6477,
+        "SuppressionMilliseconds": 0.2618,
+        "TemplatesEvaluated": 365,
+        "Candidates": 56,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1172277,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 290.0693
+    },
+    {
+      "Name": "rotation-minus179-scale080",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34107515246471,
+            "Y": 87.64764865210104,
+            "Angle": -3.130422295778588,
+            "Scale": 0.8001138415053226
+          },
+          "Score": 0.9989511914437497,
+          "DirectionScore": 0.9989511914437497,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.4751,
+        "CandidateMilliseconds": 245.3924,
+        "VerificationMilliseconds": 0.0399,
+        "RefinementMilliseconds": 34.9096,
+        "SuppressionMilliseconds": 0.3481,
+        "TemplatesEvaluated": 365,
+        "Candidates": 56,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175349,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 283.1937
+    },
+    {
+      "Name": "rotation-minus179-scale080",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34107515246471,
+            "Y": 87.64764865210104,
+            "Angle": -3.130422295778588,
+            "Scale": 0.8001138415053226
+          },
+          "Score": 0.9989511914437497,
+          "DirectionScore": 0.9989511914437497,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.6269,
+        "CandidateMilliseconds": 238.8807,
+        "VerificationMilliseconds": 0.0257,
+        "RefinementMilliseconds": 10.3873,
+        "SuppressionMilliseconds": 0.0856,
+        "TemplatesEvaluated": 365,
+        "Candidates": 56,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175349,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 253.0378
+    },
+    {
+      "Name": "rotation-minus135-scale090",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.5,
+            "Y": 87.5,
+            "Angle": -2.3589215671485864,
+            "Scale": 0.9000000000000002
+          },
+          "Score": 0.9993991984722083,
+          "DirectionScore": 0.9993991984722083,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.4184,
+        "CandidateMilliseconds": 254.9253,
+        "VerificationMilliseconds": 0.0373,
+        "RefinementMilliseconds": 1.2475,
+        "SuppressionMilliseconds": 0.0508,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1175997,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 258.698
+    },
+    {
+      "Name": "rotation-minus135-scale090",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.33380941545447,
+            "Y": 87.63981439794689,
+            "Angle": -2.362806435929455,
+            "Scale": 0.9003528904527481
+          },
+          "Score": 0.9993068148236013,
+          "DirectionScore": 0.9993068148236013,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.784,
+        "CandidateMilliseconds": 247.7777,
+        "VerificationMilliseconds": 0.0336,
+        "RefinementMilliseconds": 8.7225,
+        "SuppressionMilliseconds": 0.0479,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1175997,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 259.4022
+    },
+    {
+      "Name": "rotation-minus135-scale090",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.33380941545447,
+            "Y": 87.63981439794689,
+            "Angle": -2.3628064359294547,
+            "Scale": 0.900352890452748
+          },
+          "Score": 0.9993068148236013,
+          "DirectionScore": 0.9993068148236013,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.6526,
+        "CandidateMilliseconds": 246.3319,
+        "VerificationMilliseconds": 0.0241,
+        "RefinementMilliseconds": 12.7992,
+        "SuppressionMilliseconds": 0.0622,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177661,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 261.8863
+    },
+    {
+      "Name": "rotation-minus135-scale090",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.33380941545447,
+            "Y": 87.63981439794689,
+            "Angle": -2.3628064359294547,
+            "Scale": 0.900352890452748
+          },
+          "Score": 0.9993068148236013,
+          "DirectionScore": 0.9993068148236013,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.4357,
+        "CandidateMilliseconds": 248.0446,
+        "VerificationMilliseconds": 0.0276,
+        "RefinementMilliseconds": 14.5881,
+        "SuppressionMilliseconds": 0.0769,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177661,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 266.2183
+    },
+    {
+      "Name": "rotation-minus90-scale100",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103,
+            "Y": 87.75,
+            "Angle": -1.5707963267948968,
+            "Scale": 0.9812499999999998
+          },
+          "Score": 0.9995404880454487,
+          "DirectionScore": 0.9995404880454487,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.039,
+        "CandidateMilliseconds": 252.1192,
+        "VerificationMilliseconds": 0.1,
+        "RefinementMilliseconds": 1.6136,
+        "SuppressionMilliseconds": 0.046,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1175397,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 255.9334
+    },
+    {
+      "Name": "rotation-minus90-scale100",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.32029456108293,
+            "Y": 87.67066062815971,
+            "Angle": -1.5789751655986757,
+            "Scale": 1.0010298183687403
+          },
+          "Score": 0.9993937488749968,
+          "DirectionScore": 0.9993937488749968,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.9858,
+        "CandidateMilliseconds": 250.1705,
+        "VerificationMilliseconds": 0.029,
+        "RefinementMilliseconds": 6.8305,
+        "SuppressionMilliseconds": 0.0685,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1175397,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 259.1201
+    },
+    {
+      "Name": "rotation-minus90-scale100",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.32029456108293,
+            "Y": 87.67066062815971,
+            "Angle": -1.5789751655986757,
+            "Scale": 1.0010298183687403
+          },
+          "Score": 0.9993937488749968,
+          "DirectionScore": 0.9993937488749968,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.3143,
+        "CandidateMilliseconds": 257.4602,
+        "VerificationMilliseconds": 0.0362,
+        "RefinementMilliseconds": 8.4298,
+        "SuppressionMilliseconds": 0.0916,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1176165,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 269.3552
+    },
+    {
+      "Name": "rotation-minus90-scale100",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.32029456108293,
+            "Y": 87.67066062815971,
+            "Angle": -1.5789751655986757,
+            "Scale": 1.0010298183687403
+          },
+          "Score": 0.9993937488749968,
+          "DirectionScore": 0.9993937488749968,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 9.7817,
+        "CandidateMilliseconds": 249.6573,
+        "VerificationMilliseconds": 0.0437,
+        "RefinementMilliseconds": 8.0241,
+        "SuppressionMilliseconds": 0.0531,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1176165,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 267.6039
+    },
+    {
+      "Name": "rotation-minus45-scale110",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.625,
+            "Y": 87.625,
+            "Angle": -0.78812524035369,
+            "Scale": 1.0875
+          },
+          "Score": 0.999667064574653,
+          "DirectionScore": 0.999667064574653,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.7602,
+        "CandidateMilliseconds": 249.4125,
+        "VerificationMilliseconds": 0.0266,
+        "RefinementMilliseconds": 2.0773,
+        "SuppressionMilliseconds": 0.0606,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1178637,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 254.3553
+    },
+    {
+      "Name": "rotation-minus45-scale110",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34608339944229,
+            "Y": 87.66217210160043,
+            "Angle": -0.7873134946953704,
+            "Scale": 1.0991286691043882
+          },
+          "Score": 0.999650564097425,
+          "DirectionScore": 0.999650564097425,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.9599,
+        "CandidateMilliseconds": 244.3419,
+        "VerificationMilliseconds": 0.0238,
+        "RefinementMilliseconds": 9.2903,
+        "SuppressionMilliseconds": 0.0599,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1178637,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 257.71
+    },
+    {
+      "Name": "rotation-minus45-scale110",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34608339944229,
+            "Y": 87.66217210160043,
+            "Angle": -0.7873134946953704,
+            "Scale": 1.0991286691043882
+          },
+          "Score": 0.999650564097425,
+          "DirectionScore": 0.999650564097425,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.4615,
+        "CandidateMilliseconds": 319.0581,
+        "VerificationMilliseconds": 0.0269,
+        "RefinementMilliseconds": 13.0776,
+        "SuppressionMilliseconds": 0.0865,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1180301,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 334.7286
+    },
+    {
+      "Name": "rotation-minus45-scale110",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34608339944229,
+            "Y": 87.66217210160043,
+            "Angle": -0.7873134946953704,
+            "Scale": 1.0991286691043882
+          },
+          "Score": 0.999650564097425,
+          "DirectionScore": 0.999650564097425,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.6242,
+        "CandidateMilliseconds": 295.4739,
+        "VerificationMilliseconds": 0.0396,
+        "RefinementMilliseconds": 20.22,
+        "SuppressionMilliseconds": 0.1033,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1180301,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 318.535
+    },
+    {
+      "Name": "rotation-zero-scale120",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.5,
+            "Y": 87.75,
+            "Angle": 0.0054541539124818485,
+            "Scale": 1.1937499999999994
+          },
+          "Score": 0.9996111776412494,
+          "DirectionScore": 0.9996111776412494,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.6903,
+        "CandidateMilliseconds": 278.2692,
+        "VerificationMilliseconds": 0.0317,
+        "RefinementMilliseconds": 1.7247,
+        "SuppressionMilliseconds": 0.0806,
+        "TemplatesEvaluated": 365,
+        "Candidates": 39,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1179077,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 283.8646
+    },
+    {
+      "Name": "rotation-zero-scale120",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.31679608056096,
+            "Y": 87.65611731067173,
+            "Angle": 0.0057269845687647845,
+            "Scale": 1.1990445373136716
+          },
+          "Score": 0.9995985892903082,
+          "DirectionScore": 0.9995985892903082,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.1005,
+        "CandidateMilliseconds": 267.3227,
+        "VerificationMilliseconds": 0.0267,
+        "RefinementMilliseconds": 6.5616,
+        "SuppressionMilliseconds": 0.0744,
+        "TemplatesEvaluated": 365,
+        "Candidates": 39,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1179077,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 276.1236
+    },
+    {
+      "Name": "rotation-zero-scale120",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.31679608056096,
+            "Y": 87.65611731067173,
+            "Angle": 0.0057269845687647845,
+            "Scale": 1.1990445373136716
+          },
+          "Score": 0.9995985892903082,
+          "DirectionScore": 0.9995985892903082,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.245,
+        "CandidateMilliseconds": 269.5616,
+        "VerificationMilliseconds": 0.027,
+        "RefinementMilliseconds": 10.6752,
+        "SuppressionMilliseconds": 0.0625,
+        "TemplatesEvaluated": 365,
+        "Candidates": 39,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179973,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 283.5886
+    },
+    {
+      "Name": "rotation-zero-scale120",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.31679608056096,
+            "Y": 87.65611731067173,
+            "Angle": 0.0057269845687647845,
+            "Scale": 1.1990445373136716
+          },
+          "Score": 0.9995985892903082,
+          "DirectionScore": 0.9995985892903082,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.4961,
+        "CandidateMilliseconds": 254.0403,
+        "VerificationMilliseconds": 0.0306,
+        "RefinementMilliseconds": 10.5195,
+        "SuppressionMilliseconds": 0.0778,
+        "TemplatesEvaluated": 365,
+        "Candidates": 39,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179973,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 267.208
+    },
+    {
+      "Name": "rotation45-scale080",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25,
+            "Y": 87.5,
+            "Angle": 0.7853981633974478,
+            "Scale": 0.8062500000000001
+          },
+          "Score": 0.9992233664223317,
+          "DirectionScore": 0.9992233664223317,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.6582,
+        "CandidateMilliseconds": 274.6976,
+        "VerificationMilliseconds": 0.0346,
+        "RefinementMilliseconds": 1.6623,
+        "SuppressionMilliseconds": 0.0712,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1173797,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 279.1423
+    },
+    {
+      "Name": "rotation45-scale080",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25,
+            "Y": 87.5,
+            "Angle": 0.7853981633974482,
+            "Scale": 0.8062499999999995
+          },
+          "Score": 0.9992233664223317,
+          "DirectionScore": 0.9992233664223317,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.8828,
+        "CandidateMilliseconds": 284.3298,
+        "VerificationMilliseconds": 0.0286,
+        "RefinementMilliseconds": 11.5931,
+        "SuppressionMilliseconds": 0.0507,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1173797,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 299.9207
+    },
+    {
+      "Name": "rotation45-scale080",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25,
+            "Y": 87.5,
+            "Angle": 0.7853981633974482,
+            "Scale": 0.8062499999999995
+          },
+          "Score": 0.9992233664223317,
+          "DirectionScore": 0.9992233664223317,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.0732,
+        "CandidateMilliseconds": 261.7311,
+        "VerificationMilliseconds": 0.0424,
+        "RefinementMilliseconds": 19.9211,
+        "SuppressionMilliseconds": 0.0686,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1176485,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 283.8511
+    },
+    {
+      "Name": "rotation45-scale080",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25,
+            "Y": 87.5,
+            "Angle": 0.7853981633974482,
+            "Scale": 0.8062499999999995
+          },
+          "Score": 0.9992233664223317,
+          "DirectionScore": 0.9992233664223317,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.2667,
+        "CandidateMilliseconds": 256.1663,
+        "VerificationMilliseconds": 0.0266,
+        "RefinementMilliseconds": 15.9287,
+        "SuppressionMilliseconds": 0.0602,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1176485,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 274.4811
+    },
+    {
+      "Name": "rotation90-scale090",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25,
+            "Y": 87.75,
+            "Angle": 1.5789775576636196,
+            "Scale": 0.8906250000000003
+          },
+          "Score": 0.9993213938786221,
+          "DirectionScore": 0.9993213938786221,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.0942,
+        "CandidateMilliseconds": 247.4658,
+        "VerificationMilliseconds": 0.0259,
+        "RefinementMilliseconds": 1.0345,
+        "SuppressionMilliseconds": 0.0446,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1173517,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 250.693
+    },
+    {
+      "Name": "rotation90-scale090",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.36891933471323,
+            "Y": 87.63838758186502,
+            "Angle": 1.5786228503871318,
+            "Scale": 0.8995376815041285
+          },
+          "Score": 0.9992943598821966,
+          "DirectionScore": 0.9992943598821966,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.3415,
+        "CandidateMilliseconds": 244.5742,
+        "VerificationMilliseconds": 0.0242,
+        "RefinementMilliseconds": 6.9516,
+        "SuppressionMilliseconds": 0.0513,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1173517,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 253.9544
+    },
+    {
+      "Name": "rotation90-scale090",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.36891933471323,
+            "Y": 87.63838758186502,
+            "Angle": 1.5786228503871318,
+            "Scale": 0.8995376815041285
+          },
+          "Score": 0.9992943598821966,
+          "DirectionScore": 0.9992943598821966,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 4.2355,
+        "CandidateMilliseconds": 260.5489,
+        "VerificationMilliseconds": 0.0267,
+        "RefinementMilliseconds": 9.4449,
+        "SuppressionMilliseconds": 0.052,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175181,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 274.3502
+    },
+    {
+      "Name": "rotation90-scale090",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.36891933471323,
+            "Y": 87.63838758186502,
+            "Angle": 1.5786228503871318,
+            "Scale": 0.8995376815041285
+          },
+          "Score": 0.9992943598821966,
+          "DirectionScore": 0.9992943598821966,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.0928,
+        "CandidateMilliseconds": 242.2746,
+        "VerificationMilliseconds": 0.0262,
+        "RefinementMilliseconds": 9.9691,
+        "SuppressionMilliseconds": 0.0482,
+        "TemplatesEvaluated": 365,
+        "Candidates": 45,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1175181,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 254.4217
+    },
+    {
+      "Name": "rotation135-scale110",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.5,
+            "Y": 87.375,
+            "Angle": 2.3643757210610694,
+            "Scale": 1.1187499999999986
+          },
+          "Score": 0.9995843740437979,
+          "DirectionScore": 0.9995843740437979,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.0276,
+        "CandidateMilliseconds": 243.3144,
+        "VerificationMilliseconds": 0.0363,
+        "RefinementMilliseconds": 1.2526,
+        "SuppressionMilliseconds": 0.0499,
+        "TemplatesEvaluated": 365,
+        "Candidates": 36,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1178157,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 246.7173
+    },
+    {
+      "Name": "rotation135-scale110",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.346854588832,
+            "Y": 87.65686133104718,
+            "Angle": 2.36240860891504,
+            "Scale": 1.1004798399233557
+          },
+          "Score": 0.99956950402985,
+          "DirectionScore": 0.99956950402985,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.037,
+        "CandidateMilliseconds": 241.3774,
+        "VerificationMilliseconds": 0.026,
+        "RefinementMilliseconds": 8.9722,
+        "SuppressionMilliseconds": 0.0979,
+        "TemplatesEvaluated": 365,
+        "Candidates": 36,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1178157,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 252.5223
+    },
+    {
+      "Name": "rotation135-scale110",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.346854588832,
+            "Y": 87.65686133104718,
+            "Angle": 2.36240860891504,
+            "Scale": 1.1004798399233557
+          },
+          "Score": 0.99956950402985,
+          "DirectionScore": 0.99956950402985,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 4.217,
+        "CandidateMilliseconds": 247.2244,
+        "VerificationMilliseconds": 0.0613,
+        "RefinementMilliseconds": 15.7837,
+        "SuppressionMilliseconds": 0.0533,
+        "TemplatesEvaluated": 365,
+        "Candidates": 36,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1178669,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 267.3935
+    },
+    {
+      "Name": "rotation135-scale110",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.346854588832,
+            "Y": 87.65686133104718,
+            "Angle": 2.36240860891504,
+            "Scale": 1.1004798399233557
+          },
+          "Score": 0.99956950402985,
+          "DirectionScore": 0.99956950402985,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.9846,
+        "CandidateMilliseconds": 264.1274,
+        "VerificationMilliseconds": 0.0517,
+        "RefinementMilliseconds": 9.6795,
+        "SuppressionMilliseconds": 0.0755,
+        "TemplatesEvaluated": 365,
+        "Candidates": 36,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1178669,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 275.9251
+    },
+    {
+      "Name": "rotation179-scale120",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.625,
+            "Angle": 3.130684345764828,
+            "Scale": 1.2
+          },
+          "Score": 0.9995247484747439,
+          "DirectionScore": 0.9995247484747439,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.7007,
+        "CandidateMilliseconds": 227.5774,
+        "VerificationMilliseconds": 0.0146,
+        "RefinementMilliseconds": 0.9945,
+        "SuppressionMilliseconds": 0.0302,
+        "TemplatesEvaluated": 365,
+        "Candidates": 26,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179429,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 230.3416
+    },
+    {
+      "Name": "rotation179-scale120",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.625,
+            "Angle": 3.130684345764828,
+            "Scale": 1.1999999999999997
+          },
+          "Score": 0.9995247484747439,
+          "DirectionScore": 0.9995247484747439,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.054,
+        "CandidateMilliseconds": 224.3201,
+        "VerificationMilliseconds": 0.0145,
+        "RefinementMilliseconds": 6.5778,
+        "SuppressionMilliseconds": 0.0288,
+        "TemplatesEvaluated": 365,
+        "Candidates": 26,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179429,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 233.0017
+    },
+    {
+      "Name": "rotation179-scale120",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.625,
+            "Angle": 3.130684345764828,
+            "Scale": 1.1999999999999997
+          },
+          "Score": 0.9995247484747439,
+          "DirectionScore": 0.9995247484747439,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.417,
+        "CandidateMilliseconds": 231.7677,
+        "VerificationMilliseconds": 0.017,
+        "RefinementMilliseconds": 6.5224,
+        "SuppressionMilliseconds": 0.0296,
+        "TemplatesEvaluated": 365,
+        "Candidates": 26,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179429,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 240.789
+    },
+    {
+      "Name": "rotation179-scale120",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.625,
+            "Angle": 3.130684345764828,
+            "Scale": 1.1999999999999997
+          },
+          "Score": 0.9995247484747439,
+          "DirectionScore": 0.9995247484747439,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8871,
+        "CandidateMilliseconds": 224.2483,
+        "VerificationMilliseconds": 0.0202,
+        "RefinementMilliseconds": 7.42,
+        "SuppressionMilliseconds": 0.0279,
+        "TemplatesEvaluated": 365,
+        "Candidates": 26,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1179429,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 233.6104
+    },
+    {
+      "Name": "contrast-half",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.375,
+            "Y": 87.875,
+            "Angle": 0.2236203104117734,
+            "Scale": 1.0781249999999998
+          },
+          "Score": 0.9996256549620124,
+          "DirectionScore": 0.9996256549620124,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.807,
+        "CandidateMilliseconds": 253.1237,
+        "VerificationMilliseconds": 0.0171,
+        "RefinementMilliseconds": 1.1494,
+        "SuppressionMilliseconds": 0.0327,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1177117,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 256.1558
+    },
+    {
+      "Name": "contrast-half",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.35868868902817,
+            "Y": 87.65500400721653,
+            "Angle": 0.23415685697906505,
+            "Scale": 1.0706483417230535
+          },
+          "Score": 0.9995686622571693,
+          "DirectionScore": 0.9995686622571693,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.102,
+        "CandidateMilliseconds": 252.2449,
+        "VerificationMilliseconds": 0.0171,
+        "RefinementMilliseconds": 6.4788,
+        "SuppressionMilliseconds": 0.0361,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1177117,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 260.8861
+    },
+    {
+      "Name": "contrast-half",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.35868868902817,
+            "Y": 87.65500400721653,
+            "Angle": 0.2341568569790341,
+            "Scale": 1.07064834172256
+          },
+          "Score": 0.9995686622571694,
+          "DirectionScore": 0.9995686622571694,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.713,
+        "CandidateMilliseconds": 253.9022,
+        "VerificationMilliseconds": 0.0166,
+        "RefinementMilliseconds": 7.5872,
+        "SuppressionMilliseconds": 0.0348,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177885,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 264.2836
+    },
+    {
+      "Name": "contrast-half",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.35868868902817,
+            "Y": 87.65500400721653,
+            "Angle": 0.2341568569790341,
+            "Scale": 1.07064834172256
+          },
+          "Score": 0.9995686622571694,
+          "DirectionScore": 0.9995686622571694,
+          "ClutterRatio": 0
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.9961,
+        "CandidateMilliseconds": 253.2815,
+        "VerificationMilliseconds": 0.0162,
+        "RefinementMilliseconds": 8.0872,
+        "SuppressionMilliseconds": 0.0373,
+        "TemplatesEvaluated": 365,
+        "Candidates": 38,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177885,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 263.4257
+    },
+    {
+      "Name": "right-quarter-occlusion",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 101.375,
+            "Y": 87,
+            "Angle": 0.23725569519297873,
+            "Scale": 1.003125
+          },
+          "Score": 0.809636932286979,
+          "DirectionScore": 0.888931271016116,
+          "ClutterRatio": 0.0892018779342723
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.2676,
+        "CandidateMilliseconds": 253.0849,
+        "VerificationMilliseconds": 0.0161,
+        "RefinementMilliseconds": 1.1059,
+        "SuppressionMilliseconds": 0.0353,
+        "TemplatesEvaluated": 365,
+        "Candidates": 58,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1173957,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 256.5455
+    },
+    {
+      "Name": "right-quarter-occlusion",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25218908460761,
+            "Y": 87.67338933388733,
+            "Angle": 0.23749150559653465,
+            "Scale": 1.068092992338217
+          },
+          "Score": 0.7505027290529555,
+          "DirectionScore": 0.8369480695721441,
+          "ClutterRatio": 0.10328638497652583
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.9365,
+        "CandidateMilliseconds": 247.3065,
+        "VerificationMilliseconds": 0.0158,
+        "RefinementMilliseconds": 10.2126,
+        "SuppressionMilliseconds": 0.0336,
+        "TemplatesEvaluated": 365,
+        "Candidates": 58,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1173957,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 259.5112
+    },
+    {
+      "Name": "right-quarter-occlusion",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25218924781223,
+            "Y": 87.67338906223485,
+            "Angle": 0.23749147382113214,
+            "Scale": 1.0680929890798463
+          },
+          "Score": 0.7505027356647335,
+          "DirectionScore": 0.8369480769454881,
+          "ClutterRatio": 0.10328638497652583
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.2873,
+        "CandidateMilliseconds": 298.5942,
+        "VerificationMilliseconds": 0.0218,
+        "RefinementMilliseconds": 19.8291,
+        "SuppressionMilliseconds": 0.0678,
+        "TemplatesEvaluated": 365,
+        "Candidates": 58,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177285,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 320.9129
+    },
+    {
+      "Name": "right-quarter-occlusion",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": true,
+      "Passed": true,
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25218924781223,
+            "Y": 87.67338906223485,
+            "Angle": 0.23749147382113214,
+            "Scale": 1.0680929890798463
+          },
+          "Score": 0.7505027356647335,
+          "DirectionScore": 0.8369480769454881,
+          "ClutterRatio": 0.10328638497652583
+        }
+      ],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.317,
+        "CandidateMilliseconds": 263.1274,
+        "VerificationMilliseconds": 0.0179,
+        "RefinementMilliseconds": 15.8176,
+        "SuppressionMilliseconds": 0.0516,
+        "TemplatesEvaluated": 365,
+        "Candidates": 58,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1177285,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 281.341
+    },
+    {
+      "Name": "background-clutter",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.957,
+        "CandidateMilliseconds": 353.0794,
+        "VerificationMilliseconds": 0.0159,
+        "RefinementMilliseconds": 1.4119,
+        "SuppressionMilliseconds": 0.0489,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1280957,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 356.5294
+    },
+    {
+      "Name": "background-clutter",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.8399,
+        "CandidateMilliseconds": 345.7372,
+        "VerificationMilliseconds": 0.0163,
+        "RefinementMilliseconds": 7.8441,
+        "SuppressionMilliseconds": 0.0097,
+        "TemplatesEvaluated": 365,
+        "Candidates": 53,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1280957,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 356.4807
+    },
+    {
+      "Name": "background-clutter",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.3203,
+        "CandidateMilliseconds": 1357.9589,
+        "VerificationMilliseconds": 0.0171,
+        "RefinementMilliseconds": 13.4618,
+        "SuppressionMilliseconds": 0.0081,
+        "TemplatesEvaluated": 365,
+        "Candidates": 54,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1283773,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 1373.7732
+    },
+    {
+      "Name": "background-clutter",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.8555,
+        "CandidateMilliseconds": 1543.6443,
+        "VerificationMilliseconds": 0.0201,
+        "RefinementMilliseconds": 16.4931,
+        "SuppressionMilliseconds": 0.0107,
+        "TemplatesEvaluated": 365,
+        "Candidates": 54,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1283773,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 1563.049
+    },
+    {
+      "Name": "occlusion-clutter-half-contrast",
+      "Profile": "removed-fast",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.102,
+        "CandidateMilliseconds": 471.3901,
+        "VerificationMilliseconds": 0.0193,
+        "RefinementMilliseconds": 2.8325,
+        "SuppressionMilliseconds": 0.0087,
+        "TemplatesEvaluated": 365,
+        "Candidates": 55,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1280037,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 476.3747
+    },
+    {
+      "Name": "occlusion-clutter-half-contrast",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.9962,
+        "CandidateMilliseconds": 463.8488,
+        "VerificationMilliseconds": 0.0161,
+        "RefinementMilliseconds": 12.3173,
+        "SuppressionMilliseconds": 0.0103,
+        "TemplatesEvaluated": 365,
+        "Candidates": 55,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1280037,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 480.211
+    },
+    {
+      "Name": "occlusion-clutter-half-contrast",
+      "Profile": "standard-budget",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 5.0747,
+        "CandidateMilliseconds": 1519.4012,
+        "VerificationMilliseconds": 0.0192,
+        "RefinementMilliseconds": 19.3303,
+        "SuppressionMilliseconds": 0.0103,
+        "TemplatesEvaluated": 365,
+        "Candidates": 55,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1282981,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 1543.8579
+    },
+    {
+      "Name": "occlusion-clutter-half-contrast",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": true,
+      "Matched": false,
+      "Passed": false,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.6726,
+        "CandidateMilliseconds": 1920.8718,
+        "VerificationMilliseconds": 0.0184,
+        "RefinementMilliseconds": 16.826,
+        "SuppressionMilliseconds": 0.0104,
+        "TemplatesEvaluated": 365,
+        "Candidates": 55,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1282981,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 1940.42
+    },
+    {
+      "Name": "empty",
+      "Profile": "removed-fast",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.2558,
+        "CandidateMilliseconds": 2.0385,
+        "VerificationMilliseconds": 0.0844,
+        "RefinementMilliseconds": 0.0001,
+        "SuppressionMilliseconds": 0.006,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1155061,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 4.4002
+    },
+    {
+      "Name": "empty",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.9403,
+        "CandidateMilliseconds": 1.9547,
+        "VerificationMilliseconds": 0.0023,
+        "RefinementMilliseconds": 0.0002,
+        "SuppressionMilliseconds": 0.004,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1155061,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 3.9048
+    },
+    {
+      "Name": "empty",
+      "Profile": "standard-budget",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8472,
+        "CandidateMilliseconds": 1.8698,
+        "VerificationMilliseconds": 0.0016,
+        "RefinementMilliseconds": 0.0001,
+        "SuppressionMilliseconds": 0.0032,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1155061,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 3.7252
+    },
+    {
+      "Name": "empty",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8481,
+        "CandidateMilliseconds": 2.5637,
+        "VerificationMilliseconds": 0.0041,
+        "RefinementMilliseconds": 0.0005,
+        "SuppressionMilliseconds": 0.0081,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1155061,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 4.431
+    },
+    {
+      "Name": "clutter-only",
+      "Profile": "removed-fast",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 4.1084,
+        "CandidateMilliseconds": 468.5441,
+        "VerificationMilliseconds": 0.0052,
+        "RefinementMilliseconds": 0.0006,
+        "SuppressionMilliseconds": 0.0091,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1261221,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 472.685
+    },
+    {
+      "Name": "clutter-only",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.6491,
+        "CandidateMilliseconds": 356.9331,
+        "VerificationMilliseconds": 0.0039,
+        "RefinementMilliseconds": 0.0005,
+        "SuppressionMilliseconds": 0.0087,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": true,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1261221,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 360.6068
+    },
+    {
+      "Name": "clutter-only",
+      "Profile": "standard-budget",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.0981,
+        "CandidateMilliseconds": 1521.0917,
+        "VerificationMilliseconds": 0.0037,
+        "RefinementMilliseconds": 0.0005,
+        "SuppressionMilliseconds": 0.0183,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1261221,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 1523.2214
+    },
+    {
+      "Name": "clutter-only",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.9222,
+        "CandidateMilliseconds": 1366.8044,
+        "VerificationMilliseconds": 0.0042,
+        "RefinementMilliseconds": 0.0004,
+        "SuppressionMilliseconds": 0.0083,
+        "TemplatesEvaluated": 365,
+        "Candidates": 0,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1261221,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 1370.7649
+    },
+    {
+      "Name": "similar-distractor",
+      "Profile": "removed-fast",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 1.8514,
+        "CandidateMilliseconds": 235.2325,
+        "VerificationMilliseconds": 0.0281,
+        "RefinementMilliseconds": 2.0281,
+        "SuppressionMilliseconds": 0.0175,
+        "TemplatesEvaluated": 365,
+        "Candidates": 160,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1177357,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 239.1881
+    },
+    {
+      "Name": "similar-distractor",
+      "Profile": "fast-with-refinement",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.439,
+        "CandidateMilliseconds": 244.2035,
+        "VerificationMilliseconds": 0.0148,
+        "RefinementMilliseconds": 19.4059,
+        "SuppressionMilliseconds": 0.0045,
+        "TemplatesEvaluated": 365,
+        "Candidates": 160,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1177357,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 267.0769
+    },
+    {
+      "Name": "similar-distractor",
+      "Profile": "standard-budget",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.4916,
+        "CandidateMilliseconds": 239.1273,
+        "VerificationMilliseconds": 0.0147,
+        "RefinementMilliseconds": 37.3221,
+        "SuppressionMilliseconds": 0.0051,
+        "TemplatesEvaluated": 365,
+        "Candidates": 160,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": true,
+        "EstimatedWorkspaceBytes": 1181453,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 278.9853
+    },
+    {
+      "Name": "similar-distractor",
+      "Profile": "expanded-budget",
+      "ExpectedPositive": false,
+      "Matched": false,
+      "Passed": true,
+      "Matches": [],
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.1536,
+        "CandidateMilliseconds": 238.9238,
+        "VerificationMilliseconds": 0.0209,
+        "RefinementMilliseconds": 83.6927,
+        "SuppressionMilliseconds": 0.0064,
+        "TemplatesEvaluated": 365,
+        "Candidates": 160,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1193741,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uBC29\uD5A5 \uC810\uC218 \u00D7 (1 - \uCD94\uAC00 \uC724\uACFD \uAC00\uC911\uCE58 \u00D7 \uBE44\uC728); \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Milliseconds": 324.8168
+    }
+  ]
+}

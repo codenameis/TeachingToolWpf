@@ -1,0 +1,171 @@
+{
+  "Scope": "\uAE30\uBCF8 \uD569\uACA9 \uAE30\uC900 \uBCC0\uACBD\uC774 \uC544\uB2CC \uD070 \uD6C4\uBCF4 \uC608\uC0B0\uC758 \uBCC4\uB3C4 \uBCD1\uBAA9 \uACC4\uCE21. \uC2DC\uB098\uB9AC\uC624\uBCC41\uD68C\uC774\uBA70 \uC6CC\uBC0D\uC5C5 \uC5C6\uC74C.",
+  "Search": {
+    "CandidateThreshold": 0.65,
+    "MinimumScore": 0.72,
+    "MinimumSupport": 0.6,
+    "MaximumCandidates": 100000,
+    "MaximumVerifiedCandidates": 4096,
+    "MaximumCoarseVerifiedCandidates": 256,
+    "MaximumMatches": 16,
+    "MaximumOverlap": 0.3,
+    "Refine": true,
+    "Verify": true,
+    "EvaluateGeometry": true,
+    "GeometricTolerancePixels": 3,
+    "MinimumCoverage": 0,
+    "MaximumFitErrorPixels": "Infinity",
+    "MaximumClutterRatio": 1,
+    "UseSimd": true,
+    "TiledPreprocessing": false,
+    "GroupTemplates": false,
+    "MaximumParallelism": 1,
+    "Region": null
+  },
+  "Rows": [
+    {
+      "Name": "background-clutter",
+      "RawCoarseSeeds": 2239,
+      "Milliseconds": 1750.1993,
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.9009,
+        "CandidateMilliseconds": 1687.6473,
+        "VerificationMilliseconds": 7.935,
+        "RefinementMilliseconds": 40.2131,
+        "SuppressionMilliseconds": 8.4358,
+        "TemplatesEvaluated": 365,
+        "Candidates": 54,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1283773,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.34776882606214,
+            "Y": 87.65312428830106,
+            "Angle": -0.2999605920415631,
+            "Scale": 0.9299324164058541
+          },
+          "CandidateScore": 1,
+          "Score": 0.999401956830306,
+          "Support": 1,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 103.25,
+              "Y": 87.5,
+              "Angle": -0.2972513882302848,
+              "Scale": 0.9218749999999997
+            },
+            "InitialResidual": 0.1699401643131723,
+            "FinalResidual": 0.04119569436981768,
+            "Iterations": 4,
+            "Correspondences": 160,
+            "AngleObservable": true
+          },
+          "Geometry": null
+        }
+      ]
+    },
+    {
+      "Name": "occlusion-clutter-half-contrast",
+      "RawCoarseSeeds": 2219,
+      "Milliseconds": 1465.9266,
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 2.4363,
+        "CandidateMilliseconds": 1426.1678,
+        "VerificationMilliseconds": 0.1036,
+        "RefinementMilliseconds": 36.6429,
+        "SuppressionMilliseconds": 0.5516,
+        "TemplatesEvaluated": 365,
+        "Candidates": 55,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1282981,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.25204130380341,
+            "Y": 87.6733788232149,
+            "Angle": 0.23745589793434993,
+            "Scale": 1.0680759189748181
+          },
+          "CandidateScore": 0.9735,
+          "Score": 0.8305592231872184,
+          "Support": 0.81875,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 1,
+            "InitialPose": {
+              "X": 102.125,
+              "Y": 87,
+              "Angle": 0.22089323345553222,
+              "Scale": 1.0218749999999999
+            },
+            "InitialResidual": 0.8536133294083135,
+            "FinalResidual": 0.3477237807714291,
+            "Iterations": 5,
+            "Correspondences": 137,
+            "AngleObservable": true
+          },
+          "Geometry": null
+        }
+      ]
+    },
+    {
+      "Name": "similar-distractor",
+      "RawCoarseSeeds": 365,
+      "Milliseconds": 314.92,
+      "Diagnostics": {
+        "PreprocessingMilliseconds": 3.0789,
+        "CandidateMilliseconds": 234.4608,
+        "VerificationMilliseconds": 0.0599,
+        "RefinementMilliseconds": 76.2597,
+        "SuppressionMilliseconds": 1.0447,
+        "TemplatesEvaluated": 365,
+        "Candidates": 160,
+        "CandidateBudgetExceeded": false,
+        "VerificationBudgetExceeded": false,
+        "EstimatedWorkspaceBytes": 1193741,
+        "SearchPolicy": "180\u00B0 \uBB34\uBD80\uD638 \uD6C4\uBCF4 \u2192 \uC120\uD0DD\uD55C \uADF9\uC131\uC758 \uC5F0\uC18D \uC810\uC218; \uBC18\uD658 \uAC01\uB3C4\uB294 \uC774\uBBF8\uC9C0 \uAE30\uC900 \uC808\uB300\uAC01\uC774\uBA70 \uBC94\uC704\uB294 \uD559\uC2B5 ROI \uB300\uBE44 \uD3B8\uCC28; \uD53C\uB77C\uBBF8\uB4DC/\uAD6D\uC18C \uCD5C\uB300/\uD6C4\uBCF4 \uC608\uC0B0\uC740 \uADFC\uC0AC \uD0D0\uC0C9",
+        "MatchLimitExceeded": false
+      },
+      "Matches": [
+        {
+          "Pose": {
+            "X": 103.125,
+            "Y": 85,
+            "Angle": -2.8579766501407144,
+            "Scale": 1.0874999999999997
+          },
+          "CandidateScore": 0.831,
+          "Score": 0.8306447108253462,
+          "Support": 0.78125,
+          "SupportedQuadrants": 4,
+          "Refinement": {
+            "Status": 5,
+            "InitialPose": {
+              "X": 103.125,
+              "Y": 85,
+              "Angle": -2.8579766501407144,
+              "Scale": 1.0874999999999997
+            },
+            "InitialResidual": 1.109179252246127,
+            "FinalResidual": 1.1488090677210445,
+            "Iterations": 9,
+            "Correspondences": 135,
+            "AngleObservable": true
+          },
+          "Geometry": null
+        }
+      ]
+    }
+  ]
+}

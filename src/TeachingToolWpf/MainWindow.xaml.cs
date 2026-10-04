@@ -21,7 +21,9 @@ public partial class MainWindow : Window
         var live = new Presentation.LivePreview(Viewport, kind => new Imaging.SyntheticFrameSource(kind));
         var loader = new Imaging.ImageLoader(cache);
         _model = new(Viewport, loader, live, new Imaging.Filters.RoiFilterPreview(loader, Viewport.RetainFrame),
-            new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame));
+            new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame, () => new VisionCompute.ILGPU.CudaImagePreprocessor()),
+            new Imaging.Matching.TemplateMatchingService(loader, Viewport.RetainFrame),
+            new Imaging.Matching.PrimitiveShapeDetectionService(loader, Viewport.RetainFrame));
         live.Failed += ex => Dispatcher.BeginInvoke(() => _model.Fail(ex));
         DataContext = _model;
         Viewport.Input = _model.Input;

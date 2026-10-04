@@ -13,4 +13,5 @@
     <ProjectReference Include="../../src/VisionAlgorithm/VisionAlgorithm.csproj" />
     <Using Include="Xunit" />
   </ItemGroup>
+  <Import Project="../../build/InspectionNativeRuntime.props" />
 </Project>
