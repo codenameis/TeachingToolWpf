@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionGeometry;
@@ -23,19 +25,18 @@ internal sealed class RoiPipeline : IDisposable
     // 사각형은 네 변, 선분/원은 첫 여섯 정점만 사용한다. 하나의 보관 배치로 제출한다.
     private const int VerticesPerInstance = 4 * 6;
     private const long CacheBudgetBytes = 128L * 1024 * 1024;
-    private const int EstimatedSourceRoiBytes = 256;
     private const double ViewportPaddingDip = 8;
     private const double SummarySizeDip = 6;
 
-    private sealed class KeyComparer : IEqualityComparer<(object Identity, int Level)>
+    private sealed class KeyComparer : IEqualityComparer<(object Identity, int? Level)>
     {
-        public bool Equals((object Identity, int Level) a, (object Identity, int Level) b)
+        public bool Equals((object Identity, int? Level) a, (object Identity, int? Level) b)
             => ReferenceEquals(a.Identity, b.Identity) && a.Level == b.Level;
 
-        public int GetHashCode((object Identity, int Level) key)
+        public int GetHashCode((object Identity, int? Level) key)
             => HashCode.Combine(RuntimeHelpers.GetHashCode(key.Identity), key.Level);
     }
-    private sealed record Block(ID3D12Resource Buffer, PointD Origin, int Count, int SourceCount, long AllocationBytes, RoiRoleCache Roles, long ShapeBytes) : IDisposable
+    private sealed record Block(RoiBufferArena.Lease Allocation, PointD Origin, int Count, RoiRoleCache Roles) : IDisposable
     {
         public long LastUsed
         {
@@ -43,20 +44,30 @@ internal sealed class RoiPipeline : IDisposable
             set;
         }
 
-        public ulong RoleOffset => (ulong)Count * RoiInstance.SizeInBytes;
+        public ulong RoleOffset => Allocation.Offset + ((ulong)Count * RoiInstance.SizeInBytes);
 
-        public long CacheCost => AllocationBytes + ((long)SourceCount * EstimatedSourceRoiBytes) + ((long)Count * RoiInstance.RoleSizeInBytes) + ShapeBytes;
+        public long OwnedBytes => (long)Count * RoiInstance.RoleSizeInBytes;
 
-        public void Dispose() => Buffer.Dispose();
+        public double FullDetailAggregateSize
+        {
+            get;
+            set;
+        }
+
+        public void Dispose() => Allocation.Dispose();
     }
-    private readonly Dx12Device _gpu;
+    private readonly bool _profileEnabled;
     private readonly ID3D12RootSignature _root;
     private readonly ID3D12PipelineState _pipeline;
     private readonly FrameUploadArena[] _uploads;
-    private readonly Dictionary<(object Identity, int Level), Block> _blocks = new(new KeyComparer());
+    private readonly RoiBufferArena _buffers;
+    // null 단계는 요약 없는 형상 한 벌이다. 다른 단계에 같은 Block 별칭을 등록하지 않는다.
+    private readonly Dictionary<(object Identity, int? Level), Block> _blocks = new(new KeyComparer());
+    private readonly RoiCacheMemory _cacheMemory = new();
+    private readonly List<RoiInstance> _packingInstances = [];
+    private readonly List<uint> _packingRoles = [];
+    private readonly Dictionary<RoiGeometry, int> _packingUnique = [];
     private long _frame;
-
-    private long _bytes;
 
     public long UploadedBytes
     {
@@ -70,12 +81,26 @@ internal sealed class RoiPipeline : IDisposable
         private set;
     }
 
-    public long CacheBytes => _bytes;
+    public long CacheBytes => _cacheMemory.Bytes + _buffers.ActiveAllocationBytes;
 
-    public RoiPipeline(Dx12Device gpu)
+    public double PackMilliseconds
     {
-        _gpu = gpu;
+        get; private set;
+    }
+    public double CreateMilliseconds
+    {
+        get; private set;
+    }
+    public double UploadMilliseconds
+    {
+        get; private set;
+    }
+
+    public RoiPipeline(Dx12Device gpu, bool profileEnabled = false)
+    {
+        _profileEnabled = profileEnabled;
         _uploads = [new(gpu), new(gpu)];
+        _buffers = new(gpu);
         _root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
             [new(RootParameterType.ShaderResourceView, new RootDescriptor1(GeometryShaderRegister, RegisterSpace), ShaderVisibility.Vertex),
              new(new RootConstants(OptionsShaderRegister, RegisterSpace, RoiDrawConstants.RootConstantCount), ShaderVisibility.All),
@@ -100,6 +125,9 @@ internal sealed class RoiPipeline : IDisposable
         _frame++;
         UploadedBytes = 0;
         InstanceCount = 0;
+        PackMilliseconds = 0;
+        CreateMilliseconds = 0;
+        UploadMilliseconds = 0;
         _uploads[surface.FrameIndex].Reset();
 
         var view = scene.Document.Viewport;
@@ -152,10 +180,16 @@ internal sealed class RoiPipeline : IDisposable
 
     private Block GetOrUploadBlock(RoiSpatialBlock region, int level, double aggregateSize, DocumentState document, Dx12Surface surface)
     {
-        var key = (region.Identity, level);
-        if (_blocks.TryGetValue(key, out var block))
+        var key = (region.Identity, (int?)level);
+        var fullDetailKey = (region.Identity, (int?)null);
+        _blocks.TryGetValue(fullDetailKey, out var fullDetail);
+        // BVH에서 T 크기에 요약이 없었다면 더 작은 크기에도 요약이 생기지 않는다.
+        var block = fullDetail is not null && aggregateSize <= fullDetail.FullDetailAggregateSize
+            ? fullDetail : _blocks.GetValueOrDefault(key);
+        if (block is not null)
         {
-            if (block.Roles.Refresh(region, aggregateSize, document, block.Count))
+            var roleAggregate = ReferenceEquals(block, fullDetail) ? block.FullDetailAggregateSize : aggregateSize;
+            if (block.Roles.Refresh(region, roleAggregate, document, block.Count))
             {
                 UploadRoleChanges(block, surface);
             }
@@ -163,65 +197,129 @@ internal sealed class RoiPipeline : IDisposable
             return block;
         }
 
-        var instances = RoiInstance.Pack(region, aggregateSize);
-        var roles = new RoiRoleCache();
-        roles.Refresh(region, aggregateSize, document, instances.Length);
-        block = UploadBlock(region, instances, roles, surface);
+        var packStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        try
+        {
+            var hasSummary = RoiInstance.PackInto(region, aggregateSize, document, _packingInstances, _packingRoles, _packingUnique);
+            // 역할은 보관 캐시가 소유한다. 형상 scratch는 아래 동기 업로드가 끝나면 바로 재사용한다.
+            var packedRoles = _packingRoles.ToArray();
+            if (!hasSummary && fullDetail is not null)
+            {
+                var rolesChanged = fullDetail.Roles.RefreshPacked(document, packedRoles, fullDetail.Count);
+                if (_profileEnabled)
+                {
+                    PackMilliseconds += Stopwatch.GetElapsedTime(packStart).TotalMilliseconds;
+                }
+                if (rolesChanged)
+                {
+                    UploadRoleChanges(fullDetail, surface);
+                }
+                fullDetail.FullDetailAggregateSize = aggregateSize;
+                return fullDetail;
+            }
+
+            var roles = new RoiRoleCache(document, packedRoles);
+            if (_profileEnabled)
+            {
+                PackMilliseconds += Stopwatch.GetElapsedTime(packStart).TotalMilliseconds;
+            }
+            block = UploadBlock(region, CollectionsMarshal.AsSpan(_packingInstances), roles, surface);
+            if (!hasSummary)
+            {
+                block.FullDetailAggregateSize = aggregateSize;
+                key = fullDetailKey;
+            }
+        }
+        finally
+        {
+            RoiInstance.ReleasePackingBuffers(_packingInstances, _packingRoles, _packingUnique);
+        }
         _blocks.Add(key, block);
-        _bytes += block.CacheCost;
+        _cacheMemory.Add(region.Identity, region.Count, region.ShapeBytes, block.OwnedBytes);
         return block;
     }
 
     private void EvictInactiveBlocks(Dx12Surface surface)
     {
-        if (_bytes <= CacheBudgetBytes)
+        if (CacheBytes <= CacheBudgetBytes)
         {
             return;
         }
 
-        // pan/zoom/Undo에 쓸 최근 형상은 남긴다. GPU가 읽는 리소스의 실제 해제는 fence 이후다.
+        // 완전히 비활성인 페이지부터 비워 GPU 할당 비용도 함께 줄인다.
+        var coldPages = _blocks.GroupBy(p => p.Value.Allocation.Page)
+            .Where(page => page.All(p => p.Value.LastUsed != _frame))
+            .OrderBy(page => page.Max(p => p.Value.LastUsed)).ToArray();
+        foreach (var page in coldPages)
+        {
+            if (CacheBytes <= CacheBudgetBytes)
+            {
+                return;
+            }
+            foreach (var pair in page)
+            {
+                Retire(pair.Key, pair.Value);
+            }
+        }
+
+        // 같은 페이지의 hot 블록이 큰 CPU 원본까지 붙잡지 않도록 남은 cold 블록도 퇴출한다.
         foreach (var pair in _blocks.Where(p => p.Value.LastUsed != _frame).OrderBy(p => p.Value.LastUsed).ToArray())
         {
-            if (_bytes <= CacheBudgetBytes)
+            if (CacheBytes <= CacheBudgetBytes)
             {
                 break;
             }
 
-            _blocks.Remove(pair.Key);
-            _bytes -= pair.Value.CacheCost;
-            surface.Retire(pair.Value);
+            Retire(pair.Key, pair.Value);
+        }
+
+        void Retire((object Identity, int? Level) key, Block block)
+        {
+            _blocks.Remove(key);
+            _cacheMemory.Remove(key.Identity, block.OwnedBytes);
+            block.Allocation.Retire();
+            surface.Retire(block);
         }
     }
 
-    private unsafe Block UploadBlock(RoiSpatialBlock region, RoiInstance[] instances, RoiRoleCache roles, Dx12Surface surface)
+    private unsafe Block UploadBlock(RoiSpatialBlock region, ReadOnlySpan<RoiInstance> instances, RoiRoleCache roles, Dx12Surface surface)
     {
+        var createStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
         var geometryBytes = checked((ulong)instances.Length * RoiInstance.SizeInBytes);
         var roleBytes = checked((ulong)roles.Values.Length * RoiInstance.RoleSizeInBytes);
-        // 하나의 리소스를 [형상][역할]로 나눠 추가 committed allocation을 피한다.
-        var description = ResourceDescription.Buffer(Math.Max(geometryBytes + roleBytes, RoiInstance.SizeInBytes));
-        var allocation = _gpu.Device.GetResourceAllocationInfo(0, description).SizeInBytes;
-        var buffer = _gpu.Device.CreateCommittedResource(HeapType.Default, description, ResourceStates.Common);
+        // 작은 요약 블록도 공유 페이지의 [형상][역할] 구간만 차지한다.
+        var allocation = _buffers.Allocate(Math.Max(geometryBytes + roleBytes, RoiInstance.SizeInBytes));
+        if (_profileEnabled)
+        {
+            CreateMilliseconds += Stopwatch.GetElapsedTime(createStart).TotalMilliseconds;
+        }
+        var uploadStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
         try
         {
-            surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.Common, ResourceStates.CopyDest);
+            allocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
             if (geometryBytes > 0)
             {
                 var geometryUpload = _uploads[surface.FrameIndex].Allocate(geometryBytes);
-                instances.AsSpan().CopyTo(new Span<RoiInstance>((void*)geometryUpload.Pointer, instances.Length));
-                surface.Commands.CopyBufferRegion(buffer, 0, geometryUpload.Buffer, geometryUpload.Offset, geometryBytes);
+                instances.CopyTo(new Span<RoiInstance>((void*)geometryUpload.Pointer, instances.Length));
+                surface.Commands.CopyBufferRegion(allocation.Buffer, allocation.Offset, geometryUpload.Buffer, geometryUpload.Offset, geometryBytes);
 
                 var roleUpload = _uploads[surface.FrameIndex].Allocate(roleBytes);
                 roles.Values.AsSpan().CopyTo(new Span<uint>((void*)roleUpload.Pointer, roles.Values.Length));
-                surface.Commands.CopyBufferRegion(buffer, geometryBytes, roleUpload.Buffer, roleUpload.Offset, roleBytes);
+                surface.Commands.CopyBufferRegion(allocation.Buffer, allocation.Offset + geometryBytes, roleUpload.Buffer, roleUpload.Offset, roleBytes);
             }
-            surface.Commands.ResourceBarrierTransition(buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
+            allocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
             UploadedBytes += (long)(geometryBytes + roleBytes);
-            // 키가 유지하는 BVH의 폴리곤 꼭짓점 배열도 CPU 추정치에 포함한다. 공유 배열의 중복 계산은 보수적인 예산이다.
-            return new(buffer, region.Bounds.Center, instances.Length, region.Count, checked((long)allocation), roles, region.ShapeBytes);
+            if (_profileEnabled)
+            {
+                UploadMilliseconds += Stopwatch.GetElapsedTime(uploadStart).TotalMilliseconds;
+            }
+            return new(allocation, region.Bounds.Center, instances.Length, roles);
         }
         catch
         {
-            buffer.Dispose();
+            // 이미 기록한 복사 명령이 있을 수 있으므로 실패한 구간도 GPU 완료까지 보관한다.
+            allocation.Retire();
+            surface.Retire(allocation);
             throw;
         }
     }
@@ -237,9 +335,9 @@ internal sealed class RoiPipeline : IDisposable
         var upload = _uploads[surface.FrameIndex].Allocate(roleBytes);
         block.Roles.Values.AsSpan().CopyTo(new Span<uint>((void*)upload.Pointer, block.Roles.Values.Length));
         // 같은 direct queue에서 이전 draw 뒤에 복사한다. 형상 구간은 쓰지 않는다.
-        surface.Commands.ResourceBarrierTransition(block.Buffer, ResourceStates.NonPixelShaderResource, ResourceStates.CopyDest);
-        surface.Commands.CopyBufferRegion(block.Buffer, block.RoleOffset, upload.Buffer, upload.Offset, roleBytes);
-        surface.Commands.ResourceBarrierTransition(block.Buffer, ResourceStates.CopyDest, ResourceStates.NonPixelShaderResource);
+        block.Allocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
+        surface.Commands.CopyBufferRegion(block.Allocation.Buffer, block.RoleOffset, upload.Buffer, upload.Offset, roleBytes);
+        block.Allocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
         UploadedBytes += (long)roleBytes;
     }
 
@@ -247,8 +345,8 @@ internal sealed class RoiPipeline : IDisposable
     {
         var constants = new RoiDrawConstants(scene, block.Origin, transform, selected, pass);
         surface.Commands.SetGraphicsRoot32BitConstants(DrawConstantsRootParameter, RoiDrawConstants.RootConstantCount, &constants, 0);
-        surface.Commands.SetGraphicsRootShaderResourceView(GeometryRootParameter, block.Buffer.GPUVirtualAddress);
-        surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.Buffer.GPUVirtualAddress + block.RoleOffset);
+        surface.Commands.SetGraphicsRootShaderResourceView(GeometryRootParameter, block.Allocation.Buffer.GPUVirtualAddress + block.Allocation.Offset);
+        surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.Allocation.Buffer.GPUVirtualAddress + block.RoleOffset);
         surface.Commands.DrawInstanced(VerticesPerInstance, (uint)block.Count, 0, 0);
     }
 
@@ -258,6 +356,9 @@ internal sealed class RoiPipeline : IDisposable
         {
             block.Dispose();
         }
+        _blocks.Clear();
+        _cacheMemory.Clear();
+        _buffers.Dispose();
 
         foreach (var upload in _uploads)
         {
@@ -267,4 +368,60 @@ internal sealed class RoiPipeline : IDisposable
         _pipeline.Dispose();
         _root.Dispose();
     }
+}
+
+/// <summary>같은 공간 블록의 CPU 원본은 확대 단계 사이에 공유하고, 역할 배열은 각각 계산한다.</summary>
+internal sealed class RoiCacheMemory
+{
+    private const int EstimatedSourceRoiBytes = 256;
+    private readonly Dictionary<object, Source> _sources = new(ReferenceEqualityComparer.Instance);
+
+    public long Bytes
+    {
+        get;
+        private set;
+    }
+
+    public void Add(object identity, int sourceCount, long shapeBytes, long ownedBytes)
+    {
+        if (_sources.TryGetValue(identity, out var source))
+        {
+            _sources[identity] = source with
+            {
+                References = source.References + 1
+            };
+            Bytes += ownedBytes;
+            return;
+        }
+
+        var sourceBytes = ((long)sourceCount * EstimatedSourceRoiBytes) + shapeBytes;
+        _sources.Add(identity, new(1, sourceBytes));
+        Bytes += sourceBytes + ownedBytes;
+    }
+
+    public void Remove(object identity, long ownedBytes)
+    {
+        var source = _sources[identity];
+        if (source.References == 1)
+        {
+            _sources.Remove(identity);
+            Bytes -= source.Bytes;
+        }
+        else
+        {
+            _sources[identity] = source with
+            {
+                References = source.References - 1
+            };
+        }
+        Bytes -= ownedBytes;
+    }
+
+    public void Clear()
+    {
+        _sources.Clear();
+        Bytes = 0;
+    }
+
+    private readonly record struct Source(int References, long Bytes);
 }

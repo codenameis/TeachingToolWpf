@@ -19,6 +19,9 @@ public class ShapeRenderingTests
         editor.Add(shape);
         var block = editor.State.Snapshot.Spatial.Blocks(shape.Bounds).Single();
         var instances = RoiInstance.Pack(block, 0);
+        var combined = RoiInstance.PackWithRoles(block, 0, editor.State);
+        Assert.Equal(instances, combined.Instances);
+        Assert.Equal(RoiInstance.ResolveRoles(block, 0, editor.State), combined.Roles);
         Assert.Equal(count, instances.Length);
         Assert.All(instances, i => Assert.Equal(instanceKind, i.Summary));
         Assert.Equal(count, RoiInstance.ResolveRoles(block, 0, editor.State).Length);

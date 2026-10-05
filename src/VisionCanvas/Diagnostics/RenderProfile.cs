@@ -28,10 +28,10 @@ internal sealed class RenderProfile : IDisposable
         var path = Path.GetFullPath(args[index + 1]);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         _writer = new(path);
-        _writer.WriteLine("seconds,rois,selected,prepare_ms,paint_ms,submit_ms,allocated_bytes,vertices,batches,roi_instances,roi_upload_bytes,roi_cache_bytes,labels_pending,labels_created,label_cache_count,label_cache_bytes,labels_evicted,profile_frame,frame_start_interval_ms,transform_preview,preview_angle_degrees,stopwatch_start_ticks,stopwatch_end_ticks,stopwatch_frequency,record_utc_unix_ms");
+        _writer.WriteLine("seconds,rois,selected,prepare_ms,paint_ms,submit_ms,allocated_bytes,vertices,batches,roi_instances,roi_upload_bytes,roi_cache_bytes,labels_pending,labels_created,label_cache_count,label_cache_bytes,labels_evicted,profile_frame,frame_start_interval_ms,transform_preview,preview_angle_degrees,stopwatch_start_ticks,stopwatch_end_ticks,stopwatch_frequency,record_utc_unix_ms,roi_pack_ms,roi_create_ms,roi_upload_ms,gc_pause_counter_delta_ms");
     }
 
-    public void Record(RenderScene scene, long start, long paint, long submit, long end, long allocated, SpriteMesh mesh, RoiPipeline rois, GpuLabelCache labels)
+    public void Record(RenderScene scene, long start, long paint, long submit, long end, long allocated, SpriteMesh mesh, RoiPipeline rois, GpuLabelCache labels, TimeSpan gcPauseDelta)
     {
         if (_writer is null)
         {
@@ -45,7 +45,8 @@ internal sealed class RenderProfile : IDisposable
             Stopwatch.GetElapsedTime(submit, end).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated, mesh.Vertices.Count, mesh.Batches.Count, rois.InstanceCount, rois.UploadedBytes, rois.CacheBytes,
             labels.HasPending ? 1 : 0, labels.Created, labels.RetainedCount, labels.RetainedBytes, labels.Evicted,
             ++_frameNumber, interval, scene.Transform is null ? 0 : 1, scene.Transform?.Transform.AngleDegrees ?? 0,
-            start, end, Stopwatch.Frequency, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() }
+            start, end, Stopwatch.Frequency, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), rois.PackMilliseconds, rois.CreateMilliseconds, rois.UploadMilliseconds,
+            gcPauseDelta.TotalMilliseconds }
             .Select(v => ((IFormattable)v).ToString(null, CultureInfo.InvariantCulture))));
     }
 

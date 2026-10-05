@@ -101,10 +101,10 @@ public sealed class RenderWorker : IDisposable
             using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"), _devicePreference);
             using var surface = new Dx12Surface(gpu, _hwnd, _width, _height);
             using var pipeline = new SpritePipeline(gpu);
-            using var roiPipeline = new RoiPipeline(gpu);
+            using var profile = new RenderProfile();
+            using var roiPipeline = new RoiPipeline(gpu, profile.Enabled);
             using var gpuTimer = gpu.IsSoftware ? null : new GpuTimer(gpu);
             using var metrics = new FrameMetrics();
-            using var profile = new RenderProfile();
             var painter = new ScenePainter();
             using var labels = new GpuLabelCache(_textRasterizer, gpu);
             using var resultLabels = new GpuResultLabels(_textRasterizer);
@@ -149,6 +149,7 @@ public sealed class RenderWorker : IDisposable
                     // Begin은 프레임 슬롯의 GPU 완료를 기다린다. 이후에만 그 슬롯의 업로드 공간을 재사용한다.
                     var cpuStart = Stopwatch.GetTimestamp();
                     var allocationStart = profile.Enabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
+                    var gcPauseStart = profile.Enabled ? GC.GetTotalPauseDuration() : default;
                     surface.Resize(targetWidth, targetHeight);
                     surface.Begin();
                     frame++;
@@ -192,7 +193,9 @@ public sealed class RenderWorker : IDisposable
                             resultLabels.Get);
                         var submitStart = Stopwatch.GetTimestamp();
                         pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () => roiPipeline.Draw(current, surface));
-                        profile.Record(current, cpuStart, paintStart, submitStart, Stopwatch.GetTimestamp(), allocationStart, mesh, roiPipeline, labels);
+                        var submitEnd = Stopwatch.GetTimestamp();
+                        var gcPauseDelta = profile.Enabled ? GC.GetTotalPauseDuration() - gcPauseStart : default;
+                        profile.Record(current, cpuStart, paintStart, submitStart, submitEnd, allocationStart, mesh, roiPipeline, labels, gcPauseDelta);
                         labels.End(surface);
                         if (labels.HasPending)
                         {

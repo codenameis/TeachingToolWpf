@@ -11,10 +11,12 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiStyleRenderingTests
 {
-    [Fact]
-    public void RetainedRoleCacheDoesNotKeepOldDocumentHierarchyAlive()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RetainedRoleCacheDoesNotKeepOldDocumentHierarchyAlive(bool combined)
     {
-        var (cache, hierarchy) = CreateDetachedCache();
+        var (cache, hierarchy) = CreateDetachedCache(combined);
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
@@ -24,26 +26,31 @@ public class RoiStyleRenderingTests
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static (RoiRoleCache Cache, WeakReference<object> Hierarchy) CreateDetachedCache()
+    private static (RoiRoleCache Cache, WeakReference<object> Hierarchy) CreateDetachedCache(bool combined)
     {
         var parent = Roi("parent", new(100, 100), 100);
         var state = State(parent, Roi("child", new(100, 100), 10, parent.Id));
         var block = Block(state);
-        var cache = new RoiRoleCache();
-        cache.Refresh(block, 0, state, RoiInstance.Pack(block, 0).Length);
+        var cache = combined ? new RoiRoleCache(state, RoiInstance.PackWithRoles(block, 0, state).Roles) : new RoiRoleCache();
+        if (!combined)
+        {
+            cache.Refresh(block, 0, state, RoiInstance.Pack(block, 0).Length);
+        }
         return (cache, new(state.Snapshot.Children));
     }
 
-    [Fact]
-    public void MetadataOnlyDetachmentRefreshesRolesWithSameGeometryBlock()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MetadataOnlyDetachmentRefreshesRolesWithSameGeometryBlock(bool combined)
     {
         var parent = Roi("parent", new(100, 100), 100);
         var child = Roi("child", new(110, 100), 10, parent.Id);
         var before = State(parent, child);
         var block = Block(before);
         var geometry = RoiInstance.Pack(block, 0);
-        var cache = new RoiRoleCache();
-        Assert.True(cache.Refresh(block, 0, before, geometry.Length));
+        var cache = combined ? new RoiRoleCache(before, RoiInstance.PackWithRoles(block, 0, before).Roles) : new RoiRoleCache();
+        Assert.Equal(!combined, cache.Refresh(block, 0, before, geometry.Length));
         AssertRoles(block, before, cache.Values);
         Assert.Contains((uint)RoiRole.Parent, cache.Values);
         Assert.Contains((uint)RoiRole.Child, cache.Values);
@@ -129,6 +136,66 @@ public class RoiStyleRenderingTests
         Assert.Equal(1u, geometry[0].Summary);
         Assert.Equal(new uint[] { (uint)RoiRole.Default, (uint)RoiRole.Parent, (uint)RoiRole.Child }, roles);
         Assert.Equal(32, Marshal.SizeOf<RoiInstance>());
+    }
+
+    [Theory]
+    [InlineData(RoiShapeKind.Rectangle, 1, 0u)]
+    [InlineData(RoiShapeKind.Circle, 1, 3u)]
+    [InlineData(RoiShapeKind.Triangle, 3, 2u)]
+    [InlineData(RoiShapeKind.Polygon, 5, 2u)]
+    public void CombinedPackingKeepsMixedSummaryAndDuplicateShapeRolesInOneTraversal(RoiShapeKind kind, int shapeInstances, uint instanceKind)
+    {
+        var parent = Roi("parent", new(100, 100), 100) with
+        {
+            Geometry = RoiGeometry.Create(kind, new(100, 100), 100, 100).RotateAround(new(100, 100), 23)
+        };
+        var duplicate = parent with
+        {
+            Id = Guid.NewGuid(),
+            Name = "independent duplicate"
+        };
+        var child = Roi("child", new(200, 100), 10, parent.Id);
+        var state = State(parent, duplicate, child);
+        var summary = new BoundsD(250, 250, 270, 270);
+        var enumerations = 0;
+        var block = new RoiSpatialBlock(new(), new(0, 0, 300, 300), 8, _ =>
+        {
+            enumerations++;
+            return new (Roi? Roi, BoundsD Bounds, int Count)[]
+            { (null, summary, 5), (duplicate, duplicate.Geometry.Bounds, 1), (parent, parent.Geometry.Bounds, 1), (child, child.Geometry.Bounds, 1) };
+        });
+
+        var packed = RoiInstance.PackWithRoles(block, 50, state);
+        var cache = new RoiRoleCache(state, packed.Roles);
+        Assert.Equal(1, enumerations);
+        Assert.Equal(shapeInstances + 2, packed.Instances.Length);
+        Assert.Equal(1u, packed.Instances[0].Summary);
+        Assert.All(packed.Instances.Skip(1).Take(shapeInstances), instance => Assert.Equal(instanceKind, instance.Summary));
+        Assert.Equal(new[] { (uint)RoiRole.Default }.Concat(Enumerable.Repeat((uint)RoiRole.Parent, shapeInstances)).Append((uint)RoiRole.Child), packed.Roles);
+        Assert.False(cache.Refresh(block, 50, state, packed.Instances.Length));
+        Assert.Equal(1, enumerations);
+        Assert.Same(packed.Roles, cache.Values);
+        Assert.Equal(RoiInstance.Pack(block, 50), packed.Instances);
+        Assert.Equal(RoiInstance.ResolveRoles(block, 50, state), packed.Roles);
+    }
+
+    [Fact]
+    public void CombinedEmptyBlockStartsWithAnInitializedEmptyRoleCache()
+    {
+        var state = State();
+        var enumerations = 0;
+        var block = new RoiSpatialBlock(new(), default, 0, _ =>
+        {
+            enumerations++;
+            return [];
+        });
+        var packed = RoiInstance.PackWithRoles(block, 0, state);
+        var cache = new RoiRoleCache(state, packed.Roles);
+
+        Assert.Empty(packed.Instances);
+        Assert.Empty(packed.Roles);
+        Assert.False(cache.Refresh(block, 0, state, 0));
+        Assert.Equal(1, enumerations);
     }
 
     [Fact]
