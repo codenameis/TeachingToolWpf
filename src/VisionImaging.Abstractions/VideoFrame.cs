@@ -89,4 +89,3 @@ public interface IFrameSource
     }
     IAsyncEnumerable<VideoFrame> Frames(CancellationToken cancellationToken);
 }
-
