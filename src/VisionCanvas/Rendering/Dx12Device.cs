@@ -49,7 +49,13 @@ internal sealed class Dx12Device : IDisposable
         get;
     }
 
-    public long TileBudgetBytes => (long)Math.Min(256UL * 1024 * 1024, Math.Max(16UL * 1024 * 1024, LocalMemoryBudget / 5));
+    public bool IsSoftware
+    {
+        get;
+    }
+
+    public long TileBudgetBytes => IsSoftware ? 256L * 1024 * 1024
+        : (long)Math.Min(256UL * 1024 * 1024, Math.Max(16UL * 1024 * 1024, LocalMemoryBudget / 5));
 
     private readonly AutoResetEvent _fenceEvent = new(false);
     private ulong _signalValue;
@@ -82,64 +88,93 @@ i++)
         return messages;
     }
 
-    public Dx12Device(bool debug)
+    public Dx12Device(bool debug, RenderDevicePreference preference = RenderDevicePreference.Automatic)
+        : this(debug, preference, EnumerateAdapters)
     {
-        if (debug && D3D12GetDebugInterface<ID3D12Debug>(out var debugInterface).Success)
-        {
-            using (debugInterface)
-            {
-                debugInterface!.EnableDebugLayer();
-            }
+    }
 
-            DebugEnabled = true;
-        }
-        Factory = CreateDXGIFactory2<IDXGIFactory4>(DebugEnabled);
-        var adapters = new List<IDXGIAdapter1>();
-        for (uint i = 0;
-Factory.EnumAdapters1(i, out var adapter).Success;
-i++)
-        {
-            if ((adapter.Description1.Flags & AdapterFlags.Software) != 0)
-            {
-                adapter.Dispose();
-            }
-            else
-            {
-                adapters.Add(adapter);
-            }
-        }
+    // 열거 결과의 소유권을 받아 성공·실패 모두에서 adapter를 해제한다.
+    internal Dx12Device(bool debug, RenderDevicePreference preference, Func<IDXGIFactory4, IReadOnlyList<IDXGIAdapter1>> enumerateAdapters)
+    {
         try
         {
-            foreach (var adapter in adapters.OrderByDescending(a => a.Description1.VendorId == 0x10DE)
-                         .ThenByDescending(a => a.Description1.DedicatedVideoMemory))
+            if (!Enum.IsDefined(preference))
             {
-                if (!D3D12CreateDevice(adapter, FeatureLevel.Level_11_0, out ID3D12Device? device).Success)
+                throw new ArgumentOutOfRangeException(nameof(preference));
+            }
+            if (debug && D3D12GetDebugInterface<ID3D12Debug>(out var debugInterface).Success)
+            {
+                using (debugInterface)
                 {
-                    continue;
+                    debugInterface!.EnableDebugLayer();
                 }
-
-                Device = device!;
-                AdapterName = adapter.Description1.Description;
-                DedicatedMemoryBytes = (ulong)adapter.Description1.DedicatedVideoMemory;
-                using var memoryAdapter = adapter.QueryInterfaceOrNull<IDXGIAdapter3>();
-                LocalMemoryBudget = memoryAdapter?.QueryVideoMemoryInfo(0, MemorySegmentGroup.Local).Budget ?? DedicatedMemoryBytes;
-                break;
+                DebugEnabled = true;
             }
-        }
-        finally
-        {
-            foreach (var adapter in adapters)
+            Factory = CreateDXGIFactory2<IDXGIFactory4>(DebugEnabled);
+            if (preference == RenderDevicePreference.Automatic)
             {
-                adapter.Dispose();
+                var adapters = enumerateAdapters(Factory);
+                try
+                {
+                    foreach (var adapter in adapters.Where(a => (a.Description1.Flags & AdapterFlags.Software) == 0)
+                                 .OrderByDescending(a => a.Description1.VendorId == 0x10DE)
+                                 .ThenByDescending(a => a.Description1.DedicatedVideoMemory))
+                    {
+                        if (!D3D12CreateDevice(adapter, FeatureLevel.Level_11_0, out ID3D12Device? device).Success)
+                        {
+                            device?.Dispose();
+                            continue;
+                        }
+                        Device = device!;
+                        AdapterName = adapter.Description1.Description;
+                        DedicatedMemoryBytes = (ulong)adapter.Description1.DedicatedVideoMemory;
+                        using var memoryAdapter = adapter.QueryInterfaceOrNull<IDXGIAdapter3>();
+                        LocalMemoryBudget = memoryAdapter?.QueryVideoMemoryInfo(0, MemorySegmentGroup.Local).Budget ?? DedicatedMemoryBytes;
+                        break;
+                    }
+                }
+                finally
+                {
+                    foreach (var adapter in adapters)
+                    {
+                        adapter.Dispose();
+                    }
+                }
             }
+            if (Device is null)
+            {
+                using var adapter = Factory.EnumWarpAdapter<IDXGIAdapter1>();
+                var result = D3D12CreateDevice(adapter, FeatureLevel.Level_11_0, out ID3D12Device? device);
+                Device = device!;
+                if (result.Failure)
+                {
+                    throw new NotSupportedException($"Direct3D 12 소프트웨어 렌더러(WARP)를 시작하지 못했습니다. HRESULT: {result}");
+                }
+                AdapterName = adapter.Description1.Description;
+                IsSoftware = true;
+            }
+            Queue = Device.CreateCommandQueue(new CommandQueueDescription(CommandListType.Direct));
+            Fence = Device.CreateFence(0);
         }
-        if (Device is null)
+        catch
         {
-            Factory.Dispose();
-            throw new NotSupportedException("Direct3D 12 하드웨어를 찾지 못했습니다.");
+            Fence?.Dispose();
+            Queue?.Dispose();
+            Device?.Dispose();
+            Factory?.Dispose();
+            _fenceEvent.Dispose();
+            throw;
         }
-        Queue = Device.CreateCommandQueue(new CommandQueueDescription(CommandListType.Direct));
-        Fence = Device.CreateFence(0);
+    }
+
+    private static IReadOnlyList<IDXGIAdapter1> EnumerateAdapters(IDXGIFactory4 factory)
+    {
+        var adapters = new List<IDXGIAdapter1>();
+        for (uint index = 0; factory.EnumAdapters1(index, out var adapter).Success; index++)
+        {
+            adapters.Add(adapter);
+        }
+        return adapters;
     }
 
     public ulong Signal()
@@ -164,7 +199,7 @@ i++)
         Fence.SetEventOnCompletion(value, _fenceEvent.SafeWaitHandle.DangerousGetHandle()).CheckError();
         if (!_fenceEvent.WaitOne(TimeSpan.FromSeconds(10)))
         {
-            throw new TimeoutException("GPU 응답 시간이 초과되었습니다.");
+            throw new TimeoutException("렌더 장치 응답 시간이 초과되었습니다.");
         }
     }
 

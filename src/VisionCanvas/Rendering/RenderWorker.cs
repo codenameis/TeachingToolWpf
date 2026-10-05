@@ -17,6 +17,7 @@ public sealed class RenderWorker : IDisposable
     private readonly ITextRasterizer _textRasterizer;
     private readonly LatestFrameMailbox _frames;
     private readonly IFramePreparer _framePreparer;
+    private readonly RenderDevicePreference _devicePreference;
     private sealed record Submission(long Version, RenderScene Scene);
     private sealed record CaptureRequest(long Version, string Path);
     private Submission? _latestSubmission;
@@ -30,12 +31,23 @@ public sealed class RenderWorker : IDisposable
     public event Action<OverlayPresentation>? OverlayPresented;
 
     public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames, IFramePreparer framePreparer)
+        : this(hwnd, tiles, textRasterizer, frames, framePreparer, RenderDevicePreference.Automatic)
     {
+    }
+
+    public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames,
+        IFramePreparer framePreparer, RenderDevicePreference devicePreference)
+    {
+        if (!Enum.IsDefined(devicePreference))
+        {
+            throw new ArgumentOutOfRangeException(nameof(devicePreference));
+        }
         _hwnd = hwnd;
         _tiles = tiles;
         _textRasterizer = textRasterizer;
         _frames = frames;
         _framePreparer = framePreparer;
+        _devicePreference = devicePreference;
         tiles.TileReady += Invalidate;
         frames.Available += Invalidate;
         _thread = new Thread(Run) { IsBackground = true, Name = "DX12 renderer" };
@@ -86,11 +98,11 @@ public sealed class RenderWorker : IDisposable
     {
         try
         {
-            using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"));
+            using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"), _devicePreference);
             using var surface = new Dx12Surface(gpu, _hwnd, _width, _height);
             using var pipeline = new SpritePipeline(gpu);
             using var roiPipeline = new RoiPipeline(gpu);
-            using var gpuTimer = new GpuTimer(gpu);
+            using var gpuTimer = gpu.IsSoftware ? null : new GpuTimer(gpu);
             using var metrics = new FrameMetrics();
             using var profile = new RenderProfile();
             var painter = new ScenePainter();
@@ -103,7 +115,9 @@ public sealed class RenderWorker : IDisposable
             long frame = 0;
             RenderScene? presentedScene = null;
             var presentedOverlay = Guid.Empty;
-            StatusChanged?.Invoke($"DX12 · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
+            StatusChanged?.Invoke(gpu.IsSoftware
+                ? $"DX12 · CPU (WARP) · {gpu.AdapterName} · Tile cache {gpu.TileBudgetBytes / (1024 * 1024)} MiB · Debug: {gpu.DebugEnabled}"
+                : $"DX12 · GPU · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
             try
             {
                 while (!_stopping)
@@ -138,7 +152,7 @@ public sealed class RenderWorker : IDisposable
                     surface.Resize(targetWidth, targetHeight);
                     surface.Begin();
                     frame++;
-                    var gpuElapsed = gpuTimer.Begin(surface);
+                    var gpuElapsed = gpuTimer?.Begin(surface);
                     pipeline.BeginFrame(surface);
                     if (white is null)
                     {
@@ -187,7 +201,7 @@ public sealed class RenderWorker : IDisposable
                     }
                     var capture = TryTakeReadyCapture(submission, images, labels);
                     using var readback = capture is null ? null : new FrameReadback(gpu, surface);
-                    gpuTimer.End(surface);
+                    gpuTimer?.End(surface);
                     var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
                     var presentStart = Stopwatch.GetTimestamp();
                     var completionFence = surface.Present();

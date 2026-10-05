@@ -50,6 +50,10 @@ internal sealed class SampleWindow : Window
 
     internal SampleWindow(string[] args)
     {
+        if (args.Contains("--software-rendering"))
+        {
+            Viewport.DevicePreference = RenderDevicePreference.Software;
+        }
         Title = "VisionCanvas 독립 호스트";
         Width = 1280;
         Height = 820;

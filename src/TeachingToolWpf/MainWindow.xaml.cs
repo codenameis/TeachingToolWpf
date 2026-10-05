@@ -14,6 +14,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        if (Environment.GetCommandLineArgs().Contains("--software-rendering"))
+        {
+            Viewport.DevicePreference = VisionCanvas.Rendering.RenderDevicePreference.Software;
+        }
         var smoke = Environment.GetCommandLineArgs().Contains("--smoke");
         var inspectionSmoke = Environment.GetCommandLineArgs().Contains("--inspection-smoke");
         var largeImage = Environment.GetCommandLineArgs().Contains("--large-image");
@@ -37,7 +41,9 @@ public partial class MainWindow : Window
         Viewport.InputFailed += _model.Fail;
         Viewport.OverlayPresented += _model.Matching.RecordOverlayPresentation;
         Viewport.RendererStatusChanged += status => _model.GpuStatus = status;
-        Viewport.MetricsChanged += value => _model.Performance = $"CPU {value.CpuMilliseconds:F1} ms · GPU {value.GpuMilliseconds:F1} ms · 표시 드롭 {value.Dropped}";
+        Viewport.MetricsChanged += value => _model.Performance = value.GpuMilliseconds is { } gpuMilliseconds
+            ? $"CPU {value.CpuMilliseconds:F1} ms · GPU {gpuMilliseconds:F1} ms · 표시 드롭 {value.Dropped}"
+            : $"CPU 제출 {value.CpuMilliseconds:F1} ms · 장치 시간 미측정 · 표시 드롭 {value.Dropped}";
         Viewport.Tiles.Failed += message => Dispatcher.BeginInvoke(() => _model.Status = message);
         _selectionBinding = new(Regions.List, _model);
         PreviewKeyDown += (_, args) =>

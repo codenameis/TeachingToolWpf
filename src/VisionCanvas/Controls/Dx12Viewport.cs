@@ -19,6 +19,25 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
     private RenderScene? _scene;
     private bool _closed;
     private Window? _ownerWindow;
+    private RenderDevicePreference _devicePreference;
+
+    /// <summary>Set before the viewport creates its native window. Automatic prefers hardware, then WARP.</summary>
+    public RenderDevicePreference DevicePreference
+    {
+        get => _devicePreference;
+        set
+        {
+            if (!Enum.IsDefined(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+            if (_renderer is not null || Handle != nint.Zero)
+            {
+                throw new InvalidOperationException("렌더 장치 선택은 뷰포트를 표시하기 전에 설정해야 합니다.");
+            }
+            _devicePreference = value;
+        }
+    }
 
     public Dx12Viewport()
     {
@@ -110,7 +129,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 
     private void StartRenderer(nint handle)
     {
-        _renderer = new RenderWorker(handle, Tiles, new WpfTextRasterizer(), _frames, new VisibleFramePreparer());
+        _renderer = new RenderWorker(handle, Tiles, new WpfTextRasterizer(), _frames, new VisibleFramePreparer(), _devicePreference);
         _renderer.StatusChanged += status => Dispatcher.BeginInvoke(() => RendererStatusChanged?.Invoke(status));
         _renderer.MetricsChanged += value => Dispatcher.BeginInvoke(() => MetricsChanged?.Invoke(value));
         _renderer.OverlayPresented += value => Dispatcher.BeginInvoke(() => OverlayPresented?.Invoke(value));
