@@ -1,8 +1,8 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 [StructLayout(LayoutKind.Sequential)]
 internal readonly record struct SpriteVertex(Vector2 Position, Vector2 Uv, Vector4 Color);

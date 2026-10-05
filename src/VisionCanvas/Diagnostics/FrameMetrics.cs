@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 
-namespace TeachingToolWpf.Diagnostics;
+namespace VisionCanvas.Diagnostics;
 
 public sealed record RenderMetrics(double CpuMilliseconds, double? GpuMilliseconds, double PresentMilliseconds, double FrameIntervalMilliseconds,
     double? SourceToSubmitMilliseconds, long Dropped, long FrameNumber, long PrivateBytes, long TextureBytes);

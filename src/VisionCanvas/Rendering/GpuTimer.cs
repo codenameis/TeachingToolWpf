@@ -1,6 +1,6 @@
 using Vortice.Direct3D12;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Timestamp results are read only after the frame fence, with no extra GPU stall.</summary>
 internal sealed class GpuTimer : IDisposable

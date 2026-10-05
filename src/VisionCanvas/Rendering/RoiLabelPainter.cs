@@ -1,8 +1,9 @@
 using System.Numerics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Retains label placement during nearby pans. Candidate geometry and label rasterization have separate lifetimes.</summary>
 internal sealed class RoiLabelPainter

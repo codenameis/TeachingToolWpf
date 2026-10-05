@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using NetVips;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 /// <summary>Region.Fetch의 managed 임시 배열 없이 libvips가 반환한 원본을 대여 버퍼에 복사한다.</summary>
 internal static class VipsRegionPixels

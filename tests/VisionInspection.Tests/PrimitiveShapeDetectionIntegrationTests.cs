@@ -1,10 +1,10 @@
 using System.IO;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

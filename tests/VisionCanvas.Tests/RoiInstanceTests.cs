@@ -1,10 +1,11 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Core.Interaction;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionCanvas.Core.Interaction;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

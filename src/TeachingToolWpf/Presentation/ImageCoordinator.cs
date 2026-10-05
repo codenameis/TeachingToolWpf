@@ -1,7 +1,8 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Presentation;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Presentation;
 

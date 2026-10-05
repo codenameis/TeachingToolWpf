@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Windows.Media;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
 
 namespace TeachingToolWpf.Presentation;
 

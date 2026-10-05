@@ -1,8 +1,9 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

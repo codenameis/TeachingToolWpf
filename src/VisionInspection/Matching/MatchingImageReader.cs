@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
 using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 

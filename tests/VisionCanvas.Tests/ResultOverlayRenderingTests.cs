@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using System.Numerics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

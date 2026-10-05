@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Core.Editing;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 internal sealed record TileReadCounts(long TotalTileReads, IReadOnlyDictionary<int, long> TileReadsByLevel);
 

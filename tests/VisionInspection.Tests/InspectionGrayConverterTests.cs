@@ -1,5 +1,5 @@
-using TeachingToolWpf.Core.Imaging;
 using TeachingToolWpf.Imaging.Matching;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

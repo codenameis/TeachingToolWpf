@@ -1,4 +1,5 @@
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Core.Tests;
 

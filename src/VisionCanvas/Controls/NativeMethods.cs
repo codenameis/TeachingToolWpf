@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace TeachingToolWpf.Controls;
+namespace VisionCanvas.Controls;
 
 internal enum NativeWindowMessage
 {

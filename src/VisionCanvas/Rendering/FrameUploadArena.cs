@@ -1,6 +1,6 @@
 using Vortice.Direct3D12;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>프레임 슬롯별 CPU → GPU 전송 공간. 해당 슬롯의 fence 완료 후에만 Reset한다.</summary>
 internal sealed class FrameUploadArena(Dx12Device gpu) : IDisposable

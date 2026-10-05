@@ -5,9 +5,10 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

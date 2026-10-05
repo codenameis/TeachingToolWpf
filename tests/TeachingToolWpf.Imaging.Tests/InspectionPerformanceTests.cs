@@ -1,13 +1,14 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using System.Diagnostics;
 using System.Text.Json;
 using TeachingToolWpf.Diagnostics;
-using TeachingToolWpf.Rendering;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.Tests;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

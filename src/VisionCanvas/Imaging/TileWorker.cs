@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionCanvas.Imaging;
 
 public sealed record ReadyTile(long Generation, TileKey Key, PixelBuffer Pixels);
 

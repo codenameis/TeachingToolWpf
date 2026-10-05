@@ -1,9 +1,10 @@
 using System.Diagnostics;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Diagnostics;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Diagnostics;
+using VisionCanvas.Imaging;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>GPU 자원의 단일 소유 스레드. UI 장면과 영상 요청은 최신 값 하나로 합친다.</summary>
 public sealed class RenderWorker : IDisposable

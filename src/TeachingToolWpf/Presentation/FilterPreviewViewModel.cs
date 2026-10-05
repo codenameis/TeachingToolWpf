@@ -1,6 +1,6 @@
 using System.Globalization;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Imaging.Filters;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Imaging.Filters;
 
 namespace TeachingToolWpf.Presentation;
 

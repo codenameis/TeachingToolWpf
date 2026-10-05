@@ -1,7 +1,8 @@
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Imaging;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

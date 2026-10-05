@@ -1,5 +1,6 @@
 using NetVips;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

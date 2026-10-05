@@ -3,9 +3,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using NetVips;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 /// <summary>Imports sequentially to disk-backed native VIPS levels, then reads bounded tiles.</summary>
 public sealed class DiskPyramidSource : ITileSource

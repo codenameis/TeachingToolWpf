@@ -1,5 +1,5 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

@@ -1,8 +1,9 @@
 using System.Diagnostics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
+using VisionCanvas.Core.Editing;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging.Filters;
+namespace VisionCanvas.Imaging.Filters;
 
 public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> retainFrame) : IRoiFilterPreview
 {

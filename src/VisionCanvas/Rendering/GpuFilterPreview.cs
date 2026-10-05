@@ -1,8 +1,8 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging.Filters;
+using VisionCanvas.Imaging.Filters;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Render-thread texture owner; superseded previews retire after the GPU fence.</summary>
 internal sealed class GpuFilterPreview : IDisposable

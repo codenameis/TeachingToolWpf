@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
+    <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <Project Path="src/TeachingToolWpf/TeachingToolWpf.csproj" />
-    <Project Path="src/TeachingToolWpf.Core/TeachingToolWpf.Core.csproj" />
+    <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
     <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />
@@ -21,5 +23,8 @@
     <Project Path="benchmarks/TeachingToolWpf.Matching.Benchmarks/TeachingToolWpf.Matching.Benchmarks.csproj" />
     <Project Path="benchmarks/TeachingToolWpf.Benchmarks/TeachingToolWpf.Benchmarks.csproj" />
     <Project Path="benchmarks/VisionAlgorithm.Benchmarks/VisionAlgorithm.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/VisionCanvas.Sample/VisionCanvas.Sample.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,28 @@
+is_global = true
+global_level = 200
+
+# WPF repository: exclude ASP.NET, Blazor and EF-only diagnostics.
+dotnet_diagnostic.DAS2001.severity = none
+dotnet_diagnostic.DAS2002.severity = none
+dotnet_diagnostic.DAS2003.severity = none
+dotnet_diagnostic.DAS2004.severity = none
+dotnet_diagnostic.DAS2005.severity = none
+dotnet_diagnostic.DAS2006.severity = none
+dotnet_diagnostic.DAS2007.severity = none
+dotnet_diagnostic.DAS2008.severity = none
+dotnet_diagnostic.DAS2009.severity = none
+dotnet_diagnostic.DAS2010.severity = none
+dotnet_diagnostic.DAS3001.severity = none
+dotnet_diagnostic.DAS3002.severity = none
+dotnet_diagnostic.DAS3003.severity = none
+dotnet_diagnostic.DAS3004.severity = none
+dotnet_diagnostic.DAS3005.severity = none
+dotnet_diagnostic.DAS3006.severity = none
+dotnet_diagnostic.DAS3007.severity = none
+dotnet_diagnostic.DAS3008.severity = none
+dotnet_diagnostic.DAS3009.severity = none
+dotnet_diagnostic.DAS3010.severity = none
+dotnet_diagnostic.ASP0000.severity = none
+dotnet_diagnostic.ASP0019.severity = none
+dotnet_diagnostic.ASP0022.severity = none
+dotnet_diagnostic.ASP0023.severity = none

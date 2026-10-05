@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TeachingToolWpf.Core\TeachingToolWpf.Core.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
     <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
     <PackageReference Include="Vortice.Direct3D12" Version="3.8.3" />
     <PackageReference Include="Vortice.DXGI" Version="3.8.3" />

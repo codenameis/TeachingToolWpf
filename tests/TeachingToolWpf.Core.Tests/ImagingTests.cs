@@ -1,5 +1,6 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Core.Tests;
 

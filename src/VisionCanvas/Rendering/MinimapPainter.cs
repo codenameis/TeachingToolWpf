@@ -1,7 +1,8 @@
 using System.Numerics;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal static class MinimapPainter
 {

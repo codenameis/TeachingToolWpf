@@ -1,8 +1,9 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Imaging;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Owns image textures and their byte-budget eviction. Retired resources remain fence protected.</summary>
 internal sealed class GpuImageResources(Dx12Device gpu, SpritePipeline pipeline, TileWorker source, IFramePreparer preparer) : IDisposable

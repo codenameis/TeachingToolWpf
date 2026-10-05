@@ -1,6 +1,8 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Interaction;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionCanvas.Core.Interaction;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Core.Tests;
 

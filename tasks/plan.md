@@ -1,5 +1,7 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-05 Canvas 재사용 경계:** 별도 브랜치에서 [분리 계획](canvas-reuse-plan.md)과 [ADR-031](../docs/decisions/0031-reusable-canvas-boundaries.md)을 적용한다. 순수 기하는 `VisionGeometry`, 영상 수명 계약은 `VisionImaging.Abstractions`, 편집·입력·이력은 `VisionCanvas.Core`가 소유한다. Canvas와 검사는 호스트에서 이미지·ROI·표시 데이터로 연결하며 검사/I/O는 편집 코어를 참조하지 않는다. 기존 동작·원본 reader·통합 이력·렌더 캐시를 보존한다. 아래 과거 Core 소속 설명보다 이 경계가 우선하며 완료 상태는 [이번 검증](../docs/canvas-reuse-validation.md)을 따른다.
+
 - **2026-10-05 회전 불량 검사:** 논문 모드의 검색 범위와 정상 허용각을 분리했다. 선택형 회전 검사는 전체360° 학습/탐색 후 허용각 밖 검출을NG로 표시한다. 현재 사용자의 긴 핀ROI에서 역방향128개NG를CPU/CUDA로 확인했다. [ADR-030](../docs/decisions/0030-rotation-inspection-acceptance.md), [검증](../docs/rotation-inspection-validation.md). 125/80ms 목표는미달이다.
 
 - **2026-10-05 kensa 18V/로그:** 작은 논문 모델의 원본 미세 획·180° 모호성 검증과 최근20회 검사 시간 로그/JSON 내보내기를 추가했다. 재현 ROI의12개 위치를 확인했으나 후보 예산 경고와 CPU125/CUDA80 목표 미달은 유지한다. [ADR-029](../docs/decisions/0029-small-paper-shapes-and-inspection-logs.md), [검증](../docs/kensa-text-and-logs-validation.md).
@@ -413,3 +415,7 @@ docs/ tasks/ scripts/ licenses/      공통 문서·계획·실행 스크립트�
 | 도형/이력 | 사각형·원·삼각형·폴리곤, 경계 접촉 포함, 200명령/1 GiB 이력 예산 |
 
 남은 입력은 실제 파일 형식/비트 심도/최대 높이, 실시간 목표 FPS, 실제 PCB의 ROI 배치·중첩 분포, Windows 최소 지원 버전과 모니터 조건이다. ROI 규모 요구는 수백만 개로 확정했다. 초안 및 합성 검증을 진행하기 위해 추가 답변을 강제하지 않는다. 실제 데이터·환경에서 확인하지 않은 성능은 미검증으로 표시한다.
+
+## 2026-10-05 .NET 지침 보완
+
+기존 AGENTS를 보존하고 dotnet-anti-slop의 중복 없는 .NET 규칙만 추가했다. 분석기는 기존 빌드 정책과 분리한 선택형 감사로 설치했다. 전체 자동 강제 적용은 초기 진단 해결 후 별도 검토하며, [출처·충돌·검증](../docs/dotnet-anti-slop-adoption.md)을 따른다.

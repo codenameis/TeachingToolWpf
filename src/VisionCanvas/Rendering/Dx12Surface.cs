@@ -2,7 +2,7 @@ using Vortice.Direct3D12;
 using Vortice.DXGI;
 using Vortice.Mathematics;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>렌더 스레드에서만 사용하는 화면 버퍼와 프레임별 GPU 작업의 소유자.</summary>
 internal sealed class Dx12Surface : IDisposable

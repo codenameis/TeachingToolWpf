@@ -1,7 +1,8 @@
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Imaging.Filters;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Imaging.Filters;
 
 namespace TeachingToolWpf.Diagnostics;
 

@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 public sealed record TextRasterBatch(PixelBuffer Pixels, ImmutableDictionary<string, BoundsD> Regions) : IDisposable
 {

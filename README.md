@@ -140,12 +140,21 @@ OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255�
 
 | 위치 | 책임 |
 |---|---|
-| `src/TeachingToolWpf.Core` | double 기하, 포함/BVH, 불변 문서, 편집/이력, 제스처, 프레임/타일 계약 |
-| `Presentation` | MVVM 명령·상태, 이미지 교체 트랜잭션, 라이브 제어 |
-| `Controls` | HwndHost 입력/DPI, 목록 선택, 텍스트 래스터 어댑터 |
-| `Imaging` | libvips 디스크 피라미드, 타일 작업자, 합성 소스, 가시 프레임/AVX2 축소 |
-| `Rendering` | DX12 장치/표시/fence, 업로드, 이미지 캐시, 배치 도형/라벨 |
-| `Diagnostics`, `benchmarks` | 실제 앱 smoke, GPU/CPU CSV, 대용량 파일 시험, Core 측정 |
+| `src/VisionGeometry` | double 좌표, 실제 ROI 도형·포함 판정, 강체·뷰 변환 |
+| `src/VisionImaging.Abstractions` | 이미지 식별·규격, 프레임·타일·픽셀 버퍼의 소유권 계약 |
+| `src/VisionCanvas.Core` | 불변 ROI 문서, BVH, 계층·선택·편집·이력·제스처 |
+| `src/VisionImaging` | libvips 디스크 피라미드, 파일·합성 소스, 타일 계획·프레임 mailbox |
+| `src/VisionCanvas` | WPF/Win32 입력·DPI, DX12 장치·표시·캐시, ROI·필터·오버레이 |
+| `src/VisionInspection`, `src/VisionAlgorithm` | 편집 코어와 화면에 의존하지 않는 원본 검사 실행·알고리즘 |
+| `src/TeachingToolWpf` | 패널·MVVM, 이미지 교체·레시피의 통합 이력, 검사 조립·제품 판정 |
+| `samples/VisionCanvas.Sample` | TeachingToolWpf·검사 참조 없이 공개 Canvas API만 사용하는 WPF 호스트 |
+| `benchmarks` | GPU/CPU CSV, 대용량 파일 시험, 편집·검사 측정 |
+
+Canvas를 다른 앱에서 사용하려면 [독립 샘플](samples/VisionCanvas.Sample/README.md)을 참고하세요. 샘플의 프로젝트 참조는 `VisionCanvas` 하나이며 필요한 중립 라이브러리는 전이 참조로 포함됩니다. 파일 디코더의 OS별 native 패키지는 호스트가 선택합니다. ROI 문서·입력·이력은 `VisionCanvas.Core`, 순수 형상은 `VisionGeometry`, 이미지 수명 계약은 `VisionImaging.Abstractions`에 있습니다. 기존 `TeachingToolWpf.Core.*`와 Canvas의 `TeachingToolWpf.*` namespace를 사용하는 코드는 새 namespace로 변경해야 합니다. [분리 결정](docs/decisions/0031-reusable-canvas-boundaries.md)과 [이번 검증 범위](docs/canvas-reuse-validation.md)를 함께 확인하세요.
+
+```powershell
+dotnet run --project .\samples\VisionCanvas.Sample -c Release
+```
 
 카메라 연결은 `IFrameSource.Frames(CancellationToken)`을 구현하고 `MainWindow` 조립 지점의 팩터리를 교체합니다. `VideoFrame` 게시 시 소유권을 넘기고 소비자가 해제하기 전에 버퍼를 재사용하지 마세요. 현재 `PixelBuffer`는 tightly packed CPU 버퍼이며 카메라 stride padding은 어댑터에서 행 복사로 정규화합니다. GPU 공유 메모리/zero-copy는 구현하지 않았습니다. 파일 소스는 `ITileSource`, 표시 준비는 `IFramePreparer`로 확장합니다.
 
@@ -175,13 +184,13 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artif
 
 미검증/후속 항목은 혼합 DPI 모니터 이동, 실제 장치 제거, 실제 카메라·촬영 파일, 8192² 실시간, 장시간 부하, 분수 배율 타일 gutter입니다. ROI 저장/불러오기, 타원/다각형, 다중 ROI 일괄 resize는 이번 샘플에 포함하지 않았습니다. [품질 검토](docs/quality-review.md), [설계 결정](docs/decisions/0003-implementation-and-measured-optimization.md), [의존성 고지](THIRD-PARTY-NOTICES.md)를 참고하세요.
 
-## 프로젝트 구조와 명시적 ROI 계층 (2026-10-04)
+## 프로젝트 구조와 명시적 ROI 계층 (2026-10-05)
 
 - `src/TeachingToolWpf`: 실행 앱, 패널·ViewModel, 검사 연결, 진단 시나리오.
-- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. Core만 참조한다.
-- `src/TeachingToolWpf.Core`: GPU 없는 기하·ROI·계층·입력·이력.
+- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core와 VisionImaging을 참조한다.
+- `src/VisionCanvas.Core`: GPU 없는 ROI·계층·입력·이력. 순수 기하와 이미지 계약은 VisionGeometry/VisionImaging.Abstractions로 분리한다.
 - `src/VisionAlgorithm`: 독립 알고리즘. 캔버스와 상호 참조하지 않는다.
-- `tests`와 `benchmarks`: 각각 프로젝트 이름별 폴더. 솔루션에도 src/tests/benchmarks 폴더를 표시한다.
+- `tests`, `benchmarks`, `samples`: 각각 프로젝트 이름별 폴더. 독립 사용 예제는 VisionCanvas.Sample이다.
 
 부모·자식은 위치가 아니라 추가 명령으로 연결합니다. **겹치거나 포함돼도 자동 부모가 되지 않습니다.** 자식은 부모 밖으로 움직여도 관계를 유지하며, 부모 이동·회전·삭제는 그 자식에게 계속 적용됩니다. 자식을 선택해 그 아래에 자식을 추가할 수도 있습니다. 자식 추가는 선택이 정확히 하나일 때 활성화됩니다.
 

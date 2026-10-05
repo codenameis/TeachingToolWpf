@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using VisionImaging;
 
 namespace TeachingToolWpf;
 
@@ -20,10 +21,10 @@ public partial class MainWindow : Window
         var paperLatency = Environment.GetCommandLineArgs().Contains("--paper-latency-smoke");
         var rotationInspection = Environment.GetCommandLineArgs().Contains("--rotation-inspection-smoke");
         var cache = smoke || inspectionSmoke || largeImage || memoryCheck || paperLatency || rotationInspection ? System.IO.Path.GetFullPath("artifacts/image-cache") : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeachingToolWpf", "ImageCache");
-        Imaging.VipsRuntime.Configure();
-        var live = new Presentation.LivePreview(Viewport, kind => new Imaging.SyntheticFrameSource(kind));
-        var loader = new Imaging.ImageLoader(cache);
-        _model = new(Viewport, loader, live, new Imaging.Filters.RoiFilterPreview(loader, Viewport.RetainFrame),
+        VisionImaging.VipsRuntime.Configure();
+        var live = new Presentation.LivePreview(Viewport, kind => new VisionImaging.SyntheticFrameSource(kind));
+        var loader = new VisionImaging.ImageLoader(cache);
+        _model = new(Viewport, loader, live, new VisionCanvas.Imaging.Filters.RoiFilterPreview(loader, Viewport.RetainFrame),
             new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame, _inspectionCompute.Rent, _inspectionCompute.PrepareAsync,
                 Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, Viewport.RetainFrame),

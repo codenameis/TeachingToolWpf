@@ -1,9 +1,10 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 [StructLayout(LayoutKind.Sequential)]
 internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vector2 AxisY, uint Summary, uint Padding = 0)

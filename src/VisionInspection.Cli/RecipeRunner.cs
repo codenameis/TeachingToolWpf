@@ -1,9 +1,9 @@
 using System.Diagnostics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace VisionInspection.Cli;
 

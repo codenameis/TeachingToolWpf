@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using System.Numerics;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Rendering;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Rendering;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Presentation;
 

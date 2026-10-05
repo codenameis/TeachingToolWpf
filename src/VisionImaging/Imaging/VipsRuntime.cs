@@ -1,4 +1,4 @@
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 internal static class VipsRuntime
 {

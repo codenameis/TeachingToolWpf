@@ -1,12 +1,12 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Core.Interaction;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Interaction;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 public sealed record RenderScene(DocumentState Document, ImageInfo? Image, long Generation, double Width, double Height, double Dpi,
-    InteractionOverlay Overlay, bool PointSampling = false, bool IsLive = false, Imaging.Filters.FilterPreviewResult? FilterPreview = null, RoiTransformPreview? Transform = null,
+    InteractionOverlay Overlay, bool PointSampling = false, bool IsLive = false, VisionCanvas.Imaging.Filters.FilterPreviewResult? FilterPreview = null, RoiTransformPreview? Transform = null,
     RoiStylePalette? Styles = null, ResultOverlay? Inspection = null)
 {
     public RoiStylePalette RoiStyles => Styles ?? RoiStylePalette.Standard;

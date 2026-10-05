@@ -4,10 +4,11 @@ using System.Text.Json;
 using System.Windows;
 using NetVips;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Diagnostics;
 

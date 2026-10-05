@@ -1,9 +1,9 @@
 using TeachingToolWpf.Imaging.Matching;
-using VisionAlgorithm.OpenSrc.PatternMatching;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Presentation;
+using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
 
 namespace TeachingToolWpf.Imaging.Tests;
 
@@ -21,8 +21,11 @@ public sealed class RotationInspectionTests
             pipeline: ShapeSearchPipeline.Paper);
         using var viewModel = new ShapeMatchingViewModel(service)
         {
-            MinimumAngle = 0, MaximumAngle = 10, InspectRotation = true,
-            MinimumAcceptedAngle = minimumAccepted, MaximumAcceptedAngle = 10
+            MinimumAngle = 0,
+            MaximumAngle = 10,
+            InspectRotation = true,
+            MinimumAcceptedAngle = minimumAccepted,
+            MaximumAcceptedAngle = 10
         };
         viewModel.Update(editor.State, 1, false, true);
         var unchanged = editor.State;
@@ -89,7 +92,10 @@ public sealed class RotationInspectionTests
         Assert.Equal(InspectionVerdict.Fail, InspectionDecision.Evaluate(match, new()).Verdict);
         Assert.Equal(InspectionVerdict.Review, InspectionDecision.Evaluate(match with
         {
-            Refinement = match.Refinement with { AngleObservable = false }
+            Refinement = match.Refinement with
+            {
+                AngleObservable = false
+            }
         }, new()).Verdict);
         var output = new ShapeSearchOutput([Match(0), match], 1, false, 0, 0, []);
         var decision = InspectionDecision.Evaluate(output, new());

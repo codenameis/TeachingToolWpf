@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 

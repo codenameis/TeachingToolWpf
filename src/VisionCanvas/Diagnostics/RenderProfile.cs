@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
 
-namespace TeachingToolWpf.Diagnostics;
+namespace VisionCanvas.Diagnostics;
 
 /// <summary>Opt-in render-thread stage measurements; never enabled by normal application startup.</summary>
 internal sealed class RenderProfile : IDisposable

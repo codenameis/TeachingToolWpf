@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 

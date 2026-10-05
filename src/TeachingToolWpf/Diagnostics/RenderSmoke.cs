@@ -1,9 +1,10 @@
 using System.IO;
 using System.Windows;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
 
 namespace TeachingToolWpf.Diagnostics;
 

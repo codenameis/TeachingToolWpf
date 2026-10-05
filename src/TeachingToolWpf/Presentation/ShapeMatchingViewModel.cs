@@ -1,10 +1,11 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Rendering;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Presentation;
 

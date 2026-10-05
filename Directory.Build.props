@@ -1,0 +1,8 @@
+<Project>
+  <!-- dotnet-anti-slop:begin -->
+    <Import Project="$(MSBuildThisFileDirectory).dotnet-anti-slop/DotNetAntiSlop.props" Condition="'$(EnableDotNetAntiSlop)' == 'true' and Exists('$(MSBuildThisFileDirectory).dotnet-anti-slop/DotNetAntiSlop.props')" />
+  <!-- dotnet-anti-slop:end -->
+  <ItemGroup Condition="'$(EnableDotNetAntiSlop)' == 'true'">
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)build/DotNetAntiSlop.globalconfig" />
+  </ItemGroup>
+</Project>

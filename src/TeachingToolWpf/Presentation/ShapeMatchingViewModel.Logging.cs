@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using TeachingToolWpf.Diagnostics;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
 
 namespace TeachingToolWpf.Presentation;
 

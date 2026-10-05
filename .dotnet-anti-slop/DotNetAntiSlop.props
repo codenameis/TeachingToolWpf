@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup Condition="'$(IsDotNetAntiSlopAnalyzerProject)' != 'true'">
+    <GlobalAnalyzerConfigFiles
+      Include="$(MSBuildThisFileDirectory)config/default.globalconfig" />
+  </ItemGroup>
+</Project>

@@ -9,12 +9,14 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
-using TeachingToolWpf.Rendering;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Controls;
+using VisionCanvas.Diagnostics;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging;
 
 namespace TeachingToolWpf.Diagnostics;
 

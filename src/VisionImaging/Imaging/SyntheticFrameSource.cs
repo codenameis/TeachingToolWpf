@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 public sealed class SyntheticFrameSource(PixelKind kind = PixelKind.Gray8, int width = 7680, int height = 4320, int fps = 60) : IFrameSource
 {

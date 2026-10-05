@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Controls;
+namespace VisionCanvas.Controls;
 
 public sealed partial class WpfTextRasterizer
 {

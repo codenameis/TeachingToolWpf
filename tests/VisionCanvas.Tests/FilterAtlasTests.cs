@@ -1,6 +1,6 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging.Filters;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Imaging.Filters;
+using VisionCanvas.Rendering;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

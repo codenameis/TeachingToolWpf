@@ -1,10 +1,11 @@
 using System.Diagnostics;
 using System.Text.Json;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 if (args.Length > 1 && args[1] == "rotation-diagnosis")
 {

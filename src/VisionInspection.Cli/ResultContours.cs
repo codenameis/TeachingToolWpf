@@ -1,5 +1,5 @@
-using TeachingToolWpf.Core.Geometry;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
 
 namespace VisionInspection.Cli;
 

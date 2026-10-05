@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using TeachingToolWpf.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal sealed record GpuTextRegion(GpuTexture Texture, BoundsD Pixels)
 {

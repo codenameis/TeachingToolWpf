@@ -1,5 +1,6 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Interaction;
+using VisionCanvas.Core.Geometry;
+using VisionCanvas.Core.Interaction;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Presentation;
 

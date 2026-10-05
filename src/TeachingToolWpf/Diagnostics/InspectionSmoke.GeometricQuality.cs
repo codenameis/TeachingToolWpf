@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Presentation;
 using TeachingToolWpf.Views;
+using VisionCanvas.Controls;
 
 namespace TeachingToolWpf.Diagnostics;
 

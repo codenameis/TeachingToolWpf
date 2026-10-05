@@ -4,8 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Presentation;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

@@ -1,12 +1,14 @@
 using System.Globalization;
 using System.Numerics;
 using System.Windows.Media;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging.Filters;
 using TeachingToolWpf.Presentation;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Imaging.Filters;
+using VisionCanvas.Presentation;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

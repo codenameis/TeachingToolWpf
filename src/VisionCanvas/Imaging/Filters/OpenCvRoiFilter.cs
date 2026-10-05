@@ -1,8 +1,8 @@
 using OpenCvSharp;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
+using VisionCanvas.Core.Editing;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging.Filters;
+namespace VisionCanvas.Imaging.Filters;
 
 /// <summary>OpenCV boundary. Input is retained by its caller; every native Mat is deterministically disposed.</summary>
 public static class OpenCvRoiFilter

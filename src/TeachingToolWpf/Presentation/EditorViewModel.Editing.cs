@@ -1,4 +1,4 @@
-using TeachingToolWpf.Core.Editing;
+using VisionCanvas.Core.Editing;
 
 namespace TeachingToolWpf.Presentation;
 

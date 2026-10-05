@@ -2,10 +2,10 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Controls;
+namespace VisionCanvas.Controls;
 
 /// <summary>Creates isolated text drawings on the calling STA. No visual from the UI is shared.</summary>
 public sealed partial class WpfTextRasterizer : ITextBatchRasterizer

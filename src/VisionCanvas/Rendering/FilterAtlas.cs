@@ -1,8 +1,8 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging.Filters;
+using VisionCanvas.Imaging.Filters;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Packs preview pixels independently of GPU lifetime; draw order is retained by Index.</summary>
 internal static class FilterAtlas

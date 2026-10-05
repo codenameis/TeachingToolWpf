@@ -1,9 +1,11 @@
 using System.Numerics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal sealed class ScenePainter
 {

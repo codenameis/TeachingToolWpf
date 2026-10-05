@@ -1,11 +1,12 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 internal static class PaperPinBenchmark
 {

@@ -2,12 +2,12 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NetVips;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 /// <summary>실제 파일·큰 ROI·회전/배율/잡음에서 두 형상 경로의 검색 비용과 결과를 함께 기록한다.</summary>
 internal static class ShapeRegressionBenchmark

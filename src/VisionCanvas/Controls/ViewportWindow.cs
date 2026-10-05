@@ -1,12 +1,12 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
-namespace TeachingToolWpf.Controls;
+namespace VisionCanvas.Controls;
 
 /// <summary>An input-capable Win32 child window. A STATIC control is mouse-transparent by default.</summary>
 internal static class ViewportWindow
 {
-    private const string ClassName = "TeachingToolWpf.Dx12Viewport";
+    private const string ClassName = "VisionCanvas.Dx12Viewport";
     private const NativeWindowStyle Style = NativeWindowStyle.Child | NativeWindowStyle.Visible |
         NativeWindowStyle.ClipSiblings | NativeWindowStyle.ClipChildren | NativeWindowStyle.TabStop;
     // Keep the managed delegate alive for every window registered with this class.

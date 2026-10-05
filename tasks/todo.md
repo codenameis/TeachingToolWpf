@@ -1,5 +1,16 @@
 # 단계별 작업 목록
 
+## 2026-10-05 Canvas 독립 재사용 경계
+
+기준: [계획](canvas-reuse-plan.md), [ADR-031](../docs/decisions/0031-reusable-canvas-boundaries.md), [검증 기록](../docs/canvas-reuse-validation.md). 브랜치 `codex/vision-canvas-boundaries`, 사용자 선택에 따라 로컬 구현·검증만 진행한다.
+
+- [x] PASS: 중립 기하/이미지 계약과 Canvas 편집 코어 분리, Canvas 공개 namespace 정리, 검사·영상 I/O의 편집 참조 제거. 전체 Release 빌드 경고0/오류0.
+- [x] PASS: 기존936개와 신규 경계9개를 합한945개 테스트, 실패/skip0. 독립 Canvas 전이 참조·공개 API, 검사·I/O의 편집/렌더 참조 금지 확인.
+- [x] PASS: 독립 WPF 샘플의 실제8K/24K 합성 표시·ROI·이력·중립 overlay·PNG 파일/실패 원자성, 최종 배포본 exit0. 앱/검사/알고리즘 미로드, 셰이더/native/고지 동봉 확인.
+- [x] PASS: 기존 앱 DX12 편집/필터/8K라이브·검사 smoke와 최종 앱 배포본 검사 exit0. 이동34개 본문·참조DAG·소유권 교차 리뷰. 분리·샘플 범위 포맷 및 diff 검사 통과.
+- [ ] FAIL(기존): 전체 Format-Code.ps1 -Verify는 기존 회전 검사·알고리즘6개 파일 위반. using 제외 본문이 공백까지HEAD와 동일함을 확인, 이번 범위 밖 재포맷 없이 별도 기록.
+- [ ] NOT_RUN: 다른 호스트/GPU·물리 포인터 전체E2E·장시간 성능·Linux 실실행. 기존 검사125/80ms FAIL을 이 작업으로 완료 처리하지 않는다.
+
 ## 2026-10-05 180° 회전 불량 판정
 
 기준: [ADR-030](../docs/decisions/0030-rotation-inspection-acceptance.md), [실측](../docs/rotation-inspection-validation.md).
@@ -620,3 +631,9 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks\TeachingToolWpf.Ben
 - [ ] 서로 다른 binary가 확인된 방향 변환 캐시 효과 및 최종 원본8K 반복 측정.
 - [ ] 새 배포본 smoke·실제 앱 검사와 OS 화면.
 - [ ] NOT_RUN: 사용자 실제 문제 이미지·실촬영 검출률·실제 Linux 실행·이번 수정의24K비교·실시간FPS. 이전 작은 핀 수치로 대체하지 않음.
+
+## 2026-10-05 dotnet-anti-slop 선택 도입
+
+- [x] PASS: 전역 설치 스킬·프로젝트 분석기 설치, 기존 AGENTS 보존 및 중복 없는 .NET 규칙 병합. [충돌/검증 기록](../docs/dotnet-anti-slop-adoption.md).
+- [x] PASS: 알려진 DAS1003 위반 검출 및 수정 후 통과, 일반 전체 Release 빌드와 6개 프로젝트 테스트.
+- [ ] FAIL: 기본 분석기 감사 오류40/경고56. 자동 강제 적용은 보류하고 `EnableDotNetAntiSlop=true`로 별도 실행. 기존 경고 오류 정책은 유지.

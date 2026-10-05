@@ -1,6 +1,6 @@
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 public interface ITextRasterizer
 {

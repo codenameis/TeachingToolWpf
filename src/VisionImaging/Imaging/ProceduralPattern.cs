@@ -1,4 +1,4 @@
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 /// <summary>표시 RGBA와 원본 Gray8이 공유하는 샘플의 형상·색 정의. 뒤 구간이 앞 구간을 덮는다.</summary>
 internal static class ProceduralPattern

@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Numerics;
-using TeachingToolWpf.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>알고리즘 형식과 무관한 읽기 전용 표시. 문서 ROI/선택/이력에 추가하지 않는다.</summary>
 public sealed record MatchMarker(ImmutableArray<PointD> Bounds, PointD ReferencePoint, double AngleRadians, string Label,

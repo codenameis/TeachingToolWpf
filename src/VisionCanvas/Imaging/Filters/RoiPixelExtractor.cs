@@ -1,9 +1,9 @@
 using OpenCvSharp;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using RoiGeometry = TeachingToolWpf.Core.Geometry.RoiGeometry;
+using VisionGeometry;
+using VisionImaging.Abstractions;
+using RoiGeometry = VisionGeometry.RoiGeometry;
 
-namespace TeachingToolWpf.Imaging.Filters;
+namespace VisionCanvas.Imaging.Filters;
 
 /// <summary>Reads only the bounding tiles at preview resolution, then rectifies a rotated ROI.</summary>
 internal static class RoiPixelExtractor

@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Render-owned full-frame overview, refreshed at most twice per second.</summary>
 internal sealed class GpuLiveOverview : IDisposable

@@ -1,4 +1,4 @@
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 

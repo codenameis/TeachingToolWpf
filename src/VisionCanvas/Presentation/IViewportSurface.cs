@@ -1,7 +1,7 @@
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Presentation;
+namespace VisionCanvas.Presentation;
 
 public interface IViewportSurface
 {

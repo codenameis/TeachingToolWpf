@@ -4,9 +4,10 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

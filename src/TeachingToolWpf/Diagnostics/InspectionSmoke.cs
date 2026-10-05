@@ -8,11 +8,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
-using TeachingToolWpf.Rendering;
 using TeachingToolWpf.Views;
+using VisionCanvas.Controls;
+using VisionCanvas.Rendering;
+using VisionImaging;
 
 namespace TeachingToolWpf.Diagnostics;
 
@@ -57,7 +58,7 @@ internal static partial class InspectionSmoke
                 await Invoke(matching.Search);
                 Log(matching.Status + Environment.NewLine + matching.Results);
                 Require(matching.Markers.Length == 2, "real two-pattern search");
-                Require(matching.Markers.Any(marker => (marker.ReferencePoint - new Core.Geometry.PointD(420, 230)).Length < .6), "source coordinate pose");
+                Require(matching.Markers.Any(marker => (marker.ReferencePoint - new VisionGeometry.PointD(420, 230)).Length < .6), "source coordinate pose");
                 var result = matching.Overlay!;
                 var originalState = model.Session.State;
                 var historyBytes = model.Session.HistoryBytes;
@@ -110,7 +111,7 @@ internal static partial class InspectionSmoke
                 await Invoke(matching.Train);
                 await Invoke(matching.Search);
                 Require(matching.TemplateModel is not null && matching.Verdict == InspectionVerdict.Pass && matching.Markers.Length == 1, "OpenCV real template search");
-                Require((matching.Markers[0].ReferencePoint - new Core.Geometry.PointD(160, 160)).Length < .01, "OpenCV source reference point");
+                Require((matching.Markers[0].ReferencePoint - new VisionGeometry.PointD(160, 160)).Length < .01, "OpenCV source reference point");
                 Log(matching.Status);
                 await Capture("inspection-opencv");
                 WindowCapture.Save(window, viewport, "artifacts/inspection-opencv.png", "artifacts/inspection-opencv-app.png");

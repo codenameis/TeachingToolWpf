@@ -2,6 +2,7 @@ using System.Windows;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
 
 namespace TeachingToolWpf.Diagnostics;
 

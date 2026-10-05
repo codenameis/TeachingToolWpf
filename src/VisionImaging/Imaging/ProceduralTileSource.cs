@@ -1,9 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 /// <summary>Deterministic, full-resolution sample surface. No source-sized allocation.</summary>
 public sealed class ProceduralTileSource : ITileSource, IOriginalGrayTileSource

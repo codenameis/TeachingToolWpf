@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Imaging;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

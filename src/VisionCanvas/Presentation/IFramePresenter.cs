@@ -1,6 +1,6 @@
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Presentation;
+namespace VisionCanvas.Presentation;
 
 public interface IFramePresenter
 {

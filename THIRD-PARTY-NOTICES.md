@@ -52,3 +52,7 @@ THE SOFTWARE.
 테스트 도구(xUnit, Microsoft.NET.Test.Sdk 및 전이 의존성)는 앱 publish에 포함하지 않습니다. 이 문서는 앱 자체의 별도 오픈소스 라이선스를 지정하지 않습니다.
 
 2026-10-04 사용 범위 추가: 동일 OpenCV/OpenCvSharp 패키지를 ROI 필터와 `VisionAlgorithm`의 CCOEFF_NORMED 템플릿 매칭에 사용합니다. Mat은 각 영상 처리 경계 안에 유지합니다. 논문 기반 C# 형상 매칭은 외부 소스의 복사/포팅이 아닌 독립 결합 구현이며 [논문 대조 기록](docs/decisions/0016-template-matching-and-pyramid-search.md)에 차이를 명시합니다.
+
+## dotnet-anti-slop (빌드 전용)
+
+0.1.0-preview.1, MIT. 출처: https://github.com/devmobasa/dotnet-anti-slop, revision `6d4188203bbc6dfdee6159204b8b73b76e5ee4ff`. 저작권 및 전문은 [.dotnet-anti-slop/LICENSE](.dotnet-anti-slop/LICENSE)에 보관한다. 분석기는 netstandard2.0이며 Microsoft.CodeAnalysis.CSharp 4.8.0 및 Microsoft.CodeAnalysis.Analyzers 5.6.0을 private 빌드 참조로 사용한다. 앱 런타임/네이티브 배포 의존성은 추가하지 않는다. 선택 실행과 출처 메타데이터 주의사항은 [도입 기록](docs/dotnet-anti-slop-adoption.md)을 따른다.

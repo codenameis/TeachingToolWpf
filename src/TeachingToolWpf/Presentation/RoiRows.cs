@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Immutable;
-using TeachingToolWpf.Core.Editing;
+using VisionCanvas.Core.Editing;
 
 namespace TeachingToolWpf.Presentation;
 

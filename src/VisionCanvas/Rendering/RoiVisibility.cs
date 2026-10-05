@@ -1,7 +1,8 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Render-thread cache. Subpixel clusters are summaries; hit testing keeps exact geometry.</summary>
 internal sealed class RoiVisibility

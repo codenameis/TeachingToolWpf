@@ -2,9 +2,10 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal sealed class GpuLabelCache(ITextRasterizer rasterizer, Dx12Device gpu) : IDisposable
 {

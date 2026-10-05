@@ -2,8 +2,9 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
 using TeachingToolWpf.Benchmarks;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
 
 if (args.Contains("--rotation-commit-profile"))
 {

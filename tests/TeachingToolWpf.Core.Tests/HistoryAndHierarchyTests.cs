@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Interaction;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Interaction;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Core.Tests;
 

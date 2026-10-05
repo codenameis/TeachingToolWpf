@@ -1,9 +1,9 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

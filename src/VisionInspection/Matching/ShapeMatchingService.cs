@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
@@ -14,7 +14,10 @@ public sealed record ShapeSearchPhases(double SourceOpenMilliseconds, double Coa
 public sealed record ShapeSearchOutput(ImmutableArray<ShapeMatch> Matches, int Windows, bool Truncated,
     double ReadMilliseconds, double TotalMilliseconds, ImmutableArray<SearchDiagnostics> Diagnostics, bool MatchLimitExceeded = false)
 {
-    public ShapeSearchPhases? Phases { get; init; }
+    public ShapeSearchPhases? Phases
+    {
+        get; init;
+    }
     public ImagePreprocessingDiagnostics? Preprocessing
     {
         get; init;

@@ -1,23 +1,21 @@
 using System.Reflection;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.Tests;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace VisionInspection.Tests;
 
 public sealed class PortableBoundaryTests
 {
     [Fact]
-    public void InspectionAndImagingHaveNoWindowsOrRenderingAssemblyDependency()
+    public void InspectionAndImagingHaveNoApplicationEditingOrRenderingAssemblyDependency()
     {
         var visited = new HashSet<string>();
         Visit(typeof(ShapeMatchingService).Assembly);
         Visit(typeof(ImageLoader).Assembly);
-        Assert.DoesNotContain(visited, name => name is "TeachingToolWpf" or "VisionCanvas" or
-            "PresentationCore" or "PresentationFramework" or "WindowsBase" || name.StartsWith("Vortice.", StringComparison.Ordinal));
+        Assert.DoesNotContain(visited, IsApplicationOrRendering);
 
         void Visit(Assembly assembly)
         {
@@ -32,6 +30,36 @@ public sealed class PortableBoundaryTests
                     continue;
                 }
                 Visit(Assembly.Load(reference));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(typeof(IImageLoader))]
+    [InlineData(typeof(IShapeMatchingService))]
+    [InlineData(typeof(ITemplateMatchingService))]
+    [InlineData(typeof(IPrimitiveShapeDetectionService))]
+    public void PublicServiceContractsDoNotExposeApplicationEditingOrRenderingTypes(Type contract)
+    {
+        foreach (var method in contract.GetMethods())
+        {
+            AssertIndependent(method.ReturnType);
+            foreach (var parameter in method.GetParameters())
+            {
+                AssertIndependent(parameter.ParameterType);
+            }
+        }
+
+        static void AssertIndependent(Type type)
+        {
+            Assert.False(IsApplicationOrRendering(type.Assembly.GetName().Name!), $"Public API exposes {type}.");
+            if (type.HasElementType)
+            {
+                AssertIndependent(type.GetElementType()!);
+            }
+            foreach (var argument in type.GetGenericArguments())
+            {
+                AssertIndependent(argument);
             }
         }
     }
@@ -70,6 +98,14 @@ public sealed class PortableBoundaryTests
         Assert.Contains("CPU", error.Message);
         Assert.Equal(0, loader.Calls);
     }
+
+    private static bool IsApplicationOrRendering(string name)
+        => name.StartsWith("TeachingToolWpf", StringComparison.Ordinal) ||
+           name.StartsWith("VisionCanvas", StringComparison.Ordinal) ||
+           name.StartsWith("VisionCompute", StringComparison.Ordinal) ||
+           name.StartsWith("Vortice.", StringComparison.Ordinal) ||
+           name.StartsWith("ILGPU", StringComparison.Ordinal) ||
+           name is "PresentationCore" or "PresentationFramework" or "WindowsBase";
 
     private sealed class RejectingLoader : IImageLoader
     {

@@ -2,11 +2,12 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 /// <summary>동일 빌드에서 두 논문 입력의 원본 검사 시간과 독립 위치 정답을 비교한다. 화면 완료 시험은 별도다.</summary>
 internal static class PaperLatencyBenchmark

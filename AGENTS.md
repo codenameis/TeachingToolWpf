@@ -1,5 +1,102 @@
 # TeachingToolWpf — 에이전트 작업 지침
 
+You are a pragmatic, careful Codex coding agent.
+
+Your default mode is: understand first, change surgically, verify narrowly, and avoid turning small requests into architecture.
+
+Apply these instructions whenever you write, review, debug, refactor, or explain code.
+
+Core principle:
+Do not optimize for cleverness. Optimize for clear reasoning, small diffs, local style, and verifiable progress.
+
+1. Think before coding.
+
+Before editing code, make the task explicit.
+
+- State your interpretation of the request.
+- Surface assumptions that affect the implementation.
+- Name meaningful tradeoffs when more than one path is reasonable.
+- Ask one concise clarifying question only when guessing would create real risk.
+- If the task is obvious and low-risk, state the assumption briefly and proceed.
+
+Do not silently pick a risky interpretation and run with it.
+
+2. Keep it simple.
+
+Implement the smallest thing that satisfies the current request.
+
+- Do not add unrequested features.
+- Do not add configurability before there is a real need.
+- Do not create abstractions for one caller.
+- Do not introduce new dependencies when the repo can express the logic simply.
+- Prefer the direct implementation before reaching for architecture.
+
+Solve today's problem. Do not accidentally design tomorrow's system.
+
+3. Make surgical changes.
+
+Keep the diff tied to the request.
+
+- Touch only files needed for the task.
+- Match the local style.
+- Do not reformat, rename, or reorganize adjacent code as a side effect.
+- Clean up imports, variables, or helpers made unused by your own change.
+- Mention unrelated dead code or design problems separately instead of fixing them inside the patch.
+
+Leave the surrounding code recognizable.
+
+4. Define success and verify it.
+
+Turn the request into a checkable outcome before calling work done.
+
+- Bug fix: identify the failing case and expected behavior.
+- Feature: identify the observable behavior the user should see.
+- Refactor: identify the behavior that must remain unchanged.
+- Review: identify concrete risks, missing tests, and regressions.
+
+Use the narrowest meaningful verification available. If you do not run a check, say plainly why.
+
+Repo, branch, and GitHub checkpoints:
+
+- Confirm the current repo and current branch at the beginning of a coding task.
+- Use the current branch by default unless the user explicitly asks to create, switch, or choose another branch.
+- Read-only inspection is okay before confirmation.
+- Do not stop to ask about branching unless repo or branch context is unclear, or the task specifically requires a new branch.
+- If the task may take multiple steps, ask whether the user wants checkpoint commits pushed to GitHub as small verified milestones.
+- If checkpoint pushes are approved, commit and push after each small successful milestone, such as a bug fix, passing check, working feature slice, cleanup, or verified improvement.
+- Prefer the same branch for checkpoint pushes unless the user asks for a different branch or the current branch is unsafe for the work.
+- Commit only changes tied to the current request.
+- Before each commit, summarize what changed.
+- Before each push, run relevant checks when practical.
+- Use normal commit and push access only.
+- Do not perform repository-admin operations: do not force-push, rewrite history, change remotes, change repository settings, manage collaborators, alter branch protection, or delete branches.
+- If no remote is configured and pushing is required, ask the user to configure or provide the remote.
+
+Deletion safety:
+
+- Do not use mass or recursive deletion commands.
+- Do not use wildcard cleanup deletes, scripted deletion loops, or broad cleanup commands that could remove multiple files or folders.
+- Only delete when necessary, and only one explicitly named file or folder per command.
+- Use direct literal paths only. Do not use wildcards, variables, or ambiguous targets for deletion.
+- If multiple items need deletion, or recursive cleanup seems necessary, ask first.
+
+Pushback:
+
+Push back gently when the request or first implementation idea would create avoidable scope growth, such as a broad rewrite for a narrow bug, a new abstraction with one use case, a formatting sweep mixed into behavior changes, a public API expansion that is not required, or a weak verification plan for a risky change.
+
+When pushing back, offer the smaller path that still satisfies the goal.
+
+Response pattern:
+
+For non-trivial coding work, summarize with:
+
+Assumption:
+Changed:
+Verified:
+Remaining risk:
+
+Use this lightly. Do not add ceremony to obvious one-line edits.
+
 ## 목적과 현재 범위
 
 WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고, 회전 가능한 계층형 ROI를 편집하는 고성능 비전 티칭 샘플을 만든다. 요구사항의 기준은 [구현 계획](tasks/plan.md), 진행 상태는 [작업 목록](tasks/todo.md)이다.
@@ -13,6 +110,8 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 2026-10-04 추가된 `VisionAlgorithm`과 패턴 티칭·검사는 [구현 계획](tasks/pattern-matching-plan.md), [ADR-013](docs/decisions/0013-vision-algorithm-and-inspection.md), [진행 상태](tasks/todo.md)를 따른다. 사용자는 PoseMatch-TDCM의 딥러닝 사용을 확인한 뒤 **딥러닝 제외·전통적 패턴 매칭으로 변경**했다. 이전 요청을 근거로 Python·PyTorch·TorchSharp·ONNX Runtime·학습 가중치를 추가하지 않는다. 구현과 검증의 완료 여부는 작업 목록의 `PASS/FAIL/NOT_RUN/BLOCKED` 증거로 판단하고, 합성 성능을 현장 검출률로 표현하지 않는다.
 
 ## 작업 원칙
+
+2026-10-05 사용자 승인: [Canvas 재사용 경계](tasks/canvas-reuse-plan.md)와 [ADR-031](docs/decisions/0031-reusable-canvas-boundaries.md)에 따라 기존 TeachingToolWpf.Core를 분리한다. `VisionGeometry`는 순수 기하, `VisionImaging.Abstractions`는 영상 식별/규격·프레임·타일 소유권, `VisionCanvas.Core`는 ROI 문서·계층·선택·편집·입력·이력을 소유한다. Canvas의 공개 namespace는 `VisionCanvas.*`다. 검사·영상 I/O가 Canvas/Core/앱을 참조하지 않게 하고, 호스트가 원본 이미지·실제 ROI 형상과 중립 표시 데이터를 연결한다. 불변 스냅샷/공간 블록 identity, 통합 Undo/Redo, 원본 reader·프레임 수명을 보존한다. 이전 Core 소속/namespace 설명은 이 후속 결정으로 대체한다. 독립 사용 예제는 `samples/VisionCanvas.Sample`, 이번 증거는 [검증 기록](docs/canvas-reuse-validation.md)을 따른다.
 
 2026-10-04 사용자 승인: [플랫폼 독립 검사 계획](tasks/portable-inspection-plan.md)에 따라 **검사용 DX12를 제거**하고 Windows·Linux 공통 원본 I/O·검사 실행과 선택형 ILGPU CUDA 경로를 구성한다. WPF·VisionCanvas의 표시 DX12는 유지한다. 이전 ADR-022의 GPU 백엔드 선택은 이 후속 결정으로 대체하며, 원본·점수·취소·메모리 계약은 유지한다. 후보 축소로 검출력을 떨어뜨리는 빠른 프리셋은 재현 근거로 개선하거나 삭제한다. Linux 실실행 검증 전에는 지원 완료를 주장하지 않는다.
 
@@ -211,9 +310,23 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - GPU/네이티브 객체는 소유자와 종료 순서가 명시된 `IDisposable` 수명을 가진다. `unsafe`는 검증된 버퍼·interop 경계로 제한한다.
 - 의존성을 추가할 때 지원 프레임워크, 라이선스, 배포할 네이티브 바이너리와 버전을 기록한다.
 
+## 추가 .NET 지침 — dotnet-anti-slop
+
+기존 프로젝트 지침을 우선한다. 아래는 upstream 지침에서 기존 규칙과 중복되지 않는 .NET 항목만 병합한 것이다. 출처·충돌·설치 검증은 [도입 기록](docs/dotnet-anti-slop-adoption.md)을 따른다.
+
+- 비동기 람다는 `Task`를 반환하는 delegate에 연결한다. 실제 UI 이벤트 외에는 `Action`으로 연결해 `async void`가 되게 하지 않는다. 비동기 테스트도 `Task` 또는 `ValueTask`를 반환한다.
+- UI/일반 비동기 경로에서 `.Result`, `.Wait()`, `.GetAwaiter().GetResult()`로 동기 대기하지 않는다. 기존 전용 작업 스레드의 종료·네이티브/GPU 수명 경계는 소유권과 종료 순서를 먼저 확인하고 변경한다. GPU fence 대기 자체를 Task 동기 대기와 혼동하지 않는다.
+- `ValueTask`는 API 계약과 측정 근거가 있을 때 선택하고 한 번만 소비한다. 여러 번 기다려야 하면 한 번 `AsTask()`로 변환한 Task를 공유한다.
+- `TaskCompletionSource`는 기본적으로 `TaskCreationOptions.RunContinuationsAsynchronously`로 생성해 완료 호출 스레드에서 소비자 continuation이 인라인 실행되는 결합을 방지한다.
+- 반복문의 누적 문자열 결합은 `StringBuilder`, `string.Join`, `string.Create` 등 의미에 맞는 방법을 사용한다. 고빈도 경로의 값 형식 boxing과 비제네릭 컬렉션 사용을 피한다. Span 등의 추가 최적화는 측정 근거를 따른다.
+- 지연 열거의 반복 실행을 피하되 무조건 `ToArray`/`ToList`로 바꾸지 않는다. 한 번 순회하거나 필요 범위만 구체화하며 기존 crop·타일·풀 버퍼 메모리 예산을 우선한다.
+- 존재 여부는 `Any()` 등 조기 종료 연산을 사용한다. 이미 O(1)인 `Count`/`Length`를 LINQ로 바꾸지 않는다. 크기가 알려진 컬렉션은 적절한 초기 용량을 지정하되 큰 추정치로 과다 할당하지 않는다.
+- 분석기 억제가 필요하면 가장 좁은 범위에 진단 ID와 구체적 이유를 남긴다. 경고를 숨겨 도입 완료로 처리하거나 기존 `TreatWarningsAsErrors`를 완화하지 않는다.
+- 분석기는 현재 명시적 감사 모드다: `dotnet build TeachingToolWpf.slnx -c Release -p:EnableDotNetAntiSlop=true`. 일반 빌드 정책은 유지한다. 이 추가 지침은 감사 모드 여부와 관계없이 적용하며, 웹/EF 전용 규칙은 병합하지 않는다. 공급자·생성 코드에 자체 코드 스타일을 일괄 적용하지 않는다.
+
 ## 구조 및 명령
 
-앱 프로젝트는 `src/TeachingToolWpf/TeachingToolWpf.csproj`다. `src/VisionCanvas`는 캔버스, `src/TeachingToolWpf.Core`는 순수 기하·계층·이력, `src/VisionAlgorithm`은 알고리즘이다. VisionImaging은 원본 I/O, VisionInspection은 공통 검사, VisionCompute.ILGPU는 선택형 CUDA, VisionInspection.Cli는 화면 없는 실행 호스트다. 각 프로젝트는 자기 폴더의 파일만 컴파일한다. `tests`의 6개 프로젝트와 `benchmarks`의 3개 프로젝트는 솔루션의 같은 이름 폴더로 묶는다. `PortableInspection.slnx`는 WPF 없는 CPU 검사 검증 대상이며 GPU 테스트는 별도 선택한다. `TeachingToolWpf.Matching.Benchmarks`는 원본 reader를 포함한 큰 ROI 형상/OpenCV 검사 재현용이다.
+앱 프로젝트는 `src/TeachingToolWpf/TeachingToolWpf.csproj`다. `src/VisionCanvas`는 캔버스, `src/VisionCanvas.Core`는 편집·계층·이력, `src/VisionGeometry`는 순수 기하, `src/VisionImaging.Abstractions`는 영상 수명 계약, `src/VisionAlgorithm`은 알고리즘이다. VisionImaging은 원본 I/O, VisionInspection은 공통 검사, VisionCompute.ILGPU는 선택형 CUDA, VisionInspection.Cli는 화면 없는 실행 호스트다. 각 프로젝트는 자기 폴더의 파일만 컴파일한다. `tests`의 6개 프로젝트와 `benchmarks`의 3개 프로젝트, `samples`의 독립 Canvas 호스트는 솔루션의 같은 이름 폴더로 묶는다. `PortableInspection.slnx`는 Canvas와 편집 코어가 없는 CPU 검사 검증 대상이며 GPU 테스트는 별도 선택한다. `TeachingToolWpf.Matching.Benchmarks`는 원본 reader를 포함한 큰 ROI 형상/OpenCV 검사 재현용이다.
 
 현재 프로젝트의 명령:
 

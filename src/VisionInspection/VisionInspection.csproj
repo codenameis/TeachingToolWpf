@@ -5,7 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TeachingToolWpf.Core\TeachingToolWpf.Core.csproj" />
+    <ProjectReference Include="../VisionGeometry/VisionGeometry.csproj" />
+    <ProjectReference Include="../VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
     <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
     <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />

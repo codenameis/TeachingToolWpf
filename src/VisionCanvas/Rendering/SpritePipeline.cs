@@ -1,11 +1,11 @@
 using System.IO;
 using System.Runtime.InteropServices;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 using Vortice.Direct3D;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind kind, int width, int height, Action<int> releaseSlot) : IDisposable
 {

@@ -1,6 +1,6 @@
-using TeachingToolWpf.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Imaging.Filters;
+namespace VisionCanvas.Imaging.Filters;
 
 internal static class RoiFilterMask
 {

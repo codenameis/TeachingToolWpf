@@ -3,8 +3,9 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

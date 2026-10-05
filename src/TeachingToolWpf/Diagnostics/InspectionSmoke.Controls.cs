@@ -7,6 +7,7 @@ using TeachingToolWpf.Presentation;
 using TeachingToolWpf.Views;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionCanvas.Controls;
 
 namespace TeachingToolWpf.Diagnostics;
 

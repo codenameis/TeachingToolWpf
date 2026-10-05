@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
-using TeachingToolWpf.Core.Editing;
+using VisionCanvas.Core.Editing;
 
 namespace TeachingToolWpf.Core.Tests;
 

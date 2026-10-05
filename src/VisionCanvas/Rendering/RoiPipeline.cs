@@ -1,12 +1,13 @@
 using System.IO;
 using System.Runtime.CompilerServices;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
 using Vortice.Direct3D;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>형상 버퍼를 유지하며 역할 구간만 별도로 갱신한다. 색·두께·화면 이동은 draw 상수로 전달한다.</summary>
 internal sealed class RoiPipeline : IDisposable

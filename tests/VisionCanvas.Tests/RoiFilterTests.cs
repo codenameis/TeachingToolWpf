@@ -1,7 +1,7 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Imaging;
-using TeachingToolWpf.Imaging.Filters;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Imaging.Filters;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

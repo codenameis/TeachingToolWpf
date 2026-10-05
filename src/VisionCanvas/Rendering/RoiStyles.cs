@@ -1,7 +1,7 @@
 using System.Numerics;
-using TeachingToolWpf.Core.Editing;
+using VisionCanvas.Core.Editing;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 public enum RoiRole
 {

@@ -1,5 +1,5 @@
 using System.Numerics;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

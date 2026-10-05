@@ -1,7 +1,8 @@
 using System.Runtime.InteropServices;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Presentation;
+using VisionCanvas.Controls;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

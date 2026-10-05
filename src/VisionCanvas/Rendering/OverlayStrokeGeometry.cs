@@ -1,6 +1,6 @@
-using TeachingToolWpf.Core.Geometry;
+using VisionGeometry;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal readonly record struct OverlayStrokeSegment(PointD Start, PointD End);
 

@@ -3,7 +3,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Vortice.Direct3D12;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>Explicit diagnostics only. Normal presentation never reads pixels back to the CPU.</summary>
 internal sealed class FrameReadback : IDisposable

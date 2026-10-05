@@ -2,9 +2,9 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 
@@ -15,8 +15,14 @@ public sealed record InspectionRunLog(Guid RunId, DateTimeOffset StartedAt, long
     ImmutableArray<int> FeaturesPerLevel, int TemplateCount)
 {
     public string Event => "paper_inspection";
-    public RotationAcceptance? RotationAcceptance { get; init; }
-    public int? RotationFailureCount { get; init; }
+    public RotationAcceptance? RotationAcceptance
+    {
+        get; init;
+    }
+    public int? RotationFailureCount
+    {
+        get; init;
+    }
     public string EntryPoint => "wpf_inspection_command";
     public string Outcome { get; init; } = "running";
     public string Stage { get; init; } = "command";

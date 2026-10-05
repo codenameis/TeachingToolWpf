@@ -1,7 +1,6 @@
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 /// <summary>Image identity/bounds for a live source. Black tiles are a waiting surface before the first frame.</summary>
 public sealed class LiveImageSource : ITileSource

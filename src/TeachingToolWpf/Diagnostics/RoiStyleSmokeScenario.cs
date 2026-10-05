@@ -10,11 +10,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Presentation;
-using TeachingToolWpf.Rendering;
 using TeachingToolWpf.Views;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 

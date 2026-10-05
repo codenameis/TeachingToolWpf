@@ -1,0 +1,5 @@
+<Project>
+  <!-- dotnet-anti-slop:begin -->
+    <Import Project="$(MSBuildThisFileDirectory).dotnet-anti-slop/DotNetAntiSlop.targets" Condition="'$(EnableDotNetAntiSlop)' == 'true' and Exists('$(MSBuildThisFileDirectory).dotnet-anti-slop/DotNetAntiSlop.targets')" />
+  <!-- dotnet-anti-slop:end -->
+</Project>

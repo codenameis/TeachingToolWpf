@@ -1,6 +1,6 @@
-using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Presentation;
 
@@ -25,7 +25,10 @@ internal sealed record ShapeTrainingSettings
     public float MinimumGradient { get; init; } = 8;
     public double MinimumFeatureContrastRatio { get; init; } = .2;
     public int MaximumTemplates { get; init; } = 2048;
-    public bool InspectRotation { get; init; }
+    public bool InspectRotation
+    {
+        get; init;
+    }
 
     public TrainingOptions ToOptions(bool buildGeometricModel) => new()
     {

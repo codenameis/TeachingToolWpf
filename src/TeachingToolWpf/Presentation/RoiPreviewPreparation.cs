@@ -1,6 +1,6 @@
 using System.Runtime.ExceptionServices;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Presentation;
 

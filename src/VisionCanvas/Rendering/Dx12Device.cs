@@ -5,7 +5,7 @@ using Vortice.DXGI;
 using static Vortice.Direct3D12.D3D12;
 using static Vortice.DXGI.DXGI;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 internal sealed class Dx12Device : IDisposable
 {

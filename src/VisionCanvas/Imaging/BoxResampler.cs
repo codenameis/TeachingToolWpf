@@ -1,9 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionCanvas.Imaging;
 
 /// <summary>Integer area averaging. AVX2 and scalar paths have the same pixel contract.</summary>
 internal static class BoxResampler

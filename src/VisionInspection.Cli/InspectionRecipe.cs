@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using TeachingToolWpf.Core.Geometry;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionGeometry;
 
 namespace VisionInspection.Cli;
 

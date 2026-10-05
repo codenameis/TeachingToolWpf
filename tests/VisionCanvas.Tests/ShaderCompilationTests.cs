@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text;
 using SharpGen.Runtime;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

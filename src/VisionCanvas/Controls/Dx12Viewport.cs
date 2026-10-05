@@ -3,14 +3,16 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Core.Interaction;
-using TeachingToolWpf.Imaging;
-using TeachingToolWpf.Presentation;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Core.Interaction;
+using VisionCanvas.Diagnostics;
+using VisionCanvas.Imaging;
+using VisionCanvas.Presentation;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Controls;
+namespace VisionCanvas.Controls;
 
 public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 {

@@ -1,11 +1,12 @@
 using System.IO;
 using System.Windows.Input;
 using Microsoft.Win32;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Core.Interaction;
-using TeachingToolWpf.Imaging;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Interaction;
+using VisionCanvas.Presentation;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Presentation;
 
@@ -401,20 +402,20 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         set => Set(ref _performance, value);
     }
 
-    public EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
+    public EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, VisionCanvas.Imaging.Filters.IRoiFilterPreview filterPreview,
         Imaging.Matching.IShapeMatchingService? shapeMatching = null, Imaging.Matching.ITemplateMatchingService? templateMatching = null,
         Imaging.Matching.IPrimitiveShapeDetectionService? primitiveShapes = null)
         : this(viewport, loader, live, filterPreview, null, shapeMatching, templateMatching, primitiveShapes)
     {
     }
 
-    internal EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
+    internal EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, VisionCanvas.Imaging.Filters.IRoiFilterPreview filterPreview,
         Action<DocumentState, CancellationToken>? preparePreview)
         : this(viewport, loader, live, filterPreview, preparePreview, null, null, null)
     {
     }
 
-    private EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, Imaging.Filters.IRoiFilterPreview filterPreview,
+    private EditorViewModel(IViewportSurface viewport, IImageLoader loader, LivePreview live, VisionCanvas.Imaging.Filters.IRoiFilterPreview filterPreview,
         Action<DocumentState, CancellationToken>? preparePreview, Imaging.Matching.IShapeMatchingService? shapeMatching, Imaging.Matching.ITemplateMatchingService? templateMatching,
         Imaging.Matching.IPrimitiveShapeDetectionService? primitiveShapes)
     {

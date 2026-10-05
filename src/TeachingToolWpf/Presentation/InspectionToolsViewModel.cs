@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
 
 namespace TeachingToolWpf.Presentation;
 

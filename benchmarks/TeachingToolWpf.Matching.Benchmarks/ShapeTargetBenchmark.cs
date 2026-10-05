@@ -2,11 +2,12 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionCanvas.Core.Editing;
+using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 /// <summary>사용자 8K PCB 샘플의 전체 검출·사선 점수·500 ms 조건을 같은 실행에서 검사한다.</summary>
 internal static class ShapeTargetBenchmark

@@ -1,8 +1,8 @@
-using TeachingToolWpf.Core.Geometry;
-using TeachingToolWpf.Core.Imaging;
-using TeachingToolWpf.Rendering;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionCanvas.Imaging;
 
 /// <summary>Preserves the full source lease; derives only the visible display pixels for PCIe upload.</summary>
 public sealed class VisibleFramePreparer : IFramePreparer

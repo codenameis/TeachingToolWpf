@@ -2,7 +2,7 @@ using System.IO;
 using SharpGen.Runtime;
 using Vortice.D3DCompiler;
 
-namespace TeachingToolWpf.Rendering;
+namespace VisionCanvas.Rendering;
 
 /// <summary>셰이더 파일 읽기와 네이티브 컴파일러 호출을 연결하는 경계.</summary>
 internal static class ShaderCompiler

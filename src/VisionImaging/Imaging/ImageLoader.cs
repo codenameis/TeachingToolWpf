@@ -1,8 +1,7 @@
 using System.IO;
-using TeachingToolWpf.Core.Editing;
-using TeachingToolWpf.Core.Imaging;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Imaging;
+namespace VisionImaging;
 
 public interface IImageLoader
 {

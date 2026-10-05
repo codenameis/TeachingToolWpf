@@ -5,7 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TeachingToolWpf.Core\TeachingToolWpf.Core.csproj" />
+    <ProjectReference Include="../VisionGeometry/VisionGeometry.csproj" />
+    <ProjectReference Include="../VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <PackageReference Include="NetVips" Version="3.2.0" />
     <InternalsVisibleTo Include="TeachingToolWpf" />
     <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />
