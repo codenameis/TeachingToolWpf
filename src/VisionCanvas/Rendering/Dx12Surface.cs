@@ -129,13 +129,14 @@ i++)
         _resourcesAwaitingGpu[frameIndex].Clear();
     }
 
-    public void Present()
+    public ulong Present()
     {
         Commands.ResourceBarrierTransition(CurrentBuffer, ResourceStates.RenderTarget, ResourceStates.Present);
         Commands.Close();
         _gpu.Queue.ExecuteCommandList(Commands);
         _swapChain.Present(1, PresentFlags.None).CheckError();
         _frameCompletionFences[FrameIndex] = _gpu.Signal();
+        return _frameCompletionFences[FrameIndex];
     }
 
     public void Dispose()

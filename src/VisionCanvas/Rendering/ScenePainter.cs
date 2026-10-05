@@ -18,7 +18,8 @@ internal sealed class ScenePainter
     }
 
     public SpriteMesh Build(RenderScene scene, GpuTexture white, IReadOnlyDictionary<TileKey, GpuTexture> tiles, Func<string, GpuTexture> label,
-        Func<string, GpuTexture?> deferredLabel, GpuTexture? live, BoundsD liveBounds, GpuFilterPreview filters, GpuTexture? liveOverview)
+        Func<string, GpuTexture?> deferredLabel, GpuTexture? live, BoundsD liveBounds, GpuFilterPreview filters, GpuTexture? liveOverview,
+        Func<string, GpuTextRegion?>? batchLabel = null)
     {
         _mesh.Begin(scene.Width, scene.Height);
         var view = scene.Document.Viewport;
@@ -124,7 +125,7 @@ i++)
             _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), new(.13f, .16f, .22f, .94f));
             _mesh.Rectangle(text, new(14, 12, 14 + (text.Width / scene.Dpi), 12 + (text.Height / scene.Dpi)), Vector4.One);
         }
-        ResultOverlayPainter.Draw(_mesh, scene, white, label, deferredLabel);
+        ResultOverlayPainter.Draw(_mesh, scene, white, label, deferredLabel, batchLabel);
         var minimapImage = scene.IsLive ? liveOverview : scene.Image is { } source ? tiles.GetValueOrDefault(new(source.Levels - 1, 0, 0)) : null;
         MinimapPainter.Draw(_mesh, scene, white, minimapImage, label);
         return _mesh;

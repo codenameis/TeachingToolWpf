@@ -97,6 +97,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 
     public event Action<string>? RendererStatusChanged;
     public event Action<Diagnostics.RenderMetrics>? MetricsChanged;
+    public event Action<OverlayPresentation>? OverlayPresented;
 
     protected override HandleRef BuildWindowCore(HandleRef hwndParent)
     {
@@ -111,6 +112,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         _renderer = new RenderWorker(handle, Tiles, new WpfTextRasterizer(), _frames, new VisibleFramePreparer());
         _renderer.StatusChanged += status => Dispatcher.BeginInvoke(() => RendererStatusChanged?.Invoke(status));
         _renderer.MetricsChanged += value => Dispatcher.BeginInvoke(() => MetricsChanged?.Invoke(value));
+        _renderer.OverlayPresented += value => Dispatcher.BeginInvoke(() => OverlayPresented?.Invoke(value));
         _renderer.Start();
         if (_scene is not null)
         {

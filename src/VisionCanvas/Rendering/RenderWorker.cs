@@ -27,6 +27,7 @@ public sealed class RenderWorker : IDisposable
     private int _height = 1;
     public event Action<string>? StatusChanged;
     public event Action<RenderMetrics>? MetricsChanged;
+    public event Action<OverlayPresentation>? OverlayPresented;
 
     public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames, IFramePreparer framePreparer)
     {
@@ -94,12 +95,14 @@ public sealed class RenderWorker : IDisposable
             using var profile = new RenderProfile();
             var painter = new ScenePainter();
             using var labels = new GpuLabelCache(_textRasterizer, gpu);
+            using var resultLabels = new GpuResultLabels(_textRasterizer);
             using var images = new GpuImageResources(gpu, pipeline, _tiles, _framePreparer);
             using var filters = new GpuFilterPreview();
             GpuTexture? white = null;
             VideoFrame? retainedFrame = null;
             long frame = 0;
             RenderScene? presentedScene = null;
+            var presentedOverlay = Guid.Empty;
             StatusChanged?.Invoke($"DX12 · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
             try
             {
@@ -168,9 +171,11 @@ public sealed class RenderWorker : IDisposable
 
                         filters.Update(current.FilterPreview, pipeline, surface);
                         labels.Begin();
+                        resultLabels.Update(current, pipeline, surface);
                         var paintStart = Stopwatch.GetTimestamp();
                         var mesh = painter.Build(current, white, images.Tiles, text => labels.Get(text, current.Dpi, pipeline, surface),
-                            text => labels.TryGet(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview);
+                            text => labels.TryGet(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview,
+                            resultLabels.Get);
                         var submitStart = Stopwatch.GetTimestamp();
                         pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () => roiPipeline.Draw(current, surface));
                         profile.Record(current, cpuStart, paintStart, submitStart, Stopwatch.GetTimestamp(), allocationStart, mesh, roiPipeline, labels);
@@ -185,8 +190,16 @@ public sealed class RenderWorker : IDisposable
                     gpuTimer.End(surface);
                     var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
                     var presentStart = Stopwatch.GetTimestamp();
-                    surface.Present();
+                    var completionFence = surface.Present();
                     presentedScene = current;
+                    if (current?.Inspection is { BatchLabels: true } overlay &&
+                        overlay.PresentationId != presentedOverlay && !labels.HasPending)
+                    {
+                        // 렌더 소유 스레드에서 이번 결과의 fence를 관찰한다. 다음 프레임이나 UI의 동기 대기에 의존하지 않는다.
+                        gpu.Wait(completionFence);
+                        presentedOverlay = overlay.PresentationId;
+                        OverlayPresented?.Invoke(new(overlay.PresentationId, Stopwatch.GetTimestamp()));
+                    }
                     var measurement = metrics.Record(cpuElapsed, gpuElapsed, Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds, videoFrame?.Timestamp,
                         _frames.Dropped, images.Bytes, videoFrame?.Sequence);
                     if (frame % MetricsNotificationFrameInterval == 0)

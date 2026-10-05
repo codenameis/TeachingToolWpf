@@ -6,7 +6,7 @@ namespace TeachingToolWpf.Rendering;
 internal static class ResultOverlayPainter
 {
     public static void Draw(SpriteMesh mesh, RenderScene scene, GpuTexture white, Func<string, GpuTexture> label,
-        Func<string, GpuTexture?> deferredLabel)
+        Func<string, GpuTexture?> deferredLabel, Func<string, GpuTextRegion?>? batchLabel = null)
     {
         if (scene.Inspection is not { } result)
         {
@@ -18,10 +18,17 @@ internal static class ResultOverlayPainter
         foreach (var match in result.Matches)
         {
             var center = view.ImageToScreen(match.ReferencePoint);
-            if (center.X >= 0 && center.X <= scene.Width && center.Y >= 0 && center.Y <= scene.Height &&
-                deferredLabel(match.Label) is { } text)
+            if (center.X >= 0 && center.X <= scene.Width && center.Y >= 0 && center.Y <= scene.Height)
             {
-                DrawLabel(mesh, scene, white, text, LabelOrigin(scene, match, text), match.Color);
+                var text = result.BatchLabels ? batchLabel?.Invoke(match.Label) : null;
+                if (text is null && deferredLabel(match.Label) is { } texture)
+                {
+                    text = Whole(texture);
+                }
+                if (text is not null)
+                {
+                    DrawLabel(mesh, scene, white, text, LabelOrigin(scene, match, text), match.Color);
+                }
             }
         }
         if (!result.SearchBoundary.IsDefaultOrEmpty)
@@ -54,7 +61,7 @@ internal static class ResultOverlayPainter
             mesh.Line(white, end, end - (direction * 6) - (normal * 4), 2, match.Color);
         }
         // 미검출·취소 또는 화면 밖 결과도 현재 판정을 확인할 수 있다.
-        DrawLabel(mesh, scene, white, label(result.Summary), new(14, 12), result.Color);
+        DrawLabel(mesh, scene, white, Whole(label(result.Summary)), new(14, 12), result.Color);
     }
 
     private static void DrawStroke(SpriteMesh mesh, GpuTexture white, IEnumerable<OverlayStrokeSegment> segments, double thickness, Vector4 color)
@@ -70,7 +77,9 @@ internal static class ResultOverlayPainter
         }
     }
 
-    private static PointD LabelOrigin(RenderScene scene, MatchMarker match, GpuTexture text)
+    private static GpuTextRegion Whole(GpuTexture texture) => new(texture, new(0, 0, texture.Width, texture.Height));
+
+    private static PointD LabelOrigin(RenderScene scene, MatchMarker match, GpuTextRegion text)
     {
         var view = scene.Document.Viewport;
         var bounds = match.Bounds.IsDefaultOrEmpty
@@ -88,12 +97,13 @@ internal static class ResultOverlayPainter
         return new(x, y);
     }
 
-    private static void DrawLabel(SpriteMesh mesh, RenderScene scene, GpuTexture white, GpuTexture text, PointD origin, Vector4 color)
+    private static void DrawLabel(SpriteMesh mesh, RenderScene scene, GpuTexture white, GpuTextRegion text, PointD origin, Vector4 color)
     {
         var width = text.Width / scene.Dpi;
         var height = text.Height / scene.Dpi;
         mesh.Rectangle(white, new(origin.X - 6, origin.Y - 4, origin.X + width + 6, origin.Y + height + 4), new(.05f, .07f, .09f, .96f));
         mesh.Rectangle(white, new(origin.X - 6, origin.Y - 4, origin.X - 3, origin.Y + height + 4), color);
-        mesh.Rectangle(text, new(origin.X, origin.Y, origin.X + width, origin.Y + height), color);
+        mesh.Quad(text.Texture, origin, new(origin.X + width, origin.Y),
+            new(origin.X + width, origin.Y + height), new(origin.X, origin.Y + height), color, uv: text.Uv);
     }
 }

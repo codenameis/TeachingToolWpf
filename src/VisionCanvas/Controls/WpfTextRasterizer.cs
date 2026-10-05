@@ -8,17 +8,13 @@ using TeachingToolWpf.Rendering;
 namespace TeachingToolWpf.Controls;
 
 /// <summary>Creates isolated text drawings on the calling STA. No visual from the UI is shared.</summary>
-public sealed class WpfTextRasterizer : ITextRasterizer
+public sealed partial class WpfTextRasterizer : ITextBatchRasterizer
 {
     public PixelBuffer Rasterize(string text, double dpi)
+        => RasterizeFormatted(Format(text, dpi), dpi);
+
+    private static PixelBuffer RasterizeFormatted(FormattedText formatted, double dpi)
     {
-        var formatted = new FormattedText(text, CultureInfo.GetCultureInfo("ko-KR"), FlowDirection.LeftToRight,
-            new Typeface("Segoe UI, Malgun Gothic"), 12, Brushes.White, dpi)
-        {
-            MaxTextWidth = 420,
-            MaxLineCount = 1,
-            Trimming = TextTrimming.CharacterEllipsis
-        };
         var width = Math.Max(1, (int)Math.Ceiling((formatted.WidthIncludingTrailingWhitespace + 2) * dpi));
         var height = Math.Max(1, (int)Math.Ceiling((formatted.Height + 2) * dpi));
         var drawing = new DrawingVisual();
@@ -26,7 +22,20 @@ public sealed class WpfTextRasterizer : ITextRasterizer
         {
             context.DrawText(formatted, new Point(1, 1));
         }
+        return Render(drawing, width, height, dpi);
+    }
 
+    private static FormattedText Format(string text, double dpi)
+        => new(text, CultureInfo.GetCultureInfo("ko-KR"), FlowDirection.LeftToRight,
+            new Typeface("Segoe UI, Malgun Gothic"), 12, Brushes.White, dpi)
+        {
+            MaxTextWidth = 420,
+            MaxLineCount = 1,
+            Trimming = TextTrimming.CharacterEllipsis
+        };
+
+    private static PixelBuffer Render(DrawingVisual drawing, int width, int height, double dpi)
+    {
         var bitmap = new RenderTargetBitmap(width, height, dpi * 96, dpi * 96, PixelFormats.Pbgra32);
         bitmap.Render(drawing);
         var result = new PixelBuffer(width, height, PixelKind.Bgra32);
