@@ -29,11 +29,12 @@ internal sealed class FrameMetrics : IDisposable
         var path = Path.GetFullPath(args[index + 1]);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         _writer = new StreamWriter(path);
-        _writer.WriteLine("seconds,frame,cpu_ms,gpu_ms,present_ms,interval_ms,source_to_submit_ms,dropped,private_bytes,texture_bytes,source_sequence");
+        _writer.WriteLine("seconds,frame,cpu_ms,gpu_ms,present_ms,interval_ms,source_to_submit_ms,dropped,private_bytes,texture_bytes,source_sequence,stopwatch_record_ticks,stopwatch_frequency");
     }
 
     public RenderMetrics Record(double cpu, double? gpu, double present, long? sourceTimestamp, long dropped, long textureBytes, long? sourceSequence)
     {
+        var recordTicks = Stopwatch.GetTimestamp();
         var now = _clock.Elapsed.TotalMilliseconds;
         var interval = _previous == 0 ? 0 : now - _previous;
         _previous = now;
@@ -47,7 +48,7 @@ internal sealed class FrameMetrics : IDisposable
         var result = new RenderMetrics(cpu, gpu, present, interval, latency, dropped, ++_count, _privateBytes, textureBytes);
         if (_writer is not null)
         {
-            _writer.WriteLine(string.Join(',', new object?[] { now / 1000, _count, cpu, gpu, present, interval, latency, dropped, result.PrivateBytes, textureBytes, sourceSequence }.Select(v => v is IFormattable f ? f.ToString(null, CultureInfo.InvariantCulture) : v?.ToString() ?? "")));
+            _writer.WriteLine(string.Join(',', new object?[] { now / 1000, _count, cpu, gpu, present, interval, latency, dropped, result.PrivateBytes, textureBytes, sourceSequence, recordTicks, Stopwatch.Frequency }.Select(v => v is IFormattable f ? f.ToString(null, CultureInfo.InvariantCulture) : v?.ToString() ?? "")));
             if (_count % 120 == 0)
             {
                 _writer.Flush();

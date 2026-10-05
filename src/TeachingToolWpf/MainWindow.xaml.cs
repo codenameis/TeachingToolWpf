@@ -71,6 +71,10 @@ public partial class MainWindow : Window
         {
             Diagnostics.RoiRotationRun.Attach(this, Viewport, _model);
         }
+        else if (Environment.GetCommandLineArgs().Contains("--frame-cadence-check"))
+        {
+            Diagnostics.FrameCadenceRun.Attach(this, Viewport, _model);
+        }
         else if (Environment.GetCommandLineArgs().Contains("--responsive-editing"))
         {
             Diagnostics.ResponsiveEditingRun.Attach(this, Viewport, _model);

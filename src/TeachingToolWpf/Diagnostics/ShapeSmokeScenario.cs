@@ -111,6 +111,7 @@ internal static class ShapeSmokeScenario
         await Task.Delay(500);
         editor.Select([circle, triangle, polygon]);
         model.Group.Execute(null);
+        await model.EditCompletion;
         Require(editor.State.Rois.Count == 4, "mixed shape grouping");
         await model.Delete.ExecuteAsync();
         Require(editor.State.Rois.Count == 0, "mixed subtree cascade");

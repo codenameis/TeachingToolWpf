@@ -74,6 +74,7 @@ internal static class EditingSmokeScenario
         model.SelectTool.Execute(null);
         await model.SelectAll.ExecuteAsync();
         model.Group.Execute(null);
+        await model.EditCompletion;
         var parent = editor.State.Selection.Single();
         Require(editor.State.Rois.Count == 3 && editor.State.Rois.Values.Count(r => r.ParentId == parent) == 2, "group creates enclosing parent");
         model.Properties.Angle = "37";
@@ -96,6 +97,7 @@ internal static class EditingSmokeScenario
         await model.Undo.ExecuteAsync();
         Require(editor.State.Rois.Count == 3 && editor.State.Selection.Contains(parent), "cascade restore and selection");
         model.Ungroup.Execute(null);
+        await model.EditCompletion;
         Require(editor.State.Rois.Count == 2, "ungroup keeps children");
         await model.Undo.ExecuteAsync();
         Require(editor.State.Rois.Count == 3, "ungroup undo");
