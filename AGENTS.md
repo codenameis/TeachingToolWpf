@@ -111,6 +111,10 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 작업 원칙
 
+2026-10-05 사용자 우선순위 확정: 이 채팅의 최적화 목표는 **2D 표시와 입력 반응의 60FPS 유지(프레임 예산 약16.67ms)**다. 수만 ROI 복사·붙여넣기, 선택·이동·회전, Undo/Redo 준비·게시 중에도 탐색이 끊기지 않는지를 먼저 검증한다. CPU125ms/CUDA80ms는 형상검사의 별도 실행 시간 목표이며 이 작업의 프레임 예산이 아니다. 작업 전체 완료 시간 단축만으로 성공을 선언하지 않고, 연속 입력 구간의 프레임 간격·긴 멈춤·입력 대기·GC를 측정한다. 정적 화면의 렌더 생략과 실제 작업 중 프레임 누락을 구별하며 정확성·계층·Undo/Redo와 설계 원칙을 유지한다. 기존 B1의58FPS 허용이나 B4의 스트레스 FPS 유예는 이 후속 목표의 수용 기준으로 사용하지 않는다. GPU/WARP·하드웨어·부하별 실측과 미달을 구별한다.
+
+2026-10-05 GPU 없는 Windows PC 지원 승인: [ADR-033](docs/decisions/0033-automatic-software-rendering.md)에 따라 VisionCanvas는 DX12 하드웨어 장치를 우선 사용하고 생성할 수 없으면 Windows WARP로 CPU 표시한다. 기존 회전·타일·ROI·이력·소유권 경로를 유지한다. CPU/GPU 모드와 미측정 GPU 시간을 구별하고, 강제 WARP 시험을 실제 저사양 PC의 성능 보장으로 표현하지 않는다. 검사 CUDA 선택과 표시 장치 선택을 연결하지 않는다. [검증](docs/software-rendering-validation.md)을 따른다.
+
 2026-10-05 NetVips 후속: [ADR-032](docs/decisions/0032-optional-canvas-file-decoder.md)에 따라 NetVips는 `VisionImaging` 파일 로더에 유지하고 Canvas의 필수 의존성에서 제거한다. `IImageLoader`는 `VisionImaging.Abstractions`, `LatestFrameMailbox`/가시 `TilePlanner`는 `VisionCanvas.Imaging`, 피라미드 단계 계산은 `ImageInfo.CalculateLevelCount`가 소유한다. Canvas는 Canvas.Core와 영상 계약을 참조하고 파일 호스트만 VisionImaging/native 패키지를 명시적으로 연결한다. 버퍼·ROI 복사나 새 중계 계층을 추가하지 않는다. ADR-031의 Canvas→VisionImaging 및 mailbox/타일 계획 소속은 이 후속 결정으로 대체한다.
 
 2026-10-05 사용자 승인: [Canvas 재사용 경계](tasks/canvas-reuse-plan.md)와 [ADR-031](docs/decisions/0031-reusable-canvas-boundaries.md)에 따라 기존 TeachingToolWpf.Core를 분리한다. `VisionGeometry`는 순수 기하, `VisionImaging.Abstractions`는 영상 식별/규격·프레임·타일 소유권, `VisionCanvas.Core`는 ROI 문서·계층·선택·편집·입력·이력을 소유한다. Canvas의 공개 namespace는 `VisionCanvas.*`다. 검사·영상 I/O가 Canvas/Core/앱을 참조하지 않게 하고, 호스트가 원본 이미지·실제 ROI 형상과 중립 표시 데이터를 연결한다. 불변 스냅샷/공간 블록 identity, 통합 Undo/Redo, 원본 reader·프레임 수명을 보존한다. 이전 Core 소속/namespace 설명은 이 후속 결정으로 대체한다. 독립 사용 예제는 `samples/VisionCanvas.Sample`, 이번 증거는 [검증 기록](docs/canvas-reuse-validation.md)을 따른다.
@@ -173,7 +177,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 기술 기준
 
-- C# / .NET 10 / WPF / Windows x64를 유지한다. DX12 하드웨어 지원은 시작 시 검사한다.
+- C# / .NET 10 / WPF / Windows x64를 유지한다. 시작 시 DX12 하드웨어를 우선 선택하고 없으면 CPU(WARP)로 표시한다.
 - 1차 렌더러는 Direct3D 12 + DXGI flip-model swap chain + `HwndHost`가 소유한 전용 자식 HWND다.
 - DX12 바인딩/셰이더 컴파일은 Vortice 3.8.3, 파일 디코드는 NetVips 3.2.0 및 Native.win-x64 8.18.6으로 고정한다. 네이티브 의존성/배포 고지는 `THIRD-PARTY-NOTICES.md`를 따른다.
 - ROI 미리보기와 OpenCV 기본 템플릿 매칭은 OpenCvSharp4 및 Windows slim runtime 4.13.0.20260627을 사용한다. 미리보기의 OpenCV 타입은 `VisionCanvas/Imaging/Filters`, 매칭의 Mat은 `VisionAlgorithm/OpenSrc/PatternMatching/Imaging` 내부에만 둔다. 공개 계약·Core·WPF ViewModel·검사 입력 adapter에 Mat을 노출하지 않는다. 형상 경로는 C# Gray8 계산을 유지한다.

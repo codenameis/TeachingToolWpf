@@ -1,5 +1,11 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-05 271,255 ROI 그룹화·회전 프리징:** [후속 검증](../docs/group-freeze-validation.md). 그룹/해제를 비동기 준비·게시로 연결하고 마우스 회전 확정 중 Esc 복원과 협력 취소를 보강한다. 확대 단계의 원본 비용 공유·상세 형상 재사용과 GPU 페이지 배치로 반복 캐시 퇴출을 줄인다. 실제 프레임/입력·cold/warm·GPU/WARP 결과를 구별하며 전체60FPS 충족 여부는 검증 기록을 따른다.
+
+- **2026-10-05 2D 프레임 예산 후속:** [할당·이력 재사용 검증](../docs/frame-budget-validation.md). 최근 한 편집의 불변 문서 쌍과 렌더 scratch를 재사용하고 복붙의 임시 객체 생성을 줄였다. ROI·선택·뷰·이미지·이력 계약을 유지하며 검사125/80ms와 별도로 측정한다. 60FPS는 여전히 미달이며 최초 준비의 배치 처리/원자적 게시와 실제 표시·입력 검증이 남는다.
+
+- **2026-10-05 GPU 없는 PC 지원:** [ADR-033](../docs/decisions/0033-automatic-software-rendering.md)에 따라 표시 DX12는 하드웨어를 우선 사용하고 장치를 생성할 수 없으면 CPU(WARP)로 자동 전환한다. 기존 회전·ROI·타일 경로를 유지하고 강제 소프트웨어 모드로 기능·성능을 확인한다. [검증 기록](../docs/software-rendering-validation.md)을 따르며 이전 하드웨어 필수 조건을 대체한다.
+
 - **2026-10-05 NetVips 선택형 연결:** [ADR-032](../docs/decisions/0032-optional-canvas-file-decoder.md). Canvas의 VisionImaging 전이 참조를 끊고 파일 호스트에서만 기존 NetVips 로더를 연결한다. 공통 IImageLoader 계약과 표시용 mailbox/타일 계획의 소속을 정리하며 버퍼·ROI 캐시·피라미드는 보존한다. [검증 기록](../docs/canvas-reuse-validation.md)의 후속 결과를 따른다.
 
 - **2026-10-05 Canvas 재사용 경계:** 별도 브랜치에서 [분리 계획](canvas-reuse-plan.md)과 [ADR-031](../docs/decisions/0031-reusable-canvas-boundaries.md)을 적용한다. 순수 기하는 `VisionGeometry`, 영상 수명 계약은 `VisionImaging.Abstractions`, 편집·입력·이력은 `VisionCanvas.Core`가 소유한다. Canvas와 검사는 호스트에서 이미지·ROI·표시 데이터로 연결하며 검사/I/O는 편집 코어를 참조하지 않는다. 기존 동작·원본 reader·통합 이력·렌더 캐시를 보존한다. 아래 과거 Core 소속 설명보다 이 경계가 우선하며 완료 상태는 [이번 검증](../docs/canvas-reuse-validation.md)을 따른다.
@@ -344,7 +350,9 @@ WPF 버튼은 ViewModel의 `ICommand`/`CanExecute`를 통해 응용 명령을 �
 
 2026-10-02 반복 렌더/입력 경로는 [ADR-008](../docs/decisions/0008-retained-roi-rendering.md)대로 GPU instance buffer 재사용, 불변 이동 preview, BVH 클릭 우선순위, 선택 요약 캐시를 적용했다. 이름표는 화면 밀도 후보와 최대 256개 겹침 제거를 사용하고 단일 선택을 제외한 새 텍스처는 프레임당 2개/누적 2ms 예산으로 나누어 준비한다. 확정 명령과 회전/resize의 비용은 별도다. [전후 실측](../docs/retained-roi-performance.md)을 기존 목표의 통과 선언으로 대체하지 않는다.
 
-Ryzen 5 5600H / RAM 32 GB / RTX 3060 Laptop 6 GB를 기준으로 측정할 **협의용 목표**다. 실제 이미지 형식·실시간 FPS와 드라이버·전원·모니터 조건은 아직 미정이다. 하드웨어 사양만으로 통과를 약속하거나 가장 빠른 구현이라고 표현하지 않는다.
+2026-10-05 후속 확정: 이 채팅에서는 **작업 중 2D60FPS와 입력 반응 유지**를 최우선으로 한다. 약16.67ms 프레임 예산에 대해 수만 ROI 복사·붙여넣기, 선택·이동·회전, Undo/Redo의 계산·게시 중 연속 pan/zoom을 측정한다. 완료까지 걸리는 총시간은 보조 지표다. 형상검사의 CPU125ms/CUDA80ms와 별개이며 검사 알고리즘 최적화로 범위를 옮기지 않는다. 아래 초기 B1의58FPS 허용과 B4의 FPS 유예는 후속60FPS 목표를 대신하지 않는다. 정적 화면의 렌더 생략은 유지하고, 갱신할 입력이 있는 구간의 프레임 간격 p50/p95/p99/최대·초과 횟수와 입력 예정→실행 지연·GC 정지를 보고한다. Present 호출/반환과 실제 모니터 표시를 구별하고 평균 FPS만으로 순간 멈춤을 감추지 않는다.
+
+Ryzen 5 5600H / RAM 32 GB / RTX 3060 Laptop 6 GB를 기준으로 측정할 **초기 협의용 목표(아래 표)**다. 실제 이미지 형식·실시간 입력 FPS와 드라이버·전원·모니터 조건은 아직 미정이다. 하드웨어 사양만으로 통과를 약속하거나 가장 빠른 구현이라고 표현하지 않는다.
 
 | 시나리오 | 고정 시험 입력 | 초기 목표 |
 |---|---|---|
