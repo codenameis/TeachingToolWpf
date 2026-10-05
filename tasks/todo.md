@@ -1,5 +1,16 @@
 # 단계별 작업 목록
 
+## 2026-10-05 폴리곤 점 입력과 교차점 자동 완성
+
+기준: [ADR-028](../docs/decisions/0028-polygon-point-drawing-and-crossing.md). 사용자는 교차점에서 자동으로 닫는 동작을 선택했다.
+
+- [x] PASS: 부모·자식 추가 버튼에서 오각형 즉시 생성 대신 빈 점 입력 시작. 사각형·원·삼각형 즉시 추가 유지. 점 취소/취소/완료/Enter/첫 점 클릭과 단일 이력 유지.
+- [x] PASS: 새 선분의 첫 교차점을 새 꼭짓점으로 사용하고 닫힌 영역만 확정. 기존 꼭짓점 접촉·여러 교차·완료 시 마지막 선분·열린 꼬리 제외·24K 좌표/배율·실패 후 초안 보존과 자식/연쇄 삭제/Undo/Redo 회귀.
+- [x] PASS: Core 190 + 앱 217 + Canvas 100 = 507개, 실패/skip 0. Release 전체 빌드 경고/오류 0, `scripts/Format-Code.ps1 -Verify` 통과. `artifacts/polygon-tests/*.trx`.
+- [x] PASS: `artifacts/publish-polygon-drawing/TeachingToolWpf.exe`의 RTX 3060/DX12 debug HWND smoke exit 0. 실제 도형 선택·추가 버튼·교차점 자식 생성·정확한 Undo/Redo·OpenCV 마스크·그룹/삭제·8K 라이브 회귀. 화면 `artifacts/polygon-runtime-final/artifacts/polygon-crossing.png`와 `smoke.log`. [보관 증거](../docs/data/polygon-drawing-20261005.zip).
+- [x] PASS: SOLID 5개/GRASP 9개 검토, 원칙 예외 없음. 기존 검사 성능 변경을 보존했다.
+- [ ] NOT_RUN: 물리 마우스 전체 E2E 및 수만 꼭짓점 입력 지연/장시간 시험. HWND 메시지 smoke나 기존 사각형 성능 수치로 대체하지 않는다.
+
 ## 2026-10-04 형상 검사 속도와 소수점 입력 후속
 
 기준: [ADR-024](../docs/decisions/0024-matching-throughput-and-decimal-input.md), [실측과 검증](../docs/matching-throughput-validation.md).

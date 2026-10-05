@@ -1,5 +1,7 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-05 폴리곤 입력 수정:** 폴리곤의 부모·자식 추가는 빈 점 입력을 시작한다. 새 선분이 기존 선과 교차하면 진행 방향의 첫 교차점을 꼭짓점으로 삼아 닫힌 영역만 한 번 확정한다. 열린 꼬리/교차 이후 구간은 제외하며 기존 단순 폴리곤·명시적 부모·Undo/Redo 계약을 유지한다. [ADR-028](../docs/decisions/0028-polygon-point-drawing-and-crossing.md).
+
 - **2026-10-04 플랫폼 독립 검사 승인:** [공통 검사·ILGPU·후보 예산 계획](portable-inspection-plan.md)에 따라 검사용 DX12를 제거하고 원본 I/O·검사 실행을 `net10.0` 라이브러리로 분리한다. WPF와 표시 DX12는 유지한다. Linux 실실행과 Windows 검증을 구별한다.
 
 - **2026-10-04 검사 확장:** [작업 계획](inspection-controls-plan.md)과 [ADR-022](../docs/decisions/0022-inspection-scoring-execution-and-primitives.md)에 따라 커스텀 추가 윤곽 점수, 속도/시간/CPU·GPU 실행 제어, 학습 없는 기본 도형 검출을 추가한다. 검증 상태는 작업 목록을 따른다.

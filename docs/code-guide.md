@@ -11,6 +11,7 @@
 | 버튼·단축키 연결 | [EditorViewModel](../src/TeachingToolWpf/Presentation/EditorViewModel.cs) | WPF 요청을 같은 편집 명령으로 전달 |
 | ROI 생성·그룹화·삭제·Undo/Redo | [EditorSession](../src/TeachingToolWpf.Core/Editing/EditorSession.cs) | 문서 변경과 한 번의 편집 이력 확정 |
 | 사각형·원·삼각형·폴리곤 | [RoiGeometry](../src/TeachingToolWpf.Core/Geometry/RoiGeometry.cs), [RoiShape](../src/TeachingToolWpf.Core/Geometry/RoiShape.cs) | 공통 프레임과 불변 윤곽 전략. FrameCorners는 실제 도형이 아닌 편집 프레임 |
+| 폴리곤 점 입력·교차점 닫힘 | [RoiCreation](../src/TeachingToolWpf/Presentation/EditorViewModel.RoiCreation.cs), [PolygonClosure](../src/TeachingToolWpf.Core/Geometry/PolygonClosure.cs) | 추가 버튼은 빈 초안 시작. 첫 교차점의 닫힌 경로만 한 번 확정 |
 | 드래그 중 이동·회전·취소 | [InteractionController](../src/TeachingToolWpf.Core/Interaction/InteractionController.cs), [Gestures](../src/TeachingToolWpf.Core/Interaction/Gestures.cs) | 이미지 좌표와 도구 상태 |
 | 큰 선택 집합의 준비·최신 포인터 | [RoiPreviewPreparation](../src/TeachingToolWpf/Presentation/RoiPreviewPreparation.cs) | 작업 하나만 실행, 이전 드래그 결과는 폐기 |
 | 무거운 편집의 준비·확정 | [EditorViewModel.Editing](../src/TeachingToolWpf/Presentation/EditorViewModel.Editing.cs) | 작업 스레드 준비 후 UI에서 유효성 확인·확정 |
