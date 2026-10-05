@@ -1,5 +1,11 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-05 회전 불량 검사:** 논문 모드의 검색 범위와 정상 허용각을 분리했다. 선택형 회전 검사는 전체360° 학습/탐색 후 허용각 밖 검출을NG로 표시한다. 현재 사용자의 긴 핀ROI에서 역방향128개NG를CPU/CUDA로 확인했다. [ADR-030](../docs/decisions/0030-rotation-inspection-acceptance.md), [검증](../docs/rotation-inspection-validation.md). 125/80ms 목표는미달이다.
+
+- **2026-10-05 kensa 18V/로그:** 작은 논문 모델의 원본 미세 획·180° 모호성 검증과 최근20회 검사 시간 로그/JSON 내보내기를 추가했다. 재현 ROI의12개 위치를 확인했으나 후보 예산 경고와 CPU125/CUDA80 목표 미달은 유지한다. [ADR-029](../docs/decisions/0029-small-paper-shapes-and-inspection-logs.md), [검증](../docs/kensa-text-and-logs-validation.md).
+
+- **2026-10-05 논문 매칭 재계획:** [CPU 125 ms / CUDA 80 ms 미만 계획](paper-shape-125ms-plan.md), [ADR-027](../docs/decisions/0027-paper-shape-end-to-end-latency.md). 논문 기반 방식만 대상이며 검사 버튼 입력부터 원본 읽기·전체 탐색·판정·결과 표시 완료까지 측정한다. 8192² 샘플과 사용자 지정 `kensa.png`(1024×1536)를 구별해 검증한다. 기존 500 ms 이력과 다른 방식의 미완료 작업은 보존한다. 일부 입력·후보·표시 개선을 구현했으나 새 수용은 FAIL이며 작업은 미완료다. [실행 실측](../docs/paper-shape-125ms-validation.md)을 따른다.
+
 - **2026-10-05 폴리곤 입력 수정:** 폴리곤의 부모·자식 추가는 빈 점 입력을 시작한다. 새 선분이 기존 선과 교차하면 진행 방향의 첫 교차점을 꼭짓점으로 삼아 닫힌 영역만 한 번 확정한다. 열린 꼬리/교차 이후 구간은 제외하며 기존 단순 폴리곤·명시적 부모·Undo/Redo 계약을 유지한다. [ADR-028](../docs/decisions/0028-polygon-point-drawing-and-crossing.md).
 
 - **2026-10-04 플랫폼 독립 검사 승인:** [공통 검사·ILGPU·후보 예산 계획](portable-inspection-plan.md)에 따라 검사용 DX12를 제거하고 원본 I/O·검사 실행을 `net10.0` 라이브러리로 분리한다. WPF와 표시 DX12는 유지한다. Linux 실실행과 Windows 검증을 구별한다.

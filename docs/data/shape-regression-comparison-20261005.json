@@ -1,0 +1,1427 @@
+{
+  "Results": [
+    {
+      "Name": "gray8-chip1600",
+      "Geometric": false,
+      "CPU": 1,
+      "BeforeFirstMs": 2866.8354,
+      "AfterFirstMs": 2862.2853,
+      "BeforeMedianMs": 2558.0559,
+      "AfterMedianMs": 2500.6425,
+      "ImprovementPercent": 2.2444153781002174,
+      "BeforeMatches": 16,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 643.3937000000001,
+      "AfterReadMedian": 612.7278,
+      "BeforeCandidateMedian": 498.9854,
+      "AfterCandidateMedian": 494.8498000000001,
+      "BeforeRefinementMedian": 20.6657,
+      "AfterRefinementMedian": 23.749399999999998,
+      "AfterValidation": {
+        "AllKnownPositionsMatched": true,
+        "Expected": 16,
+        "Mapped": 16,
+        "Duplicate": 0,
+        "Unassigned": 0,
+        "Inaccurate": 0,
+        "MaximumPositionError": 0,
+        "Missing": []
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-chip1600",
+      "Geometric": false,
+      "CPU": 4,
+      "BeforeFirstMs": 2215.0781,
+      "AfterFirstMs": 2195.2417,
+      "BeforeMedianMs": 2201.3968,
+      "AfterMedianMs": 2174.2169,
+      "ImprovementPercent": 1.2346660992693406,
+      "BeforeMatches": 16,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 621.9596,
+      "AfterReadMedian": 609.1576,
+      "BeforeCandidateMedian": 198.06650000000002,
+      "AfterCandidateMedian": 198.34189999999995,
+      "BeforeRefinementMedian": 18.117,
+      "AfterRefinementMedian": 20.3501,
+      "AfterValidation": {
+        "AllKnownPositionsMatched": true,
+        "Expected": 16,
+        "Mapped": 16,
+        "Duplicate": 0,
+        "Unassigned": 0,
+        "Inaccurate": 0,
+        "MaximumPositionError": 0,
+        "Missing": []
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-chip1600",
+      "Geometric": true,
+      "CPU": 1,
+      "BeforeFirstMs": 2541.5752,
+      "AfterFirstMs": 2475.6612,
+      "BeforeMedianMs": 2535.6642,
+      "AfterMedianMs": 2470.2753,
+      "ImprovementPercent": 2.5787681192170626,
+      "BeforeMatches": 16,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 620.3157000000001,
+      "AfterReadMedian": 613.289,
+      "BeforeCandidateMedian": 491.5121,
+      "AfterCandidateMedian": 491.15520000000004,
+      "BeforeRefinementMedian": 19.573700000000002,
+      "AfterRefinementMedian": 22.0081,
+      "AfterValidation": {
+        "AllKnownPositionsMatched": true,
+        "Expected": 16,
+        "Mapped": 16,
+        "Duplicate": 0,
+        "Unassigned": 0,
+        "Inaccurate": 0,
+        "MaximumPositionError": 0,
+        "Missing": []
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-chip1600",
+      "Geometric": true,
+      "CPU": 4,
+      "BeforeFirstMs": 2248.1402,
+      "AfterFirstMs": 2172.8426,
+      "BeforeMedianMs": 2250.3931,
+      "AfterMedianMs": 2169.2112,
+      "ImprovementPercent": 3.6074541821159865,
+      "BeforeMatches": 16,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 623.7398,
+      "AfterReadMedian": 609.8257,
+      "BeforeCandidateMedian": 197.761,
+      "AfterCandidateMedian": 197.25059999999996,
+      "BeforeRefinementMedian": 19.307399999999998,
+      "AfterRefinementMedian": 22.1263,
+      "AfterValidation": {
+        "AllKnownPositionsMatched": true,
+        "Expected": 16,
+        "Mapped": 16,
+        "Duplicate": 0,
+        "Unassigned": 0,
+        "Inaccurate": 0,
+        "MaximumPositionError": 0,
+        "Missing": []
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-rotation-noise512",
+      "Geometric": false,
+      "CPU": 1,
+      "BeforeFirstMs": 1794.586,
+      "AfterFirstMs": 1807.9703,
+      "BeforeMedianMs": 1789.8959,
+      "AfterMedianMs": 1811.0877,
+      "ImprovementPercent": -1.1839682967037388,
+      "BeforeMatches": 1,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 414.65840000000003,
+      "AfterReadMedian": 413.2535,
+      "BeforeCandidateMedian": 1015.9115,
+      "AfterCandidateMedian": 1015.9795999999999,
+      "BeforeRefinementMedian": 1.4153,
+      "AfterRefinementMedian": 34.1719,
+      "AfterValidation": {
+        "Passed": true,
+        "Positions": {
+          "AllKnownPositionsMatched": true,
+          "Expected": 16,
+          "Mapped": 16,
+          "Duplicate": 0,
+          "Unassigned": 0,
+          "Inaccurate": 0,
+          "MaximumPositionError": 0.05456704080127746,
+          "Missing": []
+        },
+        "AngleInaccurate": 0,
+        "ScaleInaccurate": 0,
+        "MaximumAngleErrorDegrees": 0.006466833582206843,
+        "MaximumScaleError": 6.76182262369096E-05,
+        "Assignments": [
+          {
+            "ExpectedIndex": 0,
+            "Expected": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 2.9703957196850207E-16,
+              "Scale": 1.0000000000000002
+            },
+            "PositionError": 0,
+            "AngleErrorDegrees": 1.7019113822167643E-14,
+            "ScaleError": 2.220446049250313E-16
+          },
+          {
+            "ExpectedIndex": 1,
+            "Expected": {
+              "X": 3072,
+              "Y": 1024,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.0038132671593,
+              "Y": 1024.0011877521124,
+              "Angle": 0.2967817549088876,
+              "Scale": 0.9000450997829859
+            },
+            "PositionError": 0.003993965636925158,
+            "AngleErrorDegrees": 0.0043419927652587065,
+            "ScaleError": 4.5099782985835724E-05
+          },
+          {
+            "ExpectedIndex": 9,
+            "Expected": {
+              "X": 3072,
+              "Y": 5120,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.011740678678,
+              "Y": 5119.99328615908,
+              "Angle": 0.2967062315745959,
+              "Scale": 0.9000156156791097
+            },
+            "PositionError": 0.013524762316783335,
+            "AngleErrorDegrees": 1.4824455590276067E-05,
+            "ScaleError": 1.5615679109681757E-05
+          },
+          {
+            "ExpectedIndex": 5,
+            "Expected": {
+              "X": 3072,
+              "Y": 3072,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.9878035637594,
+              "Y": 3071.9926992916494,
+              "Angle": 0.296780947585456,
+              "Scale": 0.9000608195495812
+            },
+            "PositionError": 0.014214548863485967,
+            "AngleErrorDegrees": 0.004295736539925642,
+            "ScaleError": 6.08195495811481E-05
+          },
+          {
+            "ExpectedIndex": 13,
+            "Expected": {
+              "X": 3072,
+              "Y": 7168,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.995577674986,
+              "Y": 7167.99360074441,
+              "Angle": 0.2967682133338896,
+              "Scale": 0.9000525956476986
+            },
+            "PositionError": 0.007778652237395181,
+            "AngleErrorDegrees": 0.003566117669913461,
+            "ScaleError": 5.2595647698550074E-05
+          },
+          {
+            "ExpectedIndex": 15,
+            "Expected": {
+              "X": 7168,
+              "Y": 7168,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.950220478012,
+              "Y": 7167.977649135756,
+              "Angle": 0.5410800426740394,
+              "Scale": 0.9999323817737631
+            },
+            "PositionError": 0.05456704080127746,
+            "AngleErrorDegrees": 0.00160282398093756,
+            "ScaleError": 6.76182262369096E-05
+          },
+          {
+            "ExpectedIndex": 8,
+            "Expected": {
+              "X": 1024,
+              "Y": 5120,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9797428864272,
+              "Y": 5119.9816374699185,
+              "Angle": 0.00011286753818804879,
+              "Scale": 1.0000374482024768
+            },
+            "PositionError": 0.027341052673524806,
+            "AngleErrorDegrees": 0.006466833582206843,
+            "ScaleError": 3.744820247675307E-05
+          },
+          {
+            "ExpectedIndex": 11,
+            "Expected": {
+              "X": 7168,
+              "Y": 5120,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.955820137802,
+              "Y": 5119.992459970934,
+              "Angle": 0.5410877911240247,
+              "Scale": 0.9999407854816158
+            },
+            "PositionError": 0.04481865975387001,
+            "AngleErrorDegrees": 0.002046777462863506,
+            "ScaleError": 5.9214518384198556E-05
+          },
+          {
+            "ExpectedIndex": 12,
+            "Expected": {
+              "X": 1024,
+              "Y": 7168,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.982987545306,
+              "Y": 7167.991974706243,
+              "Angle": -7.252450016811463E-06,
+              "Scale": 1.0000203057916754
+            },
+            "PositionError": 0.01881034169283886,
+            "AngleErrorDegrees": 0.0004155347770928798,
+            "ScaleError": 2.030579167544566E-05
+          },
+          {
+            "ExpectedIndex": 4,
+            "Expected": {
+              "X": 1024,
+              "Y": 3072,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9690207402482,
+              "Y": 3071.9861476061133,
+              "Angle": -2.9156647001035914E-06,
+              "Scale": 0.9999949158721961
+            },
+            "PositionError": 0.03393528180467863,
+            "AngleErrorDegrees": 0.00016705528179121267,
+            "ScaleError": 5.084127803867133E-06
+          },
+          {
+            "ExpectedIndex": 7,
+            "Expected": {
+              "X": 7168,
+              "Y": 3072,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.96602912162,
+              "Y": 3071.9935229787343,
+              "Angle": 0.5410648744361283,
+              "Scale": 0.9999583880579979
+            },
+            "PositionError": 0.03458283363768082,
+            "AngleErrorDegrees": 0.0007337479659786153,
+            "ScaleError": 4.161194200213991E-05
+          },
+          {
+            "ExpectedIndex": 3,
+            "Expected": {
+              "X": 7168,
+              "Y": 1024,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.969643087011,
+              "Y": 1024.0006143818664,
+              "Angle": 0.5411452478486021,
+              "Scale": 0.9999449298498714
+            },
+            "PositionError": 0.03036312947163194,
+            "AngleErrorDegrees": 0.00533880528579147,
+            "ScaleError": 5.507015012862215E-05
+          },
+          {
+            "ExpectedIndex": 2,
+            "Expected": {
+              "X": 5120,
+              "Y": 1024,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.970431710279,
+              "Y": 1023.9829342550815,
+              "Angle": -0.401379478957914,
+              "Scale": 1.0999817352065935
+            },
+            "PositionError": 0.034139762838418714,
+            "AngleErrorDegrees": 0.0026498725514921932,
+            "ScaleError": 1.826479340660825E-05
+          },
+          {
+            "ExpectedIndex": 14,
+            "Expected": {
+              "X": 5120,
+              "Y": 7168,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.969446808724,
+              "Y": 7167.985786983931,
+              "Angle": -0.40144943174478953,
+              "Scale": 1.0999807601976301
+            },
+            "PositionError": 0.033697289549098224,
+            "AngleErrorDegrees": 0.0013581269016548986,
+            "ScaleError": 1.9239802369952486E-05
+          },
+          {
+            "ExpectedIndex": 6,
+            "Expected": {
+              "X": 5120,
+              "Y": 3072,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.95598049304,
+              "Y": 3071.9994334108756,
+              "Angle": -0.4014161399781449,
+              "Scale": 1.1000077574602551
+            },
+            "PositionError": 0.04402315318327925,
+            "AngleErrorDegrees": 0.0005493508196166683,
+            "ScaleError": 7.757460255053417E-06
+          },
+          {
+            "ExpectedIndex": 10,
+            "Expected": {
+              "X": 5120,
+              "Y": 5120,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.972420620621,
+              "Y": 5119.988183303102,
+              "Angle": -0.4014324374294807,
+              "Scale": 1.0999904686087416
+            },
+            "PositionError": 0.03000427457049584,
+            "AngleErrorDegrees": 0.00038442435874454716,
+            "ScaleError": 9.531391258477129E-06
+          }
+        ]
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-rotation-noise512",
+      "Geometric": false,
+      "CPU": 4,
+      "BeforeFirstMs": 1253.5921,
+      "AfterFirstMs": 1219.5787,
+      "BeforeMedianMs": 1242.6432,
+      "AfterMedianMs": 1228.341,
+      "ImprovementPercent": 1.150949846263198,
+      "BeforeMatches": 1,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 421.8935000000001,
+      "AfterReadMedian": 403.7838,
+      "BeforeCandidateMedian": 599.4585000000001,
+      "AfterCandidateMedian": 590.8054000000004,
+      "BeforeRefinementMedian": 1.4873999999999998,
+      "AfterRefinementMedian": 34.0722,
+      "AfterValidation": {
+        "Passed": true,
+        "Positions": {
+          "AllKnownPositionsMatched": true,
+          "Expected": 16,
+          "Mapped": 16,
+          "Duplicate": 0,
+          "Unassigned": 0,
+          "Inaccurate": 0,
+          "MaximumPositionError": 0.05456704080127746,
+          "Missing": []
+        },
+        "AngleInaccurate": 0,
+        "ScaleInaccurate": 0,
+        "MaximumAngleErrorDegrees": 0.006466833582206843,
+        "MaximumScaleError": 6.76182262369096E-05,
+        "Assignments": [
+          {
+            "ExpectedIndex": 0,
+            "Expected": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 2.9703957196850207E-16,
+              "Scale": 1.0000000000000002
+            },
+            "PositionError": 0,
+            "AngleErrorDegrees": 1.7019113822167643E-14,
+            "ScaleError": 2.220446049250313E-16
+          },
+          {
+            "ExpectedIndex": 1,
+            "Expected": {
+              "X": 3072,
+              "Y": 1024,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.0038132671593,
+              "Y": 1024.0011877521124,
+              "Angle": 0.2967817549088876,
+              "Scale": 0.9000450997829859
+            },
+            "PositionError": 0.003993965636925158,
+            "AngleErrorDegrees": 0.0043419927652587065,
+            "ScaleError": 4.5099782985835724E-05
+          },
+          {
+            "ExpectedIndex": 9,
+            "Expected": {
+              "X": 3072,
+              "Y": 5120,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.011740678678,
+              "Y": 5119.99328615908,
+              "Angle": 0.2967062315745959,
+              "Scale": 0.9000156156791097
+            },
+            "PositionError": 0.013524762316783335,
+            "AngleErrorDegrees": 1.4824455590276067E-05,
+            "ScaleError": 1.5615679109681757E-05
+          },
+          {
+            "ExpectedIndex": 5,
+            "Expected": {
+              "X": 3072,
+              "Y": 3072,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.9878035637594,
+              "Y": 3071.9926992916494,
+              "Angle": 0.296780947585456,
+              "Scale": 0.9000608195495812
+            },
+            "PositionError": 0.014214548863485967,
+            "AngleErrorDegrees": 0.004295736539925642,
+            "ScaleError": 6.08195495811481E-05
+          },
+          {
+            "ExpectedIndex": 13,
+            "Expected": {
+              "X": 3072,
+              "Y": 7168,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.995577674986,
+              "Y": 7167.99360074441,
+              "Angle": 0.2967682133338896,
+              "Scale": 0.9000525956476986
+            },
+            "PositionError": 0.007778652237395181,
+            "AngleErrorDegrees": 0.003566117669913461,
+            "ScaleError": 5.2595647698550074E-05
+          },
+          {
+            "ExpectedIndex": 15,
+            "Expected": {
+              "X": 7168,
+              "Y": 7168,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.950220478012,
+              "Y": 7167.977649135756,
+              "Angle": 0.5410800426740394,
+              "Scale": 0.9999323817737631
+            },
+            "PositionError": 0.05456704080127746,
+            "AngleErrorDegrees": 0.00160282398093756,
+            "ScaleError": 6.76182262369096E-05
+          },
+          {
+            "ExpectedIndex": 8,
+            "Expected": {
+              "X": 1024,
+              "Y": 5120,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9797428864272,
+              "Y": 5119.9816374699185,
+              "Angle": 0.00011286753818804879,
+              "Scale": 1.0000374482024768
+            },
+            "PositionError": 0.027341052673524806,
+            "AngleErrorDegrees": 0.006466833582206843,
+            "ScaleError": 3.744820247675307E-05
+          },
+          {
+            "ExpectedIndex": 11,
+            "Expected": {
+              "X": 7168,
+              "Y": 5120,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.955820137802,
+              "Y": 5119.992459970934,
+              "Angle": 0.5410877911240247,
+              "Scale": 0.9999407854816158
+            },
+            "PositionError": 0.04481865975387001,
+            "AngleErrorDegrees": 0.002046777462863506,
+            "ScaleError": 5.9214518384198556E-05
+          },
+          {
+            "ExpectedIndex": 12,
+            "Expected": {
+              "X": 1024,
+              "Y": 7168,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.982987545306,
+              "Y": 7167.991974706243,
+              "Angle": -7.252450016811463E-06,
+              "Scale": 1.0000203057916754
+            },
+            "PositionError": 0.01881034169283886,
+            "AngleErrorDegrees": 0.0004155347770928798,
+            "ScaleError": 2.030579167544566E-05
+          },
+          {
+            "ExpectedIndex": 4,
+            "Expected": {
+              "X": 1024,
+              "Y": 3072,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9690207402482,
+              "Y": 3071.9861476061133,
+              "Angle": -2.9156647001035914E-06,
+              "Scale": 0.9999949158721961
+            },
+            "PositionError": 0.03393528180467863,
+            "AngleErrorDegrees": 0.00016705528179121267,
+            "ScaleError": 5.084127803867133E-06
+          },
+          {
+            "ExpectedIndex": 7,
+            "Expected": {
+              "X": 7168,
+              "Y": 3072,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.96602912162,
+              "Y": 3071.9935229787343,
+              "Angle": 0.5410648744361283,
+              "Scale": 0.9999583880579979
+            },
+            "PositionError": 0.03458283363768082,
+            "AngleErrorDegrees": 0.0007337479659786153,
+            "ScaleError": 4.161194200213991E-05
+          },
+          {
+            "ExpectedIndex": 3,
+            "Expected": {
+              "X": 7168,
+              "Y": 1024,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.969643087011,
+              "Y": 1024.0006143818664,
+              "Angle": 0.5411452478486021,
+              "Scale": 0.9999449298498714
+            },
+            "PositionError": 0.03036312947163194,
+            "AngleErrorDegrees": 0.00533880528579147,
+            "ScaleError": 5.507015012862215E-05
+          },
+          {
+            "ExpectedIndex": 2,
+            "Expected": {
+              "X": 5120,
+              "Y": 1024,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.970431710279,
+              "Y": 1023.9829342550815,
+              "Angle": -0.401379478957914,
+              "Scale": 1.0999817352065935
+            },
+            "PositionError": 0.034139762838418714,
+            "AngleErrorDegrees": 0.0026498725514921932,
+            "ScaleError": 1.826479340660825E-05
+          },
+          {
+            "ExpectedIndex": 14,
+            "Expected": {
+              "X": 5120,
+              "Y": 7168,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.969446808724,
+              "Y": 7167.985786983931,
+              "Angle": -0.40144943174478953,
+              "Scale": 1.0999807601976301
+            },
+            "PositionError": 0.033697289549098224,
+            "AngleErrorDegrees": 0.0013581269016548986,
+            "ScaleError": 1.9239802369952486E-05
+          },
+          {
+            "ExpectedIndex": 6,
+            "Expected": {
+              "X": 5120,
+              "Y": 3072,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.95598049304,
+              "Y": 3071.9994334108756,
+              "Angle": -0.4014161399781449,
+              "Scale": 1.1000077574602551
+            },
+            "PositionError": 0.04402315318327925,
+            "AngleErrorDegrees": 0.0005493508196166683,
+            "ScaleError": 7.757460255053417E-06
+          },
+          {
+            "ExpectedIndex": 10,
+            "Expected": {
+              "X": 5120,
+              "Y": 5120,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.972420620621,
+              "Y": 5119.988183303102,
+              "Angle": -0.4014324374294807,
+              "Scale": 1.0999904686087416
+            },
+            "PositionError": 0.03000427457049584,
+            "AngleErrorDegrees": 0.00038442435874454716,
+            "ScaleError": 9.531391258477129E-06
+          }
+        ]
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-rotation-noise512",
+      "Geometric": true,
+      "CPU": 1,
+      "BeforeFirstMs": 1849.8548,
+      "AfterFirstMs": 1807.3879,
+      "BeforeMedianMs": 1805.8237,
+      "AfterMedianMs": 1819.0079,
+      "ImprovementPercent": -0.7300934194185261,
+      "BeforeMatches": 1,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 422.16889999999995,
+      "AfterReadMedian": 408.79499999999996,
+      "BeforeCandidateMedian": 1020.4290999999998,
+      "AfterCandidateMedian": 1013.8632999999995,
+      "BeforeRefinementMedian": 1.5942999999999998,
+      "AfterRefinementMedian": 35.3009,
+      "AfterValidation": {
+        "Passed": true,
+        "Positions": {
+          "AllKnownPositionsMatched": true,
+          "Expected": 16,
+          "Mapped": 16,
+          "Duplicate": 0,
+          "Unassigned": 0,
+          "Inaccurate": 0,
+          "MaximumPositionError": 0.05456704080127746,
+          "Missing": []
+        },
+        "AngleInaccurate": 0,
+        "ScaleInaccurate": 0,
+        "MaximumAngleErrorDegrees": 0.006466833582206843,
+        "MaximumScaleError": 6.76182262369096E-05,
+        "Assignments": [
+          {
+            "ExpectedIndex": 0,
+            "Expected": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 2.9703957196850207E-16,
+              "Scale": 1.0000000000000002
+            },
+            "PositionError": 0,
+            "AngleErrorDegrees": 1.7019113822167643E-14,
+            "ScaleError": 2.220446049250313E-16
+          },
+          {
+            "ExpectedIndex": 1,
+            "Expected": {
+              "X": 3072,
+              "Y": 1024,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.0038132671593,
+              "Y": 1024.0011877521124,
+              "Angle": 0.2967817549088876,
+              "Scale": 0.9000450997829859
+            },
+            "PositionError": 0.003993965636925158,
+            "AngleErrorDegrees": 0.0043419927652587065,
+            "ScaleError": 4.5099782985835724E-05
+          },
+          {
+            "ExpectedIndex": 9,
+            "Expected": {
+              "X": 3072,
+              "Y": 5120,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.011740678678,
+              "Y": 5119.99328615908,
+              "Angle": 0.2967062315745959,
+              "Scale": 0.9000156156791097
+            },
+            "PositionError": 0.013524762316783335,
+            "AngleErrorDegrees": 1.4824455590276067E-05,
+            "ScaleError": 1.5615679109681757E-05
+          },
+          {
+            "ExpectedIndex": 5,
+            "Expected": {
+              "X": 3072,
+              "Y": 3072,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.9878035637594,
+              "Y": 3071.9926992916494,
+              "Angle": 0.296780947585456,
+              "Scale": 0.9000608195495812
+            },
+            "PositionError": 0.014214548863485967,
+            "AngleErrorDegrees": 0.004295736539925642,
+            "ScaleError": 6.08195495811481E-05
+          },
+          {
+            "ExpectedIndex": 13,
+            "Expected": {
+              "X": 3072,
+              "Y": 7168,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.995577674986,
+              "Y": 7167.99360074441,
+              "Angle": 0.2967682133338896,
+              "Scale": 0.9000525956476986
+            },
+            "PositionError": 0.007778652237395181,
+            "AngleErrorDegrees": 0.003566117669913461,
+            "ScaleError": 5.2595647698550074E-05
+          },
+          {
+            "ExpectedIndex": 15,
+            "Expected": {
+              "X": 7168,
+              "Y": 7168,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.950220478012,
+              "Y": 7167.977649135756,
+              "Angle": 0.5410800426740394,
+              "Scale": 0.9999323817737631
+            },
+            "PositionError": 0.05456704080127746,
+            "AngleErrorDegrees": 0.00160282398093756,
+            "ScaleError": 6.76182262369096E-05
+          },
+          {
+            "ExpectedIndex": 8,
+            "Expected": {
+              "X": 1024,
+              "Y": 5120,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9797428864272,
+              "Y": 5119.9816374699185,
+              "Angle": 0.00011286753818804879,
+              "Scale": 1.0000374482024768
+            },
+            "PositionError": 0.027341052673524806,
+            "AngleErrorDegrees": 0.006466833582206843,
+            "ScaleError": 3.744820247675307E-05
+          },
+          {
+            "ExpectedIndex": 11,
+            "Expected": {
+              "X": 7168,
+              "Y": 5120,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.955820137802,
+              "Y": 5119.992459970934,
+              "Angle": 0.5410877911240247,
+              "Scale": 0.9999407854816158
+            },
+            "PositionError": 0.04481865975387001,
+            "AngleErrorDegrees": 0.002046777462863506,
+            "ScaleError": 5.9214518384198556E-05
+          },
+          {
+            "ExpectedIndex": 12,
+            "Expected": {
+              "X": 1024,
+              "Y": 7168,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.982987545306,
+              "Y": 7167.991974706243,
+              "Angle": -7.252450016811463E-06,
+              "Scale": 1.0000203057916754
+            },
+            "PositionError": 0.01881034169283886,
+            "AngleErrorDegrees": 0.0004155347770928798,
+            "ScaleError": 2.030579167544566E-05
+          },
+          {
+            "ExpectedIndex": 4,
+            "Expected": {
+              "X": 1024,
+              "Y": 3072,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9690207402482,
+              "Y": 3071.9861476061133,
+              "Angle": -2.9156647001035914E-06,
+              "Scale": 0.9999949158721961
+            },
+            "PositionError": 0.03393528180467863,
+            "AngleErrorDegrees": 0.00016705528179121267,
+            "ScaleError": 5.084127803867133E-06
+          },
+          {
+            "ExpectedIndex": 7,
+            "Expected": {
+              "X": 7168,
+              "Y": 3072,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.96602912162,
+              "Y": 3071.9935229787343,
+              "Angle": 0.5410648744361283,
+              "Scale": 0.9999583880579979
+            },
+            "PositionError": 0.03458283363768082,
+            "AngleErrorDegrees": 0.0007337479659786153,
+            "ScaleError": 4.161194200213991E-05
+          },
+          {
+            "ExpectedIndex": 3,
+            "Expected": {
+              "X": 7168,
+              "Y": 1024,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.969643087011,
+              "Y": 1024.0006143818664,
+              "Angle": 0.5411452478486021,
+              "Scale": 0.9999449298498714
+            },
+            "PositionError": 0.03036312947163194,
+            "AngleErrorDegrees": 0.00533880528579147,
+            "ScaleError": 5.507015012862215E-05
+          },
+          {
+            "ExpectedIndex": 2,
+            "Expected": {
+              "X": 5120,
+              "Y": 1024,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.970431710279,
+              "Y": 1023.9829342550815,
+              "Angle": -0.401379478957914,
+              "Scale": 1.0999817352065935
+            },
+            "PositionError": 0.034139762838418714,
+            "AngleErrorDegrees": 0.0026498725514921932,
+            "ScaleError": 1.826479340660825E-05
+          },
+          {
+            "ExpectedIndex": 14,
+            "Expected": {
+              "X": 5120,
+              "Y": 7168,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.969446808724,
+              "Y": 7167.985786983931,
+              "Angle": -0.40144943174478953,
+              "Scale": 1.0999807601976301
+            },
+            "PositionError": 0.033697289549098224,
+            "AngleErrorDegrees": 0.0013581269016548986,
+            "ScaleError": 1.9239802369952486E-05
+          },
+          {
+            "ExpectedIndex": 6,
+            "Expected": {
+              "X": 5120,
+              "Y": 3072,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.95598049304,
+              "Y": 3071.9994334108756,
+              "Angle": -0.4014161399781449,
+              "Scale": 1.1000077574602551
+            },
+            "PositionError": 0.04402315318327925,
+            "AngleErrorDegrees": 0.0005493508196166683,
+            "ScaleError": 7.757460255053417E-06
+          },
+          {
+            "ExpectedIndex": 10,
+            "Expected": {
+              "X": 5120,
+              "Y": 5120,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.972420620621,
+              "Y": 5119.988183303102,
+              "Angle": -0.4014324374294807,
+              "Scale": 1.0999904686087416
+            },
+            "PositionError": 0.03000427457049584,
+            "AngleErrorDegrees": 0.00038442435874454716,
+            "ScaleError": 9.531391258477129E-06
+          }
+        ]
+      },
+      "AfterComplete": true
+    },
+    {
+      "Name": "gray8-rotation-noise512",
+      "Geometric": true,
+      "CPU": 4,
+      "BeforeFirstMs": 1256.1052,
+      "AfterFirstMs": 1207.9166,
+      "BeforeMedianMs": 1271.5475,
+      "AfterMedianMs": 1227.4937,
+      "ImprovementPercent": 3.464581543355629,
+      "BeforeMatches": 1,
+      "AfterMatches": 16,
+      "BeforeReadMedian": 421.0984000000001,
+      "AfterReadMedian": 401.02230000000003,
+      "BeforeCandidateMedian": 613.6423,
+      "AfterCandidateMedian": 600.9826999999999,
+      "BeforeRefinementMedian": 1.6429999999999998,
+      "AfterRefinementMedian": 35.7466,
+      "AfterValidation": {
+        "Passed": true,
+        "Positions": {
+          "AllKnownPositionsMatched": true,
+          "Expected": 16,
+          "Mapped": 16,
+          "Duplicate": 0,
+          "Unassigned": 0,
+          "Inaccurate": 0,
+          "MaximumPositionError": 0.05456704080127746,
+          "Missing": []
+        },
+        "AngleInaccurate": 0,
+        "ScaleInaccurate": 0,
+        "MaximumAngleErrorDegrees": 0.006466833582206843,
+        "MaximumScaleError": 6.76182262369096E-05,
+        "Assignments": [
+          {
+            "ExpectedIndex": 0,
+            "Expected": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1024,
+              "Y": 1024,
+              "Angle": 2.9703957196850207E-16,
+              "Scale": 1.0000000000000002
+            },
+            "PositionError": 0,
+            "AngleErrorDegrees": 1.7019113822167643E-14,
+            "ScaleError": 2.220446049250313E-16
+          },
+          {
+            "ExpectedIndex": 1,
+            "Expected": {
+              "X": 3072,
+              "Y": 1024,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.0038132671593,
+              "Y": 1024.0011877521124,
+              "Angle": 0.2967817549088876,
+              "Scale": 0.9000450997829859
+            },
+            "PositionError": 0.003993965636925158,
+            "AngleErrorDegrees": 0.0043419927652587065,
+            "ScaleError": 4.5099782985835724E-05
+          },
+          {
+            "ExpectedIndex": 9,
+            "Expected": {
+              "X": 3072,
+              "Y": 5120,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3072.011740678678,
+              "Y": 5119.99328615908,
+              "Angle": 0.2967062315745959,
+              "Scale": 0.9000156156791097
+            },
+            "PositionError": 0.013524762316783335,
+            "AngleErrorDegrees": 1.4824455590276067E-05,
+            "ScaleError": 1.5615679109681757E-05
+          },
+          {
+            "ExpectedIndex": 5,
+            "Expected": {
+              "X": 3072,
+              "Y": 3072,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.9878035637594,
+              "Y": 3071.9926992916494,
+              "Angle": 0.296780947585456,
+              "Scale": 0.9000608195495812
+            },
+            "PositionError": 0.014214548863485967,
+            "AngleErrorDegrees": 0.004295736539925642,
+            "ScaleError": 6.08195495811481E-05
+          },
+          {
+            "ExpectedIndex": 13,
+            "Expected": {
+              "X": 3072,
+              "Y": 7168,
+              "Angle": 0.29670597283903605,
+              "Scale": 0.9
+            },
+            "Actual": {
+              "X": 3071.995577674986,
+              "Y": 7167.99360074441,
+              "Angle": 0.2967682133338896,
+              "Scale": 0.9000525956476986
+            },
+            "PositionError": 0.007778652237395181,
+            "AngleErrorDegrees": 0.003566117669913461,
+            "ScaleError": 5.2595647698550074E-05
+          },
+          {
+            "ExpectedIndex": 15,
+            "Expected": {
+              "X": 7168,
+              "Y": 7168,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.950220478012,
+              "Y": 7167.977649135756,
+              "Angle": 0.5410800426740394,
+              "Scale": 0.9999323817737631
+            },
+            "PositionError": 0.05456704080127746,
+            "AngleErrorDegrees": 0.00160282398093756,
+            "ScaleError": 6.76182262369096E-05
+          },
+          {
+            "ExpectedIndex": 8,
+            "Expected": {
+              "X": 1024,
+              "Y": 5120,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9797428864272,
+              "Y": 5119.9816374699185,
+              "Angle": 0.00011286753818804879,
+              "Scale": 1.0000374482024768
+            },
+            "PositionError": 0.027341052673524806,
+            "AngleErrorDegrees": 0.006466833582206843,
+            "ScaleError": 3.744820247675307E-05
+          },
+          {
+            "ExpectedIndex": 11,
+            "Expected": {
+              "X": 7168,
+              "Y": 5120,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.955820137802,
+              "Y": 5119.992459970934,
+              "Angle": 0.5410877911240247,
+              "Scale": 0.9999407854816158
+            },
+            "PositionError": 0.04481865975387001,
+            "AngleErrorDegrees": 0.002046777462863506,
+            "ScaleError": 5.9214518384198556E-05
+          },
+          {
+            "ExpectedIndex": 12,
+            "Expected": {
+              "X": 1024,
+              "Y": 7168,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.982987545306,
+              "Y": 7167.991974706243,
+              "Angle": -7.252450016811463E-06,
+              "Scale": 1.0000203057916754
+            },
+            "PositionError": 0.01881034169283886,
+            "AngleErrorDegrees": 0.0004155347770928798,
+            "ScaleError": 2.030579167544566E-05
+          },
+          {
+            "ExpectedIndex": 4,
+            "Expected": {
+              "X": 1024,
+              "Y": 3072,
+              "Angle": 0,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 1023.9690207402482,
+              "Y": 3071.9861476061133,
+              "Angle": -2.9156647001035914E-06,
+              "Scale": 0.9999949158721961
+            },
+            "PositionError": 0.03393528180467863,
+            "AngleErrorDegrees": 0.00016705528179121267,
+            "ScaleError": 5.084127803867133E-06
+          },
+          {
+            "ExpectedIndex": 7,
+            "Expected": {
+              "X": 7168,
+              "Y": 3072,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.96602912162,
+              "Y": 3071.9935229787343,
+              "Angle": 0.5410648744361283,
+              "Scale": 0.9999583880579979
+            },
+            "PositionError": 0.03458283363768082,
+            "AngleErrorDegrees": 0.0007337479659786153,
+            "ScaleError": 4.161194200213991E-05
+          },
+          {
+            "ExpectedIndex": 3,
+            "Expected": {
+              "X": 7168,
+              "Y": 1024,
+              "Angle": 0.5410520681182421,
+              "Scale": 1
+            },
+            "Actual": {
+              "X": 7167.969643087011,
+              "Y": 1024.0006143818664,
+              "Angle": 0.5411452478486021,
+              "Scale": 0.9999449298498714
+            },
+            "PositionError": 0.03036312947163194,
+            "AngleErrorDegrees": 0.00533880528579147,
+            "ScaleError": 5.507015012862215E-05
+          },
+          {
+            "ExpectedIndex": 2,
+            "Expected": {
+              "X": 5120,
+              "Y": 1024,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.970431710279,
+              "Y": 1023.9829342550815,
+              "Angle": -0.401379478957914,
+              "Scale": 1.0999817352065935
+            },
+            "PositionError": 0.034139762838418714,
+            "AngleErrorDegrees": 0.0026498725514921932,
+            "ScaleError": 1.826479340660825E-05
+          },
+          {
+            "ExpectedIndex": 14,
+            "Expected": {
+              "X": 5120,
+              "Y": 7168,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.969446808724,
+              "Y": 7167.985786983931,
+              "Angle": -0.40144943174478953,
+              "Scale": 1.0999807601976301
+            },
+            "PositionError": 0.033697289549098224,
+            "AngleErrorDegrees": 0.0013581269016548986,
+            "ScaleError": 1.9239802369952486E-05
+          },
+          {
+            "ExpectedIndex": 6,
+            "Expected": {
+              "X": 5120,
+              "Y": 3072,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.95598049304,
+              "Y": 3071.9994334108756,
+              "Angle": -0.4014161399781449,
+              "Scale": 1.1000077574602551
+            },
+            "PositionError": 0.04402315318327925,
+            "AngleErrorDegrees": 0.0005493508196166683,
+            "ScaleError": 7.757460255053417E-06
+          },
+          {
+            "ExpectedIndex": 10,
+            "Expected": {
+              "X": 5120,
+              "Y": 5120,
+              "Angle": -0.40142572795869574,
+              "Scale": 1.1
+            },
+            "Actual": {
+              "X": 5119.972420620621,
+              "Y": 5119.988183303102,
+              "Angle": -0.4014324374294807,
+              "Scale": 1.0999904686087416
+            },
+            "PositionError": 0.03000427457049584,
+            "AngleErrorDegrees": 0.00038442435874454716,
+            "ScaleError": 9.531391258477129E-06
+          }
+        ]
+      },
+      "AfterComplete": true
+    }
+  ],
+  "Policy": "Same latest harness; first search separated from median of 3 warm searches. Actual original 8K synthetic Gray8 PNG. Import/training excluded. Not OS-cache cold. GPU not used. Transform cache rejected and removed.",
+  "Before": "shape-regression-original-v2.json",
+  "After": "shape-verifier-off-v2.json"
+}

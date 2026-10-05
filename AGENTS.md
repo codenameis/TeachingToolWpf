@@ -83,6 +83,12 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## VisionAlgorithm과 검사 확장 지침
 
+2026-10-05 후속 사용자 확정: **논문 기반 형상 방식만** [125 ms 재계획](tasks/paper-shape-125ms-plan.md)과 [ADR-027](docs/decisions/0027-paper-shape-end-to-end-latency.md)에 따라 먼저 개선한다. 목표는 검사 버튼 입력부터 원본 읽기·전체 탐색·원본 최종 판정·결과 게시와 표시 완료까지 **CPU 125 ms 이하, CUDA 80 ms 미만**이다. 앱의 8192×8192 PCB 샘플과 사용자 지정 `kensa.png`(실제 1024×1536)의 부품 전체 검색을 각각 검증한다. OpenCV/자체 기하 방식은 보존한다. 아래 500 ms는 이전 이력이며 논문 방식의 새 수용 기준을 대신하지 않는다. 클릭 후 발생한 JIT·장치 준비·큐 대기·자원 정리·UI 표시를 빼거나 검사별 영상 준비/검색을 클릭 이전으로 숨기지 않는다. 논문 선택형 pipeline·원본 Gray8·국소 정수 SIMD·작은 영상 피라미드·라벨 atlas/가상 목록을 일부 구현했으며 [실측](docs/paper-shape-125ms-validation.md)의 8K 서비스 CPU261.7/CUDA227.3 ms로 새 목표는 FAIL이다. 현재 CUDA 범위 확대와 CPU/UI 잔여 개선은 미완료이며 목표 달성/검증 완료를 주장하지 않는다.
+
+2026-10-05 사용자 확정 성능 조건은 [8K 500 ms 수용 기준](tasks/shape-500ms-plan.md)과 [ADR-026](docs/decisions/0026-8k-shape-search-latency.md)을 따른다. 우선 앱의 8192×8192 PCB 샘플에서 두 형상 방식 모두 256핀 전체 검출·사선 점수 구분·CPU 500 ms 이내·GPU 실가속을 확인한다. 원본 읽기를 제외하거나 초기 JIT/장치 준비를 반복 성능과 섞어 목표 달성을 주장하지 않는다. CPU 기본 병렬도는 논리 프로세서 수(1~16)이며 작업 픽셀·메모리 예산도 함께 제한한다. CUDA 후보 점수는 중립 `IShapeCandidateScorer`로 연결하고, 장치 수명은 앱/CLI의 `CudaInspectionSession`이 명시적으로 소유한다. 최초 장치·커널 준비 시간과 매 검사 시간을 따로 표시한다.
+
+2026-10-05 두 형상 방식의 잡음·회전·배율 후속은 [ADR-025](docs/decisions/0025-shape-contrast-and-clutter-energy.md)를 따른다. 학습 대비 선택은 선택 특징에만 적용하고 전체 원본 윤곽·마스크를 유지한다. `ClutterRatio`/`MaximumClutterRatio`의 개수 판정과 `ClutterEnergyRatio`/`ClutterPenaltyRatio`의 점수 감점을 섞지 않는다. 낮은 대비의 실제 세부 누락 가능성과 비율0 재학습을 안내한다. 조명비는 실제 마스크 안의 모델 대응에서 구하고 결함의 최대 강도로 보정하지 않는다. 성능 비교용 binary의 SHA256이 같으면 서로 다른 구현의 속도 효과로 보고하지 않는다. 작은 고정 배율 핀의 검증을 큰 학습 ROI·회전·배율·잡음 검증으로 대신하지 않는다.
+
 2026-10-04 속도·숫자 입력 후속은 [ADR-024](docs/decisions/0024-matching-throughput-and-decimal-input.md)를 따른다. 원본16MiB와 축소4MiB의 검사별 LRU는 실제 대여 버퍼 예산이며 프로세스 총 메모리 상한이 아니다. 원본 읽기는 단일 소유자, 독립 crop 계산만 병렬 실행하고 합2Mpx(기존 단일crop은8Mpx)를 지킨다. 공간순 실행 결과를 원래 후보 순서로 복원해 동점·NMS를 보존한다. 병렬 진단 시간 합을 전체 wall time의 분해로 해석하지 않는다. 숫자 입력 회귀는 완성 문자열뿐 아니라 `0`→`0.`→`0.72`의 실제 편집 경로를 확인한다.
 
 2026-10-04 기하 매칭 확장은 [ADR-019](docs/decisions/0019-geometric-match-quality.md)와 [단계별 계획](tasks/geometric-matching-plan.md)을 따른다. PatMax 공개 기능을 요구사항으로 참고한 자체 C# 구현이며 Cognex 소스/SDK 포팅이나 동등 성능으로 표현하지 않는다. 선택 특징 대응비율·유클리드 대응 거리 RMS·학습 마스크 안의 불필요 윤곽비율을 최종 원본 pose에서 측정한다. 전체 학습 윤곽과 마스크는 모델 소유 불변 자료이며 예산 초과를 조용한 특징 생략으로 처리하지 않는다. 기본 방향 점수와 후보 예산을 보존하고 확대 검사/품질 기준은 명시적 설정이다. 기본값/확대값의 실측과 불완전 검색 경고를 구별한다.

@@ -6,9 +6,11 @@ Windows x64용 비전 티칭 샘플입니다. WPF는 조작 화면을, Direct3D 
 
 커스텀 형상 두 방식은 학습 영역 안의 추가 윤곽을 최종 점수에서 감점합니다. 검출 누락이 컸던 **빠르게** 프리셋은 제거하고 **기본 후보 예산 / 확대 후보 예산**을 제공합니다. 가까운 자세 후보가 검증 예산을 독점하지 않도록 순서를 고쳐 동일 40개 합성 패턴에서 기본 설정 검출이 11개에서 40개로 늘었습니다. 합격 점수와 예산은 유지했습니다.
 
-검사는 DX12를 사용하지 않습니다. 기본은 CPU이고 선택 가능한 **ILGPU CUDA 전처리**는 평활화와 Sobel 미분을 GPU에서 연속 수행합니다. 정규화·검색·검증은 CPU입니다. WPF 화면의 DX12 렌더링은 유지합니다. [사용자 파라미터](docs/matching-parameters.md), [구조·검증·측정 한계](docs/portable-inspection-validation.md)를 참고하세요.
+검사는 DX12를 사용하지 않습니다. 기본은 CPU이고 선택 가능한 **GPU 후보 계산 + CPU 정밀 검사 · CUDA**는 방향 응답과 템플릿 후보 점수를 GPU에서 배치 계산합니다. 전처리·연속 방향 검증·원본 최종 판정은 CPU입니다. CUDA 장치는 앱 세션에서 재사용하고 최초 준비 시간을 별도로 표시합니다. WPF 화면의 DX12 렌더링은 유지합니다. [사용자 파라미터](docs/matching-parameters.md), [현재 실행 구조](docs/decisions/0026-8k-shape-search-latency.md)를 참고하세요.
 
-형상 검사의 원본 타일 재읽기와 불필요한 계산을 줄이고 후보 정밀화에 CPU 병렬도를 적용했습니다. 새 형상 설정은 논리 코어 절반(최소1/최대4)을 사용하며 1~16으로 조절할 수 있습니다. 숫자 입력은 `0.72`처럼 소수점을 한 글자씩 입력해도 유지됩니다. [8K/24K 후속 실측](docs/matching-throughput-validation.md).
+형상 검사는 원본 reader 한 개와 불변 crop의 CPU 병렬 계산을 연결합니다. 새 형상 설정은 논리 프로세서 수(최소1/최대16, 기준 장비12)를 사용하며 1~16으로 조절할 수 있습니다. **최종 v4 일반 앱에서 8K PCB 256핀을 첫 CPU 459.0 ms, 준비 후 CUDA 375.0 ms에 검출했습니다.** 실제 확대 화면에서 깨끗한 핀 1.000/사선 핀 .957을 확인했습니다. 별도 서비스 benchmark 32/32회도 500 ms 이내이며 반복 중앙값은 **논문 CPU 336.9 / CUDA 305.6 ms**, **기하 CPU 321.8 / CUDA 298.8 ms**입니다. 전체 사선 그룹과 깨끗한 그룹의 최소 점수 차이 .0295와 CPU/GPU 결과 동등성을 유지했습니다.
+
+학습·최초 화면 준비·CUDA 초기화는 별도입니다. 수동 앱의 GPU 준비는 470.6 ms였으며, **정상 표시 WPF 진단의 준비 포함 첫 GPU 명령은 907.7 ms로 500 ms 미달**입니다. 준비 후 명령 15회는 통과했지만 숨김 창 진단은 서비스 밖 대기로 명령이 모두 500 ms를 넘었습니다. 다른 부하나 임의 입력의 지연 보장이 아니며 파일 입력·큰 학습 영역까지 충족한 것은 아닙니다. 이전 앱 첫 522.5/536.8 ms 실패도 보존했습니다. 최종 자동 테스트 878 PASS/skip 0, 실제 앱 기능 smoke PASS입니다. [측정 조건·실제 화면·한계](docs/shape-500ms-validation.md), [수용 기준](tasks/shape-500ms-plan.md)을 확인하세요. 숫자 입력은 `0.72`처럼 소수점을 한 글자씩 입력해도 유지됩니다. 배경 잡음·회전·배율 정합성의 이전 수정은 [정합성 재검증](docs/shape-regression-validation.md)에 기록했습니다.
 
 `VisionImaging`과 `VisionInspection`은 WPF/DirectX 없이 원본 파일을 읽고 검사합니다. 같은 서비스를 사용하는 [.NET 10 검사 CLI](src/VisionInspection.Cli/README.md)와 [JSON 레시피 예제](samples/inspection)를 추가했습니다. Windows x64와 Linux x64 native 패키지를 배포 대상에 맞춰 선택합니다. Linux 실기 실행은 아직 검증하지 않았습니다.
 
@@ -53,6 +55,13 @@ dotnet run --project .\src\TeachingToolWpf\TeachingToolWpf.csproj -c Release --n
 ```
 
 실행 폴더를 다시 만들 때는 restore 후 `scripts/Publish-Sample.ps1`을 실행합니다. 기존 실측 자료가 있으면 설명서와 함께 복사합니다.
+
+500ms 검증에 사용한 기준 장비용 실행본은 다음 명령으로 만듭니다. .NET 10의 AVX2 ReadyToRun과 tiered compilation 해제를 이 배포에만 적용하며 시스템 환경변수는 바꾸지 않습니다. 일반 Debug/Release 실행의 최초 JIT 시간은 위 성능과 다릅니다. 다른 CPU·Linux 실기 성능은 미검증입니다.
+
+```powershell
+pwsh -File scripts/Publish-Sample.ps1 -InspectionLatency -OutputDirectory artifacts/publish-shape-500ms-v4
+.\artifacts\publish-shape-500ms-v4\TeachingToolWpf.exe
+```
 
 처음에는 8192×8192 검사 패턴이 열립니다. 상단의 **이미지 열기 / 교체**로 PNG/JPEG/WebP/TIFF/BigTIFF를 불러오거나 **24K 샘플**을 눌러 바로 시험할 수 있습니다. 최초 파일 열기는 확대/축소용 디스크 캐시를 생성하므로 시간이 필요합니다. 진행 상태와 읽기 취소 버튼을 제공합니다.
 

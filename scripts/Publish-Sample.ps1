@@ -1,11 +1,24 @@
+param(
+    [switch]$InspectionLatency,
+    [string]$OutputDirectory = 'artifacts/publish'
+)
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $projectRoot
 try {
-    dotnet publish src/TeachingToolWpf/TeachingToolWpf.csproj -c Release --no-restore -o artifacts/publish
+    $publishArguments = @('publish', 'src/TeachingToolWpf/TeachingToolWpf.csproj', '-c', 'Release', '--no-restore', '-o', $OutputDirectory)
+    if ($InspectionLatency) {
+        # 기준 장비용 사전 컴파일. 라이브러리 일반 빌드와 시스템 환경변수는 바꾸지 않는다.
+        dotnet restore src/TeachingToolWpf/TeachingToolWpf.csproj -r win-x64 -p:PublishReadyToRun=true
+        if ($LASTEXITCODE -ne 0) { throw 'ReadyToRun package restore failed.' }
+        $publishArguments += @('-r', 'win-x64', '--self-contained', 'false', '-p:PublishReadyToRun=true',
+            '-p:PublishReadyToRunCrossgen2ExtraArgs=--instruction-set=avx2', '-p:TieredCompilation=false')
+    }
+    & dotnet @publishArguments
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed. Run dotnet restore before publishing.' }
     # Keep existing measurement evidence browsable from the bundled documentation.
-    $evidenceRoot = 'artifacts/publish/artifacts'
+    $evidenceRoot = Join-Path $OutputDirectory 'artifacts'
     New-Item -ItemType Directory -Force -Path $evidenceRoot | Out-Null
     foreach ($folder in @('benchmarks-final', 'benchmarks')) {
         $sourceFolder = Join-Path 'artifacts' $folder
@@ -20,6 +33,6 @@ try {
         $sourceFile = Join-Path 'artifacts' $name
         if (Test-Path -LiteralPath $sourceFile) { Copy-Item -LiteralPath $sourceFile -Destination $evidenceRoot }
     }
-    Write-Output (Join-Path $projectRoot 'artifacts/publish/TeachingToolWpf.exe')
+    Write-Output (Join-Path ([System.IO.Path]::GetFullPath($OutputDirectory, $projectRoot)) 'TeachingToolWpf.exe')
 }
 finally { Pop-Location }

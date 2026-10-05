@@ -1,5 +1,46 @@
 # 단계별 작업 목록
 
+## 2026-10-05 180° 회전 불량 판정
+
+기준: [ADR-030](../docs/decisions/0030-rotation-inspection-acceptance.md), [실측](../docs/rotation-inspection-validation.md).
+
+- [x] PASS / 현재 앱ROI·0~10° 조건을 읽고, 대칭 밝은 핀에0° 고득점이 나오는 현상과 회전 NG 정책 부재 재현.
+- [x] PASS / 논문 모드 회전 검사 선택·전체360° 재학습·독립 정상 허용각·NG 색/각도 라벨·회전 NG 로그. 다른 방식 및 점수 보존.
+- [x] PASS / 8K CPU/CUDA 8회256개, 역방향128개 모두NG, 잘림 없음. 0~10°에서는 작은 음수각64개도NG, ±10° 비교에서는 정상128개 모두OK. 앱240테스트.
+- [ ] FAIL / CPU125/CUDA80 ms. 현재 ROI의 서비스 자체가 초과하며 원래 목표 유지.
+- [ ] NOT_RUN / 신규 앱 자동 화면 판독(컴퓨터 사용 앱 승인 시간 초과), 다른 현장 ROI, 물리 클릭→최종 표시 수용.
+
+## 2026-10-05 kensa 18V와 검사 시간 로그
+
+기준: [ADR-029](../docs/decisions/0029-small-paper-shapes-and-inspection-logs.md), [검증 기록](../docs/kensa-text-and-logs-validation.md).
+
+- [x] PASS / 한 단계·26 특징의 작은 글자 재현: 기존118개 중 전압 글자 외106개 오검출 및180° 선택 확인. 사용자 정확한 ROI 값은 미제공, 재현 ROI는 `(194.5,371),19×12`로 명시.
+- [x] PASS / 해당 fixture 검출: 논문 작은 모델의 원본 미세 획 검증·허용 범위 내 반대 방향 확인 후12개 전압 글자 위치 일대일. CPU/CUDA의 원본 결과·화면 표시 동등.
+- [x] PASS / 로그: 논문 검사 최근20회, 학습/검색 조건·실제 경과·작업 누적·잘림·취소/오류·overlay 표시 제출 기록 및 JSON 저장 기능. 실제 파일 출력·패널 확인.
+- [ ] FAIL / 완전 검색·성능: 작은 글자의 후보/검증 예산 초과 WARN 유지, CPU125/CUDA80 목표 미달. 검증 기준·각도·점수·후보 예산 완화 없음.
+- [ ] NOT_RUN / 수동 로그 저장 대화상자 선택, 다른 실제 글자 일반화, 물리 버튼→DWM/scan-out 최종 수용.
+
+## 2026-10-05 논문 형상 CPU 125 ms / CUDA 80 ms 미만 개선 (미완료)
+
+기준: [상세 계획·단계별 수용 기준](paper-shape-125ms-plan.md), [ADR-027](../docs/decisions/0027-paper-shape-end-to-end-latency.md). 논문 방식만 개선하며 OpenCV/자체 기하는 보존한다. 아래 과거 500 ms 결과는 새 기준의 PASS가 아니다.
+
+- [x] PASS / 소스 조사·계획 작성: 직접 Shape_Match 포팅이 아닌 독립 C# 결합 구현과 CPU/CUDA 혼합 경로 확인. 서비스 표시 시간의 queue·준비·게시·렌더 누락을 식별하고 버튼부터 모든 결과 표시까지로 새 기준 고정. 성능 구현 PASS를 뜻하지 않음.
+- [x] PASS / 입력 확인: 사용자 지정 `kensa.png` 1024×1536, SHA256 `7EEED204BFE88C79F285D4F0AE195F954880984C58F59282B501965080846E77`. 원본 직접 확인, 메모리 칩 ROI 초안/육안 48개 후보 기록. 독립 정답 확정 및 완전 검출은 미검증.
+- [x] PASS / 계획용 재현: 기존 Release CLI로 논문 kensa CPU/CUDA 각 독립4프로세스 실행. CPU 첫1906.5 ms/후속중앙1509.1 ms, CUDA 첫3323.3 ms/후속중앙2009.4 ms(초기 준비 포함). 8회 모두44개·incomplete/exit2, 후보 초과3창·검증 초과1창, 공개 결과 동등. 성능/완전성은 FAIL이며 warm 반복·앱 버튼 기준 아님. [원시 증거](../docs/data/paper-125ms-baseline-20261005.zip).
+- [x] PASS / 8K 계획용 재현: 기존 v4 benchmark 재실행, 논문 CPU 첫479.3 ms/반복3중앙340.3 ms, CUDA 첫395.9 ms/반복3중앙296.9 ms. 8회256개 일대일·CPU/GPU exact·잘림없음·사선간격 .0294648458. 장치준비626.3 ms 별도(첫검색합1022.1 ms). 새125/80목표는 FAIL, 구도구exit0과구별. 서비스계측/앱표시미검증. ZIP의 `sample-v4-fresh-full-report.json` 보존.
+- [x] P0 / PASS: 소스와 일치하는 논문 전용 서비스 benchmark, 동일 조건 변경 전/후, CPU/CUDA 교대·첫/동일 세션 반복·DLL 해시 기록. kensa 독립 육안 annotation 48개 일대일(12 px는 개체 대응용). [구현 실측](../docs/paper-shape-125ms-validation.md).
+- [ ] P1a/P1b / 부분 구현: VM 명령→같은 overlay의 모든 라벨·Present·GPU fence→WPF Rendering/ContextIdle 관측 구현. 실제 버튼 입력/DWM 합성/scan-out은 NOT_RUN이며 완전한 T5−T0 PASS 아님.
+- [x] P1c / PASS(표시 구현): 논문 결과 글자 bitmap atlas 일괄 업로드·결과 목록 가상화. DPI 1/1.5/2 alpha 동등·일반 ROI/다른 방식 보존. 앱 실제 표시 캡처·전체 목록 확인. 125/80 성능 PASS는 아님.
+- [x] P2 / PASS: 논문 전용 pipeline 조립, 기하 모델 기존 경로 및 OpenCV 서비스 유지, 독립 모드 회귀.
+- [x] P3b / PASS(부분 범위): 논문 선택형 원본 Gray8·합성 원본 행 생성 개선. RGB/Gray·모든 LOD·타일 경계 일치와 버퍼 반환 확인. 기존 LRU/단일 reader 유지. 파일 decoder 추가 개선·전체 peak trace는 NOT_RUN.
+- [x] P4b-2 / PASS(두 fixture): 작은 영상의 논문 피라미드 64 px 내부 창 검색. kensa 44개/불완전→48개/잘림 없음, 8K 256개 및 기존 결과 exact 유지. 기하/회전/배율/경계 회귀. kensa 한 개 정밀화 Rejected/CHECK는 유지하며 제품 OK로 표현하지 않음.
+- [x] P4a/P4d / PASS(채택 변경): 최상위 학습 특징 재사용, 국소 9×9 방향 정수 SIMD 점수, hot method JIT 정책. 기존 후보/점수/순서 동등. 연속 점수 SIMD·pose cache·거친 검증 생략은 이득 없음/누락으로 폐기.
+- [ ] P3a/P4c/P4d / 미완료: 원본 crop 전처리 중복·연속 자세 보정·할당 부담과 실제 앱 UI queue/layout의 남은 병목 개선. 현재 단계별 시간은 병렬 worker 누적이며 wall 분해가 아님.
+- [ ] C1 / FAIL: 8K 서비스 반복 중앙261.7 ms/최대269.1 ms로 CPU125 ms 초과. 앱 표시 관측도 초과. 서비스/UI와 최초/반복 구분, 전체 수용 미달.
+- [ ] P5a/P5b/P5c / NOT_RUN: 이번 변경에서 CUDA kernel 범위 확장 없음. 모델/전송 배치·결정적 후보 반환·필요한 GPU 단계 확대와 동등성/수명 검증 잔여.
+- [ ] C2 / FAIL: 8K CUDA 서비스 반복 중앙227.3 ms/최대252.0 ms로80 ms 이상. 최초 장치 준비도 별도 약1101.5 ms. 앱 첫 검사에는 준비 포함.
+- [ ] P6 / 부분 검증: 관련 suite Algorithm241/Inspection103/앱217/Canvas103, mutation·교차 코드 리뷰·SOLID5/GRASP9 확인. 독립 첫10회/반복100회·실제 버튼/DWM·Linux·최종 수용은 미완료. [증거 ZIP](../docs/data/paper-125ms-implementation-20261005.zip).
+
 ## 2026-10-05 폴리곤 점 입력과 교차점 자동 완성
 
 기준: [ADR-028](../docs/decisions/0028-polygon-point-drawing-and-crossing.md). 사용자는 교차점에서 자동으로 닫는 동작을 선택했다.
@@ -10,6 +51,32 @@
 - [x] PASS: `artifacts/publish-polygon-drawing/TeachingToolWpf.exe`의 RTX 3060/DX12 debug HWND smoke exit 0. 실제 도형 선택·추가 버튼·교차점 자식 생성·정확한 Undo/Redo·OpenCV 마스크·그룹/삭제·8K 라이브 회귀. 화면 `artifacts/polygon-runtime-final/artifacts/polygon-crossing.png`와 `smoke.log`. [보관 증거](../docs/data/polygon-drawing-20261005.zip).
 - [x] PASS: SOLID 5개/GRASP 9개 검토, 원칙 예외 없음. 기존 검사 성능 변경을 보존했다.
 - [ ] NOT_RUN: 물리 마우스 전체 E2E 및 수만 꼭짓점 입력 지연/장시간 시험. HWND 메시지 smoke나 기존 사각형 성능 수치로 대체하지 않는다.
+
+## 2026-10-05 8K CPU 500 ms와 GPU 가속
+
+기준: [사용자 확정 수용 기준](shape-500ms-plan.md), [최종 실측](../docs/shape-500ms-validation.md), [ADR-026](../docs/decisions/0026-8k-shape-search-latency.md). 앱의 8K PCB 샘플부터 검증하며 두 형상 방식 모두 대상이다.
+
+- [x] 실패 이력 보존: v2 일반 앱 수동 첫 CPU 256개/536.8 ms(읽기 192.7 ms)는 FAIL이다. 화면 안정 관찰이 있는 진단 통과로 대체하지 않는다. `artifacts/shape-500ms-v2-user-state/paper-cpu-first.txt`, `.jpg`. v2 기능 smoke는 별도 exit 0/PASS.
+- [x] PASS / v4 후보 실험: `SampleDirection` inlining 한 줄+샘플 X 마스크·잡음 계산 재사용. I/O 6개 `AggressiveOptimization` 제거 실험은 지연 악화로 복원했다. v3-hoist 첫 543.1/485.0 ms와 v4-inline 450.7/408.5 ms 기록 보존. v4 서비스 32/32회·정확성 PASS.
+- [x] PASS: 최종 v4 서비스 32/32회·첫/최대 CPU 399.1698 ms. 논문 CPU/GPU 중앙값 336.9/305.6 ms, 기하 321.8/298.8 ms. 256개 일대일·최소 사선 점수 차이 .0294648·CPU/GPU record 동등·잘림 없음. CUDA 최초 준비 496.3 ms+첫 GPU 검색 342.4 ms는 838.7 ms로 별도 미달. `artifacts/shape-500ms-v4.json`.
+- [x] PASS: 최종 전체 878(Core 182/Algorithm 236/Inspection 98/CUDA 52/Canvas 100/앱 210), skip 0. v4 포맷 검증·Release Rebuild 경고 0/오류 0·배포 `artifacts/publish-shape-500ms-v4` 완료. Algorithm/Inspection/Imaging 3 DLL의 앱·benchmark 해시 일치. 아래 877개·v2 수치는 이전 이력이다.
+- [x] PASS / 최종 v4 일반 앱 수동: 첫 논문 CPU 459.0 ms(읽기 182.3), 준비 후 첫 GPU 375.0 ms(읽기 185.4), 각각 256개. 최초 GPU 준비 표시 470.6 ms 별도. 실제 화면 3개·접근성 기록과 깨끗한 핀 1.000/사선 핀 .957 확대 확인. `artifacts/shape-500ms-v4-user-state/`.
+- [x] PASS / 최종 v4 정상 표시 WPF: 정확성·서비스 16/16회, CPU 명령 8/8회, 최초 준비를 제외한 명령 15/15회. 첫 CPU 서비스 440.4 ms/명령 455.7433 ms. 학습·화면 준비는 별도이며 최종 Present 시간은 미측정. `artifacts/shape-500ms-v4-wpf-visible/artifacts/shape-target-smoke.json`.
+- [ ] FAIL / 최초 GPU·숨김 창: 정상 표시 첫 GPU 명령은 CUDA 준비를 포함해 907.6588 ms. 숨김 창 진단은 서비스·정확성 16회 PASS지만 명령 16회 모두 1028.5~2281.0 ms로 실패. 두 보고서의 종합 FAIL을 유지하며 다른 부하의 500 ms 보장을 하지 않는다. `artifacts/shape-500ms-v4-wpf/artifacts/shape-target-smoke.json`.
+- [x] PASS: 최종 v4 실제 앱 기능 smoke exit 0 — OpenCV·CUDA·회전 두 pose·일반 도형 4종·소수점 입력·실제 윤곽·렌더 오류 없음. `artifacts/shape-500ms-v4-runtime/artifacts/inspection-smoke.log`. SIMD 미사용 샘플 생성 독립 회귀 3 PASS, 전체 878개에 중복 합산하지 않음. 최종 화면·원시 JSON·로그를 기존 이력과 함께 증거 ZIP에 보존.
+
+- [x] PASS: 기존 최종 DLL 해시와 Gray8 8K 핀·큰 ROI·회전/배율 잡음 baseline 보관. `artifacts/shape-500ms-baseline-bin`, `shape-500ms-baseline-pins.json`, `shape-500ms-baseline-regression.json`.
+- [x] PASS: CPU SIMD 평활화·미분·방향맵·면적 평균과 원본 명암 변환·샘플 생성의 독립 scalar 동등성 회귀. 원본 읽기 직렬/2 Mpx 합 예산 안의 coarse 병렬 처리.
+- [x] PASS: ring buffer Gaussian·상한 기반 안전한 합산 생략·공통 bounded crop 스케줄러. 원본 읽기는 단일 소유자, 활성 합 2 Mpx/원본 단일 8 Mpx, 결과 순서·실패 후 worker 종료 계약 유지. SOLID 5/GRASP 9 검토, 설계 원칙 예외 없음.
+- [x] PASS: RGBA/BGRA AVX2 16픽셀 정수 변환과 2배/4배 타일 직접 축소. 전수 RGB·비정렬·tail·stride·중간 반올림·취소 집중 16개 통과. 64 Mi픽셀 부분 측정 RGBA 18.643→7.6267 ms, 4배 축소 7.6939→1.4727 ms/managed 신규 할당 21,018,624→10,240 byte. 부분 연산과 전체 wall time을 구별한다.
+- [x] PASS: 최종 v2 ReadyToRun AVX2/`TieredCompilation=false`, CPU 12, 8192² PCB의 첫 CPU 473.9 ms를 포함한 서비스 교대 32회 모두 500 ms 이내. 논문 CPU/GPU 반복 중앙값 374.6/349.0 ms, 기하 356.2/336.6 ms. 256핀 일대일·사선 점수 간격 .0294648·잘림 없음·CPU/GPU 최종 record 동등. v1 증거를 보존한 ZIP에 v2/실제 앱/micro 보고서를 추가했다.
+- [x] PASS: CPU 전처리+CUDA 방향 확산·템플릿 점수 배치+CPU 원본 판정의 혼합 경로, 장치 세션 재사용과 미사용 CPU 응답 plane 생략. 준비 후 GPU 반복 중앙값이 두 방식 모두 CPU보다 빠름.
+- [x] PASS: 실제 WPF 두 프로세스 합계 32회 서비스 검사 500 ms 이내, 256핀 일대일·표시 CPU/GPU 동등. 첫 CPU 서비스 482.8/483.0 ms, 전체 명령 497.6/498.8 ms. CPU 명령 16개 모두 통과. 초기 화면 준비·명령 전 공개 렌더 통지 안정 관찰·학습은 별도이며 여유 1.2~2.4 ms를 다른 부하의 보장으로 표현하지 않는다. `artifacts/shape-500ms-v2-wpf`, `shape-500ms-v2-wpf-second`.
+- [ ] FAIL / 최초 GPU 준비: 장치 준비 600.9/514.2 ms가 포함된 첫 명령 1006.9/946.7 ms는 500 ms 미달. 서비스는 396.9/423.4 ms로 통과했으나 두 실제 WPF 보고서의 종합 `Status=FAIL`을 유지한다. 준비된 나머지 명령 30개는 통과.
+- [x] PASS: 최종 전체 877(Core 182/Algorithm 236/Inspection 97/CUDA 52/Canvas 100/앱 210), skip 0. 기존 scalar 26개와 추가 I/O 집중 회귀 보존. `shape-500ms-v2-format-verify.log` PASS, 빌드 경고 0/오류 0, `artifacts/publish-shape-500ms-v2` 배포 완료.
+- [x] PASS / v1 이력: 별도 Gray8 파일의 CPU 1/4·두 방식·첫 1회/반복 3회 정확성 회귀 48회. 핀 256 일대일, 큰 ROI 알려진 위치 16, 회전/배율/잡음 16개 기준 유지. 출력·pose 동등과 잘림 없음. 최종 v4 전체 파일 재측정은 미실행.
+- [ ] FAIL / 남은 성능 범위: v1 CPU 4 파일 핀 중앙값 논문/기하 792.6/788.2 ms, 큰 ROI 1817.6/1858.3 ms, 회전·잡음 600.2/603.3 ms. 이 조건의 500 ms는 미달이며 앱 샘플 통과로 대체하지 않는다. 실제 촬영·Linux·이번 변경 후 24K 500 ms는 미검증.
+- [x] 이력 보존: v1 기능 smoke exit 0, 실제 앱 첫 CPU 522.5 ms FAIL/반복 458.7·462.2 ms와 화면·접근성 기록을 남겼다. `artifacts/shape-500ms-runtime/artifacts/inspection-smoke.log`, `artifacts/shape-500ms-user-state/paper-cpu-first.jpg`, `.txt`. 추가 I/O 수정 뒤 v2 첫 실행을 별도로 검증했으며 화면 안정 관찰 조건 차이까지 모두 코드 효과로 단정하지 않는다.
 
 ## 2026-10-04 형상 검사 속도와 소수점 입력 후속
 
@@ -543,3 +610,13 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks\TeachingToolWpf.Ben
 - [x] Core 36개 + Imaging 22개 테스트 통과; 실제 클릭/드래그와 RTX DX12 디버그 smoke 확인.
 - [x] SOLID 5 / GRASP 9 검토, ADR/사용법/의존성 라이선스 갱신.
 - [ ] 최종 publish 빌드에서 OpenCV 필터 포함 smoke 및 화면 표시 재확인.
+# 2026-10-05 두 형상 방식의 정합성·속도 재검증
+
+기준: [ADR-025](../docs/decisions/0025-shape-contrast-and-clutter-energy.md), [검증 기록](../docs/shape-regression-validation.md).
+
+- [x] FAIL 재현: 원본8K 회전·배율·배경 잡음16정답에서 두 방식 CPU1/4 모두1개. 후보16개·예산경고없음. `artifacts/shape-regression-before.json`.
+- [x] PASS: 학습 대비 후보 선택·개수/에너지 감점 분리·대응 강도 중앙값 조명비. 첫 집중64 PASS. 낮은대비 실제세부의 누락 한계와 비율0 재학습을 사용자 설정·화면·문서에 안내.
+- [ ] 최종 국소 결함/마스크 경계 회귀 및 전체 Release·포맷 검사.
+- [ ] 서로 다른 binary가 확인된 방향 변환 캐시 효과 및 최종 원본8K 반복 측정.
+- [ ] 새 배포본 smoke·실제 앱 검사와 OS 화면.
+- [ ] NOT_RUN: 사용자 실제 문제 이미지·실촬영 검출률·실제 Linux 실행·이번 수정의24K비교·실시간FPS. 이전 작은 핀 수치로 대체하지 않음.
