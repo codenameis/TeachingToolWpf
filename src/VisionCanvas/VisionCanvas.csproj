@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
-    <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
+    <ProjectReference Include="..\VisionImaging.Abstractions\VisionImaging.Abstractions.csproj" />
     <PackageReference Include="Vortice.Direct3D12" Version="3.8.3" />
     <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
     <PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />

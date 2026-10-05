@@ -8,6 +8,8 @@
 
 ## 목적과 범위
 
+2026-10-05 후속 사용자 승인으로 [ADR-032](../docs/decisions/0032-optional-canvas-file-decoder.md)를 적용한다. 아래 표는 후속 경계이며 ADR-031의 최초 구조보다 우선한다. NetVips 구현은 유지하고 Canvas의 필수 참조에서 제거한다.
+
 다른 WPF 앱에서 TeachingToolWpf의 ViewModel·레시피·검사 프로젝트 없이 영상 표시와 ROI 편집을 사용할 수 있게 한다. 이미지 I/O와 검사가 ROI 편집·계층·이력에 의존하지 않도록 공통 값과 소유권 계약을 옮긴다. 새 기능이나 범용 엔진을 추가하는 작업이 아니다.
 
 `TeachingToolWpf.Core`라는 이름만 바꾸면 검사도 편집 코어를 계속 참조한다. 반대로 이미지 계약을 NetVips 구현과 한 프로젝트에 넣으면 편집 코어가 네이티브 디코더를 간접 참조한다. 따라서 기존 공유 타입을 기하, 이미지 계약, 편집 코어로 분리한다. 프로젝트 수보다 실제 참조 방향과 런타임 소유권을 기준으로 판단한다.
@@ -15,10 +17,10 @@
 | 프로젝트 | 책임 | 허용할 주요 프로젝트 참조 |
 |---|---|---|
 | `VisionGeometry` | 원본 좌표의 점·경계·도형·ROI 형상·강체 변환, 뷰 변환과 회전 범위 값 | 없음 |
-| `VisionImaging.Abstractions` | 이미지 식별·규격, 프레임·타일·픽셀 버퍼와 소유권 계약 | 없음 |
+| `VisionImaging.Abstractions` | 이미지 식별·규격·피라미드 단계 수, IImageLoader·프레임·타일·픽셀 버퍼 소유권 계약 | 없음 |
 | `VisionCanvas.Core` | 편집 문서·명시적 계층·선택·입력 상태·Undo/Redo, 편집용 기하 계산 | Geometry, Imaging.Abstractions |
-| `VisionImaging` | 원본 영상 I/O와 소스 구현, 타일 계획·최신 프레임 mailbox | Geometry, Imaging.Abstractions |
-| `VisionCanvas` | WPF/Win32 입력 연결, DX12 표시·GPU 수명, viewport 계약 | Canvas.Core, VisionImaging 및 필요한 중립 계약 |
+| `VisionImaging` | NetVips 원본 영상 I/O·피라미드와 소스 구현 | Geometry, Imaging.Abstractions |
+| `VisionCanvas` | WPF/Win32 입력 연결, DX12 표시·GPU 수명, 가시 타일 계획·최신 프레임 mailbox·viewport 계약 | Canvas.Core, Imaging.Abstractions 및 필요한 중립 기하 |
 | `VisionInspection` | 원본 검사 실행·reader lease·검사 예산·결과 | Geometry, Imaging.Abstractions, VisionImaging, VisionAlgorithm |
 | `TeachingToolWpf` | 화면·레시피·검사 조립·제품 판정·통합 편집 이력 | 필요한 라이브러리를 명시적으로 조립 |
 

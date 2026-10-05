@@ -6,7 +6,6 @@ using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;

@@ -1,5 +1,7 @@
 # ADR-031: 재사용 가능한 Canvas와 공통 기하·이미지 계약
 
+후속: [ADR-032](0032-optional-canvas-file-decoder.md)가 Canvas→VisionImaging 참조, IImageLoader, mailbox/타일 계획의 소속과 파일 샘플의 직접 참조를 변경한다. 아래는 최초 결정과 당시 검증을 보존한 기록이다.
+
 - 날짜: 2026-10-05
 - 상태: 사용자 요청에 따른 경계 분리 결정. 구현·검증 상태는 [검증 기록](../canvas-reuse-validation.md)을 따른다.
 - 범위: `codex/vision-canvas-boundaries`에서 로컬 구현·검증. 커밋·푸시 없음.

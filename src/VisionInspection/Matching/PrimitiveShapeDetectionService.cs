@@ -3,7 +3,6 @@ using System.Diagnostics;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;

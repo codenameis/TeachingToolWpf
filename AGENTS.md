@@ -111,6 +111,8 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 작업 원칙
 
+2026-10-05 NetVips 후속: [ADR-032](docs/decisions/0032-optional-canvas-file-decoder.md)에 따라 NetVips는 `VisionImaging` 파일 로더에 유지하고 Canvas의 필수 의존성에서 제거한다. `IImageLoader`는 `VisionImaging.Abstractions`, `LatestFrameMailbox`/가시 `TilePlanner`는 `VisionCanvas.Imaging`, 피라미드 단계 계산은 `ImageInfo.CalculateLevelCount`가 소유한다. Canvas는 Canvas.Core와 영상 계약을 참조하고 파일 호스트만 VisionImaging/native 패키지를 명시적으로 연결한다. 버퍼·ROI 복사나 새 중계 계층을 추가하지 않는다. ADR-031의 Canvas→VisionImaging 및 mailbox/타일 계획 소속은 이 후속 결정으로 대체한다.
+
 2026-10-05 사용자 승인: [Canvas 재사용 경계](tasks/canvas-reuse-plan.md)와 [ADR-031](docs/decisions/0031-reusable-canvas-boundaries.md)에 따라 기존 TeachingToolWpf.Core를 분리한다. `VisionGeometry`는 순수 기하, `VisionImaging.Abstractions`는 영상 식별/규격·프레임·타일 소유권, `VisionCanvas.Core`는 ROI 문서·계층·선택·편집·입력·이력을 소유한다. Canvas의 공개 namespace는 `VisionCanvas.*`다. 검사·영상 I/O가 Canvas/Core/앱을 참조하지 않게 하고, 호스트가 원본 이미지·실제 ROI 형상과 중립 표시 데이터를 연결한다. 불변 스냅샷/공간 블록 identity, 통합 Undo/Redo, 원본 reader·프레임 수명을 보존한다. 이전 Core 소속/namespace 설명은 이 후속 결정으로 대체한다. 독립 사용 예제는 `samples/VisionCanvas.Sample`, 이번 증거는 [검증 기록](docs/canvas-reuse-validation.md)을 따른다.
 
 2026-10-04 사용자 승인: [플랫폼 독립 검사 계획](tasks/portable-inspection-plan.md)에 따라 **검사용 DX12를 제거**하고 Windows·Linux 공통 원본 I/O·검사 실행과 선택형 ILGPU CUDA 경로를 구성한다. WPF·VisionCanvas의 표시 DX12는 유지한다. 이전 ADR-022의 GPU 백엔드 선택은 이 후속 결정으로 대체하며, 원본·점수·취소·메모리 계약은 유지한다. 후보 축소로 검출력을 떨어뜨리는 빠른 프리셋은 재현 근거로 개선하거나 삭제한다. Linux 실실행 검증 전에는 지원 완료를 주장하지 않는다.

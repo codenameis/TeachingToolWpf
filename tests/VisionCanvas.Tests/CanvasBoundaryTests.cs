@@ -6,11 +6,11 @@ namespace VisionCanvas.Tests;
 public sealed class CanvasBoundaryTests
 {
     [Fact]
-    public void CanvasDependencyGraphDoesNotIncludeApplicationOrInspectionAssemblies()
+    public void CanvasDependencyGraphDoesNotIncludeApplicationInspectionOrFileDecoderAssemblies()
     {
         var visited = new HashSet<string>();
         Visit(Assembly.Load("VisionCanvas"));
-        Assert.DoesNotContain(visited, IsApplicationOrInspection);
+        Assert.DoesNotContain(visited, IsForbiddenDependency);
 
         void Visit(Assembly assembly)
         {
@@ -44,7 +44,7 @@ public sealed class CanvasBoundaryTests
     }
 
     [Fact]
-    public void CanvasPublicApiDoesNotExposeApplicationOrInspectionTypes()
+    public void CanvasPublicApiDoesNotExposeApplicationInspectionOrFileDecoderTypes()
     {
         foreach (var type in Assembly.Load("VisionCanvas").GetExportedTypes())
         {
@@ -87,7 +87,7 @@ public sealed class CanvasBoundaryTests
 
     private static void AssertIndependent(Type type)
     {
-        Assert.False(IsApplicationOrInspection(type.Assembly.GetName().Name!), $"Public API exposes {type}.");
+        Assert.False(IsForbiddenDependency(type.Assembly.GetName().Name!), $"Public API exposes {type}.");
         Assert.False(type.Namespace?.StartsWith("TeachingToolWpf", StringComparison.Ordinal) == true,
             $"Public API retains the application namespace: {type}.");
         if (type.HasElementType)
@@ -100,8 +100,9 @@ public sealed class CanvasBoundaryTests
         }
     }
 
-    private static bool IsApplicationOrInspection(string name)
-        => name.StartsWith("TeachingToolWpf", StringComparison.Ordinal) ||
+    private static bool IsForbiddenDependency(string name)
+        => name == "VisionImaging" || name.StartsWith("NetVips", StringComparison.Ordinal) ||
+           name.StartsWith("TeachingToolWpf", StringComparison.Ordinal) ||
            name.StartsWith("VisionInspection", StringComparison.Ordinal) ||
            name.StartsWith("VisionAlgorithm", StringComparison.Ordinal) ||
            name.StartsWith("VisionCompute", StringComparison.Ordinal);

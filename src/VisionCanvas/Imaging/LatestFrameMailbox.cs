@@ -1,6 +1,6 @@
 using VisionImaging.Abstractions;
 
-namespace VisionImaging;
+namespace VisionCanvas.Imaging;
 
 /// <summary>Single-slot ownership transfer. Replaced frames are returned immediately.</summary>
 public sealed class LatestFrameMailbox : IDisposable

@@ -1,8 +1,8 @@
 using System.Numerics;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
+using VisionCanvas.Imaging;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Rendering;

@@ -1,6 +1,5 @@
 using VisionCanvas.Imaging;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Rendering;

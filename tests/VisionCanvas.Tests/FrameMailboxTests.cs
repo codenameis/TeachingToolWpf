@@ -1,7 +1,7 @@
-using VisionImaging;
+using VisionCanvas.Imaging;
 using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Core.Tests;
+namespace VisionCanvas.Tests;
 
 public class FrameMailboxTests
 {

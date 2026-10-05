@@ -1,6 +1,5 @@
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;

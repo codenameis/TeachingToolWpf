@@ -1,7 +1,7 @@
 using VisionGeometry;
 using VisionImaging.Abstractions;
 
-namespace VisionImaging;
+namespace VisionCanvas.Imaging;
 
 public static class TilePlanner
 {
@@ -37,17 +37,5 @@ x++)
         }
 
         return result;
-    }
-
-    public static int LevelCount(int width, int height)
-    {
-        var count = 1;
-        while (Math.Max(width, height) > ImageInfo.TileSize)
-        {
-            width = (width + 1) / 2;
-            height = (height + 1) / 2;
-            count++;
-        }
-        return count;
     }
 }

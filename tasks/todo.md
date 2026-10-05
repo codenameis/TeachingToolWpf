@@ -1,5 +1,24 @@
 # 단계별 작업 목록
 
+## 2026-10-05 미사용 파일 점검과 잔여 생성물 정리
+
+- [x] PASS: 소스·XAML·프로젝트407개, 솔루션20개 프로젝트, 자원/동적 참조·private 미사용 멤버를 점검. 삭제가 확실한 소스 파일은 발견하지 못했으며 진단·벤치마크·기존 검증 자료를 보존.
+- [x] PASS: 사용자 승인 후 이전 `src/TeachingToolWpf.Core`, 루트 `obj`·`bin`의 생성 파일41개(223,698bytes)와 폴더 삭제. 세 경로의 실제 위치·재분석 지점 부재·Git 미추적·백업 SHA256을 삭제 직전에 검증.
+- [x] PASS: 삭제 후 전체 Release 빌드 경고0/오류0. 기존 작업 파일 해시·Git 상태 동일 확인. 소스 동작 변경이 없어 테스트 재실행은 생략. SOLID5/GRASP9는 구현 변경 없이 기존 경계 유지, 예외 없음.
+- 증거·복구용 ZIP: `artifacts/unused-file-cleanup`의 `cleanup-result.json`, `deletion-inventory.json`, `backup-verification.json`, `build-after.log`. 커밋·푸시 없음.
+
+## 2026-10-05 Canvas의 NetVips 선택형 연결
+
+기준: [ADR-032](../docs/decisions/0032-optional-canvas-file-decoder.md), [후속 검증](../docs/canvas-reuse-validation.md). 기존 NetVips 파일 디코더를 유지한다.
+
+- [x] PASS: Canvas의 VisionImaging/NetVips 전이 참조·공개 API 의존 제거. 기존 구조에서 강화된 경계2개 FAIL, 변경 후 PASS. 새 프로젝트·중계 래퍼 없음.
+- [x] PASS: 기존 프레임/타일 테스트5개를 Canvas로 이동하고 전체945개 PASS(실패/skip0). 별도 집중22개 PASS. Release 전체 빌드 경고0/오류0.
+- [x] PASS: Canvas만 참조한 새 호스트의8192² Gray8 버퍼·ROI·DX12 Present/fence·캡처. deps/배포 파일/로드 assembly·native module에 NetVips/libvips 없음. 프레임 픽셀 identity 유지.
+- [x] PASS: 명시적 VisionImaging 참조 파일 샘플의8K/24K·PNG·이력/실패 원자성과 기존 앱 편집/필터/8K라이브·검사 smoke 각각exit0.
+- [x] PASS(측정 완료): 변경 전후8K 각각3회·24K Gray8/Gray16 각각2회 최초 import/재개방 기록. 약60 제출FPS, 파일 처리 시간·private 메모리 비슷. 변경 후 표시 드롭1개와 양쪽 Gray16 작업 집합4.3–6.3GiB 변동 보존. 장시간 성능·동등성 보장으로 해석하지 않음.
+- [x] PASS: 변경 범위 whitespace·명명/style·diff 검사. 전체 형식 검사는 HEAD와 동일한 기존6개 파일 위반으로 FAIL이며 이번 변경에 섞어 수정하지 않음.
+- [ ] NOT_RUN: 실제 카메라·장시간 부하·다른GPU·Linux. 기존 검사125/80ms 목표와 별도다.
+
 ## 2026-10-05 Canvas 독립 재사용 경계
 
 기준: [계획](canvas-reuse-plan.md), [ADR-031](../docs/decisions/0031-reusable-canvas-boundaries.md), [검증 기록](../docs/canvas-reuse-validation.md). 브랜치 `codex/vision-canvas-boundaries`, 사용자 선택에 따라 로컬 구현·검증만 진행한다.

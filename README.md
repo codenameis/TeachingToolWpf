@@ -143,14 +143,14 @@ OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255�
 | `src/VisionGeometry` | double 좌표, 실제 ROI 도형·포함 판정, 강체·뷰 변환 |
 | `src/VisionImaging.Abstractions` | 이미지 식별·규격, 프레임·타일·픽셀 버퍼의 소유권 계약 |
 | `src/VisionCanvas.Core` | 불변 ROI 문서, BVH, 계층·선택·편집·이력·제스처 |
-| `src/VisionImaging` | libvips 디스크 피라미드, 파일·합성 소스, 타일 계획·프레임 mailbox |
+| `src/VisionImaging` | 선택형 NetVips 파일 로더·디스크 피라미드, 파일·합성 소스 |
 | `src/VisionCanvas` | WPF/Win32 입력·DPI, DX12 장치·표시·캐시, ROI·필터·오버레이 |
 | `src/VisionInspection`, `src/VisionAlgorithm` | 편집 코어와 화면에 의존하지 않는 원본 검사 실행·알고리즘 |
 | `src/TeachingToolWpf` | 패널·MVVM, 이미지 교체·레시피의 통합 이력, 검사 조립·제품 판정 |
 | `samples/VisionCanvas.Sample` | TeachingToolWpf·검사 참조 없이 공개 Canvas API만 사용하는 WPF 호스트 |
 | `benchmarks` | GPU/CPU CSV, 대용량 파일 시험, 편집·검사 측정 |
 
-Canvas를 다른 앱에서 사용하려면 [독립 샘플](samples/VisionCanvas.Sample/README.md)을 참고하세요. 샘플의 프로젝트 참조는 `VisionCanvas` 하나이며 필요한 중립 라이브러리는 전이 참조로 포함됩니다. 파일 디코더의 OS별 native 패키지는 호스트가 선택합니다. ROI 문서·입력·이력은 `VisionCanvas.Core`, 순수 형상은 `VisionGeometry`, 이미지 수명 계약은 `VisionImaging.Abstractions`에 있습니다. 기존 `TeachingToolWpf.Core.*`와 Canvas의 `TeachingToolWpf.*` namespace를 사용하는 코드는 새 namespace로 변경해야 합니다. [분리 결정](docs/decisions/0031-reusable-canvas-boundaries.md)과 [이번 검증 범위](docs/canvas-reuse-validation.md)를 함께 확인하세요.
+Canvas를 다른 앱에서 사용하려면 [독립 샘플](samples/VisionCanvas.Sample/README.md)을 참고하세요. `VisionCanvas`만 참조하면 NetVips 없이 호스트가 공급한 프레임·타일을 표시할 수 있습니다. 파일을 여는 샘플은 `VisionImaging`과 OS별 NetVips native 패키지를 명시적으로 추가합니다. ROI 문서·입력·이력은 `VisionCanvas.Core`, 순수 형상은 `VisionGeometry`, 이미지 수명과 `IImageLoader` 계약은 `VisionImaging.Abstractions`에 있습니다. 기존 namespace의 변경과 소스 재빌드 범위는 [분리 결정](docs/decisions/0031-reusable-canvas-boundaries.md), [선택형 디코더 결정](docs/decisions/0032-optional-canvas-file-decoder.md), [검증 기록](docs/canvas-reuse-validation.md)을 참고하세요.
 
 ```powershell
 dotnet run --project .\samples\VisionCanvas.Sample -c Release
@@ -187,7 +187,7 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artif
 ## 프로젝트 구조와 명시적 ROI 계층 (2026-10-05)
 
 - `src/TeachingToolWpf`: 실행 앱, 패널·ViewModel, 검사 연결, 진단 시나리오.
-- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core와 VisionImaging을 참조한다.
+- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core와 VisionImaging.Abstractions를 참조한다. NetVips 파일 구현은 호스트가 선택한다.
 - `src/VisionCanvas.Core`: GPU 없는 ROI·계층·입력·이력. 순수 기하와 이미지 계약은 VisionGeometry/VisionImaging.Abstractions로 분리한다.
 - `src/VisionAlgorithm`: 독립 알고리즘. 캔버스와 상호 참조하지 않는다.
 - `tests`, `benchmarks`, `samples`: 각각 프로젝트 이름별 폴더. 독립 사용 예제는 VisionCanvas.Sample이다.

@@ -1,8 +1,10 @@
 # VisionCanvas 독립 WPF 호스트
 
-`VisionCanvas` 프로젝트 하나만 직접 참조하여 표시·ROI 편집·외부 overlay를 조립하는 실행 예제다. 공통 기하·영상 계약과 편집 코어는 전이 참조로 사용한다. `TeachingToolWpf`, 검사 서비스, 알고리즘, CUDA, friend/internal API는 사용하지 않는다.
+`VisionCanvas`로 표시·ROI 편집·외부 overlay를 조립하고, 파일 열기를 위해 `VisionImaging`을 명시적으로 참조하는 실행 예제다. 공통 기하·영상 계약과 편집 코어는 전이 참조로 사용한다. `TeachingToolWpf`, 검사 서비스, 알고리즘, CUDA, friend/internal API는 사용하지 않는다.
 
 Windows x64, .NET 10, DX12 장치가 필요하다. 파일 열기는 기존 `VisionImaging.ImageLoader`를 사용하며 실행 호스트에 고정 버전 `NetVips.Native.win-x64`를 배포한다. NetVips의 고지는 저장소 `THIRD-PARTY-NOTICES.md`를 따른다. 필터를 실행하지 않으므로 OpenCV native runtime은 추가하지 않는다.
+
+카메라나 자체 버퍼를 표시하는 호스트는 `VisionCanvas`만 참조하면 된다. `VisionImaging.Abstractions`의 `VideoFrame`을 `PublishFrame`으로 보내거나 직접 구현한 `ITileSource`를 `SetSource`로 이전한다. NetVips를 거치는 래퍼나 전체 픽셀 복사는 필요하지 않다. 파일 로더 계약만 필요하면 `VisionImaging.Abstractions.IImageLoader`를 사용한다.
 
 ```powershell
 dotnet run --project samples/VisionCanvas.Sample -c Release

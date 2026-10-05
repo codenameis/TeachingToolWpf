@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using VisionCanvas.Diagnostics;
 using VisionCanvas.Imaging;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Rendering;

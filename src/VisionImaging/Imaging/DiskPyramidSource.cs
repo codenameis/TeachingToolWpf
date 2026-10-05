@@ -70,7 +70,7 @@ i++)
             using var input = Image.NewFromFile(path, access: Enums.Access.Sequential, failOn: Enums.FailOn.Error);
             using var normalized = Normalize(input);
             var kind = normalized.Bands == 1 ? normalized.Format == Enums.BandFormat.Ushort ? PixelKind.Gray16 : PixelKind.Gray8 : PixelKind.Rgba32;
-            var info = new ImageInfo(path, Path.GetFileName(path), normalized.Width, normalized.Height, kind, TilePlanner.LevelCount(normalized.Width, normalized.Height));
+            var info = new ImageInfo(path, Path.GetFileName(path), normalized.Width, normalized.Height, kind, ImageInfo.CalculateLevelCount(normalized.Width, normalized.Height));
             var required = checked(((long)info.Width * info.Height * info.BytesPerPixel * 3 / 2) + (64 * 1024 * 1024));
             var drive = new DriveInfo(Path.GetPathRoot(staging)!);
             if (drive.AvailableFreeSpace < required)

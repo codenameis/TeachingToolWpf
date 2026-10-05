@@ -1,5 +1,7 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-05 NetVips 선택형 연결:** [ADR-032](../docs/decisions/0032-optional-canvas-file-decoder.md). Canvas의 VisionImaging 전이 참조를 끊고 파일 호스트에서만 기존 NetVips 로더를 연결한다. 공통 IImageLoader 계약과 표시용 mailbox/타일 계획의 소속을 정리하며 버퍼·ROI 캐시·피라미드는 보존한다. [검증 기록](../docs/canvas-reuse-validation.md)의 후속 결과를 따른다.
+
 - **2026-10-05 Canvas 재사용 경계:** 별도 브랜치에서 [분리 계획](canvas-reuse-plan.md)과 [ADR-031](../docs/decisions/0031-reusable-canvas-boundaries.md)을 적용한다. 순수 기하는 `VisionGeometry`, 영상 수명 계약은 `VisionImaging.Abstractions`, 편집·입력·이력은 `VisionCanvas.Core`가 소유한다. Canvas와 검사는 호스트에서 이미지·ROI·표시 데이터로 연결하며 검사/I/O는 편집 코어를 참조하지 않는다. 기존 동작·원본 reader·통합 이력·렌더 캐시를 보존한다. 아래 과거 Core 소속 설명보다 이 경계가 우선하며 완료 상태는 [이번 검증](../docs/canvas-reuse-validation.md)을 따른다.
 
 - **2026-10-05 회전 불량 검사:** 논문 모드의 검색 범위와 정상 허용각을 분리했다. 선택형 회전 검사는 전체360° 학습/탐색 후 허용각 밖 검출을NG로 표시한다. 현재 사용자의 긴 핀ROI에서 역방향128개NG를CPU/CUDA로 확인했다. [ADR-030](../docs/decisions/0030-rotation-inspection-acceptance.md), [검증](../docs/rotation-inspection-validation.md). 125/80ms 목표는미달이다.

@@ -17,7 +17,7 @@ public sealed class LiveImageSource : ITileSource
             throw new ArgumentException("지원하지 않는 라이브 소스입니다.");
         }
 
-        Info = new(reference.Key, reference.Name, reference.Width, reference.Height, kind, TilePlanner.LevelCount(reference.Width, reference.Height));
+        Info = new(reference.Key, reference.Name, reference.Width, reference.Height, kind, ImageInfo.CalculateLevelCount(reference.Width, reference.Height));
     }
 
     public static bool TryKind(ImageReference? reference, out PixelKind kind)

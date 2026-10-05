@@ -15,7 +15,7 @@ public sealed class ProceduralTileSource : ITileSource, IOriginalGrayTileSource
 
     public ProceduralTileSource(int width = 8192, int height = 8192)
         => Info = new($"sample:{width}:{height}", $"검사 샘플 · {width:N0} × {height:N0}", width, height,
-            PixelKind.Rgba32, TilePlanner.LevelCount(width, height));
+            PixelKind.Rgba32, ImageInfo.CalculateLevelCount(width, height));
 
     public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)
         => ReadPixels(key, PixelKind.Rgba32, cancellationToken);

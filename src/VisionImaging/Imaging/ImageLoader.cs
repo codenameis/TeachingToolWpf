@@ -3,10 +3,6 @@ using VisionImaging.Abstractions;
 
 namespace VisionImaging;
 
-public interface IImageLoader
-{
-    Task<ITileSource> LoadAsync(ImageReference reference, IProgress<string> progress, CancellationToken cancellationToken);
-}
 public sealed class ImageLoader(string cacheDirectory) : IImageLoader
 {
     public Task<ITileSource> LoadAsync(ImageReference reference, IProgress<string> progress, CancellationToken cancellationToken)

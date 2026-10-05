@@ -1,7 +1,6 @@
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Presentation;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Presentation;

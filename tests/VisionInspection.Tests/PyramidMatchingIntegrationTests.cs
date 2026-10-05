@@ -3,7 +3,6 @@ using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.Tests;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;

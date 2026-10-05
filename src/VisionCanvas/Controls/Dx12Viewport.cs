@@ -9,7 +9,6 @@ using VisionCanvas.Imaging;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Controls;

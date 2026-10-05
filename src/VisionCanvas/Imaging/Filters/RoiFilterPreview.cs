@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using VisionCanvas.Core.Editing;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Imaging.Filters;

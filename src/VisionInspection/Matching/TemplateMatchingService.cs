@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionGeometry;
-using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
