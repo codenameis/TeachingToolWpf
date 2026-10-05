@@ -45,7 +45,10 @@ internal static class GeometricQualityEvaluator
         var clutter = EvaluateClutter(image, model, pose, tolerance, token);
         var count = model.Levels[0].Features.Length;
         return new(matched / (double)count, matched == 0 ? double.PositiveInfinity : Math.Sqrt(squaredError / matched),
-            clutter.Ratio, matched, count, clutter.SceneEdges);
+            clutter.Ratio, matched, count, clutter.SceneEdges)
+        {
+            ClutterEnergyRatio = clutter.EnergyRatio
+        };
     }
 
     public static ClutterMeasurement EvaluateClutter(GradientImage image, ShapeModel model, MatchPose pose,
@@ -57,6 +60,10 @@ internal static class GeometricQualityEvaluator
         var inverseSine = Math.Sin(relativeAngle);
         var sceneEdges = 0;
         var unexplained = 0;
+        var totalEnergy = 0d;
+        var unexplainedEnergy = 0d;
+        // 정답 윤곽 대응의 중앙값으로 조명 gain을 보정한다. 추가 결함의 최대 강도를 조명 변화로 흡수하지 않는다.
+        var energyStrengthScale = .5 / EstimateContrastGain(image, model, contour, pose, tolerance, token);
         foreach (var edge in image.EdgePoints)
         {
             token.ThrowIfCancellationRequested();
@@ -69,14 +76,65 @@ internal static class GeometricQualityEvaluator
                 continue;
             }
             sceneEdges++;
+            var energy = (double)edge.Strength * edge.Strength;
+            totalEnergy += energy;
             var normalX = (inverseCosine * edge.NormalX) + (inverseSine * edge.NormalY);
             var normalY = (-inverseSine * edge.NormalX) + (inverseCosine * edge.NormalY);
-            if (!contour.Explains(x, y, normalX, normalY, tolerance / pose.Scale, model.Options.Polarity, token))
+            var explanation = contour.Explain(x, y, normalX, normalY, tolerance / pose.Scale,
+                model.Options.Polarity, edge.Strength * energyStrengthScale, token);
+            if (!explanation.AnyContour)
             {
                 unexplained++;
             }
+            if (!explanation.EnergyContour)
+            {
+                unexplainedEnergy += energy;
+            }
         }
-        return new(sceneEdges == 0 ? 0 : unexplained / (double)sceneEdges, sceneEdges);
+        return new(sceneEdges == 0 ? 0 : unexplained / (double)sceneEdges, sceneEdges,
+            totalEnergy == 0 ? 0 : unexplainedEnergy / totalEnergy);
+    }
+
+    private static double EstimateContrastGain(GradientImage image, ShapeModel model, GeometricQualityModel contour,
+        MatchPose pose, double tolerance, CancellationToken token)
+    {
+        Span<double> ratios = stackalloc double[GeometricQualityModel.MaximumContrastReferences];
+        var count = 0;
+        var relativeAngle = pose.Angle - model.TrainingReferenceAngle;
+        var cosine = Math.Cos(relativeAngle);
+        var sine = Math.Sin(relativeAngle);
+        bool InsideTrainingMask(EdgePoint edge)
+        {
+            var dx = (edge.X - pose.X) / pose.Scale;
+            var dy = (edge.Y - pose.Y) / pose.Scale;
+            return contour.Contains(model.TrainingReferencePoint.X + (cosine * dx) + (sine * dy),
+                model.TrainingReferencePoint.Y - (sine * dx) + (cosine * dy));
+        }
+        foreach (var reference in contour.ContrastReferences)
+        {
+            token.ThrowIfCancellationRequested();
+            var dx = reference.X - model.TrainingReferencePoint.X;
+            var dy = reference.Y - model.TrainingReferencePoint.Y;
+            var x = pose.X + (pose.Scale * ((cosine * dx) - (sine * dy)));
+            var y = pose.Y + (pose.Scale * ((sine * dx) + (cosine * dy)));
+            if (x < 0 || y < 0 || x >= image.Width || y >= image.Height)
+            {
+                continue;
+            }
+            var normalX = (cosine * reference.NormalX) - (sine * reference.NormalY);
+            var normalY = (sine * reference.NormalX) + (cosine * reference.NormalY);
+            if (FindCorrespondence(image, x, y, normalX, normalY, tolerance, model.Options.Polarity, InsideTrainingMask) is { } edge)
+            {
+                ratios[count++] = edge.Strength / reference.Strength;
+            }
+        }
+        if (count == 0)
+        {
+            return 1;
+        }
+        var observed = ratios[..count];
+        observed.Sort();
+        return count % 2 == 0 ? (observed[(count / 2) - 1] + observed[count / 2]) / 2 : observed[count / 2];
     }
 
     internal static EdgePoint? FindCorrespondence(GradientImage image, double x, double y, double normalX,
@@ -118,4 +176,4 @@ internal static class GeometricQualityEvaluator
     }
 }
 
-internal readonly record struct ClutterMeasurement(double Ratio, int SceneEdges);
+internal readonly record struct ClutterMeasurement(double Ratio, int SceneEdges, double EnergyRatio);

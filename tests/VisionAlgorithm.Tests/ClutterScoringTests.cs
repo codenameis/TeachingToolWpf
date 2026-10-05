@@ -19,7 +19,7 @@ public sealed class ClutterScoringTests
         Assert.Equal(legacy.Score, penalized.DirectionScore, 12);
         Assert.True(penalized.Score < clean.Score - .15);
         Assert.InRange(penalized.ClutterRatio!.Value, .15, .6);
-        Assert.Equal(penalized.DirectionScore * (1 - penalized.ClutterRatio.Value), penalized.Score, 12);
+        Assert.Equal(penalized.DirectionScore * (1 - penalized.ClutterPenaltyRatio!.Value), penalized.Score, 12);
         Assert.Equal(geometry, penalized.Geometry is not null);
         Assert.Equal(0, clean.ClutterRatio!.Value, 12);
     }
@@ -35,7 +35,7 @@ public sealed class ClutterScoringTests
         Assert.Null(legacy.ClutterRatio);
         Assert.Equal(legacy.Score, legacy.DirectionScore);
         Assert.Equal(legacy.Score, weighted.DirectionScore, 12);
-        Assert.Equal(weighted.DirectionScore * (1 - (.25 * weighted.ClutterRatio!.Value)), weighted.Score, 12);
+        Assert.Equal(weighted.DirectionScore * (1 - (.25 * weighted.ClutterPenaltyRatio!.Value)), weighted.Score, 12);
     }
 
     [Fact]
@@ -192,6 +192,7 @@ public sealed class ClutterScoringTests
 
         Assert.Equal(RefinementStatus.Rejected, refined.Refinement.Status);
         Assert.Null(refined.ClutterRatio);
+        Assert.Null(refined.ClutterPenaltyRatio);
         Assert.Equal(1, refined.DirectionScore);
         Assert.Equal(refined.DirectionScore, refined.Score);
     }

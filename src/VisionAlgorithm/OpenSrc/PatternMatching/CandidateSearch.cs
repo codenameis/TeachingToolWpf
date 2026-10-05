@@ -1,16 +1,35 @@
 using System.Buffers;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace VisionAlgorithm.OpenSrc.PatternMatching;
 
 internal readonly record struct PoseCandidate(MatchPose Pose, double Score, int Template, VerifiedScore? Verification = null);
-internal sealed record CandidateBatch(List<PoseCandidate> Candidates, bool BudgetExceeded, int EvaluatedTemplates);
+internal sealed record CandidateBatch(List<PoseCandidate> Candidates, bool BudgetExceeded, int EvaluatedTemplates)
+{
+    public double GridMilliseconds
+    {
+        get; init;
+    }
+    public double PoseMilliseconds
+    {
+        get; init;
+    }
+    public int CandidatesBeforeRefinement
+    {
+        get; init;
+    }
+}
 
 internal static class CandidateSearch
 {
-    public static CandidateBatch Find(PreparedSearchImage image, ShapeModel model, SearchOptions options, CancellationToken token)
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public static CandidateBatch Find(PreparedSearchImage image, ShapeModel model, SearchOptions options, CancellationToken token,
+        IShapeCandidateScorer? scorer = null, bool optimizedLocalSearch = false)
     {
+        var timer = Stopwatch.StartNew();
         var top = model.Levels.Length - 1;
         var factor = model.Levels[top].Factor;
         var map = image.Maps[top];
@@ -19,22 +38,58 @@ internal static class CandidateSearch
         var groups = MakeGroups(model, top, options.GroupTemplates);
         var candidates = new PriorityQueue<PoseCandidate, double>();
         var exceeded = false;
-        var scores = ArrayPool<ushort>.Shared.Rent(checked(gridWidth * gridHeight));
+        var gridLength = checked(gridWidth * gridHeight);
+        var scores = scorer is null ? ArrayPool<ushort>.Shared.Rent(gridLength) : [];
+        var groupsPerBatch = Math.Max(1, ShapeCandidateScoreRequest.MaximumScoreCount / gridLength);
+        ShapeCandidateScoreBatch? batch = null;
         try
         {
-            foreach (var group in groups)
+            for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
             {
                 token.ThrowIfCancellationRequested();
-                Array.Clear(scores, 0, gridWidth * gridHeight);
+                var group = groups[groupIndex];
                 var features = model.Templates[group[0]].Levels[top];
-                Accumulate(map, features, scores, gridWidth, gridHeight, options.UseSimd, token);
+                ReadOnlySpan<ushort> currentScores;
+                if (scorer is null)
+                {
+                    Array.Clear(scores, 0, gridLength);
+                    Accumulate(map, features, scores, gridWidth, gridHeight, options.UseSimd, token);
+                    currentScores = scores.AsSpan(0, gridLength);
+                }
+                else
+                {
+                    var batchIndex = groupIndex % groupsPerBatch;
+                    if (batchIndex == 0)
+                    {
+                        var count = Math.Min(groupsPerBatch, groups.Count - groupIndex);
+                        var templates = ImmutableArray.CreateBuilder<ImmutableArray<CandidateScoreFeature>>(count);
+                        for (var index = 0; index < count; index++)
+                        {
+                            templates.Add(model.Templates[groups[groupIndex + index][0]].Levels[top]
+                                .Select(feature => new CandidateScoreFeature(feature.X, feature.Y, feature.Bin)).ToImmutableArray());
+                        }
+                        batch = scorer.Score(new(image.Gradients[top].Bits, map.Width, map.Height, 2,
+                            map.Step, templates.MoveToImmutable()), token);
+                        if (batch is null || batch.GridWidth != gridWidth || batch.GridHeight != gridHeight || batch.TemplateCount != count ||
+                            batch.Scores is null || batch.Scores.Length != checked(gridLength * count))
+                        {
+                            throw new InvalidOperationException("후보 점수 공급자가 요청과 다른 크기의 격자를 반환했습니다.");
+                        }
+                    }
+                    currentScores = batch!.Scores.AsSpan(batchIndex * gridLength, gridLength);
+                }
                 var threshold = options.CandidateThreshold * 100 * features.Length;
+                var maximumSum = features.Length * 100;
                 for (var y = 0; y < gridHeight; y++)
                 {
                     for (var x = 0; x < gridWidth; x++)
                     {
                         var i = (y * gridWidth) + x;
-                        if (scores[i] < threshold || !IsMaximum(scores, gridWidth, gridHeight, x, y))
+                        if (scorer is not null && currentScores[i] > maximumSum)
+                        {
+                            throw new InvalidOperationException("후보 점수 공급자가 특징 수의 최대 정수 합을 넘는 값을 반환했습니다.");
+                        }
+                        if (currentScores[i] < threshold || !IsMaximum(currentScores, gridWidth, gridHeight, x, y))
                         {
                             continue;
                         }
@@ -43,7 +98,7 @@ internal static class CandidateSearch
                             var template = model.Templates[index];
                             var candidate = new PoseCandidate(new(((x * map.Step) + 0.5) * factor,
                                 ((y * map.Step) + 0.5) * factor, template.Angle, template.Scale),
-                                scores[i] / (100d * features.Length), index);
+                                currentScores[i] / (100d * features.Length), index);
                             if (!(options.Region?.ContainsWithin(candidate.Pose.X, candidate.Pose.Y, 4 * factor) ?? true))
                             {
                                 continue;
@@ -61,8 +116,13 @@ internal static class CandidateSearch
         }
         finally
         {
-            ArrayPool<ushort>.Shared.Return(scores);
+            if (scorer is null)
+            {
+                ArrayPool<ushort>.Shared.Return(scores);
+            }
         }
+        var gridTime = timer.Elapsed.TotalMilliseconds;
+        timer.Restart();
         var ordered = new PoseCandidate[candidates.Count];
         for (var index = 0; index < ordered.Length; index++)
         {
@@ -74,7 +134,7 @@ internal static class CandidateSearch
             for (var index = 0; index < ordered.Length; index++)
             {
                 token.ThrowIfCancellationRequested();
-                ordered[index] = Refine(image, model, ordered[index], options, token);
+                ordered[index] = Refine(image, model, ordered[index], options, token, optimizedLocalSearch);
             }
         }
         else
@@ -86,7 +146,7 @@ internal static class CandidateSearch
                 CancellationToken = token
             }, index =>
             {
-                ordered[index] = Refine(image, model, ordered[index], options, token);
+                ordered[index] = Refine(image, model, ordered[index], options, token, optimizedLocalSearch);
             });
         }
         var refined = new List<PoseCandidate>(ordered.Length);
@@ -108,12 +168,19 @@ internal static class CandidateSearch
             a.Pose.X != b.Pose.X ? a.Pose.X.CompareTo(b.Pose.X) : a.Template.CompareTo(b.Template));
         // 다른 템플릿에서 완전히 같은 연속 자세로 수렴한 후보는 동일한 정밀화 결과를 낸다.
         // 근접 자세를 반올림하거나 IoU로 미리 제거하지 않는다.
-        return new(refined.DistinctBy(candidate => candidate.Pose).ToList(), exceeded, groups.Count);
+        return new(refined.DistinctBy(candidate => candidate.Pose).ToList(), exceeded, groups.Count)
+        {
+            GridMilliseconds = gridTime,
+            PoseMilliseconds = timer.Elapsed.TotalMilliseconds,
+            CandidatesBeforeRefinement = ordered.Length
+        };
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static PoseCandidate Refine(PreparedSearchImage image, ShapeModel model, PoseCandidate candidate,
-        SearchOptions options, CancellationToken token)
+        SearchOptions options, CancellationToken token, bool optimizedLocalSearch = false)
     {
+        Span<ushort> localScores = stackalloc ushort[81];
         // 각 단계에서 위치뿐 아니라 연속 각도·배율도 보정한 후 다음 해상도로 내려간다.
         for (var level = model.Levels.Length - 1; level >= 0; level--)
         {
@@ -128,20 +195,32 @@ internal static class CandidateSearch
             var cy = (int)Math.Round(pose.Y - 0.5);
             var cos = Math.Cos(pose.Angle);
             var sin = Math.Sin(pose.Angle);
-            var features = model.Levels[level].Features.Select(feature => new QuantizedFeature(
+            var features = optimizedLocalSearch && level == model.Levels.Length - 1
+                ? model.Templates[candidate.Template].Levels[level]
+                : model.Levels[level].Features.Select(feature => new QuantizedFeature(
                 (int)Math.Round(pose.Scale * ((cos * feature.X) - (sin * feature.Y))),
                 (int)Math.Round(pose.Scale * ((sin * feature.X) + (cos * feature.Y))),
                 OrientationMaps.Quantize((cos * feature.NormalX) - (sin * feature.NormalY),
                     (sin * feature.NormalX) + (cos * feature.NormalY)))).ToImmutableArray();
-            var bestScore = -1d;
-            for (var y = Math.Max(0, cy - 4); y <= Math.Min(image.Maps[level].Height - 1, cy + 4); y++)
+            var bestSum = -1;
+            var left = Math.Max(0, cx - 4);
+            var top = Math.Max(0, cy - 4);
+            var right = Math.Min(image.Maps[level].Width - 1, cx + 4);
+            var bottom = Math.Min(image.Maps[level].Height - 1, cy + 4);
+            var width = right - left + 1;
+            if (optimizedLocalSearch)
             {
-                for (var x = Math.Max(0, cx - 4); x <= Math.Min(image.Maps[level].Width - 1, cx + 4); x++)
+                image.Maps[level].AccumulateLocal(features, left, top, width, bottom - top + 1, localScores, options.UseSimd);
+            }
+            for (var y = top; y <= bottom; y++)
+            {
+                for (var x = left; x <= right; x++)
                 {
-                    var score = Score(image.Maps[level], features, x, y);
-                    if (score > bestScore)
+                    var score = optimizedLocalSearch ? localScores[((y - top) * width) + x - left]
+                        : Score(image.Maps[level], features, x, y, bestSum);
+                    if (score > bestSum)
                     {
-                        bestScore = score;
+                        bestSum = score;
                         pose = pose with
                         {
                             X = x + 0.5,
@@ -169,12 +248,13 @@ internal static class CandidateSearch
                     X = pose.X * factor,
                     Y = pose.Y * factor
                 },
-                Score = bestScore
+                Score = bestSum / (100d * features.Length)
             };
         }
         return candidate;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static void Accumulate(OrientationMaps map, ImmutableArray<QuantizedFeature> features,
         ushort[] scores, int gridWidth, int gridHeight, bool simd, CancellationToken token)
     {
@@ -212,17 +292,22 @@ internal static class CandidateSearch
         }
     }
 
-    private static double Score(OrientationMaps map, ImmutableArray<QuantizedFeature> features, int x, int y)
+    private static int Score(OrientationMaps map, ImmutableArray<QuantizedFeature> features, int x, int y, int minimumSum)
     {
         var sum = 0;
-        foreach (var feature in features)
+        for (var index = 0; index < features.Length; index++)
         {
+            var feature = features[index];
             sum += map.At(feature.Bin, x + feature.X, y + feature.Y);
+            if ((index & 7) == 7 && sum + ((features.Length - index - 1) * 100) <= minimumSum)
+            {
+                return -1;
+            }
         }
-        return sum / (100d * features.Length);
+        return sum;
     }
 
-    private static bool IsMaximum(ushort[] scores, int width, int height, int x, int y)
+    private static bool IsMaximum(ReadOnlySpan<ushort> scores, int width, int height, int x, int y)
     {
         var i = (y * width) + x;
         for (var dy = Math.Max(0, y - 1); dy <= Math.Min(height - 1, y + 1); dy++)

@@ -6,13 +6,17 @@ namespace VisionAlgorithm.OpenSrc.PatternMatching;
 internal sealed class GeometricQualityModel
 {
     public const int MaximumContourPoints = 262_144;
+    public const int MaximumContrastReferences = 128;
     private readonly EdgePoint[] _contour;
+    private readonly EdgePoint[] _contrastReferences;
     private readonly int[] _rowStarts;
     private readonly byte[] _mask;
     private readonly int _width;
     private readonly int _height;
 
-    public long EstimatedBytes => (_contour.LongLength * Unsafe.SizeOf<EdgePoint>()) +
+    public ReadOnlySpan<EdgePoint> ContrastReferences => _contrastReferences;
+
+    public long EstimatedBytes => ((_contour.LongLength + _contrastReferences.LongLength) * Unsafe.SizeOf<EdgePoint>()) +
         (_rowStarts.LongLength * sizeof(int)) + _mask.LongLength;
 
     public GeometricQualityModel(int width, int height, ReadOnlyMemory<byte> mask, List<EdgePoint> contour,
@@ -32,6 +36,14 @@ internal sealed class GeometricQualityModel
         _height = height;
         _mask = mask.ToArray();
         _contour = contour.OrderBy(edge => (int)edge.Y).ThenBy(edge => edge.X).ToArray();
+        var maximumStrength = contour.Count == 0 ? 0 : contour.Max(edge => edge.Strength);
+        var strongContour = _contour.Where(edge => edge.Strength >= maximumStrength * .5).ToArray();
+        var referenceCount = Math.Min(MaximumContrastReferences, strongContour.Length);
+        _contrastReferences = new EdgePoint[referenceCount];
+        for (var reference = 0; reference < referenceCount; reference++)
+        {
+            _contrastReferences[reference] = strongContour[(int)((long)reference * strongContour.Length / referenceCount)];
+        }
         _rowStarts = new int[height + 1];
         var index = 0;
         for (var row = 0; row < height; row++)
@@ -52,7 +64,12 @@ internal sealed class GeometricQualityModel
 
     public bool Explains(double x, double y, double normalX, double normalY, double radius,
         ContrastPolarity polarity, CancellationToken token)
+        => Explain(x, y, normalX, normalY, radius, polarity, 0, token).AnyContour;
+
+    public ContourExplanation Explain(double x, double y, double normalX, double normalY, double radius,
+        ContrastPolarity polarity, double minimumEnergyStrength, CancellationToken token)
     {
+        var anyContour = false;
         var firstRow = (int)Math.Max(0, Math.Floor(y - radius));
         var lastRow = (int)Math.Min(_height - 1, Math.Floor(y + radius));
         var squaredRadius = radius * radius;
@@ -87,10 +104,16 @@ internal sealed class GeometricQualityModel
                 if ((dx * dx) + (dy * dy) <= squaredRadius &&
                     GeometricQualityEvaluator.Compatible(normalX, normalY, edge, polarity))
                 {
-                    return true;
+                    anyContour = true;
+                    if (edge.Strength >= minimumEnergyStrength)
+                    {
+                        return new(true, true);
+                    }
                 }
             }
         }
-        return false;
+        return new(anyContour, false);
     }
 }
+
+internal readonly record struct ContourExplanation(bool AnyContour, bool EnergyContour);

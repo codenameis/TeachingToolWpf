@@ -16,6 +16,7 @@ public enum ContrastPolarity
 public enum InspectionComputeMode
 {
     Cpu,
+    /// <summary>기존 직렬화 이름을 유지한다. 공급자가 지원하면 GPU 후보 점수와 CPU 원본 정밀 검증을 함께 사용한다.</summary>
     GpuPreprocessing
 }
 
@@ -24,6 +25,8 @@ public sealed record TrainingOptions
     public int PyramidLevels { get; init; } = 3;
     public int MaximumFeatures { get; init; } = 160;
     public float MinimumGradient { get; init; } = 8;
+    /// <summary>산포 특징 후보의 최소 강도/학습 최대 강도 비율. 전체 윤곽과 마스크는 생략하지 않는다.</summary>
+    public double MinimumFeatureContrastRatio { get; init; } = 0.2;
     /// <summary>학습 ROI 방향에서 더한 시계 방향 회전 편차의 최솟값.</summary>
     public double MinimumAngleDegrees { get; init; } = -30;
     /// <summary>학습 ROI 방향에서 더한 시계 방향 회전 편차의 최댓값.</summary>
@@ -36,6 +39,8 @@ public sealed record TrainingOptions
     public ContrastPolarity Polarity { get; init; } = ContrastPolarity.Preserve;
     /// <summary>최종 기하 품질 계산에 필요한 전체 학습 윤곽과 마스크를 보관한다.</summary>
     public bool BuildGeometricModel { get; init; } = true;
+    /// <summary>한 단계만 남은 작은 논문 형상의 원본 gradient 세부 검증. 추가 윤곽 감점과 함께 적용한다.</summary>
+    public bool UseFineDetailValidation { get; init; }
     /// <summary>기하 상세 판정과 독립적으로 추가 윤곽 점수에 필요한 전체 윤곽과 마스크를 보관한다.</summary>
     public bool BuildClutterModel
     {
@@ -46,6 +51,7 @@ public sealed record TrainingOptions
     {
         if (PyramidLevels is < 1 or > 6 || MaximumFeatures is < 12 or > 512 ||
             !float.IsFinite(MinimumGradient) || MinimumGradient <= 0 ||
+            !double.IsFinite(MinimumFeatureContrastRatio) || MinimumFeatureContrastRatio is < 0 or > 1 ||
             !double.IsFinite(MinimumAngleDegrees) || !double.IsFinite(MaximumAngleDegrees) ||
             MaximumAngleDegrees < MinimumAngleDegrees || MaximumAngleDegrees - MinimumAngleDegrees > 360 ||
             !double.IsFinite(AngleStepDegrees) || AngleStepDegrees <= 0 || AngleStepDegrees > 45 ||
@@ -72,7 +78,8 @@ public sealed record SearchOptions
 {
     public double CandidateThreshold { get; init; } = 0.65;
     public double MinimumScore { get; init; } = 0.72;
-    /// <summary>최종 점수 = 방향 점수 × (1 - 이 가중치 × 추가 윤곽 비율). 0은 기존 방향 점수를 유지한다.</summary>
+    /// <summary>방향 점수 × (1 - 가중치 × 추가 윤곽 에너지 비율).
+    /// 작은 논문 모델은 원본 세부 설명 에너지 D의 (1 - 가중치 × (1-D))를 추가 적용한다. 0은 방향 점수를 유지한다.</summary>
     public double ClutterWeight
     {
         get; init;
@@ -302,7 +309,9 @@ public sealed class ShapeModel
     }
     public int TemplateCount => Templates.Length;
     public long EstimatedBytes => Levels.Sum(l => (long)l.Features.Length * 32) +
-        Templates.Sum(t => t.Levels.Sum(l => (long)l.Length * 12)) + (ContourModel?.EstimatedBytes ?? 0);
+        Templates.Sum(t => t.Levels.Sum(l => (long)l.Length * 12)) + (ContourModel?.EstimatedBytes ?? 0) + (FineDetail?.EstimatedBytes ?? 0);
+    internal FineDetailModel? FineDetail { get; }
+    public bool HasFineDetailModel => FineDetail is not null;
     internal GeometricQualityModel? GeometryModel => Options.BuildGeometricModel ? ContourModel : null;
     internal GeometricQualityModel? ContourModel
     {
@@ -314,7 +323,8 @@ public sealed class ShapeModel
     }
 
     internal ShapeModel(TrainingRegion region, TrainingOptions options, ImmutableArray<ModelLevel> levels,
-        ImmutableArray<ImagePoint> bounds, ImmutableArray<PoseTemplate> templates, GeometricQualityModel? geometryModel = null)
+        ImmutableArray<ImagePoint> bounds, ImmutableArray<PoseTemplate> templates, GeometricQualityModel? geometryModel = null,
+        FineDetailModel? fineDetail = null)
     {
         TrainingReferencePoint = region.ReferencePoint;
         TrainingReferenceAngle = region.ReferenceAngle;
@@ -323,6 +333,7 @@ public sealed class ShapeModel
         Bounds = bounds;
         Templates = templates;
         ContourModel = geometryModel;
+        FineDetail = fineDetail;
     }
 
     /// <summary>원본에서 같은 2×2 면적 평균으로 축소한 영상에 사용하는 불변 모델 뷰.</summary>
@@ -342,7 +353,7 @@ public sealed class ShapeModel
             Levels.Skip(level).Select(value => value with { Factor = value.Factor / factor }).ToImmutableArray(),
             Bounds.Select(point => new ImagePoint(point.X / factor, point.Y / factor)).ToImmutableArray(),
             Templates.Select(template => template with { Levels = template.Levels.Skip(level).ToImmutableArray() }).ToImmutableArray(),
-            level == 0 ? ContourModel : null);
+            level == 0 ? ContourModel : null, level == 0 ? FineDetail : null);
     }
 }
 
@@ -362,14 +373,25 @@ public sealed record RefinementDiagnostics(RefinementStatus Status, MatchPose In
 /// FitErrorPixels는 대응점의 유클리드 거리 RMS(원본 검색 픽셀), 무대응이면 +Infinity다.
 /// ClutterRatio는 변환된 학습 마스크 안의 장면 에지 중 전체 학습 윤곽으로 설명되지 않는 비율이다.</summary>
 public sealed record GeometricMatchQuality(double Coverage, double FitErrorPixels, double ClutterRatio,
-    int MatchedFeatures, int ModelFeatures, int SceneEdges);
+    int MatchedFeatures, int ModelFeatures, int SceneEdges)
+{
+    /// <summary>설명되지 않는 윤곽의 gradient 강도 제곱 합 / 전체 윤곽의 강도 제곱 합.</summary>
+    public double ClutterEnergyRatio { get; init; } = ClutterRatio;
+}
 public sealed record ShapeMatch(MatchPose Pose, double CandidateScore, double Score, double Support,
     int SupportedQuadrants, RefinementDiagnostics Refinement)
 {
+    /// <summary>작은 논문 모델의 원본 gradient 설명 에너지(0~1). null은 세부 검증 미적용.</summary>
+    public double? DetailConsistency { get; init; }
     /// <summary>추가 윤곽 감점 전의 학습 특징 방향 일치도.</summary>
     public double DirectionScore { get; init; } = Score;
     /// <summary>최종 자세의 실제 학습 마스크 내부 추가 윤곽 비율. null은 측정하지 않았음을 뜻한다.</summary>
     public double? ClutterRatio
+    {
+        get; init;
+    }
+    /// <summary>추가 윤곽 점수에 사용한 대비 에너지 비율. 윤곽 개수 비율과 구별한다.</summary>
+    public double? ClutterPenaltyRatio
     {
         get; init;
     }
@@ -381,5 +403,19 @@ public sealed record ShapeMatch(MatchPose Pose, double CandidateScore, double Sc
 public sealed record SearchDiagnostics(double PreprocessingMilliseconds, double CandidateMilliseconds,
     double VerificationMilliseconds, double RefinementMilliseconds, double SuppressionMilliseconds,
     int TemplatesEvaluated, int Candidates, bool CandidateBudgetExceeded, bool VerificationBudgetExceeded,
-    long EstimatedWorkspaceBytes, string SearchPolicy, bool MatchLimitExceeded = false);
+    long EstimatedWorkspaceBytes, string SearchPolicy, bool MatchLimitExceeded = false)
+{
+    public double CandidateGridMilliseconds
+    {
+        get; init;
+    }
+    public double CandidatePoseMilliseconds
+    {
+        get; init;
+    }
+    public int CandidatesBeforeRefinement
+    {
+        get; init;
+    }
+}
 public sealed record MatchResult(ImmutableArray<ShapeMatch> Matches, SearchDiagnostics Diagnostics);

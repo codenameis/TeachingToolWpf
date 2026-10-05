@@ -50,7 +50,11 @@ public static class ShapeTrainer
                 var strength = b.Strength.CompareTo(a.Strength);
                 return strength != 0 ? strength : a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X);
             });
-            var selected = Scatter(candidates, options.MaximumFeatures);
+            // 넓은 배경의 약한 에지가 공간 간격을 채워 강한 대상 윤곽을 밀어내지 않게 한다.
+            // 전체 품질 윤곽은 위에서 보관하며, 선택 특징의 공간 간격만 이 후보군에서 조절한다.
+            var minimumStrength = candidates.Count == 0 ? 0 : candidates[0].Strength * options.MinimumFeatureContrastRatio;
+            var featureCandidates = candidates.Where(edge => edge.Strength >= minimumStrength).ToList();
+            var selected = Scatter(featureCandidates, options.MaximumFeatures);
             if (selected.Count < 12)
             {
                 if (level == 0)
@@ -98,7 +102,9 @@ public static class ShapeTrainer
                 )).ToImmutableArray()).ToImmutableArray()));
             }
         }
-        return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), geometryModel);
+        var detail = options.UseFineDetailValidation && options.BuildClutterModel && !options.BuildGeometricModel && levels.Count == 1
+            ? FineDetailModel.Create(image, region, cancellationToken) : null;
+        return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), geometryModel, detail);
     }
 
     private static ImmutableArray<ImagePoint> CreateBounds(GrayImage image, TrainingRegion region)

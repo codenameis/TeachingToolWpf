@@ -136,6 +136,7 @@ public static class PointToLineRefiner
             // 공개 정밀화 API는 새 영상이나 자세에 이전 품질값을 재사용하지 않는다.
             Geometry = null,
             ClutterRatio = null,
+            ClutterPenaltyRatio = null,
             Pose = pose,
             Score = score.Score,
             DirectionScore = score.Score,

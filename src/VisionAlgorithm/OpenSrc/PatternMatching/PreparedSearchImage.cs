@@ -19,7 +19,8 @@ public sealed class PreparedSearchImage
         get;
     }
     public long EstimatedBytes => Gradients.Sum(g => g.EstimatedBytes) +
-        Maps.Sum(m => (long)m.Step * m.Step * m.PlaneLength * 8);
+        Maps.Sum(map => map.EstimatedBytes) + (Original?.Pixels.Length ?? 0);
+    internal GrayImage? Original { get; private init; }
     internal ImmutableArray<GradientImage> Gradients
     {
         get;
@@ -40,20 +41,24 @@ public sealed class PreparedSearchImage
 
     public static PreparedSearchImage Create(GrayImage image, float minimumGradient, int levels,
         CancellationToken cancellationToken = default, bool tiled = false, int maximumPixels = MaximumPixels,
-        IImagePreprocessor? preprocessor = null)
-        => Build(image, minimumGradient, levels, cancellationToken, tiled, maximumPixels, true, true, preprocessor);
+        IImagePreprocessor? preprocessor = null, bool retainOriginal = false)
+        => Build(image, minimumGradient, levels, cancellationToken, tiled, maximumPixels, true, true, preprocessor,
+            retainOriginal: retainOriginal);
 
     internal static PreparedSearchImage CreateForSearch(GrayImage image, float minimumGradient, int levels,
-        bool extractEdges, CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor)
-        => Build(image, minimumGradient, levels, cancellationToken, tiled, MaximumPixels, true, extractEdges, preprocessor);
+        bool extractEdges, CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor,
+        bool createLinearResponses = true, bool retainOriginal = false)
+        => Build(image, minimumGradient, levels, cancellationToken, tiled, MaximumPixels, true, extractEdges, preprocessor,
+            createLinearResponses, retainOriginal);
 
     internal static PreparedSearchImage CreateForRefinement(GrayImage image, float minimumGradient, int levels,
-        CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor = null, bool extractEdges = true)
-        => Build(image, minimumGradient, levels, cancellationToken, tiled, ShapeTrainer.MaximumPixels, false, extractEdges, preprocessor);
+        CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor = null, bool extractEdges = true, bool retainOriginal = false)
+        => Build(image, minimumGradient, levels, cancellationToken, tiled, ShapeTrainer.MaximumPixels, false, extractEdges, preprocessor,
+            retainOriginal: retainOriginal);
 
     private static PreparedSearchImage Build(GrayImage image, float minimumGradient, int levels,
         CancellationToken cancellationToken, bool tiled, int maximumPixels, bool responseMaps, bool extractEdges,
-        IImagePreprocessor? preprocessor)
+        IImagePreprocessor? preprocessor, bool createLinearResponses = true, bool retainOriginal = false)
     {
         if (maximumPixels > ShapeTrainer.MaximumPixels || (long)image.Width * image.Height > maximumPixels)
         {
@@ -77,14 +82,26 @@ public sealed class PreparedSearchImage
             gradients.Add(gradient);
             if (responseMaps)
             {
-                maps.Add(OrientationMaps.Create(gradient.Bits, current.Width, current.Height, 2, 4, cancellationToken));
+                maps.Add(OrientationMaps.Create(gradient.Bits, current.Width, current.Height, 2, 4, cancellationToken,
+                    createLinearResponses));
             }
             if (level + 1 < levels)
             {
                 current = GradientImage.Reduce(current);
             }
         }
-        return new(minimumGradient, gradients.ToImmutable(), maps.ToImmutable(), timer.Elapsed.TotalMilliseconds);
+        GrayImage? original = null;
+        if (retainOriginal)
+        {
+            var pixels = new byte[image.Width * image.Height];
+            for (var row = 0; row < image.Height; row++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                image.Pixels.Span.Slice(row * image.Stride, image.Width).CopyTo(pixels.AsSpan(row * image.Width));
+            }
+            original = new(pixels, image.Width, image.Height, image.Width);
+        }
+        return new(minimumGradient, gradients.ToImmutable(), maps.ToImmutable(), timer.Elapsed.TotalMilliseconds) { Original = original };
     }
 
     internal static void ValidateSize(GrayImage image)
