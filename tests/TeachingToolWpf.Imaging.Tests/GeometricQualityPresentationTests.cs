@@ -127,13 +127,18 @@ public sealed class GeometricQualityPresentationTests
     {
         var (service, viewModel) = await CreateAsync();
         using var lifetime = viewModel;
-        service.Geometry = new(.875, .375, .25, 140, 160, 200);
+        service.Geometry = new(.875, .375, .25, 140, 160, 200)
+        {
+            ClutterEnergyRatio = .04
+        };
         await viewModel.Search.ExecuteAsync();
         Assert.Contains("방향 점수 0.960", viewModel.Results);
+        Assert.Contains("최종 점수 0.922", viewModel.Results);
         Assert.Contains($"방향 지지율 {.9:P0}", viewModel.Results);
         Assert.Contains($"윤곽 특징 검출비율 {.875:P1} (140/160)", viewModel.Results);
         Assert.Contains("위치 오차 0.375 px RMS", viewModel.Results);
-        Assert.Contains($"불필요 윤곽비율 {.25:P1}", viewModel.Results);
+        Assert.Contains($"추가 윤곽 감점(대비) {.04:P1} · 개수 {.25:P1}", viewModel.Results);
+        Assert.Contains($"불필요 윤곽비율(개수) {.25:P1}", viewModel.Results);
         Assert.Contains("영역 에지 200개", viewModel.Results);
         Assert.Equal(InspectionVerdict.Pass, viewModel.Verdict);
     }
@@ -274,7 +279,10 @@ public sealed class GeometricQualityPresentationTests
                 var pose = new MatchPose(120, 130, 0);
                 var match = new ShapeMatch(pose, .95, .96, .9, 4, new(RefinementStatus.Converged, pose, 1, .1, 3, 100, true))
                 {
-                    Geometry = Geometry
+                    Geometry = Geometry,
+                    ClutterRatio = Geometry?.ClutterRatio,
+                    ClutterPenaltyRatio = Geometry?.ClutterEnergyRatio,
+                    Score = .96 * (1 - (Geometry?.ClutterEnergyRatio ?? 0))
                 };
                 return new([match], 1, false, 0, 0, []);
             }

@@ -59,9 +59,13 @@ public sealed partial class ShapeMatchingViewModel
         => $"{index + 1} · X {match.Pose.X:F3} / Y {match.Pose.Y:F3}\n" +
             $"각도 {RoiGeometry.NormalizeAngle(match.Pose.Angle * 180 / Math.PI):F3}° · 배율 {match.Pose.Scale:F4}\n" +
             $"최종 점수 {match.Score:F3} · 방향 점수 {match.DirectionScore:F3}\n" +
-            $"방향 지지율 {match.Support:P0} · 추가 윤곽 {(match.ClutterRatio is { } clutter ? clutter.ToString("P1") : "미계산")}\n" +
+            $"방향 지지율 {match.Support:P0}\n" +
+            (match.DetailConsistency is { } detail ? $"원본 세부 획 일치 {detail:P1} · 원본 gradient 자세 검증\n" : "") +
+            $"추가 윤곽 감점(대비) {(match.ClutterPenaltyRatio is { } penalty ? penalty.ToString("P1") : "미계산")} · " +
+            $"개수 {(match.ClutterRatio is { } clutter ? clutter.ToString("P1") : "미계산")}\n" +
             (geometric ? FormatGeometry(match.Geometry) + "\n" : "") +
-            $"정밀화 {match.Refinement.Status} · 회전 관측 {(match.Refinement.AngleObservable ? "가능" : "불가")}";
+            (match.DetailConsistency is not null ? "세부 획 검증 · point-to-line 정밀화 미적용" :
+                $"정밀화 {match.Refinement.Status} · 회전 관측 {(match.Refinement.AngleObservable ? "가능" : "불가")}");
 
     private static string FormatGeometry(GeometricMatchQuality? quality)
     {
@@ -72,6 +76,6 @@ public sealed partial class ShapeMatchingViewModel
         var fit = quality.MatchedFeatures > 0 && double.IsFinite(quality.FitErrorPixels)
             ? $"{quality.FitErrorPixels:F3} px RMS" : "측정 불가";
         return $"윤곽 특징 검출비율 {quality.Coverage:P1} ({quality.MatchedFeatures}/{quality.ModelFeatures})\n" +
-            $"위치 오차 {fit}\n불필요 윤곽비율 {quality.ClutterRatio:P1} · 영역 에지 {quality.SceneEdges}개";
+            $"위치 오차 {fit}\n불필요 윤곽비율(개수) {quality.ClutterRatio:P1} · 영역 에지 {quality.SceneEdges}개";
     }
 }

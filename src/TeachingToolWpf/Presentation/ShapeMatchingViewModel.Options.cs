@@ -71,6 +71,12 @@ public sealed partial class ShapeMatchingViewModel
         set => ChangeTrainingSettings(ActiveShapeState.Training with { MaximumTemplates = value });
     }
 
+    public double MinimumFeatureContrastRatio
+    {
+        get => ActiveShapeState.Training.MinimumFeatureContrastRatio;
+        set => ChangeTrainingSettings(ActiveShapeState.Training with { MinimumFeatureContrastRatio = value });
+    }
+
     public double MinimumScore
     {
         get => ActiveSearchSettings.Options.MinimumScore;

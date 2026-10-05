@@ -9,6 +9,61 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class PatternMatchingModeTests
 {
+    [Fact]
+    public async Task RotationInspectionExpandsSearchAndKeepsAcceptanceIndependentAndPaperOnly()
+    {
+        var (service, _, viewModel) = Create();
+        using var lifetime = viewModel;
+        viewModel.MinimumAngle = 0;
+        viewModel.MaximumAngle = 10;
+        await viewModel.Train.ExecuteAsync();
+        var previous = viewModel.Model;
+        viewModel.InspectRotation = true;
+        Assert.Same(previous, viewModel.Model);
+        Assert.True(viewModel.IsTrainingDirty);
+        Assert.False(viewModel.Search.CanExecute(null));
+        await viewModel.Train.ExecuteAsync();
+        Assert.Equal(-180, service.TrainingOptions!.MinimumAngleDegrees);
+        Assert.Equal(180, service.TrainingOptions.MaximumAngleDegrees);
+        Assert.False(viewModel.CanEditSearchAngle);
+        await viewModel.Search.ExecuteAsync();
+        Assert.Equal(InspectionVerdict.Fail, viewModel.Verdict);
+        Assert.Contains("NG", Assert.Single(viewModel.ResultRows));
+        Assert.Contains("NG", Assert.Single(viewModel.Markers).Label);
+        Assert.Equal(InspectionResultPresentation.Color(InspectionVerdict.Fail), viewModel.Markers[0].Color);
+        Assert.Equal(1, viewModel.InspectionLogs[^1].RotationFailureCount);
+        Assert.Equal(new RotationAcceptance(), viewModel.InspectionLogs[^1].RotationAcceptance);
+        viewModel.MaximumAcceptedAngle = 20;
+        Assert.False(viewModel.IsTrainingDirty);
+        Assert.Null(viewModel.Overlay);
+        await viewModel.Search.ExecuteAsync();
+        Assert.Equal(InspectionVerdict.Pass, viewModel.Verdict);
+        service.PendingSearch = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = viewModel.Search.ExecuteAsync();
+        viewModel.MinimumAcceptedAngle = -10;
+        service.PendingSearch.SetResult(service.Output);
+        await pending;
+        Assert.Null(viewModel.Verdict);
+        service.PendingSearch = null;
+        viewModel.MaximumAcceptedAngle = -20;
+        Assert.NotEmpty(viewModel.OptionsError);
+        Assert.False(viewModel.Search.CanExecute(null));
+        viewModel.MaximumAcceptedAngle = 20;
+        viewModel.Method = PatternMatchingMethod.GeometricShape;
+        Assert.False(viewModel.InspectRotation);
+        Assert.Equal(10, viewModel.MaximumAcceptedAngle);
+        viewModel.InspectRotation = true;
+        Assert.False(viewModel.InspectRotation);
+        viewModel.Method = PatternMatchingMethod.Shape;
+        Assert.True(viewModel.InspectRotation);
+        Assert.Equal(20, viewModel.MaximumAcceptedAngle);
+        viewModel.InspectRotation = false;
+        Assert.True(viewModel.IsTrainingDirty);
+        await viewModel.Train.ExecuteAsync();
+        Assert.Equal(0, service.TrainingOptions.MinimumAngleDegrees);
+        Assert.Equal(10, service.TrainingOptions.MaximumAngleDegrees);
+    }
+
     [Theory]
     [InlineData(PatternMatchingMethod.Shape)]
     [InlineData(PatternMatchingMethod.GeometricShape)]
@@ -44,6 +99,7 @@ public sealed class PatternMatchingModeTests
         using var lifetime = viewModel;
         Assert.Equal(PatternMatchingMethod.Shape, viewModel.Method);
         viewModel.MaximumFeatures = 180;
+        viewModel.MinimumFeatureContrastRatio = .35;
         viewModel.MinimumScore = .8;
         viewModel.MaximumCandidates = 2500;
         viewModel.MaximumOverlap = .2;
@@ -55,16 +111,25 @@ public sealed class PatternMatchingModeTests
         await viewModel.Search.ExecuteAsync();
         Assert.False(service.SearchOptions!.EvaluateGeometry);
         var paperBoundary = Assert.Single(viewModel.Markers).Bounds;
+        Assert.Single(viewModel.ResultRows);
+        Assert.True(viewModel.HasResultRows);
+        Assert.Contains(viewModel.ResultRows[0], viewModel.Results);
+        Assert.DoesNotContain(viewModel.ResultRows[0], viewModel.ResultSummary);
 
         viewModel.Method = PatternMatchingMethod.GeometricShape;
+        Assert.Empty(viewModel.ResultRows);
+        Assert.False(viewModel.HasResultRows);
+        Assert.Equal(viewModel.Results, viewModel.ResultSummary);
         Assert.Null(viewModel.Model);
         Assert.False(viewModel.Search.CanExecute(null));
         Assert.Equal(160, viewModel.MaximumFeatures);
+        Assert.Equal(.2, viewModel.MinimumFeatureContrastRatio);
         Assert.Equal(256, viewModel.MaximumMatches);
         Assert.False(viewModel.UseSelection);
         editor.Add(RoiGeometry.Create(RoiShapeKind.Circle, new(160, 150), 80, 80));
         viewModel.Update(editor.State, 1, false, true);
         viewModel.MaximumFeatures = 200;
+        viewModel.MinimumFeatureContrastRatio = .1;
         viewModel.MinimumCoverage = .7;
         viewModel.MaximumMatches = 24;
         await viewModel.Train.ExecuteAsync();
@@ -92,6 +157,7 @@ public sealed class PatternMatchingModeTests
         viewModel.Method = PatternMatchingMethod.Shape;
         Assert.Same(paper, viewModel.Model);
         Assert.Equal(180, viewModel.MaximumFeatures);
+        Assert.Equal(.35, viewModel.MinimumFeatureContrastRatio);
         Assert.Equal(.8, viewModel.MinimumScore);
         Assert.Equal(2500, viewModel.MaximumCandidates);
         Assert.Equal(.2, viewModel.MaximumOverlap);
@@ -106,6 +172,7 @@ public sealed class PatternMatchingModeTests
         viewModel.Method = PatternMatchingMethod.GeometricShape;
         Assert.Same(geometric, viewModel.Model);
         Assert.Equal(200, viewModel.MaximumFeatures);
+        Assert.Equal(.1, viewModel.MinimumFeatureContrastRatio);
         Assert.Equal(.7, viewModel.MinimumCoverage);
         Assert.Equal(24, viewModel.MaximumMatches);
         await viewModel.Search.ExecuteAsync();
@@ -128,6 +195,7 @@ public sealed class PatternMatchingModeTests
     [InlineData(nameof(ShapeMatchingViewModel.IgnorePolarity), 1)]
     [InlineData(nameof(ShapeMatchingViewModel.MaximumFeatures), 200)]
     [InlineData(nameof(ShapeMatchingViewModel.MinimumGradient), 10)]
+    [InlineData(nameof(ShapeMatchingViewModel.MinimumFeatureContrastRatio), .35)]
     [InlineData(nameof(ShapeMatchingViewModel.MaximumTemplates), 4096)]
     public async Task TrainingChangesBlockSearchAndRestoringSettingsReusesModel(string name, double changed)
     {
@@ -166,6 +234,7 @@ public sealed class PatternMatchingModeTests
         viewModel.ScaleStep = .05;
         viewModel.MaximumFeatures = 200;
         viewModel.MinimumGradient = 9;
+        viewModel.MinimumFeatureContrastRatio = .35;
         viewModel.MaximumTemplates = 4096;
         viewModel.IgnorePolarity = true;
         await viewModel.Train.ExecuteAsync();
@@ -178,6 +247,7 @@ public sealed class PatternMatchingModeTests
         Assert.Equal(.05, training.ScaleStep);
         Assert.Equal(200, training.MaximumFeatures);
         Assert.Equal(9, training.MinimumGradient);
+        Assert.Equal(.35, training.MinimumFeatureContrastRatio);
         Assert.Equal(4096, training.MaximumTemplates);
         Assert.Equal(ContrastPolarity.IgnoreLocal, training.Polarity);
         Assert.Equal(method == PatternMatchingMethod.GeometricShape, training.BuildGeometricModel);
@@ -235,6 +305,37 @@ public sealed class PatternMatchingModeTests
         Assert.True(viewModel.IsTrainingDirty);
         Assert.False(viewModel.Search.CanExecute(null));
         Assert.Null(viewModel.Overlay);
+    }
+
+    [Theory]
+    [InlineData(-.01)]
+    [InlineData(1.01)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public async Task InvalidFeatureContrastBlocksShapeExecutionButDoesNotAffectOpenCv(double value)
+    {
+        foreach (var method in new[] { PatternMatchingMethod.Shape, PatternMatchingMethod.GeometricShape })
+        {
+            var (_, _, viewModel) = Create();
+            using var lifetime = viewModel;
+            viewModel.Method = method;
+            await viewModel.Train.ExecuteAsync();
+            var model = viewModel.Model;
+            viewModel.MinimumFeatureContrastRatio = value;
+            Assert.NotEmpty(viewModel.OptionsError);
+            Assert.False(viewModel.Train.CanExecute(null));
+            Assert.False(viewModel.Search.CanExecute(null));
+            Assert.Same(model, viewModel.Model);
+            viewModel.Method = PatternMatchingMethod.OpenCvTemplate;
+            Assert.Empty(viewModel.OptionsError);
+            Assert.True(viewModel.Train.CanExecute(null));
+            viewModel.Method = method;
+            viewModel.MinimumFeatureContrastRatio = 0;
+            Assert.Empty(viewModel.OptionsError);
+            Assert.True(viewModel.Train.CanExecute(null));
+            viewModel.MinimumFeatureContrastRatio = 1;
+            Assert.Empty(viewModel.OptionsError);
+        }
     }
 
     [Theory]

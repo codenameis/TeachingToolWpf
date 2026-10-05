@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
 using TeachingToolWpf.Imaging.Matching;
@@ -62,6 +63,8 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
     }
     public string ModelSummary => !IsShapeMethod ? TemplateSummary : Model is not { } model ? "학습된 모델 없음" :
         $"특징 {model.Levels[0].Features.Length}개 · {model.Levels.Length}단계(자동) · 템플릿 {model.TemplateCount}개" +
+        (model.HasFineDetailModel ? " · 원본 세부 획 검증" : "") +
+        (InspectRotation ? " · 회전 검사: 전체 방향 탐색" : "") +
         (IsTrainingDirty ? " · 학습 설정 변경: 다시 학습하세요." : "");
     public string Status
     {
@@ -171,6 +174,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
             Notify(nameof(HasModel));
             Notify(nameof(IsTrainingDirty));
             Notify(nameof(Results));
+            NotifyResultRows();
             Changed?.Invoke();
         });
     }
@@ -190,34 +194,96 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         var roi = UseSelection ? _selection : null;
         var live = _live;
         var options = CreateShapeSearchOptions();
+        var rotation = ActiveRotationAcceptance;
+        Guid? logId = null;
+        if (method == PatternMatchingMethod.Shape)
+        {
+            logId = Guid.NewGuid();
+            AddInspectionLog(new(logId.Value, DateTimeOffset.Now, Stopwatch.GetTimestamp(), image.Width, image.Height,
+                _generation, model.Id, teachingRegion, roi, model.Options, options,
+                model.Levels.Select(level => level.Features.Length).ToImmutableArray(), model.TemplateCount)
+            {
+                SearchTimeoutSeconds = SearchTimeoutSeconds,
+                RotationAcceptance = rotation,
+                DevicePreparationMilliseconds = options.ComputeMode == InspectionComputeMode.Cpu ? 0 : null
+            });
+        }
         await RunAsync(async (token, epoch) =>
         {
+            var preparationMilliseconds = 0d;
+            if (options.ComputeMode == InspectionComputeMode.GpuPreprocessing && _service is IShapeComputePreparation preparation)
+            {
+                Status = "CUDA 장치·커널 준비 중… 최초 준비 시간은 검사 시간과 별도 표시합니다.";
+                UpdateInspectionLog(logId, log => log with { Stage = "device_preparation" });
+                preparationMilliseconds = await preparation.PrepareGpuAsync(token);
+                UpdateInspectionLog(logId, log => log with { DevicePreparationMilliseconds = preparationMilliseconds });
+                if (!Current(epoch, token, method))
+                {
+                    UpdateInspectionLog(logId, log => log with { Outcome = "discarded" });
+                    return;
+                }
+            }
             Status = options.ComputeMode == InspectionComputeMode.GpuPreprocessing
-                ? "GPU 전처리 + CPU 원본 검색 중… 취소 가능" : "CPU 원본 해상도 검색 중… 취소 가능";
+                ? "CUDA 후보 계산 + CPU 정밀 검사 중… 취소 가능" : "CPU 원본 해상도 검색 중… 취소 가능";
+            UpdateInspectionLog(logId, log => log with { Stage = "search" });
+            var serviceTimer = Stopwatch.StartNew();
             var output = await _service.SearchAsync(image, live, model, roi, options, token);
+            var serviceAwait = serviceTimer.Elapsed.TotalMilliseconds;
+            UpdateInspectionLog(logId, log => log.WithOutput(output) with { ServiceAwaitMilliseconds = serviceAwait, Stage = "result_publish" });
             if (!Current(epoch, token, method) || !ReferenceEquals(model, state.Model))
             {
+                UpdateInspectionLog(logId, log => log with { Outcome = "discarded" });
                 return;
             }
-            var decision = InspectionDecision.Evaluate(output);
+            var decision = InspectionDecision.Evaluate(output, rotation, model.TrainingReferenceAngle);
             var boundary = SearchBoundary(image, roi);
             Verdict = decision.Verdict;
             _result = new($"{InspectionResultPresentation.Name(decision.Verdict)} · 검출 {output.Matches.Length}개",
-                InspectionResultPresentation.Color(decision.Verdict), boundary, InspectionResultPresentation.Markers(model, teachingRegion, output), ShowFeatures);
-            Results = decision.Reason + (output.Matches.IsEmpty ? "\n검출 위치 없음" : "\n\n" + string.Join("\n\n", output.Matches.Select((match, index) => FormatShapeMatch(match, index, method == PatternMatchingMethod.GeometricShape))));
+                InspectionResultPresentation.Color(decision.Verdict), boundary, InspectionResultPresentation.Markers(model, teachingRegion, output, rotation), ShowFeatures)
+            {
+                BatchLabels = method == PatternMatchingMethod.Shape
+            };
+            var rows = output.Matches.Select((match, index) => FormatShapeMatch(match, index, method == PatternMatchingMethod.GeometricShape) +
+                FormatRotationDecision(match, rotation, model.TrainingReferenceAngle, decision.Verdict == InspectionVerdict.Warning))
+                .ToImmutableArray();
+            Results = decision.Reason + (output.Matches.IsEmpty ? "\n검출 위치 없음" : "\n\n" + string.Join("\n\n", rows));
+            var detailsEnd = Results.Length;
             Results += output.Matches.IsEmpty ? "" : "\n\n좌표: 원본 이미지 픽셀 · 각도: 이미지 기준 시계 방향";
-            Results += output.Preprocessing is { } preprocessing
+            Results += output.Preprocessing is { Calls: > 0 } preprocessing
                 ? $"\n\n{preprocessing.Backend} · {preprocessing.AdapterName}\nGPU 전처리 {preprocessing.Calls}회 · {preprocessing.ProcessedPixels:N0} px · 전송/대기 포함 {preprocessing.TotalMilliseconds:F1} ms"
-                : "\n\n실행 장치: CPU";
+                : "\n\n전처리·원본 정밀 검사: CPU";
+            if (output.CandidateScoring is { } candidateScoring)
+            {
+                Results += $"\n{candidateScoring.Backend} · {candidateScoring.AdapterName}\nGPU 후보 계산 {candidateScoring.Calls}회 · 템플릿 {candidateScoring.TemplateCount:N0}개 · 전송/대기 포함 {candidateScoring.TotalMilliseconds:F1} ms";
+            }
+            if (preparationMilliseconds >= 1)
+            {
+                Results += $"\nCUDA 장치·커널 준비 {preparationMilliseconds:F1} ms (검사 시간과 별도, 세션에서 재사용)";
+            }
+            if (method == PatternMatchingMethod.Shape)
+            {
+                ResultRows = rows;
+                _paperResultSummary = decision.Reason + Results[detailsEnd..];
+            }
             Status = $"{output.Matches.Length}개 · {output.TotalMilliseconds:F1} ms (읽기/변환 {output.ReadMilliseconds:F1}) · 창 {output.Windows}개" +
-                (output.Preprocessing is not null ? " · GPU 전처리" : " · CPU") +
+                (output.CandidateScoring is not null ? " · CUDA + CPU" : output.Preprocessing is not null ? " · GPU 전처리" : " · CPU") +
                 (output.Truncated ? " · 후보 예산 초과: 검색 불완전" : "") +
                 (output.MatchLimitExceeded ? " · 최대 결과 수 도달: 일부 검출 결과 생략" : "");
             PublishResult();
-        });
+            UpdateInspectionLog(logId, log => log with
+            {
+                Outcome = output.Truncated || output.MatchLimitExceeded ? "incomplete" : "completed",
+                Stage = "result_published",
+                ResultPublishedMilliseconds = log.ElapsedMilliseconds,
+                PresentationId = _result.PresentationId,
+                OverlayVisible = ShowOverlay,
+                RotationFailureCount = rotation is null || decision.Verdict == InspectionVerdict.Warning ? null :
+                    output.Matches.Count(match => InspectionDecision.Evaluate(match, rotation, model.TrainingReferenceAngle).Verdict == InspectionVerdict.Fail)
+            });
+        }, logId);
     }
 
-    private async Task RunAsync(Func<CancellationToken, long, Task> action)
+    private async Task RunAsync(Func<CancellationToken, long, Task> action, Guid? logId = null)
     {
         using var cancellation = new CancellationTokenSource();
         using var timeLimit = new CancellationTokenSource();
@@ -238,6 +304,11 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         }
         catch (OperationCanceledException) when (combined.IsCancellationRequested)
         {
+            UpdateInspectionLog(logId, log => log with
+            {
+                Outcome = epoch != _epoch ? "discarded" :
+                timeLimit.IsCancellationRequested && !cancellation.IsCancellationRequested ? "timeout" : "cancelled"
+            });
             if (!_disposed && epoch == _epoch)
             {
                 PresentWarning(timeLimit.IsCancellationRequested && !cancellation.IsCancellationRequested
@@ -247,6 +318,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         }
         catch (Exception error)
         {
+            UpdateInspectionLog(logId, log => log with { Outcome = "failed", ErrorType = error.GetType().FullName });
             if (!_disposed && epoch == _epoch)
             {
                 var operation = _training ? "학습" : "검사";
@@ -261,6 +333,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
             _training = false;
             _cancellation = null;
             RefreshCommands();
+            UpdateInspectionLog(logId, log => log with { CommandMilliseconds = log.ElapsedMilliseconds }, true);
         }
     }
 
@@ -281,6 +354,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
 
     private void ResetResult(string message)
     {
+        ResetResultRows();
         _result = null;
         Verdict = null;
         Status = message;
@@ -293,6 +367,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
 
     private void PresentActivity(string message, ImmutableArray<PointD> boundary = default)
     {
+        ResetResultRows();
         Verdict = null;
         Status = message;
         Results = message;
@@ -302,6 +377,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
 
     private void PresentWarning(string message, string? summary = null)
     {
+        ResetResultRows();
         Verdict = InspectionVerdict.Warning;
         Results = message;
         Status = message;
@@ -312,6 +388,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
     private void PublishResult()
     {
         Notify(nameof(Results));
+        NotifyResultRows();
         Notify(nameof(VerdictText));
         Notify(nameof(VerdictColor));
         Locate.Refresh();

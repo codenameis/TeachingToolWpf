@@ -50,12 +50,13 @@ internal static class InspectionResultPresentation
         _ => throw new ArgumentOutOfRangeException(nameof(verdict))
     };
 
-    public static ImmutableArray<MatchMarker> Markers(ShapeModel model, RoiGeometry teachingRegion, ShapeSearchOutput output)
+    public static ImmutableArray<MatchMarker> Markers(ShapeModel model, RoiGeometry teachingRegion, ShapeSearchOutput output,
+        RotationAcceptance? rotation = null)
     {
         var warning = InspectionDecision.Evaluate(output).Verdict == InspectionVerdict.Warning;
         return output.Matches.Select((match, index) =>
         {
-            var verdict = warning ? InspectionVerdict.Warning : InspectionDecision.Evaluate(match).Verdict;
+            var verdict = warning ? InspectionVerdict.Warning : InspectionDecision.Evaluate(match, rotation, model.TrainingReferenceAngle).Verdict;
             var pose = match.Pose;
             var angle = RoiGeometry.NormalizeAngle(pose.Angle * 180 / Math.PI);
             var cosine = Math.Cos(pose.Angle) * pose.Scale;
@@ -70,7 +71,8 @@ internal static class InspectionResultPresentation
             return new MatchMarker(
                 detectedRegion.Outline.ToImmutableArray(),
                 new(pose.X, pose.Y), pose.Angle,
-                $"#{index + 1} 점수 {match.Score:F3}",
+                rotation is null ? $"#{index + 1} 점수 {match.Score:F3}" :
+                    $"#{index + 1} {Name(verdict)} Δ{RotationAcceptance.DeviationDegrees(pose.Angle, model.TrainingReferenceAngle):F1}°",
                 Color(verdict), features);
         }).ToImmutableArray();
     }

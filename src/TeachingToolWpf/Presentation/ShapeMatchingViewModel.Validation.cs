@@ -38,6 +38,7 @@ public sealed partial class ShapeMatchingViewModel
             {
                 try
                 {
+                    ActiveRotationAcceptance?.Validate();
                     ActiveShapeState.Training.ToOptions(IsGeometricMethod).Validate();
                 }
                 catch (ArgumentException error)

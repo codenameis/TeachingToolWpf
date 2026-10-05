@@ -23,13 +23,13 @@
                     <StackPanel Visibility="{Binding IsShapeMethod, Converter={StaticResource BoolVisibility}}">
                         <ComboBox ItemsSource="{Binding ComputeModes}" DisplayMemberPath="Name" SelectedValuePath="Mode"
                                   SelectedValue="{Binding ComputeMode}" AutomationProperties.Name="검사 실행 장치" Margin="0,0,0,8"/>
-                        <TextBlock Text="GPU는 CUDA로 평활화·gradient 전처리를 수행합니다. 검색·검증은 CPU이며 전송 비용 때문에 느릴 수 있습니다. 지원되는 NVIDIA GPU가 필요합니다."
+                        <TextBlock Text="CUDA는 방향별 후보 점수를 일괄 계산합니다. 전처리와 최종 위치·각도·형상 검증은 CPU 병렬 연산입니다. NVIDIA GPU가 필요합니다."
                                    TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
                         <TextBlock Text="CPU 최대 병렬도 (1~16)" Style="{StaticResource Caption}"/>
                         <TextBox Text="{Binding MaximumParallelism, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}"
                                  AutomationProperties.Name="검사 CPU 병렬도" Margin="0,4,0,8"/>
                     </StackPanel>
-                    <TextBlock Text="검사 시간 한도 (초 · 0은 제한 없음)" Style="{StaticResource Caption}"/>
+                    <TextBlock Text="검사 시간 한도 (초 · 0은 제한 없음)" Style="{StaticResource Caption}" ToolTip="최초 CUDA 장치 준비 시간을 포함합니다. 시간 초과 시 진행 중인 연산이 안전하게 끝난 뒤 취소됩니다."/>
                     <TextBox Text="{Binding SearchTimeoutSeconds, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}"
                              AutomationProperties.Name="검사 시간 한도" Margin="0,4,0,8"/>
                     <TextBlock Text="시간 초과는 검색 불완전 경고입니다. 진행 중인 GPU·네이티브 연산을 안전하게 마친 뒤 취소하므로 지정 시간을 넘길 수 있습니다."
@@ -45,8 +45,8 @@
             <Expander Header="학습 설정 · 변경 후 다시 학습" IsExpanded="False" Margin="0,0,0,10"
                       Visibility="{Binding IsShapeMethod, Converter={StaticResource BoolVisibility}}" IsEnabled="{Binding IsIdle}">
                 <StackPanel Margin="0,10,0,0">
-                    <TextBlock Text="학습 ROI 기준 회전 편차 (° · 범위 최대 360°)" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
-                    <UniformGrid Columns="2" Margin="0,5,0,10">
+                    <TextBlock Text="검색 회전 편차 (학습 ROI 기준 · 최대 360°)" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                    <UniformGrid Columns="2" Margin="0,5,0,10" IsEnabled="{Binding CanEditSearchAngle}">
                         <StackPanel Margin="0,0,6,0">
                             <TextBlock Text="최소 각도" Style="{StaticResource Caption}"/>
                             <TextBox Text="{Binding MinimumAngle, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="최소 검색 각도" Margin="0,4,0,0"/>
@@ -75,6 +75,11 @@
                             <TextBlock Text="최소 명암 경사 (0 초과)" Style="{StaticResource Caption}"/>
                             <TextBox Text="{Binding MinimumGradient, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="최소 학습 명암 경사" Margin="0,5,0,10"
                                      ToolTip="값을 높이면 약한 윤곽을 제외합니다. 낮추면 약한 윤곽과 잡음이 함께 늘어날 수 있습니다."/>
+                            <TextBlock Text="특징 최소 대비 비율 (0~1)" Style="{StaticResource Caption}"/>
+                            <TextBox Text="{Binding MinimumFeatureContrastRatio, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="특징 최소 대비 비율" Margin="0,5,0,10"
+                                     ToolTip="기본값은 0.2입니다. 가장 강한 학습 에지에 대한 상대 강도로 방향 특징 후보를 추립니다. 0은 이 비율로 후보를 제외하지 않으며 최소 명암 경사·최대 특징 수·공간 분산 규칙은 유지됩니다. 전체 기하 윤곽·원본 마스크는 보존합니다. 값 변경 후 다시 학습하세요."/>
+                            <TextBlock Text="낮은 대비의 실제 세부까지 검사하려면 0으로 설정하고 다시 학습하세요. 기본 0.2에서는 제외된 세부가 없어도 높은 점수가 나올 수 있습니다."
+                                       FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,10"/>
                             <TextBlock Text="회전·배율 템플릿 한도 (1~16384개)" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                             <TextBox Text="{Binding MaximumTemplates, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="최대 학습 템플릿 수" Margin="0,5,0,10"/>
                         </StackPanel>
@@ -83,6 +88,29 @@
                                FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}"/>
                 </StackPanel>
             </Expander>
+            <Border BorderBrush="#64748B" BorderThickness="1" Padding="8" Margin="0,0,0,10"
+                    Visibility="{Binding IsPaperMethod, Converter={StaticResource BoolVisibility}}" IsEnabled="{Binding IsIdle}">
+                <StackPanel>
+                    <CheckBox Content="회전 불량 검사 · 변경 후 재학습" IsChecked="{Binding InspectRotation}"
+                              AutomationProperties.Name="회전 불량 검사" Margin="0,0,0,8"/>
+                    <TextBlock Text="켜면 학습 방향 대비 전체 360°를 탐색하고 아래 정상 범위를 벗어난 검출을 NG로 표시합니다. 끄면 학습 설정의 검색 각도 범위만 사용합니다."
+                               TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+                    <UniformGrid Columns="2" IsEnabled="{Binding InspectRotation}">
+                        <StackPanel Margin="0,0,6,0">
+                            <TextBlock Text="정상 최소 편차 (°)" Style="{StaticResource Caption}"/>
+                            <TextBox Text="{Binding MinimumAcceptedAngle, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="정상 최소 회전 편차" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="정상 최대 편차 (°)" Style="{StaticResource Caption}"/>
+                            <TextBox Text="{Binding MaximumAcceptedAngle, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="정상 최대 회전 편차" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </UniformGrid>
+                    <TextBlock Text="학습한 형상 자체가 대칭이면 방향을 구분할 수 없습니다. 방향을 구별하는 글자·몸체까지 ROI에 포함하세요. 점수는 일치도이며 회전 합격 여부와 별도로 표시합니다."
+                               TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
             <TextBlock Text="OpenCV는 학습한 방향·크기를 유지하며 위치만 검색합니다. 회전·배율 및 윤곽 학습 설정은 사용하지 않습니다."
                        Visibility="{Binding IsTemplateMethod, Converter={StaticResource BoolVisibility}}" FontSize="10"
                        TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,10"/>
@@ -151,14 +179,18 @@
                 <Expander Header="형상 점수 · 추가 윤곽 감점" IsExpanded="False" Margin="0,0,0,10"
                           Visibility="{Binding IsShapeMethod, Converter={StaticResource BoolVisibility}}">
                     <StackPanel Margin="0,10,0,0">
+                        <TextBlock Text="작은 논문 형상은 원본 세부 획 일치도 D를 추가 검증합니다. 최종 점수에 (1 − 비중 × (1−D))를 곱합니다. 비중 0은 세부 감점도 끕니다. 모델 요약에 적용 여부를 표시합니다."
+                                   TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,10"/>
                         <TextBlock Text="추가 윤곽 감점 비중 (0~1)" Style="{StaticResource Caption}"/>
                         <TextBox Text="{Binding ClutterWeight, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}"
-                                 AutomationProperties.Name="추가 윤곽 감점 비중" Margin="0,5,0,10"/>
+                                 AutomationProperties.Name="추가 윤곽 감점 비중" Margin="0,5,0,10"
+                                 ToolTip="대비 감점 비율은 설명되지 않은 장면 에지 강도² 합을 학습 마스크 안 전체 장면 에지 강도² 합으로 나눈 값입니다. 위치·방향 대응과 조명 보정 후 대비 허용 범위를 함께 평가합니다. 개수 비율 제한과는 별도 기준입니다."/>
                         <TextBlock Text="윤곽 대응 허용 거리 (원본 px · 0.5~8)" Style="{StaticResource Caption}"/>
                         <TextBox Text="{Binding GeometricTolerancePixels, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}"
                                  AutomationProperties.Name="윤곽 대응 허용 거리" Margin="0,5,0,10"/>
-                        <TextBlock Text="최종 점수 = 방향 점수 × (1 − 비중 × 추가 윤곽비율). 기본 비중은 1입니다. 0은 추가 윤곽을 감점하지 않습니다. 학습 영역 밖은 평가하지 않으며, 이 점수는 불량 확률이 아닙니다."
-                                   TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}"/>
+                        <TextBlock Text="최종 점수 = 방향 점수 × (1 − 비중 × 추가 윤곽 대비 비율). 에지 강도의 제곱으로 가중합니다. 조명 보정 후에도 학습 윤곽보다 2배를 넘게 강한 에지는 대비가 설명되지 않은 것으로 봅니다. 기본 비중은 1이며 0은 감점하지 않습니다. 개수 비율은 따로 표시합니다. 점수는 전체 형상의 동일성이나 불량 확률이 아닙니다."
+                                   TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}"
+                                   ToolTip="조명 보정 배율은 강한 학습 윤곽 최대 128개의 위치·방향 대응에서 장면 강도/학습 강도 비의 중앙값으로 정합니다. 대응이 없으면 1을 사용하며 추가 결함의 최대 강도로 보정하지 않습니다. 학습 영역 밖은 평가하지 않습니다."/>
                     </StackPanel>
                 </Expander>
                 <Expander Header="기하 검증 · 원본 윤곽 확인" IsExpanded="False" Margin="0,0,0,10"
@@ -170,9 +202,9 @@
                         <TextBlock Text="최대 위치 오차 (원본 px RMS · 0 초과)" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         <TextBox Text="{Binding MaximumFitErrorPixels, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding LimitFitError}" AutomationProperties.Name="최대 윤곽 위치 오차" Margin="0,5,0,10"/>
                         <CheckBox Content="불필요 윤곽 제한" IsChecked="{Binding LimitClutter}" Margin="0,0,0,5"/>
-                        <TextBlock Text="최대 불필요 윤곽비율 (0~1)" Style="{StaticResource Caption}"/>
+                        <TextBlock Text="최대 불필요 윤곽비율 (개수 · 0~1)" Style="{StaticResource Caption}"/>
                         <TextBox Text="{Binding MaximumClutterRatio, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding LimitClutter}" AutomationProperties.Name="최대 불필요 윤곽비율" Margin="0,5,0,10"/>
-                        <TextBlock Text="검출비율은 선택한 학습 특징 중 허용 거리 안의 실제 에지와 대응한 비율입니다.&#10;위치 오차는 대응 윤곽 사이 거리의 RMS입니다. 불필요 윤곽은 학습 영역의 에지 중 모델 윤곽으로 설명되지 않는 비율입니다. 물체 면적 비율이나 치수 측정값은 아닙니다.&#10;기본값에서는 품질만 계산합니다. 검출비율을 높이거나 제한을 켜면 검출 조건으로 적용합니다."
+                        <TextBlock Text="검출비율은 선택한 학습 특징 중 허용 거리 안의 실제 에지와 대응한 비율입니다.&#10;위치 오차는 대응 윤곽 사이 거리의 RMS입니다. 불필요 윤곽 제한은 학습 영역의 에지 중 전체 모델 윤곽으로 위치·방향을 설명할 수 없는 개수 비율에 적용합니다. 이 기존 개수 기준에는 대비 에너지 조건을 추가하지 않습니다. 최종 점수의 대비 감점과 별도 기준이며, 물체 면적 비율이나 치수 측정값은 아닙니다.&#10;기본값에서는 품질만 계산합니다. 검출비율을 높이거나 제한을 켜면 검출 조건으로 적용합니다."
                                    TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}"/>
                     </StackPanel>
                 </Expander>
@@ -194,7 +226,27 @@
                     ToolTip="검출된 모든 패턴이 보이도록 화면을 이동·확대합니다."/>
             <TextBlock Text="정상 · LimeGreen / 불량 · Tomato&#10;경고 · Orange / 사용자 확인 · Gold" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
             <TextBlock Text="점선: 검색 범위 · 실선: 검출된 학습 영역" FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
-            <TextBlock Text="{Binding Results}" TextWrapping="Wrap" FontSize="11"/>
+            <TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap" FontSize="11"/>
+            <Expander Header="검사 시간 로그 · 최근 20회" Margin="0,10,0,8" IsExpanded="False">
+                <StackPanel>
+                    <Button Content="로그 JSON 저장" Click="OnSaveInspectionLog" Style="{StaticResource SecondaryButton}" Margin="0,8,0,8"/>
+                    <TextBox Text="{Binding InspectionLogText, Mode=OneWay}" IsReadOnly="True" Height="280"
+                             TextWrapping="Wrap" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="11" AutomationProperties.Name="논문 형상 검사 단계별 시간 로그"/>
+                </StackPanel>
+            </Expander>
+            <ListBox ItemsSource="{Binding ResultRows}" Height="320" Margin="0,8,0,0"
+                     Visibility="{Binding HasResultRows, Converter={StaticResource BoolVisibility}}"
+                     AutomationProperties.Name="논문 형상 전체 검사 결과"
+                     ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                     HorizontalContentAlignment="Stretch">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,10"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
         </StackPanel>
     </Expander>
 </UserControl>

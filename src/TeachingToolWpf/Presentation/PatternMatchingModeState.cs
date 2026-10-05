@@ -1,4 +1,5 @@
 using TeachingToolWpf.Core.Geometry;
+using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 
 namespace TeachingToolWpf.Presentation;
@@ -22,12 +23,14 @@ internal sealed record ShapeTrainingSettings
     }
     public int MaximumFeatures { get; init; } = 160;
     public float MinimumGradient { get; init; } = 8;
+    public double MinimumFeatureContrastRatio { get; init; } = .2;
     public int MaximumTemplates { get; init; } = 2048;
+    public bool InspectRotation { get; init; }
 
     public TrainingOptions ToOptions(bool buildGeometricModel) => new()
     {
-        MinimumAngleDegrees = MinimumAngle,
-        MaximumAngleDegrees = MaximumAngle,
+        MinimumAngleDegrees = InspectRotation && !buildGeometricModel ? -180 : MinimumAngle,
+        MaximumAngleDegrees = InspectRotation && !buildGeometricModel ? 180 : MaximumAngle,
         AngleStepDegrees = AngleStep,
         MinimumScale = EnableScale ? MinimumScale : 1,
         MaximumScale = EnableScale ? MaximumScale : 1,
@@ -35,6 +38,7 @@ internal sealed record ShapeTrainingSettings
         Polarity = IgnorePolarity ? ContrastPolarity.IgnoreLocal : ContrastPolarity.Preserve,
         MaximumFeatures = MaximumFeatures,
         MinimumGradient = MinimumGradient,
+        MinimumFeatureContrastRatio = MinimumFeatureContrastRatio,
         MaximumTemplates = MaximumTemplates,
         BuildGeometricModel = buildGeometricModel,
         BuildClutterModel = true
@@ -43,6 +47,7 @@ internal sealed record ShapeTrainingSettings
 
 internal sealed record MatchingSearchSettings
 {
+    public RotationAcceptance Rotation { get; init; } = new();
     public double SearchTimeoutSeconds
     {
         get; init;
@@ -87,7 +92,7 @@ internal sealed class ShapeMatchingModeState
         Options = new()
         {
             MaximumMatches = 256,
-            MaximumParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4),
+            MaximumParallelism = Math.Clamp(Environment.ProcessorCount, 1, 16),
             ClutterWeight = 1
         }
     };

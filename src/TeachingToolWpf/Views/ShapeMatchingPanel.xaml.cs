@@ -20,6 +20,33 @@ public partial class ShapeMatchingPanel : UserControl
         DataContextChanged += OnDataContextChanged;
     }
 
+    private async void OnSaveInspectionLog(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ShapeMatchingViewModel model)
+        {
+            return;
+        }
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "검사 로그 (*.json)|*.json",
+            FileName = $"inspection-{DateTime.Now:yyyyMMdd-HHmmss}.json"
+        };
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+        {
+            return;
+        }
+        var snapshot = model.InspectionLogs.ToArray();
+        try
+        {
+            var json = await Task.Run(() => Diagnostics.InspectionRunLog.Serialize(snapshot));
+            await System.IO.File.WriteAllTextAsync(dialog.FileName, json);
+        }
+        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
+        {
+            MessageBox.Show(Window.GetWindow(this), "로그 저장 실패: " + error.Message, "검사 로그", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void OnNumericValidationError(object sender, ValidationErrorEventArgs e)
     {
         if (e.OriginalSource is not TextBox editor)

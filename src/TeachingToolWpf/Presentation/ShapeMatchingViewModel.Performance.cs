@@ -22,7 +22,7 @@ public sealed partial class ShapeMatchingViewModel
     } =
     [
         new(InspectionComputeMode.Cpu, "CPU"),
-        new(InspectionComputeMode.GpuPreprocessing, "GPU 전처리 + CPU 검색 · CUDA")
+        new(InspectionComputeMode.GpuPreprocessing, "GPU 후보 계산 + CPU 정밀 검사 · CUDA")
     ];
 
     public InspectionComputeMode ComputeMode

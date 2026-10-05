@@ -30,8 +30,11 @@ public sealed class MatchingNumericInputTests
 
     [Theory]
     [InlineData(nameof(ShapeMatchingViewModel.MinimumAngle), "-0.5", -.5)]
+    [InlineData(nameof(ShapeMatchingViewModel.MinimumAcceptedAngle), "-0.5", -.5)]
+    [InlineData(nameof(ShapeMatchingViewModel.MaximumAcceptedAngle), "10.50", 10.5)]
     [InlineData(nameof(ShapeMatchingViewModel.ScaleStep), "0.050", .05)]
     [InlineData(nameof(ShapeMatchingViewModel.MinimumGradient), "8.50", 8.5)]
+    [InlineData(nameof(ShapeMatchingViewModel.MinimumFeatureContrastRatio), "0.250", .25)]
     [InlineData(nameof(ShapeMatchingViewModel.MaximumMatches), "256", 256)]
     [InlineData(nameof(ShapeMatchingViewModel.SearchTimeoutSeconds), "0.05", .05)]
     public void OtherNumericTypesAndSignedFractionsKeepTheirEditText(string property, string text, double expected)

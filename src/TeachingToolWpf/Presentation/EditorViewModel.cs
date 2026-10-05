@@ -434,7 +434,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         _previewPreparation = new(Session, Fail, () => Status = "선택 영역 준비 중… 최신 포인터 위치 반영", preparePreview);
         Input = new(Session, CompletePreview, CompleteSelection, _previewPreparation.SubmitTranslation, _previewPreparation.SubmitRotation);
         Images = new(Session, viewport, loader, Live.CloseAsync, PrepareRowsAsync);
-        Matching = new(shapeMatching ?? new Imaging.Matching.ShapeMatchingService(loader, () => null),
+        Matching = new(shapeMatching ?? new Imaging.Matching.ShapeMatchingService(loader, () => null,
+                pipeline: Imaging.Matching.ShapeSearchPipeline.Paper),
             templateMatching ?? new Imaging.Matching.TemplateMatchingService(loader, () => null));
         Inspections = new(Matching, new(primitiveShapes ?? new Imaging.Matching.PrimitiveShapeDetectionService(loader, () => null)));
         Inspections.Changed += Publish;

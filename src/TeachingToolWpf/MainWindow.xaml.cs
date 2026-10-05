@@ -8,6 +8,7 @@ public partial class MainWindow : Window
 {
     private readonly Presentation.EditorViewModel _model;
     private readonly Controls.RoiListBinding _selectionBinding;
+    private readonly VisionCompute.ILGPU.CudaInspectionSession _inspectionCompute = new();
 
     public MainWindow()
     {
@@ -16,12 +17,15 @@ public partial class MainWindow : Window
         var inspectionSmoke = Environment.GetCommandLineArgs().Contains("--inspection-smoke");
         var largeImage = Environment.GetCommandLineArgs().Contains("--large-image");
         var memoryCheck = Environment.GetCommandLineArgs().Contains("--memory-check");
-        var cache = smoke || inspectionSmoke || largeImage || memoryCheck ? System.IO.Path.GetFullPath("artifacts/image-cache") : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeachingToolWpf", "ImageCache");
+        var paperLatency = Environment.GetCommandLineArgs().Contains("--paper-latency-smoke");
+        var rotationInspection = Environment.GetCommandLineArgs().Contains("--rotation-inspection-smoke");
+        var cache = smoke || inspectionSmoke || largeImage || memoryCheck || paperLatency || rotationInspection ? System.IO.Path.GetFullPath("artifacts/image-cache") : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeachingToolWpf", "ImageCache");
         Imaging.VipsRuntime.Configure();
         var live = new Presentation.LivePreview(Viewport, kind => new Imaging.SyntheticFrameSource(kind));
         var loader = new Imaging.ImageLoader(cache);
         _model = new(Viewport, loader, live, new Imaging.Filters.RoiFilterPreview(loader, Viewport.RetainFrame),
-            new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame, () => new VisionCompute.ILGPU.CudaImagePreprocessor()),
+            new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame, _inspectionCompute.Rent, _inspectionCompute.PrepareAsync,
+                Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, Viewport.RetainFrame),
             new Imaging.Matching.PrimitiveShapeDetectionService(loader, Viewport.RetainFrame));
         live.Failed += ex => Dispatcher.BeginInvoke(() => _model.Fail(ex));
@@ -30,6 +34,7 @@ public partial class MainWindow : Window
         Viewport.InputEnabled = () => _model.CanNavigate;
         Viewport.KeyAction = _model.HandleKey;
         Viewport.InputFailed += _model.Fail;
+        Viewport.OverlayPresented += _model.Matching.RecordOverlayPresentation;
         Viewport.RendererStatusChanged += status => _model.GpuStatus = status;
         Viewport.MetricsChanged += value => _model.Performance = $"CPU {value.CpuMilliseconds:F1} ms · GPU {value.GpuMilliseconds:F1} ms · 표시 드롭 {value.Dropped}";
         Viewport.Tiles.Failed += message => Dispatcher.BeginInvoke(() => _model.Status = message);
@@ -43,7 +48,15 @@ public partial class MainWindow : Window
 
             args.Handled = _model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
         };
-        if (inspectionSmoke)
+        if (rotationInspection)
+        {
+            Diagnostics.RotationInspectionSmoke.Attach(this, _model);
+        }
+        else if (Environment.GetCommandLineArgs().Contains("--shape-target-smoke") || paperLatency)
+        {
+            Diagnostics.ShapeTargetSmoke.Attach(this, Viewport, _model, () => _inspectionCompute.InitializationMilliseconds);
+        }
+        else if (inspectionSmoke)
         {
             Diagnostics.InspectionSmoke.Attach(this, Viewport, _model);
         }
@@ -104,8 +117,15 @@ public partial class MainWindow : Window
 
         Closed += (_, _) =>
         {
-            _selectionBinding.Dispose();
-            _model.Dispose();
+            try
+            {
+                _selectionBinding.Dispose();
+                _model.Dispose();
+            }
+            finally
+            {
+                _inspectionCompute.Dispose();
+            }
         };
     }
 }

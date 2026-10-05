@@ -1,5 +1,9 @@
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
+using System.Diagnostics;
+using System.Text.Json;
+using TeachingToolWpf.Diagnostics;
+using TeachingToolWpf.Rendering;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Presentation;
 using VisionAlgorithm.OpenSrc.PatternMatching;
@@ -57,7 +61,7 @@ public sealed class InspectionPerformanceTests
     {
         using var model = Create(new Service());
         var defaultParallelism = model.MaximumParallelism;
-        Assert.InRange(defaultParallelism, 1, 4);
+        Assert.Equal(Math.Clamp(Environment.ProcessorCount, 1, 16), defaultParallelism);
         model.MaximumParallelism = 3;
         model.SearchTimeoutSeconds = 12;
         model.SpeedProfile = InspectionSpeedProfile.Precise;
@@ -90,6 +94,89 @@ public sealed class InspectionPerformanceTests
         Assert.Contains("시간 한도", model.Status);
         Assert.Empty(model.Markers);
         Assert.True(model.IsIdle);
+        var log = Assert.Single(model.InspectionLogs);
+        Assert.Equal(errorAfterCancellation ? "failed" : "timeout", log.Outcome);
+        Assert.Null(log.MatchCount);
+        Assert.Null(log.RendererPresentationMilliseconds);
+    }
+
+    [Fact]
+    public async Task GpuPreparationIsAwaitedAndReportedSeparatelyBeforeInspection()
+    {
+        var service = new Service();
+        using var model = Create(service);
+        await model.Train.ExecuteAsync();
+        model.ComputeMode = InspectionComputeMode.GpuPreprocessing;
+        await model.Search.ExecuteAsync();
+        Assert.Equal(1, service.PreparationCalls);
+        Assert.True(service.PreparedBeforeSearch);
+        Assert.Contains("준비 123.4 ms", model.Results);
+        Assert.Contains("검사 시간과 별도", model.Results);
+        Assert.Contains("0.0 ms", model.Status);
+    }
+
+    [Fact]
+    public async Task CpuInspectionDoesNotPrepareOrAllocateTheGpuSession()
+    {
+        var service = new Service();
+        using var model = Create(service);
+        await model.Train.ExecuteAsync();
+        await model.Search.ExecuteAsync();
+        Assert.Equal(0, service.PreparationCalls);
+        Assert.NotNull(service.LastOptions);
+    }
+
+    [Fact]
+    public async Task InspectionLogCorrelatesPresentationBoundsHistoryAndExportsStructuredFailure()
+    {
+        using var model = Create(new Service());
+        await model.Train.ExecuteAsync();
+        for (var index = 0; index < 22; index++)
+        {
+            await model.Search.ExecuteAsync();
+        }
+        Assert.Equal(20, model.InspectionLogs.Count);
+        Assert.Equal(20, model.InspectionLogs.Select(log => log.RunId).Distinct().Count());
+        var recent = model.InspectionLogs[^1];
+        Assert.Equal("completed", recent.Outcome);
+        Assert.Equal(0, recent.MatchCount);
+        Assert.True(recent.CommandMilliseconds >= recent.ResultPublishedMilliseconds);
+        Assert.Null(recent.RendererPresentationMilliseconds);
+        model.RecordOverlayPresentation(new(Guid.NewGuid(), Stopwatch.GetTimestamp()));
+        Assert.Null(model.InspectionLogs[^1].RendererPresentationMilliseconds);
+        model.RecordOverlayPresentation(new(recent.PresentationId!.Value, Stopwatch.GetTimestamp()));
+        Assert.NotNull(model.InspectionLogs[^1].RendererPresentationMilliseconds);
+        using var exported = JsonDocument.Parse(InspectionRunLog.Serialize(model.InspectionLogs));
+        Assert.Equal(20, exported.RootElement.GetProperty("Runs").GetArrayLength());
+        Assert.Equal("wpf_inspection_command", exported.RootElement.GetProperty("Runs")[0].GetProperty("EntryPoint").GetString());
+        Assert.DoesNotContain("fixture", exported.RootElement.GetRawText());
+        Assert.Contains("합산 금지", model.InspectionLogText);
+        using var failed = Create(new Service { FailPreparation = true });
+        await failed.Train.ExecuteAsync();
+        failed.ComputeMode = InspectionComputeMode.GpuPreprocessing;
+        await failed.Search.ExecuteAsync();
+        var error = Assert.Single(failed.InspectionLogs);
+        Assert.Equal("failed", error.Outcome);
+        Assert.Equal("device_preparation", error.Stage);
+        Assert.Equal(typeof(InvalidOperationException).FullName, error.ErrorType);
+        Assert.Null(error.ServiceMilliseconds);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedOrCancelledGpuPreparationDoesNotStartInspection(bool cancel)
+    {
+        var service = new Service { FailPreparation = !cancel, WaitDuringPreparation = cancel };
+        using var model = Create(service);
+        await model.Train.ExecuteAsync();
+        model.ComputeMode = InspectionComputeMode.GpuPreprocessing;
+        model.SearchTimeoutSeconds = .02;
+        await model.Search.ExecuteAsync();
+        Assert.Equal(InspectionVerdict.Warning, model.Verdict);
+        Assert.Null(service.LastOptions);
+        Assert.Empty(model.Markers);
+        Assert.True(model.IsIdle);
     }
 
     private static ShapeMatchingViewModel Create(Service service)
@@ -102,8 +189,39 @@ public sealed class InspectionPerformanceTests
         return model;
     }
 
-    private sealed class Service : IShapeMatchingService
+    private sealed class Service : IShapeMatchingService, IShapeComputePreparation
     {
+        public int PreparationCalls
+        {
+            get; private set;
+        }
+        public bool PreparedBeforeSearch
+        {
+            get; private set;
+        }
+        public bool FailPreparation
+        {
+            get; init;
+        }
+        public bool WaitDuringPreparation
+        {
+            get; init;
+        }
+
+        public async Task<double> PrepareGpuAsync(CancellationToken cancellationToken)
+        {
+            PreparationCalls++;
+            if (FailPreparation)
+            {
+                throw new InvalidOperationException("장치 준비 실패");
+            }
+            if (WaitDuringPreparation)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+            return 123.4;
+        }
+
         public SearchOptions? LastOptions
         {
             get; private set;
@@ -124,6 +242,7 @@ public sealed class InspectionPerformanceTests
         public async Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
         {
             LastOptions = options;
+            PreparedBeforeSearch = PreparationCalls > 0;
             if (WaitForCancellation)
             {
                 try
