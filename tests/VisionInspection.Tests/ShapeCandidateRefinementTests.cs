@@ -53,35 +53,40 @@ public sealed class ShapeCandidateRefinementTests
         });
     }
 
-    [Fact]
-    public async Task CropsExceedingCombinedPixelBudgetAreReadAndExecutedSeparately()
+    [Theory]
+    [InlineData(160)]
+    [InlineData(240)]
+    public async Task CropsExceedingCombinedPixelBudgetAreReadAndExecutedSeparately(int templateSize)
     {
-        var patch = SyntheticScene.Create(160, 160, new MatchPose(80, 80, 0, 3));
-        var model = ShapeTrainer.Train(patch, new(ReadOnlyMemory<byte>.Empty, new(80, 80)), new()
+        const int Scale = 8;
+        var center = templateSize / 2;
+        var patch = SyntheticScene.Create(templateSize, templateSize, new MatchPose(center, center, 0, 3));
+        var model = ShapeTrainer.Train(patch, new(ReadOnlyMemory<byte>.Empty, new(center, center)), new()
         {
             PyramidLevels = 1,
             MinimumAngleDegrees = 0,
             MaximumAngleDegrees = 0,
-            MinimumScale = 8,
-            MaximumScale = 8,
+            MinimumScale = Scale,
+            MaximumScale = Scale,
             BuildGeometricModel = false
         });
-        var scene = new GrayImage(new byte[4096 * 1600], 4096, 1600, 4096);
+        var scene = new GrayImage(new byte[8192 * 2400], 8192, 2400, 8192);
         var loader = new ObservedLoader(scene);
         var reference = new ImageReference("fixture", "fixture", scene.Width, scene.Height);
         using var reader = await MatchingImageReader.OpenAsync(reference, false, loader, () => null, default);
         using var provider = new ProbePreprocessor((image, call) =>
         {
-            Assert.InRange(image.Width * image.Height, (ShapeCandidateRefinement.ParallelPixelBudget / 2) + 1,
-                ShapeCandidateRefinement.ParallelPixelBudget);
+            Assert.InRange(image.Width * image.Height,
+                (templateSize == 160 ? ShapeCandidateRefinement.ParallelPixelBudget / 2 : ShapeCandidateRefinement.ParallelPixelBudget) + 1,
+                ShapeTrainer.MaximumPixels);
             var keys = Assert.Single(loader.Sources).ReadKeys.ToArray();
             if (call == 1)
             {
-                Assert.DoesNotContain(keys, key => key.X >= 4);
+                Assert.DoesNotContain(keys, key => key.X >= 8);
             }
             else
             {
-                Assert.Contains(keys, key => key.X >= 4);
+                Assert.Contains(keys, key => key.X >= 8);
             }
         });
         var options = new SearchOptions
@@ -93,13 +98,72 @@ public sealed class ShapeCandidateRefinementTests
             EvaluateGeometry = false
         };
         // 후보 순서는 공간 순서의 반대다. 읽기는 공간 순서, 반환은 원래 후보 순서를 지킨다.
-        ShapeMatch[] seeds = [Seed(new(2816, 800, 0, 8)), Seed(new(768, 800, 0, 8))];
+        ShapeMatch[] seeds = [Seed(new(5248, 1200, 0, Scale)), Seed(new(1152, 1200, 0, Scale))];
         var result = ShapeCandidateRefinement.Run(reader, reference, model, null, options,
             seeds, default, new(provider));
 
         Assert.Equal(2, provider.Calls);
         Assert.Equal(seeds.Select(seed => seed.Pose), result.Results.Select(result => Assert.Single(result.Matches).Pose));
         Assert.Equal(1, Assert.Single(loader.Sources).MaximumConcurrentReads);
+    }
+
+    [Fact]
+    public async Task OriginalRefinementStartsNextCropBeforeSlowEarlierCropFinishesAndRestoresSeedOrder()
+    {
+        var (_, model) = CreateScene();
+        const int Width = 2048;
+        const int Height = 320;
+        var pixels = new byte[Width * Height];
+        for (var y = 0; y < Height; y++)
+        {
+            for (var x = 0; x < Width; x++)
+            {
+                pixels[(y * Width) + x] = (byte)(1 + (x / 512));
+            }
+        }
+        var loader = new ObservedLoader(new(pixels, Width, Height, Width));
+        var reference = new ImageReference("fixture", "fixture", Width, Height);
+        using var reader = await MatchingImageReader.OpenAsync(reference, false, loader, () => null, default);
+        using var release = new ManualResetEventSlim();
+        var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thirdEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var provider = new ProbePreprocessor((crop, _) =>
+        {
+            if (crop.Pixels.Span[0] == 1)
+            {
+                firstEntered.TrySetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(10)));
+            }
+            if (crop.Pixels.Span[0] == 3)
+            {
+                thirdEntered.TrySetResult();
+            }
+        });
+        var options = new SearchOptions
+        {
+            MaximumParallelism = 2,
+            ComputeMode = InspectionComputeMode.GpuPreprocessing,
+            Verify = false,
+            Refine = false,
+            EvaluateGeometry = false
+        };
+        ShapeMatch[] seeds = [Seed(new(1792, 160, 0)), Seed(new(1280, 160, 0)), Seed(new(768, 160, 0)), Seed(new(256, 160, 0))];
+        var run = Task.Run(() => ShapeCandidateRefinement.Run(reader, reference, model, null, options, seeds, default, new(provider)));
+        try
+        {
+            await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await thirdEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.False(run.IsCompleted);
+        }
+        finally
+        {
+            release.Set();
+        }
+        var result = await run;
+        Assert.Equal(seeds.Select(seed => seed.Pose), result.Results.Select(item => Assert.Single(item.Matches).Pose));
+        Assert.Equal(seeds.Select(seed => seed.Pose), result.Results.Select(item => Assert.Single(item.Matches).Refinement.InitialPose));
+        Assert.Equal(4 * model.Levels.Length, provider.Calls);
+        Assert.Single(Assert.Single(loader.Sources).ReadThreadIds);
     }
 
     [Fact]

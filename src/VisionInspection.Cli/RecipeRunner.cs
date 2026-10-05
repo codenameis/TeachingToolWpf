@@ -202,7 +202,8 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
         ImageReference inspection, RoiGeometry teachingRoi, RoiGeometry? region, IImageLoader loader, CancellationToken token)
     {
         var geometric = recipe.Method == "geometric";
-        var service = new ShapeMatchingService(loader, () => null, createGpuPreprocessor);
+        var service = new ShapeMatchingService(loader, () => null, createGpuPreprocessor,
+            pipeline: geometric ? ShapeSearchPipeline.Classic : ShapeSearchPipeline.Paper);
         var options = recipe.TrainingOptions with
         {
             BuildGeometricModel = geometric,
@@ -229,6 +230,7 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
                 Truncated = output.Truncated,
                 MatchLimitExceeded = output.MatchLimitExceeded,
                 Preprocessing = output.Preprocessing,
+                CandidateScoring = output.CandidateScoring,
                 Search = output.Diagnostics.ToArray()
             }
         };

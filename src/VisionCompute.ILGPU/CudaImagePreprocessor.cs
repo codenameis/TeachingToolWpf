@@ -9,10 +9,10 @@ using VisionAlgorithm.OpenSrc.PatternMatching;
 namespace VisionCompute.ILGPU;
 
 /// <summary>
-/// CUDA 평활화와 Sobel 미분을 GPU에서 연속 계산한다. CPU accelerator로 대체하지 않으며
-/// 정확한 정규화·NMS·방향 응답맵·후보 검색·점수는 VisionAlgorithm의 공통 CPU 경로를 유지한다.
+/// CUDA 평활화·Sobel 미분과 상위 방향 응답·템플릿 점수 배치를 계산한다. CPU accelerator로
+/// 대체하지 않으며 정확한 정규화·후보 선택·연속 검증·최종 점수는 공통 CPU 경로를 유지한다.
 /// </summary>
-public sealed class CudaImagePreprocessor : IImagePreprocessor
+public sealed class CudaImagePreprocessor : IImagePreprocessor, IShapeCandidateScorer
 {
     public const int MaximumPixels = 8_388_608;
     private readonly object _gate = new();
@@ -23,11 +23,14 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor
     private readonly Action<AcceleratorStream, Index1D, ArrayView<float>, ArrayView<float>, int, int> _vertical;
     private readonly Action<AcceleratorStream, Index1D, ArrayView<float>, ArrayView<float>, ArrayView<float>, int, int> _sobel;
     private CudaGradientBuffers? _buffers;
+    private readonly CudaCandidateScoring _candidateScoring;
     private ImagePreprocessingDiagnostics _diagnostics;
     private bool _disposed;
     private bool _faulted;
 
     public ImagePreprocessingDiagnostics Diagnostics => Volatile.Read(ref _diagnostics);
+
+    public CandidateScoringDiagnostics CandidateDiagnostics => _candidateScoring.Diagnostics;
 
     public CudaImagePreprocessor()
     {
@@ -52,12 +55,13 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor
             _vertical = _accelerator.LoadAutoGroupedKernel<Index1D, ArrayView<float>, ArrayView<float>, int, int>(CudaGradientKernels.Vertical);
             _sobel = _accelerator.LoadAutoGroupedKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<float>,
                 int, int>(CudaGradientKernels.Sobel);
+            _candidateScoring = new(_accelerator, _stream);
             _diagnostics = new("ILGPU CUDA: smoothing + Sobel; CPU normalization", _accelerator.Name, 0, 0, 0);
         }
         catch (Exception failure)
         {
             ResourceCleanup.Complete(failure,
-                () => _stream?.Dispose(), () => _accelerator?.Dispose(), () => _context?.Dispose());
+                () => _candidateScoring?.Dispose(), () => _stream?.Dispose(), () => _accelerator?.Dispose(), () => _context?.Dispose());
             throw;
         }
     }
@@ -142,7 +146,41 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor
             var buffers = _buffers;
             _buffers = null;
             ResourceCleanup.Complete(null, _stream.Synchronize,
-                () => buffers?.Dispose(), _stream.Dispose, _accelerator.Dispose, _context.Dispose);
+                () => buffers?.Dispose(), _candidateScoring.Dispose, _stream.Dispose, _accelerator.Dispose, _context.Dispose);
+        }
+    }
+
+    public ShapeCandidateScoreBatch Score(ShapeCandidateScoreRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        request.Validate();
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_faulted)
+            {
+                throw new InvalidOperationException("이전 CUDA 오류로 후보 점수 실행기를 재사용할 수 없습니다.");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return _candidateScoring.Score(request, cancellationToken);
+            }
+            catch (Exception failure)
+            {
+                _faulted = failure is not OperationCanceledException;
+                try
+                {
+                    _stream.Synchronize();
+                }
+                catch (Exception drainFailure)
+                {
+                    _faulted = true;
+                    throw new AggregateException("CUDA 후보 점수 실패 후 stream 완료 확인도 실패했습니다.", failure, drainFailure);
+                }
+                throw;
+            }
         }
     }
 }

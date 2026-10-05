@@ -1,5 +1,4 @@
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -140,24 +139,14 @@ level++)
         var image = _levels[key.Level];
         var left = key.X * 512;
         var top = key.Y * 512;
-        using var tile = image.ExtractArea(left, top, Math.Min(512, image.Width - left), Math.Min(512, image.Height - top));
-        var output = new PixelBuffer(tile.Width, tile.Height, Info.Pixels);
+        var width = Math.Min(512, image.Width - left);
+        var height = Math.Min(512, image.Height - top);
+        var output = new PixelBuffer(width, height, Info.Pixels);
         try
         {
-            var data = tile.WriteToMemory(out var length);
-            try
-            {
-                if (length != (ulong)output.Length)
-                {
-                    throw new InvalidDataException("타일 픽셀 형식 또는 길이가 맞지 않습니다.");
-                }
-
-                Marshal.Copy(data, output.Bytes, 0, output.Length);
-            }
-            finally
-            {
-                NetVips.NetVips.Free(data);
-            }
+            // Region은 생성·사용·해제를 같은 호출 스레드에서 한다. 다음 Read는 다른 worker여도 안전하다.
+            using var region = Region.New(image);
+            VipsRegionPixels.Copy(region, left, top, width, height, output.Bytes, output.Length);
             cancellationToken.ThrowIfCancellationRequested();
             return output;
         }

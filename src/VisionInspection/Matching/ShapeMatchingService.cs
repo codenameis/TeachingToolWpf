@@ -8,10 +8,19 @@ using VisionAlgorithm.OpenSrc.PatternMatching;
 namespace TeachingToolWpf.Imaging.Matching;
 
 public sealed record ShapeTrainingOutput(ShapeModel Model, double ReadMilliseconds, double TrainingMilliseconds);
+/// <summary>순차 단계의 wall time. 각 단계에는 해당 단계의 원본 읽기와 병렬 worker 대기가 포함된다.</summary>
+public sealed record ShapeSearchPhases(double SourceOpenMilliseconds, double CoarseSearchMilliseconds,
+    double OriginalRefinementMilliseconds, double WindowSearchMilliseconds, double FinalSuppressionMilliseconds);
 public sealed record ShapeSearchOutput(ImmutableArray<ShapeMatch> Matches, int Windows, bool Truncated,
     double ReadMilliseconds, double TotalMilliseconds, ImmutableArray<SearchDiagnostics> Diagnostics, bool MatchLimitExceeded = false)
 {
+    public ShapeSearchPhases? Phases { get; init; }
     public ImagePreprocessingDiagnostics? Preprocessing
+    {
+        get; init;
+    }
+
+    public CandidateScoringDiagnostics? CandidateScoring
     {
         get; init;
     }
@@ -23,9 +32,30 @@ public interface IShapeMatchingService
     Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token);
 }
 
-public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame,
-    Func<IImagePreprocessor>? createGpuPreprocessor = null) : IShapeMatchingService
+public enum ShapeSearchPipeline
 {
+    Classic,
+    Paper
+}
+
+public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame,
+    Func<IImagePreprocessor>? createGpuPreprocessor = null,
+    Func<CancellationToken, Task>? prepareGpu = null,
+    ShapeSearchPipeline pipeline = ShapeSearchPipeline.Classic) : IShapeMatchingService, IShapeComputePreparation
+{
+    public async Task<double> PrepareGpuAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (prepareGpu is null)
+        {
+            return 0;
+        }
+        var timer = Stopwatch.StartNew();
+        await prepareGpu(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return timer.Elapsed.TotalMilliseconds;
+    }
+
     public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
         => Task.Run(async () =>
         {
@@ -34,7 +64,8 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             var desiredLevels = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(roi.Width, roi.Height) / 64)) + 1, 1, 6);
             options = options with
             {
-                PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels)
+                PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels),
+                UseFineDetailValidation = pipeline == ShapeSearchPipeline.Paper && !options.BuildGeometricModel
             };
             var timer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
@@ -73,15 +104,19 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             using var preprocessor = options.ComputeMode == InspectionComputeMode.GpuPreprocessing
                 ? new SerializedImagePreprocessor(createGpuPreprocessor?.Invoke() ??
                     throw new InvalidOperationException("GPU 전처리 구현이 등록되지 않았습니다.")) : null;
-            var matcher = new ShapeMatcher(preprocessor);
+            var paper = pipeline == ShapeSearchPipeline.Paper && !model.Options.BuildGeometricModel;
+            var matcher = new ShapeMatcher(preprocessor, preprocessor?.CandidateScorer, paper);
             var readTimer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
             var readTime = readTimer.Elapsed.TotalMilliseconds;
-            if (model.Levels.Length >= 3 && (long)image.Width * image.Height > PreparedSearchImage.MaximumPixels)
+            reader.PreferDirectGray = paper;
+            if (model.Levels.Length >= 3 && (paper || (long)image.Width * image.Height > PreparedSearchImage.MaximumPixels))
             {
-                return ShapePyramidSearch.Run(reader, image, model, region, options, total, readTime, token, matcher) with
+                var coarseInterior = paper && (long)image.Width * image.Height <= PreparedSearchImage.MaximumPixels ? 64 : 256;
+                return ShapePyramidSearch.Run(reader, image, model, region, options, total, readTime, token, matcher, coarseInterior) with
                 {
-                    Preprocessing = preprocessor?.Diagnostics
+                    Preprocessing = preprocessor?.Diagnostics,
+                    CandidateScoring = preprocessor?.CandidateScorer?.CandidateDiagnostics
                 };
             }
             var radius = model.Bounds.Max(p => Math.Sqrt((p.X * p.X) + (p.Y * p.Y))) * model.Options.MaximumScale;
@@ -97,6 +132,8 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             var all = new List<ShapeMatch>();
             var diagnostics = ImmutableArray.CreateBuilder<SearchDiagnostics>();
             var truncated = false;
+            var sourceOpenTime = readTime;
+            var phaseTimer = Stopwatch.StartNew();
             for (var y = Math.Max(0, (int)bounds.Top / interior * interior); y < Math.Min(image.Height, bounds.Bottom); y += interior)
             {
                 for (var x = Math.Max(0, (int)bounds.Left / interior * interior); x < Math.Min(image.Width, bounds.Right); x += interior)
@@ -144,11 +181,15 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                     }
                 }
             }
+            var windowTime = phaseTimer.Elapsed.TotalMilliseconds;
+            phaseTimer.Restart();
             var output = MatchSuppression.Apply(model, all, options.MaximumOverlap, options.MaximumMatches + 1);
             return new ShapeSearchOutput(output.Take(options.MaximumMatches).ToImmutableArray(), diagnostics.Count, truncated,
                 readTime, total.Elapsed.TotalMilliseconds, diagnostics.ToImmutable(), output.Length > options.MaximumMatches)
             {
-                Preprocessing = preprocessor?.Diagnostics
+                Phases = new(sourceOpenTime, 0, 0, windowTime, phaseTimer.Elapsed.TotalMilliseconds),
+                Preprocessing = preprocessor?.Diagnostics,
+                CandidateScoring = preprocessor?.CandidateScorer?.CandidateDiagnostics
             };
         }, token);
 

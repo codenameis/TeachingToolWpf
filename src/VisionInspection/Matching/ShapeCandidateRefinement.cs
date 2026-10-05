@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Diagnostics;
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Geometry;
 using VisionAlgorithm;
@@ -31,46 +30,15 @@ internal static class ShapeCandidateRefinement
             })
             .OrderBy(job => job.Top / 512).ThenBy(job => job.Left / 512).ThenBy(job => job.Index).ToArray();
         var results = new MatchResult[seeds.Length];
-        var readTime = 0d;
-        var next = 0;
-        while (next < jobs.Length)
-        {
-            token.ThrowIfCancellationRequested();
-            var batch = new List<(Job Job, GrayImage Image)>();
-            var pixels = 0L;
-            var timer = Stopwatch.StartNew();
-            while (next < jobs.Length && batch.Count < options.MaximumParallelism)
-            {
-                var job = jobs[next];
-                if (batch.Count > 0 && pixels + job.Pixels > ParallelPixelBudget)
-                {
-                    break;
-                }
-                batch.Add((job, reader.Read(job.Left, job.Top, job.Width, job.Height, token, ShapeTrainer.MaximumPixels)));
-                pixels += job.Pixels;
-                next++;
-            }
-            readTime += timer.Elapsed.TotalMilliseconds;
-            if (batch.Count == 1)
-            {
-                Execute(batch[0]);
-            }
-            else
-            {
-                Parallel.ForEach(batch, new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = options.MaximumParallelism,
-                    CancellationToken = token
-                }, Execute);
-            }
-        }
-        token.ThrowIfCancellationRequested();
+        var readTime = BoundedInspectionCropScheduler.Run(jobs, job => job.Pixels,
+            (job, readToken) => reader.Read(job.Left, job.Top, job.Width, job.Height, readToken, ShapeTrainer.MaximumPixels),
+            Execute, (index, result) => results[jobs[index].Index] = result,
+            new(options.MaximumParallelism, ParallelPixelBudget, ShapeTrainer.MaximumPixels), token);
         return new(results, readTime);
 
-        void Execute((Job Job, GrayImage Image) input)
+        MatchResult Execute(Job job, GrayImage crop, CancellationToken workToken)
         {
-            var job = input.Job;
-            var result = matcher.RefineCandidate(input.Image, model,
+            var result = matcher.RefineCandidate(crop, model,
                 job.Seed.Pose with
                 {
                     X = job.Seed.Pose.X - job.Left,
@@ -80,9 +48,9 @@ internal static class ShapeCandidateRefinement
                 {
                     MaximumParallelism = 1,
                     Region = ShapeMatchingService.ToSearchRegion(region, job.Left, job.Top)
-                }, token);
+                }, workToken);
             // 완료 순서와 읽기 순서가 기존 점수 동률/NMS 순서를 바꾸지 않게 원래 위치로 돌려놓는다.
-            results[job.Index] = result with
+            return result with
             {
                 Matches = result.Matches.Select(match => match with
                 {

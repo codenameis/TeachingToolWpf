@@ -69,6 +69,10 @@ public sealed record DetectionResult
     {
         get; init;
     }
+    public double? ClutterPenaltyRatio
+    {
+        get; init;
+    }
     public double? AreaPixels
     {
         get; init;
@@ -86,7 +90,10 @@ public sealed record DetectionResult
 }
 
 public sealed record GeometrySummary(double Coverage, double? FitErrorPixels, double ClutterRatio,
-    int MatchedFeatures, int ModelFeatures, int SceneEdges);
+    int MatchedFeatures, int ModelFeatures, int SceneEdges)
+{
+    public double ClutterEnergyRatio { get; init; } = ClutterRatio;
+}
 
 public sealed record RefinementSummary(string Status, double? InitialResidual, double? FinalResidual,
     int Iterations, int Correspondences, bool AngleObservable);
@@ -126,6 +133,10 @@ public sealed record RunDiagnostics
         get; init;
     }
     public ImagePreprocessingDiagnostics? Preprocessing
+    {
+        get; init;
+    }
+    public CandidateScoringDiagnostics? CandidateScoring
     {
         get; init;
     }

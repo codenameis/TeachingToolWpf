@@ -23,9 +23,13 @@ internal static class ResultContours
             DirectionScore = match.DirectionScore,
             Support = match.Support,
             ClutterRatio = match.ClutterRatio,
+            ClutterPenaltyRatio = match.ClutterPenaltyRatio,
             Contour = Transform(teachingRoi, new(pose.X, pose.Y), pose.Angle * 180 / Math.PI, pose.Scale),
             Geometry = quality is null ? null : new(quality.Coverage, FiniteOrNull(quality.FitErrorPixels), quality.ClutterRatio,
-                quality.MatchedFeatures, quality.ModelFeatures, quality.SceneEdges),
+                quality.MatchedFeatures, quality.ModelFeatures, quality.SceneEdges)
+            {
+                ClutterEnergyRatio = quality.ClutterEnergyRatio
+            },
             Refinement = new(refinement.Status.ToString(), FiniteOrNull(refinement.InitialResidual), FiniteOrNull(refinement.FinalResidual),
                 refinement.Iterations, refinement.Correspondences, refinement.AngleObservable)
         };

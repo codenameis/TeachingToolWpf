@@ -10,6 +10,50 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class PyramidMatchingIntegrationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PaperPipelinePreservesRotatedScaledTargetsAndGeometryFallback(bool geometric)
+    {
+        MatchPose[] expected = [new(100, 100, 0), new(256.3, 256.7, .23, 1.1), new(510.7, 385.2, -.21, .9)];
+        var scene = SyntheticScene.Create(641, 517, expected);
+        var loader = new Loader(scene);
+        var image = new ImageReference("fixture", "fixture", scene.Width, scene.Height);
+        var paper = new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper);
+        var classic = new ShapeMatchingService(loader, () => null);
+        var trained = await paper.TrainAsync(image, false, new(new(100, 100), 96, 96, 0), new()
+        {
+            BuildGeometricModel = geometric,
+            BuildClutterModel = true,
+            MinimumAngleDegrees = -30,
+            MaximumAngleDegrees = 30,
+            AngleStepDegrees = 10,
+            MinimumScale = .9,
+            MaximumScale = 1.1,
+            ScaleStep = .1
+        }, default);
+        var options = new SearchOptions { MaximumParallelism = 4, EvaluateGeometry = geometric, ClutterWeight = 1 };
+        var output = await paper.SearchAsync(image, false, trained.Model, null, options, default);
+        var phases = Assert.IsType<ShapeSearchPhases>(output.Phases);
+        Assert.InRange(phases.SourceOpenMilliseconds + phases.CoarseSearchMilliseconds + phases.OriginalRefinementMilliseconds +
+            phases.WindowSearchMilliseconds + phases.FinalSuppressionMilliseconds, 0, output.TotalMilliseconds + 1);
+        Assert.False(output.Truncated);
+        Assert.False(output.MatchLimitExceeded);
+        Assert.Equal(expected.Length, output.Matches.Length);
+        foreach (var target in expected)
+        {
+            var match = Assert.Single(output.Matches.Where(match => Math.Abs(match.Pose.X - target.X) < 1 && Math.Abs(match.Pose.Y - target.Y) < 1));
+            Assert.InRange(Math.Abs(match.Pose.Angle - target.Angle), 0, .03);
+            Assert.InRange(Math.Abs(match.Pose.Scale - target.Scale), 0, .025);
+        }
+        if (geometric)
+        {
+            var unchanged = await classic.SearchAsync(image, false, trained.Model, null, options, default);
+            Assert.Equal(unchanged.Matches.ToArray(), output.Matches.ToArray());
+            Assert.Equal(unchanged.Windows, output.Windows);
+        }
+    }
+
     [Fact]
     public async Task OpenCvAppliesSuppressionOnceAcrossSearchWindowSeam()
     {

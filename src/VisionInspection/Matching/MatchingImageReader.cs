@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using TeachingToolWpf.Core.Editing;
 using TeachingToolWpf.Core.Imaging;
 using VisionAlgorithm;
@@ -13,6 +14,11 @@ internal sealed class MatchingImageReader : IDisposable
     private readonly MatchingTileCache _tiles = new();
     private readonly MatchingReducedTileCache _reducedTiles = new();
     private bool _disposed;
+
+    public bool PreferDirectGray
+    {
+        get; set;
+    }
 
     private MatchingImageReader(ITileSource? source, VideoFrame? frame)
     {
@@ -109,6 +115,7 @@ internal sealed class MatchingImageReader : IDisposable
         return new(output, outputWidth, outputHeight, outputWidth);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private PixelBuffer ReadReducedTile(TileKey key, int factor, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -130,11 +137,9 @@ internal sealed class MatchingImageReader : IDisposable
             original = new(tile.Bytes.AsMemory(0, tile.Length), tile.Width, tile.Height, tile.Stride);
         }
         // 원본 view는 다음 원본 타일 요청 전에 소비한다. 축소 cache도 독립 소유 버퍼만 보관한다.
-        var reduced = InspectionPyramid.Reduce(original, factor, token);
-        var image = new PixelBuffer(reduced.Width, reduced.Height, PixelKind.Gray8);
+        var image = InspectionTileReducer.Reduce(original, factor, token);
         try
         {
-            reduced.Pixels.Span.CopyTo(image.Span);
             token.ThrowIfCancellationRequested();
             _reducedTiles.Add((key, factor), image);
             return image;
@@ -153,6 +158,26 @@ internal sealed class MatchingImageReader : IDisposable
         {
             return cached;
         }
+        if (PreferDirectGray && _source is IOriginalGrayTileSource direct)
+        {
+            var gray = direct.ReadOriginalGray8(key.X, key.Y, token);
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                if (gray.Kind != PixelKind.Gray8 || gray.Width != Math.Min(512, _source.Info.Width - (key.X * 512)) ||
+                    gray.Height != Math.Min(512, _source.Info.Height - (key.Y * 512)))
+                {
+                    throw new InvalidOperationException("원본 Gray8 공급자가 타일 규격과 다른 버퍼를 반환했습니다.");
+                }
+                _tiles.Add(key, gray);
+                return gray;
+            }
+            catch
+            {
+                gray.Dispose();
+                throw;
+            }
+        }
         using var tile = _source!.Read(key, token);
         var image = new PixelBuffer(tile.Width, tile.Height, PixelKind.Gray8);
         try
@@ -170,6 +195,7 @@ internal sealed class MatchingImageReader : IDisposable
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static void Copy(PixelBuffer pixels, int originX, int originY, int left, int top, int width, int height,
         byte[] output, CancellationToken token)
     {
@@ -186,32 +212,7 @@ internal sealed class MatchingImageReader : IDisposable
             token.ThrowIfCancellationRequested();
             var source = input.Slice(((y - originY) * pixels.Stride) + ((copyLeft - originX) * bytesPerPixel), copyWidth * bytesPerPixel);
             var destination = output.AsSpan(((y - top) * width) + copyLeft - left, copyWidth);
-            if (pixels.Kind == PixelKind.Gray8)
-            {
-                source.CopyTo(destination);
-            }
-            else if (pixels.Kind == PixelKind.Gray16)
-            {
-                // Gray16은 고정 상위 8비트를 사용하며 프레임별 auto contrast는 하지 않는다.
-                for (var x = 0; x < copyWidth; x++)
-                {
-                    destination[x] = source[(x * 2) + 1];
-                }
-            }
-            else if (pixels.Kind is PixelKind.Rgba32 or PixelKind.Bgra32)
-            {
-                var firstWeight = pixels.Kind == PixelKind.Rgba32 ? 77 : 29;
-                var thirdWeight = pixels.Kind == PixelKind.Rgba32 ? 29 : 77;
-                for (var x = 0; x < copyWidth; x++)
-                {
-                    var index = x * 4;
-                    destination[x] = (byte)(((firstWeight * source[index]) + (150 * source[index + 1]) + (thirdWeight * source[index + 2]) + 128) >> 8);
-                }
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(pixels));
-            }
+            InspectionGrayConverter.ConvertRow(source, destination, pixels.Kind);
         }
     }
 

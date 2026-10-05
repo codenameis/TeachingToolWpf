@@ -62,7 +62,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
         var expectedSearch = Assert.Single(cpu.Search(scene, model, options).Matches);
         var expectedRefinement = Assert.Single(cpu.RefineCandidate(scene, model, new(102, 87, .1), .9, options).Matches);
         using var preprocessor = new CudaImagePreprocessor();
-        var gpu = new ShapeMatcher(preprocessor);
+        var gpu = new ShapeMatcher(preprocessor, preprocessor);
         var prepared = PreparedSearchImage.Create(scene, model.Options.MinimumGradient, model.Levels.Length,
             preprocessor: preprocessor);
         var gpuOptions = options with
@@ -72,6 +72,36 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
         Assert.Equal(expectedSearch, Assert.Single(gpu.Search(prepared, model, gpuOptions).Matches));
         Assert.Equal(expectedRefinement, Assert.Single(gpu.RefineCandidate(scene, model, new(102, 87, .1), .9, gpuOptions).Matches));
         Assert.NotNull(expectedSearch.Geometry);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CudaCandidateScoringUsesCpuPreparationAndPreservesExactFinalResults(bool masked)
+    {
+        var model = TrainModel(masked);
+        var scene = SyntheticScene.Create(253, 197, new MatchPose(102.3, 86.7, .1));
+        var cpuOptions = new SearchOptions { MaximumParallelism = 1, ClutterWeight = 1 };
+        var cpu = new ShapeMatcher();
+        var expected = Assert.Single(cpu.Search(scene, model, cpuOptions).Matches);
+        var expectedRefinement = Assert.Single(cpu.RefineCandidate(scene, model, new(102, 87, .1), .9, cpuOptions).Matches);
+        using var cuda = new CudaImagePreprocessor();
+        var gpu = new ShapeMatcher(cuda, cuda);
+        var gpuOptions = cpuOptions with
+        {
+            ComputeMode = InspectionComputeMode.GpuPreprocessing
+        };
+
+        var actual = Assert.Single(gpu.Search(scene, model, gpuOptions).Matches);
+        Assert.Equal(expected, actual);
+        Assert.Equal(0, cuda.Diagnostics.Calls);
+        Assert.True(cuda.CandidateDiagnostics.Calls > 0);
+        var candidateCalls = cuda.CandidateDiagnostics.Calls;
+
+        var actualRefinement = Assert.Single(gpu.RefineCandidate(scene, model, new(102, 87, .1), .9, gpuOptions).Matches);
+        Assert.Equal(expectedRefinement, actualRefinement);
+        Assert.Equal(0, cuda.Diagnostics.Calls);
+        Assert.Equal(candidateCalls, cuda.CandidateDiagnostics.Calls);
     }
 
     private static ShapeModel TrainModel(bool masked)
