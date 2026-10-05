@@ -6,6 +6,41 @@ using TeachingToolWpf.Imaging;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 
+if (args.Length > 1 && args[1] == "rotation-diagnosis")
+{
+    await RotationDiagnosisBenchmark.RunAsync(args[0]);
+    return;
+}
+
+if (args.Length > 1 && args[1] == "kensa-text")
+{
+    await KensaTextBenchmark.RunAsync(args[0], args.Length > 2 ? args[2] : "tight");
+    return;
+}
+
+if (args.Length > 1 && args[1] == "paper-latency")
+{
+    await PaperLatencyBenchmark.RunAsync(args[0], args.Length > 2 ? args[2] : "sample",
+        args.Length > 3 ? int.Parse(args[3]) : 3, args.Length > 4 ? args[4] : "both",
+        args.Length > 5 && args[5] == "paper");
+    return;
+}
+
+if (args.Length > 1 && args[1] == "shape-target")
+{
+    Environment.ExitCode = await ShapeTargetBenchmark.RunAsync(args[0],
+        args.Length > 2 ? int.Parse(args[2]) : 3, args.Length > 3 ? int.Parse(args[3]) : 4,
+        args.Length > 4 ? args[4] : "both") ? 0 : 1;
+    return;
+}
+
+if (args.Length > 1 && args[1] == "shape-regression")
+{
+    Environment.ExitCode = await ShapeRegressionBenchmark.RunAsync(args[0],
+        args.Length > 2 ? int.Parse(args[2]) : 1, args.Length > 3 ? args[3] : "all") ? 0 : 1;
+    return;
+}
+
 if (args.Length > 1 && args[1] == "inspection-speed")
 {
     Environment.ExitCode = await InspectionSpeedBenchmark.RunAsync(args[0], args.Length > 2 ? int.Parse(args[2]) : 1) ? 0 : 1;

@@ -12,7 +12,10 @@ internal sealed class CountingImageLoader(IImageLoader inner) : IImageLoader
     private long _reads;
 
     public async Task<ITileSource> LoadAsync(ImageReference reference, IProgress<string> progress, CancellationToken cancellationToken)
-        => new Source(this, await inner.LoadAsync(reference, progress, cancellationToken));
+    {
+        var source = await inner.LoadAsync(reference, progress, cancellationToken);
+        return source is IOriginalGrayTileSource gray ? new GraySource(this, source, gray) : new Source(this, source);
+    }
 
     public void Reset()
     {
@@ -23,17 +26,32 @@ internal sealed class CountingImageLoader(IImageLoader inner) : IImageLoader
     public TileReadCounts Snapshot() => new(Interlocked.Read(ref _reads),
         _readsByLevel.OrderBy(pair => pair.Key).ToDictionary(pair => pair.Key, pair => pair.Value));
 
-    private sealed class Source(CountingImageLoader owner, ITileSource inner) : ITileSource
+    private class Source(CountingImageLoader owner, ITileSource inner) : ITileSource
     {
         public ImageInfo Info => inner.Info;
 
         public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref owner._reads);
-            owner._readsByLevel.AddOrUpdate(key.Level, 1, (_, count) => count + 1);
+            Count(key.Level);
             return inner.Read(key, cancellationToken);
         }
 
+        protected void Count(int level)
+        {
+            Interlocked.Increment(ref owner._reads);
+            owner._readsByLevel.AddOrUpdate(level, 1, (_, count) => count + 1);
+        }
+
         public void Dispose() => inner.Dispose();
+    }
+
+    private sealed class GraySource(CountingImageLoader owner, ITileSource inner, IOriginalGrayTileSource gray)
+        : Source(owner, inner), IOriginalGrayTileSource
+    {
+        public PixelBuffer ReadOriginalGray8(int tileX, int tileY, CancellationToken cancellationToken)
+        {
+            Count(0);
+            return gray.ReadOriginalGray8(tileX, tileY, cancellationToken);
+        }
     }
 }
