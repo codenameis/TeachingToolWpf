@@ -305,11 +305,54 @@ i++)
         await gate.Started.Task;
         model.Input.Up(start + new PointD(15, 0));
         model.HandleKey(Key.Escape, false, false);
+        Assert.False(model.Session.IsPreviewing);
+        Assert.Null(model.Session.TransformPreview);
+        Assert.Same(before.Rois, model.Session.State.Rois);
+        Assert.Same(before.Selection, model.Session.State.Selection);
         gate.Release.SetResult();
         await model.EditCompletion;
         Assert.True(model.CanEdit);
         Assert.False(model.Session.IsPreviewing);
         Assert.Same(before.Rois, model.Session.State.Rois);
+        Assert.Equal(bytes, model.Session.HistoryBytes);
+    });
+
+    [Fact]
+    public void EscapeAfterMouseUpImmediatelyClearsVisibleTransformBeforePreparationStarts() => OnStaAsync(async () =>
+    {
+        var surface = new Surface();
+        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        Populate(model.Session);
+        model.Session.Select(model.Session.State.Rois.Keys);
+        RoiPreviewPreparation.Warm(model.Session.State, default);
+        var before = model.Session.State;
+        var bytes = model.Session.HistoryBytes;
+        var start = before.Rois.Values.MinBy(roi => roi.Order)!.Geometry.Center;
+        model.Input.Down(start);
+        model.Input.Move(start + new PointD(10, 0));
+        Assert.NotNull(model.Session.TransformPreview);
+        var canceled = false;
+        model.PropertyChanged += (_, args) =>
+        {
+            if (canceled || args.PropertyName != nameof(model.Status) || !model.Status.Contains("준비 중"))
+            {
+                return;
+            }
+            canceled = true;
+            Assert.False(model.Input.IsDragging);
+            Assert.True(model.Session.IsPreviewing);
+            Assert.NotNull(model.Session.TransformPreview);
+            model.HandleKey(Key.Escape, false, false);
+            Assert.False(model.Session.IsPreviewing);
+            Assert.Null(model.Session.TransformPreview);
+            Assert.Same(before.Rois, model.Session.State.Rois);
+            Assert.Same(before.Selection, model.Session.State.Selection);
+        };
+        model.Input.Up(start + new PointD(15, 0));
+        await model.EditCompletion;
+        Assert.True(canceled);
+        Assert.Contains("취소", model.Status);
+        Assert.True(model.CanEdit);
         Assert.Equal(bytes, model.Session.HistoryBytes);
     });
 

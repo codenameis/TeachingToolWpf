@@ -38,6 +38,38 @@ public class RoiClipboardTests
         Assert.True(pastedIds.All(editor.State.Rois.ContainsKey));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CopyPreservesSparseOrderAndLaterParentWithoutDuplicatingSelectedDescendants(bool copyAll)
+    {
+        var editor = Create();
+        var unrelatedFirst = editor.Add(new(new(800, 800), 20, 20, 0));
+        var firstChild = editor.Add(new(new(100, 100), 20, 20, 15));
+        var deleted = editor.Add(new(new(300, 300), 20, 20, 0));
+        var secondChild = editor.Add(new(new(150, 100), 20, 20, 30));
+        editor.Select([firstChild, secondChild]);
+        var parent = editor.GroupSelection();
+        var unrelatedLast = editor.Add(new(new(900, 900), 20, 20, 0));
+        editor.Select([deleted]);
+        editor.DeleteSelection();
+        editor.Select(copyAll ? editor.State.Rois.Keys : [parent, firstChild, parent, firstChild]);
+        var before = editor.State;
+        var clipboard = new RoiClipboard();
+        Guid[] expectedIds = copyAll ? [unrelatedFirst, firstChild, secondChild, parent, unrelatedLast]
+            : [firstChild, secondChild, parent];
+
+        Assert.Equal(expectedIds.Length, clipboard.Copy(before));
+        var entries = clipboard.Capture().Entries;
+        Assert.Equal(expectedIds, entries.Select(roi => roi.Id));
+        Assert.Equal(copyAll ? new long[] { 1, 2, 4, 5, 6 } : [2, 4, 5], entries.Select(roi => roi.Order));
+        Assert.Equal(parent, entries.Single(roi => roi.Id == firstChild).ParentId);
+        Assert.Equal(parent, entries.Single(roi => roi.Id == secondChild).ParentId);
+        Assert.Null(entries.Single(roi => roi.Id == parent).ParentId);
+        Assert.All(entries, roi => Assert.Same(before.Rois[roi.Id], roi));
+        Assert.Same(before, editor.State);
+    }
+
     [Fact]
     public void SnapshotSurvivesSourceDeletionAndFitsSmallerImageAsOneAssembly()
     {
@@ -54,6 +86,88 @@ public class RoiClipboardTests
         Assert.True(RoiImageBounds.ContainsAll(editor.State));
         Assert.Equal(2, editor.State.Selection.Count);
         Assert.Equal(new[] { 20d, 70d }, editor.State.Rois.Values.OrderBy(r => r.Order).Select(r => r.Geometry.Angle));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PasteMatchesCapturedPlacementForRotatedHierarchyAndSmallerImage(bool asynchronous)
+    {
+        var editor = Create();
+        var first = editor.Add(new(new(200, 250), 80, 120, 37, RoiShape.Triangle));
+        editor.Rename(first, new string('A', 256));
+        var second = editor.Add(new(new(650, 600), 90, 90, 73, RoiShape.Circle));
+        var polygon = RoiGeometry.Polygon([new(300, 300), new(420, 300), new(360, 360), new(420, 420), new(300, 420)]);
+        var third = editor.Add(polygon.RotateAround(polygon.Center, 23));
+        editor.Select([first, second, third]);
+        editor.SetFilters(new(RoiFilterKind.Edge));
+        var parent = editor.GroupSelection();
+        var clipboard = new RoiClipboard();
+        Assert.Equal(4, clipboard.Copy(editor.State));
+        var content = clipboard.Capture();
+        Assert.Equal(parent, content.Entries[^1].Id);
+        editor.SetImage(new("small", "small", 100, 80), ViewportTransform.Identity);
+        var expected = content.Place(editor.State.Image!, new(20, 20));
+
+        if (asynchronous)
+        {
+            await editor.PasteAsync(clipboard);
+        }
+        else
+        {
+            editor.Paste(clipboard);
+        }
+
+        var pasted = editor.State;
+        var copies = pasted.Rois.Values.OrderBy(roi => roi.Order).ToArray();
+        Assert.Equal(expected.Length, copies.Length);
+        var ids = content.Entries.Select((roi, index) => (roi.Id, CopyId: copies[index].Id))
+            .ToDictionary(pair => pair.Id, pair => pair.CopyId);
+        for (var i = 0; i < copies.Length; i++)
+        {
+            var source = expected[i];
+            var copy = copies[i];
+            Assert.DoesNotContain(copy.Id, ids.Keys);
+            Assert.Equal(source.Geometry, copy.Geometry);
+            Assert.Same(source.Geometry.Shape, copy.Geometry.Shape);
+            Assert.Equal(source.Filter, copy.Filter);
+            Assert.Equal(source.IsGroup, copy.IsGroup);
+            Assert.Equal(source.Name[..Math.Min(source.Name.Length, 253)] + " 복사", copy.Name);
+            Assert.Equal(source.ParentId is { } parentId ? ids[parentId] : (Guid?)null, copy.ParentId);
+            Assert.Equal(copies[0].Order + i, copy.Order);
+        }
+        Assert.Equal(ids[parent], Assert.Single(pasted.Selection));
+        Assert.True(RoiImageBounds.ContainsAll(pasted));
+        Assert.Equal(2, clipboard.Capture().PasteNumber);
+        editor.Undo();
+        Assert.Empty(editor.State.Rois);
+        editor.Redo();
+        Assert.True(pasted.Selection.SetEquals(editor.State.Selection));
+        Assert.All(pasted.Rois, pair => Assert.Equal(pair.Value, editor.State.Rois[pair.Key]));
+    }
+
+    [Fact]
+    public void CopyReusesSpatialBoundsOnlyForAllSelectedShapes()
+    {
+        var editor = Create();
+        var triangle = editor.Add(new(new(200, 200), 100, 80, 37, RoiShape.Triangle));
+        editor.Add(new(new(650, 700), 90, 90, 73, RoiShape.Circle));
+        editor.Add(RoiGeometry.Polygon([new(400, 400), new(500, 400), new(440, 440), new(500, 500), new(400, 500)]));
+        editor.Select(editor.State.Rois.Keys);
+        var clipboard = new RoiClipboard();
+        clipboard.Copy(editor.State);
+        var cold = clipboard.Capture();
+
+        _ = editor.State.Snapshot.Spatial;
+        clipboard.Copy(editor.State);
+        var warm = clipboard.Capture();
+        Assert.Equal(cold.Bounds, warm.Bounds);
+        Assert.Equal(cold.Entries.ToArray(), warm.Entries.ToArray());
+
+        editor.Select([triangle]);
+        clipboard.Copy(editor.State);
+        Assert.Equal(editor.State.Rois[triangle].Geometry.Bounds, clipboard.Capture().Bounds);
+        Assert.NotEqual(warm.Bounds, clipboard.Capture().Bounds);
     }
 
     [Fact]

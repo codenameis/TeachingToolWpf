@@ -113,7 +113,9 @@ public sealed record DocumentState(
             var value = Volatile.Read(ref _selectedSpatial);
             if (value is null)
             {
-                value = new(() => new RoiSpatialIndex(Selection.Select(id => Rois[id])));
+                value = new(() => Snapshot.IsSpatialCreated && Selection.Count > 64 && Selection.Count > Rois.Count / 8
+                    ? Snapshot.Spatial.Filter(Selection, include: true)
+                    : new RoiSpatialIndex(Selection.Select(id => Rois[id])));
                 value = Interlocked.CompareExchange(ref _selectedSpatial, value, null) ?? value;
             }
             return value.Value;
@@ -130,10 +132,10 @@ public sealed record DocumentState(
             _transformSelection = null
         };
     // A whole-document rigid edit preserves BVH membership and spatial neighborhoods; refit without sorting.
-    internal DocumentState WithRigidRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
+    internal DocumentState WithRigidRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds, CancellationToken token = default)
         => ReferenceEquals(Rois, rois) ? this : this with
         {
-            _snapshot = new(_snapshot, rois, changedIds.ToImmutableArray(), refitSpatial: true),
+            _snapshot = new(_snapshot, rois, changedIds.ToImmutableArray(), refitSpatial: true, token: token),
             _selectedSpatial = null,
             _selectionFacts = null,
             _transformSelection = null

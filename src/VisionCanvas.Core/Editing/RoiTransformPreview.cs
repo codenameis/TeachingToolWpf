@@ -49,8 +49,11 @@ public sealed class RoiTransformSelection
             : RoiHierarchy.Subtree(before, RoiHierarchy.EffectiveRoots(before)).ToFrozenSet();
         Bounds = before.SelectedSpatial.Bounds;
         var all = Affected.Count == before.Rois.Count;
-        _moving = new(() => all ? before.Snapshot.Spatial : Affected.SetEquals(before.Selection) ? before.SelectedSpatial : new(Affected.Select(id => before.Rois[id])));
+        _moving = new(() => all ? before.Snapshot.Spatial : Affected.SetEquals(before.Selection) ? before.SelectedSpatial
+            : before.Snapshot.IsSpatialCreated && Affected.Count > 64 && Affected.Count > before.Rois.Count / 8 ? before.Snapshot.Spatial.Filter(Affected, include: true)
+            : new(Affected.Select(id => before.Rois[id])));
         _stationary = new(() => all ? new([]) : Affected.Count <= 64 ? before.Snapshot.Spatial.WithChanges(Affected.Select(id => (id, (Roi?)null)))
+            : before.Snapshot.IsSpatialCreated && before.Rois.Count - Affected.Count > before.Rois.Count / 8 ? before.Snapshot.Spatial.Filter(Affected, include: false)
             : new(before.Rois.Values.Where(r => !Affected.Contains(r.Id))));
     }
 
@@ -124,7 +127,7 @@ public sealed class RoiTransformSelection
                 Geometry = TransformGeometry(roi.Geometry, transform)
             };
         }
-        return Affected.Count == Before.Rois.Count ? Before.WithRigidRois(rois.ToImmutable(), Affected)
+        return Affected.Count == Before.Rois.Count ? Before.WithRigidRois(rois.ToImmutable(), Affected, token)
             : Before.WithRois(rois.ToImmutable(), Affected);
     }
 

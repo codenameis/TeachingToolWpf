@@ -1,13 +1,18 @@
 using System.Collections.Immutable;
+using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Core.Editing;
 
 /// <summary>Prepares an immutable paste result without touching the session, UI or history.</summary>
 internal static class RoiPaste
 {
-    public static DocumentState Prepare(DocumentState before, ImmutableArray<Roi> templates, long order, CancellationToken token)
+    public static DocumentState Prepare(DocumentState before, RoiClipboardContent content, ImageReference image,
+        PointD step, long order, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        var templates = content.Entries;
+        var placement = content.GetPlacement(image, step);
         var ids = templates.ToDictionary(r => r.Id, _ => Guid.NewGuid());
         var rois = before.Rois.ToBuilder();
         var roots = ImmutableHashSet.CreateBuilder<Guid>();
@@ -23,6 +28,7 @@ internal static class RoiPaste
             rois.Add(id, template with
             {
                 Id = id,
+                Geometry = placement.Apply(template.Geometry),
                 ParentId = template.ParentId is { } originalParent && ids.TryGetValue(originalParent, out var copiedParent) ? copiedParent : null,
                 Order = ++order,
                 Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사"

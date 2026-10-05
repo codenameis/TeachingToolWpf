@@ -41,6 +41,58 @@ public sealed class RoiSpatialIndex
     // Metadata can change without rebuilding geometry. The value map belongs to this immutable snapshot.
     internal RoiSpatialIndex WithValues(ImmutableDictionary<Guid, Roi> rois) => new(_root, _locations, rois);
 
+    // Preserve spatial partitions and unchanged block identities instead of sorting a large subset again.
+    internal RoiSpatialIndex Filter(IReadOnlySet<Guid> ids, bool include)
+    {
+        var paths = ImmutableDictionary.CreateBuilder<Guid, ulong>();
+        var empty = Leaf([]);
+        return new(FilterNode(_root, 1) ?? empty, paths.ToImmutable(), _values);
+
+        Node? FilterNode(Node node, ulong path)
+        {
+            if (node.Count == 0)
+            {
+                return null;
+            }
+
+            if (node.Entries is { } entries)
+            {
+                var retainedCount = 0;
+                foreach (var entry in entries)
+                {
+                    if (ids.Contains(entry.Roi.Id) == include)
+                    {
+                        paths.Add(entry.Roi.Id, path);
+                        retainedCount++;
+                    }
+                }
+
+                if (retainedCount == 0)
+                {
+                    return null;
+                }
+
+                if (retainedCount == entries.Length)
+                {
+                    return node;
+                }
+
+                return Leaf(entries.Where(entry => ids.Contains(entry.Roi.Id) == include).ToArray());
+            }
+
+            var left = FilterNode(node.Left!, path << 1);
+            var right = FilterNode(node.Right!, (path << 1) | 1);
+            if (left is null && right is null)
+            {
+                return null;
+            }
+
+            // Keep empty branches so retained IDs still use their original paths for later edits.
+            return ReferenceEquals(left, node.Left) && ReferenceEquals(right, node.Right)
+                ? node : Branch(left ?? empty, right ?? empty);
+        }
+    }
+
     private Roi Value(Entry entry) => _values is null ? entry.Roi : _values[entry.Roi.Id];
 
     /// <summary>Exact rotated rectangle union bounds, using four branch-and-bound support queries.</summary>

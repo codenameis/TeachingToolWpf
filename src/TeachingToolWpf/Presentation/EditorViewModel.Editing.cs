@@ -48,18 +48,20 @@ public sealed partial class EditorViewModel
 
         using var cancellation = new CancellationTokenSource();
         _editCancellation = cancellation;
-        Status = $"{name} 준비 중… 화면 이동·확대 가능 · Esc로 취소";
-        Refresh();
+        var wasPreviewing = Session.IsPreviewing;
 
         try
         {
+            Status = $"{name} 준비 중… 화면 이동·확대 가능 · Esc로 취소";
+            Refresh();
+            cancellation.Token.ThrowIfCancellationRequested();
             await action(cancellation.Token);
             if (!_disposed)
             {
                 Status = $"{name} 완료";
             }
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested || !Session.IsPreviewing)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested || (wasPreviewing && !Session.IsPreviewing))
         {
             if (!_disposed)
             {

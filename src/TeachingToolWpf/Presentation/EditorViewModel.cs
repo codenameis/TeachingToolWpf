@@ -314,12 +314,12 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         get;
     }
 
-    public RelayCommand Group
+    public AsyncCommand Group
     {
         get;
     }
 
-    public RelayCommand Ungroup
+    public AsyncCommand Ungroup
     {
         get;
     }
@@ -466,8 +466,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         Delete = Async(() => EditCompletion = PrepareEditAsync("선택 ROI 삭제", Session.PrepareDeleteAsync), HasSelection);
         Copy = Command(CopySelection, HasSelection);
         Paste = Async(() => PasteCompletion = PasteAsync(), () => HasImage() && _clipboard.HasContent);
-        Group = Command(GroupSelection, () => Session.State.SelectionFacts.HasMultipleRoots);
-        Ungroup = Command(Session.UngroupSelection, () => Session.State.SelectionFacts.HasGroup);
+        Group = Async(() => EditCompletion = PrepareEditAsync("부모 ROI로 그룹화", Session.PrepareGroupAsync), () => Session.State.SelectionFacts.HasMultipleRoots);
+        Ungroup = Async(() => EditCompletion = PrepareEditAsync("그룹 해제", Session.PrepareUngroupAsync), () => Session.State.SelectionFacts.HasGroup);
         ResetAngle = Command(Session.ResetAngles, HasSelection);
         RotateLeft = Command(() => Rotate(-15), HasSelection);
         RotateRight = Command(() => Rotate(15), HasSelection);
@@ -507,14 +507,6 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         var copiedCount = _clipboard.Copy(Session.State);
         Status = $"ROI {copiedCount}개 복사 · Ctrl+V로 붙여넣기";
         RefreshCommands();
-    }
-
-    private void GroupSelection()
-    {
-        var selectedCount = Session.State.Selection.Count;
-        var parentId = Session.GroupSelection();
-        var descendantCount = RoiHierarchy.Subtree(Session.State, [parentId]).Count - 1;
-        Status = $"새 부모를 만들었습니다. 포함 ROI {descendantCount}개 · 선택 {selectedCount}개";
     }
 
     private async Task PasteAsync()
@@ -828,6 +820,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         if (key == Key.Escape)
         {
             Input.Cancel();
+            // Mouse Up releases the gesture before its prepared edit finishes.
+            Session.CancelPreview();
             _previewPreparation.Cancel();
             Images.Cancel();
             _editCancellation?.Cancel();

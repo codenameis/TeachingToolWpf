@@ -118,9 +118,10 @@ public sealed partial class EditorSession
             return;
         }
 
-        var templates = clipboard.Place(State.Image, new(20 / State.Viewport.Scale, 20 / State.Viewport.Scale));
-        Commit("ROI 붙여넣기", RoiPaste.Prepare(State, templates, _nextOrder, CancellationToken.None));
-        _nextOrder += templates.Length;
+        var content = clipboard.Capture();
+        var step = new PointD(20 / State.Viewport.Scale, 20 / State.Viewport.Scale);
+        Commit("ROI 붙여넣기", RoiPaste.Prepare(State, content, State.Image, step, _nextOrder, CancellationToken.None));
+        _nextOrder += content.Entries.Length;
         clipboard.Pasted();
     }
 
@@ -241,63 +242,15 @@ public sealed partial class EditorSession
 
     public Guid GroupSelection()
     {
-        var roots = RoiHierarchy.EffectiveRoots(State).ToArray();
-        if (roots.Length < 2)
-        {
-            throw new InvalidOperationException("독립적인 ROI를 2개 이상 선택하세요.");
-        }
-
-        var members = RoiHierarchy.Subtree(State, roots);
-        var bounds = new RoiSpatialIndex(members.Select(id => State.Rois[id])).Bounds;
-        var padding = Math.Max(1, Math.Max(Math.Abs(bounds.Center.X), Math.Abs(bounds.Center.Y)) * 1e-10);
-        var parents = roots.Select(id => State.Rois[id].ParentId).Distinct().ToArray();
-        var parentId = parents.Length == 1 ? parents[0] : null;
         var order = _nextOrder + 1;
-        var group = new Roi(Guid.NewGuid(), $"그룹 {order:000}",
-            RoiImageBounds.ClipNew(new(bounds.Center, bounds.Width + (padding * 2), bounds.Height + (padding * 2), 0), State.Image), parentId, true, order);
-        var rois = State.Rois.Add(group.Id, group).ToBuilder();
-        foreach (var id in roots)
-        {
-            rois[id] = rois[id] with
-            {
-                ParentId = group.Id
-            };
-        }
-
-        var next = State.WithRois(rois.ToImmutable(), roots.Append(group.Id)) with
-        {
-            Selection = [group.Id]
-        };
-
+        var next = RoiGrouping.Group(State, order, CancellationToken.None);
         Commit("부모 ROI로 그룹화", next);
         _nextOrder = order;
-        return group.Id;
+        return next.Selection.Single();
     }
 
     public void UngroupSelection()
-    {
-        var groups = State.Selection.Where(id => State.Rois[id].IsGroup).ToHashSet();
-        var children = groups.SelectMany(id => State.Snapshot.Children.GetValueOrDefault(id, [])).ToImmutableHashSet();
-        var rois = State.Rois.RemoveRange(groups).ToBuilder();
-        foreach (var id in children.Except(groups))
-        {
-            var parent = State.Rois[id].ParentId;
-            while (parent is { } ancestor && groups.Contains(ancestor))
-            {
-                parent = State.Rois[ancestor].ParentId;
-            }
-
-            rois[id] = rois[id] with
-            {
-                ParentId = parent
-            };
-        }
-
-        Commit("그룹 해제", State.WithRois(rois.ToImmutable(), groups.Concat(children)) with
-        {
-            Selection = children.Except(groups)
-        });
-    }
+        => Commit("그룹 해제", RoiGrouping.Ungroup(State, CancellationToken.None));
 
     public DocumentState PreviewUndo() => _history.PreviewUndo(State);
 
@@ -479,7 +432,7 @@ public sealed partial class EditorSession
         }
 
         // 이력 예산 검사와 Redo 분기 처리가 성공한 뒤에만 새 문서를 게시한다.
-        _history.Push(edit);
+        _history.Push(edit, State, next);
         Publish(next);
     }
 

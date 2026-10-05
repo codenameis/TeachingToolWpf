@@ -17,6 +17,8 @@ public sealed class RoiSnapshot
 
     public RoiSpatialIndex Spatial => _spatial.Value;
 
+    internal bool IsSpatialCreated => _spatial.IsValueCreated;
+
     public ImmutableDictionary<Guid, ImmutableArray<Guid>> Children => _children.Value;
 
     public ImmutableDictionary<Guid, Roi>? PreviousRois
@@ -48,7 +50,7 @@ public sealed class RoiSnapshot
             .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
     }
 
-    internal RoiSnapshot(RoiSnapshot previous, ImmutableDictionary<Guid, Roi> rois, ImmutableArray<Guid> changedIds, RoiSnapshot? spatialSeed = null, bool refitSpatial = false)
+    internal RoiSnapshot(RoiSnapshot previous, ImmutableDictionary<Guid, Roi> rois, ImmutableArray<Guid> changedIds, RoiSnapshot? spatialSeed = null, bool refitSpatial = false, CancellationToken token = default)
     {
         Rois = rois;
         PreviousRois = previous.Rois;
@@ -65,6 +67,7 @@ public sealed class RoiSnapshot
         var rebuildSpatial = false;
         foreach (var id in changedIds)
         {
+            token.ThrowIfCancellationRequested();
             var old = oldRois.GetValueOrDefault(id);
             var next = rois.GetValueOrDefault(id);
             rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup || old.Geometry.Shape.Kind != next.Geometry.Shape.Kind;
@@ -96,7 +99,9 @@ public sealed class RoiSnapshot
         // Capture evaluated values, not previous factories: Undo/Redo must not retain a recursive lazy chain.
         var oldSpatial = rebuildSpatial && !refitSpatial ? null : seed.Spatial;
         var spatialChanges = geometryChanges?.ToArray();
-        _spatial = new(() => refitSpatial ? oldSpatial!.RefitGeometry(rois) : rebuildSpatial ? new(rois.Values) :
+        // 작업 전용 refit은 게시 전에 취소한다. 공유 Lazy에 취소 예외나 일시적 token을 보관하지 않는다.
+        var refitted = refitSpatial && token.CanBeCanceled ? oldSpatial!.RefitGeometry(rois, token) : null;
+        _spatial = new(() => refitSpatial ? refitted ?? oldSpatial!.RefitGeometry(rois) : rebuildSpatial ? new(rois.Values) :
             (spatialChanges!.Length == 0 ? oldSpatial! : oldSpatial!.WithChanges(spatialChanges)).WithValues(rois));
         if (!topologyChanged)
         {

@@ -90,7 +90,7 @@ public sealed class DocumentEdit
             }
         }
         var ids = Changes.Select(c => c.Id);
-        var geometry = _refitSpatial ? state.WithRigidRois(rois.ToImmutable(), ids) : state.WithRois(rois.ToImmutable(), ids);
+        var geometry = _refitSpatial ? state.WithRigidRois(rois.ToImmutable(), ids, cancellationToken) : state.WithRois(rois.ToImmutable(), ids);
         var result = geometry with
         {
             Selection = forward ? _afterSelection : _beforeSelection,
@@ -100,11 +100,54 @@ public sealed class DocumentEdit
         cancellationToken.ThrowIfCancellationRequested();
         return result;
     }
+
+    internal DocumentState RestoreCachedMetadata(DocumentState target, DocumentState source, bool forward)
+    {
+        // An opposite-direction target may be a source captured after a later selection change.
+        // Restore the edit's recorded metadata exactly as Apply does, while retaining its ROI indexes.
+        var selection = forward ? _afterSelection : _beforeSelection;
+        if (!ReferenceEquals(target.Selection, selection))
+        {
+            target = target with
+            {
+                Selection = selection
+            };
+        }
+        var image = _changesImage ? (forward ? _afterImage : _beforeImage) : source.Image;
+        if (target.Image != image)
+        {
+            target = target with
+            {
+                Image = image
+            };
+        }
+        var view = _changesImage ? (forward ? _afterView : _beforeView) : source.Viewport;
+        return target.Viewport == view ? target : target with
+        {
+            Viewport = view
+        };
+    }
+
+    internal bool MatchesRecordedSource(DocumentState source, bool forward, CancellationToken cancellationToken)
+    {
+        foreach (var change in Changes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (source.Rois.GetValueOrDefault(change.Id) != (forward ? change.Before : change.After))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 }
 
 /// <summary>Immutable history instruction captured on the owner thread; preparation touches no mutable history.</summary>
 public sealed class HistoryStep
 {
+    private readonly DocumentState? _cachedSource;
+    private readonly DocumentState? _cachedTarget;
+
     internal object HistoryIdentity
     {
         get;
@@ -132,17 +175,34 @@ public sealed class HistoryStep
 
     public string Name => Edit.Name;
 
-    internal HistoryStep(object historyIdentity, long revision, int cursor, DocumentEdit edit, bool forward)
+    internal HistoryStep(object historyIdentity, long revision, int cursor, DocumentEdit edit, bool forward,
+        DocumentState? cachedSource = null, DocumentState? cachedTarget = null)
     {
         HistoryIdentity = historyIdentity;
         Revision = revision;
         Cursor = cursor;
         Edit = edit;
         Forward = forward;
+        _cachedSource = cachedSource;
+        _cachedTarget = cachedTarget;
     }
 
     public PreparedHistoryStep Prepare(DocumentState source, CancellationToken cancellationToken = default)
-        => new(this, source, Edit.Apply(source, Forward, cancellationToken));
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var cached = _cachedSource is { } cachedSource && _cachedTarget is not null &&
+            ReferenceEquals(cachedSource.Rois, source.Rois) && ReferenceEquals(cachedSource.Selection, source.Selection) && cachedSource.Image == source.Image;
+        var target = cached
+            ? Edit.RestoreCachedMetadata(_cachedTarget!, source, Forward)
+            : Edit.Apply(source, Forward, cancellationToken);
+        // Applying a delta accepts arbitrary source values, but that source is not always its inverse.
+        // Only fallback preparation needs this check; committed and already checked pairs stay O(1).
+        var canReuseSnapshotPair = cached || Edit.MatchesRecordedSource(source, Forward, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        // A prepared result owns only its actual pair, never an older captured pair through its instruction.
+        var step = _cachedSource is null ? this : new HistoryStep(HistoryIdentity, Revision, Cursor, Edit, Forward);
+        return new(step, source, target, canReuseSnapshotPair);
+    }
 }
 
 /// <summary>Immutable result awaiting owner-thread validation; image and GPU storage are never copied.</summary>
@@ -163,11 +223,17 @@ public sealed class PreparedHistoryStep
         get;
     }
 
-    internal PreparedHistoryStep(HistoryStep step, DocumentState source, DocumentState target)
+    internal bool CanReuseSnapshotPair
+    {
+        get;
+    }
+
+    internal PreparedHistoryStep(HistoryStep step, DocumentState source, DocumentState target, bool canReuseSnapshotPair)
     {
         Step = step;
         Source = source;
         Target = target;
+        CanReuseSnapshotPair = canReuseSnapshotPair;
     }
 }
 
@@ -177,6 +243,8 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
     private readonly object _identity = new();
     private int _cursor;
     private long _revision;
+    // One most-recent source/target pair, shared with preview preparation. Bytes remains the delta-history
+    // budget; these immutable derived indexes are not a process-wide memory limit or a cache per edit.
     private PreparedHistoryStep? _prepared;
 
     public bool CanUndo => _cursor > 0;
@@ -217,9 +285,34 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
         _prepared = null;
     }
 
-    public HistoryStep? CaptureUndo() => CanUndo ? new(_identity, _revision, _cursor, _edits[_cursor - 1], false) : null;
+    internal void Push(DocumentEdit edit, DocumentState before, DocumentState after)
+    {
+        if (edit.IsEmpty)
+        {
+            return;
+        }
+        Push(edit);
+        if (CanUndo && ReferenceEquals(_edits[_cursor - 1], edit))
+        {
+            _prepared = new(new(_identity, _revision, _cursor, edit, false), after, edit.RestoreCachedMetadata(before, after, false), true);
+        }
+    }
 
-    public HistoryStep? CaptureRedo() => CanRedo ? new(_identity, _revision, _cursor, _edits[_cursor], true) : null;
+    public HistoryStep? CaptureUndo() => CanUndo ? Capture(false) : null;
+
+    public HistoryStep? CaptureRedo() => CanRedo ? Capture(true) : null;
+
+    private HistoryStep Capture(bool forward)
+    {
+        var edit = _edits[forward ? _cursor : _cursor - 1];
+        if (_prepared is { } cached && ReferenceEquals(cached.Step.Edit, edit))
+        {
+            var sameDirection = cached.Step.Forward == forward;
+            return new(_identity, _revision, _cursor, edit, forward,
+                sameDirection ? cached.Source : cached.Target, sameDirection ? cached.Target : cached.Source);
+        }
+        return new(_identity, _revision, _cursor, edit, forward);
+    }
 
     public void Validate(PreparedHistoryStep target, DocumentState current)
     {
@@ -242,7 +335,7 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
             } : target.Target;
         _cursor += step.Forward ? 1 : -1;
         _revision++;
-        _prepared = null;
+        _prepared = target.CanReuseSnapshotPair ? target : null;
         return result;
     }
 
@@ -261,7 +354,9 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
         }
 
         var step = forward ? CaptureRedo() : CaptureUndo();
-        return _prepared = step!.Prepare(state);
+        var prepared = step!.Prepare(state);
+        _prepared = prepared.CanReuseSnapshotPair ? prepared : null;
+        return prepared;
     }
 
     public DocumentState PreviewUndo(DocumentState state) => CanUndo ? Prepare(state, false).Target : state;

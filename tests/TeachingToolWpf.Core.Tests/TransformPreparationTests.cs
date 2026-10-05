@@ -8,6 +8,33 @@ namespace TeachingToolWpf.Core.Tests;
 public class TransformPreparationTests
 {
     [Fact]
+    public void WholeGroupRefitDoesNotRetainCanceledOperationInSharedSpatialIndex()
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("test", "test", 10000, 10000), ViewportTransform.Identity);
+        editor.AddRange(Enumerable.Range(0, 5000).Select(i => new RoiGeometry(
+            new(2000 + (i % 100 * 20), 2000 + (i / 100 * 20)), 10, 10, i % 45)));
+        editor.Select(editor.State.Rois.Keys);
+        editor.GroupSelection();
+        var before = editor.State;
+        var selection = before.TransformSelection;
+        var transform = new RigidTransform2D(selection.Bounds.Center, 15);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => selection.Apply(transform, cancellation.Token));
+        Assert.Same(before, editor.State);
+        Assert.Equal(before.Rois.Count, before.Snapshot.Spatial.Visible(before.Snapshot.Spatial.Bounds, 0).Count());
+
+        using var completed = new CancellationTokenSource();
+        var next = selection.Apply(transform, completed.Token);
+        completed.Cancel();
+        // 완료된 작업의 token을 취소해도 공유 snapshot의 지연 읽기는 성공해야 한다.
+        var actual = next.Snapshot.Spatial.Visible(next.Snapshot.Spatial.Bounds, 0).Select(item => item.Roi!).OrderBy(roi => roi.Id);
+        Assert.Equal(next.Rois.Values.OrderBy(roi => roi.Id), actual);
+        Assert.Same(before, editor.State);
+    }
+
+    [Fact]
     public void ReadyRequiresMovingStationaryAndTheDefaultPivotLimits()
     {
         var editor = Create();

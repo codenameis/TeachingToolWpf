@@ -26,6 +26,11 @@ public sealed class PreparedEditorChange
         get;
     }
 
+    internal (long Before, long After)? OrderChange
+    {
+        get;
+    }
+
     internal bool Consumed
     {
         get;
@@ -37,13 +42,21 @@ public sealed class PreparedEditorChange
         get;
     }
 
-    internal PreparedEditorChange(EditorSession owner, long revision, long previewEpoch, DocumentState state, DocumentEdit? edit)
+    internal DocumentState Before
+    {
+        get;
+    }
+
+    internal PreparedEditorChange(EditorSession owner, long revision, long previewEpoch, DocumentState before, DocumentState state,
+        DocumentEdit? edit, (long Before, long After)? orderChange = null)
     {
         Owner = owner;
         Revision = revision;
         PreviewEpoch = previewEpoch;
+        Before = before;
         State = state;
         Edit = edit;
+        OrderChange = orderChange;
     }
 }
 
@@ -52,6 +65,16 @@ public sealed partial class EditorSession
     private long _mutationRevision;
 
     private long _previewEpoch;
+
+    public Task<PreparedEditorChange> PrepareGroupAsync(CancellationToken token = default)
+    {
+        var order = _nextOrder;
+        return PrepareChangeAsync("부모 ROI로 그룹화", before => RoiGrouping.Group(before, order + 1, token),
+            token, orderChange: (order, order + 1));
+    }
+
+    public Task<PreparedEditorChange> PrepareUngroupAsync(CancellationToken token = default)
+        => PrepareChangeAsync("그룹 해제", before => RoiGrouping.Ungroup(before, token), token);
 
     public Task<PreparedEditorChange> PrepareDeleteAsync(CancellationToken token = default)
         => PrepareChangeAsync("선택 ROI 삭제", before =>
@@ -123,7 +146,7 @@ public sealed partial class EditorSession
     }
 
     private Task<PreparedEditorChange> PrepareChangeAsync(string? name, Func<DocumentState, DocumentState> prepare,
-        CancellationToken token, DocumentState? preview = null)
+        CancellationToken token, DocumentState? preview = null, (long Before, long After)? orderChange = null)
     {
         if (_previewStart is not null && preview is null)
         {
@@ -140,7 +163,7 @@ public sealed partial class EditorSession
             token.ThrowIfCancellationRequested();
             var edit = name is null ? null : new DocumentEdit(name, before, next, cancellationToken: token);
             Warm(next, token);
-            return new PreparedEditorChange(this, revision, epoch, next, edit);
+            return new PreparedEditorChange(this, revision, epoch, before, next, edit, orderChange);
         }, token);
     }
 
@@ -170,14 +193,20 @@ public sealed partial class EditorSession
 
     public void CommitPrepared(PreparedEditorChange prepared)
     {
-        if (!ReferenceEquals(prepared.Owner, this) || prepared.Consumed || prepared.Revision != _mutationRevision || prepared.PreviewEpoch != _previewEpoch)
+        if (!ReferenceEquals(prepared.Owner, this) || prepared.Consumed || prepared.Revision != _mutationRevision || prepared.PreviewEpoch != _previewEpoch ||
+            (prepared.OrderChange is { } expectedOrder && expectedOrder.Before != _nextOrder))
         {
             throw new InvalidOperationException("편집 준비 중 문서가 변경되었습니다. 다시 시도하세요.");
         }
 
         if (prepared.Edit is { IsEmpty: false } edit)
         {
-            _history.Push(edit);
+            _history.Push(edit, prepared.Before, prepared.State);
+        }
+
+        if (prepared.OrderChange is { } orderChange)
+        {
+            _nextOrder = orderChange.After;
         }
 
         prepared.Consumed = true;
