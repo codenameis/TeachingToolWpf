@@ -1,0 +1,46 @@
+<Window x:Class="TeachingToolWpf.Views.ConfigPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:TeachingToolWpf.Views" xmlns:controls="clr-namespace:TeachingToolWpf.Controls"
+        Title="설정 · Vision Teaching Studio" Width="800" Height="760" MinWidth="740" MinHeight="560"
+        Background="{StaticResource Shell}" Foreground="{StaticResource TextPrimary}" FontFamily="Segoe UI, Malgun Gothic"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="White" Padding="24,18" BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,0,1">
+            <StackPanel><TextBlock Text="표시 설정" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="적용한 설정은 열린 캔버스에 반영됩니다. 실행 중에만 유지되며 ROI와 편집 이력은 바뀌지 않습니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,8,0,0"/></StackPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Padding="24,12" Background="White" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0">
+            <Button Content="닫기" Click="ClosePage" HorizontalAlignment="Right" Width="90" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="설정 페이지 닫기"/>
+        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="24">
+                <Border Background="White" CornerRadius="8" Padding="20"><views:RoiStylePanel DataContext="{Binding StyleSettings}"/></Border>
+                <Border Background="White" CornerRadius="8" Padding="20" Margin="0,16,0,0">
+                    <StackPanel DataContext="{Binding GuideSettings}">
+                        <TextBlock Text="이미지 중심 크로스헤어" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="원본 이미지의 중심을 지나며 캔버스 전체 너비·높이까지 이어집니다. 이미지 이동·확대를 따라갑니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,12"/>
+                        <CheckBox Content="크로스헤어 표시" IsChecked="{Binding IsVisible}" AutomationProperties.Name="설정 크로스헤어 표시" Margin="0,0,0,12"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="150"/></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="색상 (#RRGGBB / #AARRGGBB)" Style="{StaticResource Caption}"/><TextBox Text="{Binding Color, UpdateSourceTrigger=PropertyChanged}" MaxLength="9" AutomationProperties.Name="크로스헤어 색상"/></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="선 두께 (0.5~8 DIP)" Style="{StaticResource Caption}"/><controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Thickness, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="크로스헤어 선 두께"/></StackPanel>
+                        </Grid>
+                        <TextBlock Text="{Binding Error}" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="크로스헤어 적용" Command="{Binding Apply}" Style="{StaticResource PrimaryButton}"/>
+                            <Button Content="색상·두께 기본값" Command="{Binding Reset}" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" CornerRadius="8" Padding="20" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="영상 표시" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <CheckBox Content="픽셀 선명하게 표시" IsChecked="{Binding PointSampling}" AutomationProperties.Name="설정 픽셀 선명하게"/>
+                        <TextBlock Text="원본 픽셀을 구분하기 쉽게 표시합니다. 해제하면 확대 시 부드럽게 보간합니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,8,0,16"/>
+                        <TextBlock Text="{Binding GpuStatus}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondary}"/>
+                        <Button Content="렌더러 재연결" Command="{Binding RestartRenderer}" HorizontalAlignment="Left" Style="{StaticResource SecondaryButton}" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

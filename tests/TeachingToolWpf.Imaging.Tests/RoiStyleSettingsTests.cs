@@ -13,6 +13,37 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiStyleSettingsTests
 {
+    [Fact]
+    public void RoleAndSelectionColorsApplyTogetherAndInvalidColorPreservesThePreviousPalette() => OnSta(() =>
+    {
+        var settings = new RoiStyleSettingsViewModel();
+        var changes = 0;
+        settings.Changed += () => changes++;
+        settings.Default.Color = "#102030";
+        settings.Default.SelectedColor = "#405060";
+        settings.Default.MultiSelectedColor = "#708090";
+        settings.Child.Color = "#11AA33";
+        settings.Parent.MultiSelectedColor = "#CC55EE";
+        settings.Apply.Execute(null);
+        Assert.Empty(settings.Error);
+        Assert.Equal(new Vector4(16 / 255f, 32 / 255f, 48 / 255f, 1), settings.Palette.Default.Color);
+        Assert.Equal(new Vector4(64 / 255f, 80 / 255f, 96 / 255f, 1), settings.Palette.Default.SelectedColor);
+        Assert.Equal(new Vector4(112 / 255f, 128 / 255f, 144 / 255f, 1), settings.Palette.Default.MultiSelectedColor);
+        Assert.NotEqual(settings.Palette.Default.MultiSelectedColor, settings.Palette.Parent.MultiSelectedColor);
+        var before = settings.Palette;
+        settings.DefaultThickness = "5";
+        settings.Child.MultiSelectedColor = "#BAD";
+        settings.Apply.Execute(null);
+        Assert.Same(before, settings.Palette);
+        Assert.Equal(1, changes);
+        Assert.Contains("자식 ROI 다중 선택", settings.Error);
+        settings.Reset.Execute(null);
+        Assert.Equal(RoiStylePalette.Standard, settings.Palette);
+        Assert.Empty(settings.Error);
+        settings.Apply.Execute(null);
+        Assert.Equal(2, changes);
+    });
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]

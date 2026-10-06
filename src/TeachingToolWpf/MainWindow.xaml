@@ -11,6 +11,7 @@
         <Border Background="White" BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,0,1" Padding="20,0">
             <DockPanel VerticalAlignment="Center">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Content="설정" Click="OpenConfiguration" Style="{StaticResource SecondaryButton}" Margin="0,0,16,0" AutomationProperties.Name="설정 페이지 열기"/>
                     <Ellipse Width="6" Height="6" Fill="#16A379" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBlock Text="Teaching workspace" FontSize="11" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -58,6 +59,9 @@
         <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="16,0">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="{Binding GuideSettings.ToggleLabel}" Command="{Binding GuideSettings.Toggle}" FontSize="10" Height="24" Margin="8,0" ToolTip="이미지 중심을 지나 캔버스 끝까지 이어지는 십자선" AutomationProperties.Name="크로스헤어 표시 전환">
+                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}"><Style.Triggers><DataTrigger Binding="{Binding GuideSettings.IsVisible}" Value="True"><Setter Property="Background" Value="{StaticResource AccentSoft}"/><Setter Property="Foreground" Value="{StaticResource Accent}"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                    </Button>
                     <TextBlock Text="{Binding Performance}" Foreground="{StaticResource TextSecondary}" FontSize="10" Margin="12,0" ToolTip="{Binding GpuStatus}"/>
                     <Button Content="GPU" Command="{Binding RestartRenderer}" Height="24" FontSize="10" ToolTip="{Binding GpuStatus}" AutomationProperties.Name="GPU 재연결"/>
                 </StackPanel>

@@ -30,6 +30,8 @@ internal static class RenderSmoke
                 File.AppendAllText("artifacts/smoke.log", "Native input, toolbar, history, grouping and renderer restart passed" + Environment.NewLine);
                 await RoiStyleSmokeScenario.Run(window, model, viewport);
                 File.AppendAllText("artifacts/smoke.log", "ROI role colors, independent widths, explicit child relation after native movement, Undo/Redo and style reset passed" + Environment.NewLine);
+                await CrosshairSmokeScenario.Run(window, model, viewport);
+                File.AppendAllText("artifacts/smoke.log", "ConfigPage bindings/reopen and image-centered full-canvas crosshair button/pan/zoom/resize/restart/pixels passed" + Environment.NewLine);
                 await ShapeSmokeScenario.Run(window, model, viewport);
                 var session = model.Session;
                 var parent = session.Add(new(new(4096, 4096), 4400, 4200, 12));

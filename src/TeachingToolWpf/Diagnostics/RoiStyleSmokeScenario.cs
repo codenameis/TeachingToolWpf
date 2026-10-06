@@ -40,6 +40,7 @@ internal static class RoiStyleSmokeScenario
 
         long? styleCapturedEndTicks = null;
         var completed = false;
+        ConfigPage? configuration = null;
         void OnStatus(string status)
         {
             if (status.StartsWith("렌더 오류:"))
@@ -65,10 +66,26 @@ internal static class RoiStyleSmokeScenario
             Require(!editor.State.Rois[parent].IsGroup, "a natural containing ROI is a parent without group metadata");
             AssertRoles(parent, child, standalone, attached: true);
             editor.Select([]);
-            var panel = Descendants(window).OfType<RoiStylePanel>().Single();
+            var openSettings = Descendants(window).OfType<Button>().Single(button => AutomationProperties.GetName(button) == "설정 페이지 열기");
+            openSettings.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.Yield(DispatcherPriority.Background);
+            configuration = window.OwnedWindows.OfType<ConfigPage>().Single();
+            configuration.Left = window.Left;
+            configuration.Top = window.Top;
+            openSettings.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(window.OwnedWindows.OfType<ConfigPage>().Count() == 1, "settings button reuses the open page");
+            var panel = Descendants(configuration).OfType<RoiStylePanel>().Single();
+            var guideToggle = Descendants(configuration).OfType<CheckBox>().Single(item => AutomationProperties.GetName(item) == "설정 크로스헤어 표시");
+            var pixelToggle = Descendants(configuration).OfType<CheckBox>().Single(item => AutomationProperties.GetName(item) == "설정 픽셀 선명하게");
+            guideToggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
+            pixelToggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
+            Require(model.GuideSettings.IsVisible && model.PointSampling, "configuration toggles update the active Canvas settings");
+            model.GuideSettings.Toggle.Execute(null);
+            Require(guideToggle.IsChecked == false, "main crosshair command synchronizes the configuration checkbox");
+            pixelToggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, false);
             Require(ReferenceEquals(panel.DataContext, settings), "settings panel uses the active style view model");
             panel.BringIntoView();
-            window.UpdateLayout();
+            configuration.UpdateLayout();
             await Capture("baseline");
             baselineCapturedEndTicks = Stopwatch.GetTimestamp();
             var beforeStyle = editor.State;
@@ -97,12 +114,27 @@ internal static class RoiStyleSmokeScenario
                 "width changes preserve normal and selected role colors");
             Require(settings.Palette.Parent.StrokeThickness(true) == 4.5f && settings.Palette.Child.StrokeThickness(true) == 3.5f,
                 "selection adds half a DIP independently of each role width");
+            var multiColor = Descendants(panel).OfType<TextBox>().Single(field => AutomationProperties.GetName(field) == "일반 ROI 다중 선택 색상");
+            multiColor.Text = "#FFB82E";
+            invoke.Invoke();
+            await Dispatcher.Yield(DispatcherPriority.Background);
+            Require(settings.Default.MultiSelectedColor == "#FFB82E" && settings.Palette.Default.MultiSelectedColor != settings.Palette.Default.SelectedColor,
+                "multi-selection color uses a separate bound field");
             await Capture("roles");
             styleCapturedEndTicks = Stopwatch.GetTimestamp();
             panel.BringIntoView();
-            window.UpdateLayout();
+            configuration.UpdateLayout();
             await Task.Delay(100);
             WindowCapture.Save(window, viewport, "artifacts/roi-style-roles.png", "artifacts/roi-style-settings.png");
+            SaveConfiguration(configuration);
+            configuration.Close();
+            openSettings.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.Yield(DispatcherPriority.Background);
+            configuration = window.OwnedWindows.OfType<ConfigPage>().Single();
+            Require(ReferenceEquals(configuration.DataContext, model) && settings.DefaultThickness == "2", "reopening keeps active settings");
+            configuration.Close();
+            window.Activate();
+            configuration = null;
             editor.Select([parent, child, standalone]);
             await Capture("selected");
             editor.Select([parent]);
@@ -161,6 +193,7 @@ internal static class RoiStyleSmokeScenario
         }
         finally
         {
+            configuration?.Close();
             model.Input.Cancel();
             settings.DefaultThickness = originalDefault;
             settings.ChildThickness = originalChild;
@@ -221,6 +254,18 @@ internal static class RoiStyleSmokeScenario
                 throw new InvalidOperationException(renderError);
             }
         }
+    }
+
+    private static void SaveConfiguration(ConfigPage page)
+    {
+        var dpi = VisualTreeHelper.GetDpi(page);
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(page.ActualWidth * dpi.DpiScaleX),
+            (int)Math.Ceiling(page.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bitmap.Render(page);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = File.Create("artifacts/config-page.png");
+        encoder.Save(stream);
     }
 
     private static void AssertExact(DocumentState expected, DocumentState actual)

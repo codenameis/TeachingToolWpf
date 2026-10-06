@@ -9,6 +9,7 @@ using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionCanvas.Core.Interaction;
+using VisionCanvas.Layers;
 using VisionCanvas.Rendering;
 using VisionGeometry;
 using VisionImaging;
@@ -32,11 +33,20 @@ internal sealed class SampleWindow : Window
     private bool _busy;
     private bool _updatingRows;
     private bool _changingImage;
+    private Guid? _lastGraphic;
 
     private sealed record RoiRow(Guid Id, string Label);
 
     internal EditorSession Session { get; } = new();
     internal Dx12Viewport Viewport { get; } = new();
+    internal DrawingLayer ResultLayer
+    {
+        get;
+    }
+    internal DrawingLayer GuideLayer
+    {
+        get;
+    }
     internal InteractionController Input
     {
         get;
@@ -50,6 +60,10 @@ internal sealed class SampleWindow : Window
 
     internal SampleWindow(string[] args)
     {
+        ResultLayer = Viewport.Layers.Create("Sample Results", LayerSpace.Image);
+        GuideLayer = Viewport.Layers.Create("Guide", LayerSpace.Image);
+        GuideLayer.IsVisible = false;
+        GuideLayer.Add(new ImageCrosshairGraphic(new(1, .85f, .2f, 1)));
         if (args.Contains("--software-rendering"))
         {
             Viewport.DevicePreference = RenderDevicePreference.Software;
@@ -124,6 +138,19 @@ internal sealed class SampleWindow : Window
         AddButton("Undo", () => HistoryAsync(false));
         AddButton("Redo", () => HistoryAsync(true));
         AddButton("결과 표시", () => ShowOverlay("외부에서 전달한 결과"));
+        AddButton("검사 표시 지우기", () => Viewport.Layers["Inspection"].Clear());
+        AddButton("검사 레이어에 도형 추가", () => AddInspectionGraphic());
+        AddButton("레이어 도형 추가", AddLayerGraphic);
+        AddButton("최근 도형 제거", () =>
+        {
+            if (_lastGraphic is { } id)
+            {
+                ResultLayer.Remove(id);
+                _lastGraphic = null;
+            }
+        });
+        AddButton("레이어 비우기", ResultLayer.Clear);
+        AddButton("크로스헤어", () => GuideLayer.IsVisible = !GuideLayer.IsVisible);
 
         var root = new DockPanel();
         DockPanel.SetDock(_toolbar, Dock.Top);
@@ -270,6 +297,8 @@ internal sealed class SampleWindow : Window
             Source = observed;
             _image = observed.Info;
             _overlay = null;
+            ResultLayer.Clear();
+            _lastGraphic = null;
         }
         finally
         {
@@ -337,6 +366,22 @@ internal sealed class SampleWindow : Window
         return _overlay;
     }
 
+    private void AddLayerGraphic()
+    {
+        var image = Session.State.Image ?? throw new InvalidOperationException("먼저 이미지를 열어 주세요.");
+        var diameter = Math.Min(image.Width, image.Height) * .15;
+        _lastGraphic = ResultLayer.Add(new ShapeGraphic(new(new(image.Width * .5, image.Height * .5), diameter, diameter, 0, RoiShape.Circle), new(1, .3f, .2f, 1), 2));
+    }
+
+    internal Guid AddInspectionGraphic()
+    {
+        var image = Session.State.Image ?? throw new InvalidOperationException("먼저 이미지를 열어 주세요.");
+        var inspection = Viewport.Layers["Inspection"];
+        return inspection.Add(new ShapeGraphic(
+            new(new(image.Width * .5, image.Height * .5), image.Width * .2, image.Height * .1, 15),
+            new(0, 1, 0, 1), 2));
+    }
+
     private void Publish()
     {
         if (_changingImage || _lifetime.IsCancellationRequested)
@@ -344,8 +389,7 @@ internal sealed class SampleWindow : Window
             return;
         }
         Input.SetViewportSize(Viewport.ViewWidth, Viewport.ViewHeight);
-        Viewport.Submit(new(Session.State, _image, _generation, Viewport.ViewWidth, Viewport.ViewHeight, Viewport.Dpi,
-            Input.Overlay, Transform: Session.TransformPreview, Inspection: _overlay));
+        Viewport.Submit(CreateScene());
         _updatingRows = true;
         try
         {
@@ -370,6 +414,9 @@ internal sealed class SampleWindow : Window
         }
         _status.Text = $"{_image?.Name} · ROI {Session.State.Rois.Count} · {Session.State.Viewport.Scale:P0} · 도구 {Input.Tool}";
     }
+
+    internal RenderScene CreateScene() => new(Session.State, _image, _generation, Viewport.ViewWidth, Viewport.ViewHeight, Viewport.Dpi,
+        Input.Overlay, Transform: Session.TransformPreview, Inspection: _overlay);
 
     private bool HandleKey(Key key, bool control, bool shift)
     {

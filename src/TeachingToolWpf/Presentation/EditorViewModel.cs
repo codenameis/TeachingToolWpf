@@ -128,6 +128,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         get;
     } = new();
 
+    public CrosshairSettingsViewModel GuideSettings { get; } = new();
+
     public RoiRows Rows
     {
         get => _rows;

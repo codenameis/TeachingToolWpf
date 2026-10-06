@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Numerics;
 using System.Windows.Media;
 using VisionCanvas.Rendering;
 
@@ -8,13 +6,15 @@ namespace TeachingToolWpf.Presentation;
 /// <summary>Application display settings; publishes one immutable palette without editing the document.</summary>
 public sealed class RoiStyleSettingsViewModel : ObservableObject
 {
-    private string _defaultThickness = "";
-
-    private string _childThickness = "";
-
-    private string _parentThickness = "";
-
     private string _error = "";
+
+    public RoiStyleDraft Default { get; } = new("일반 ROI");
+    public RoiStyleDraft Child { get; } = new("자식 ROI");
+    public RoiStyleDraft Parent { get; } = new("부모 ROI");
+    public IReadOnlyList<RoiStyleDraft> Roles
+    {
+        get;
+    }
 
     public RoiStylePalette Palette
     {
@@ -24,20 +24,20 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
 
     public string DefaultThickness
     {
-        get => _defaultThickness;
-        set => Set(ref _defaultThickness, value);
+        get => Default.Thickness;
+        set => Default.Thickness = value;
     }
 
     public string ChildThickness
     {
-        get => _childThickness;
-        set => Set(ref _childThickness, value);
+        get => Child.Thickness;
+        set => Child.Thickness = value;
     }
 
     public string ParentThickness
     {
-        get => _parentThickness;
-        set => Set(ref _parentThickness, value);
+        get => Parent.Thickness;
+        set => Parent.Thickness = value;
     }
 
     public string Error
@@ -46,20 +46,9 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
         private set => Set(ref _error, value);
     }
 
-    public Brush DefaultColor
-    {
-        get;
-    }
-
-    public Brush ChildColor
-    {
-        get;
-    }
-
-    public Brush ParentColor
-    {
-        get;
-    }
+    public Brush DefaultColor => DisplayStyleInput.Swatch(Palette.Default.Color);
+    public Brush ChildColor => DisplayStyleInput.Swatch(Palette.Child.Color);
+    public Brush ParentColor => DisplayStyleInput.Swatch(Palette.Parent.Color);
 
     public RelayCommand Apply
     {
@@ -75,9 +64,7 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
 
     public RoiStyleSettingsViewModel()
     {
-        DefaultColor = Swatch(Palette.Default.Color);
-        ChildColor = Swatch(Palette.Child.Color);
-        ParentColor = Swatch(Palette.Parent.Color);
+        Roles = [Default, Child, Parent];
         Apply = new(ApplySettings);
         Reset = new(ResetSettings);
         RefreshDrafts();
@@ -88,9 +75,7 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
         RoiStylePalette next;
         try
         {
-            next = new(Palette.Default.WithThickness(Parse(DefaultThickness, "일반 ROI")),
-                Palette.Child.WithThickness(Parse(ChildThickness, "자식 ROI")),
-                Palette.Parent.WithThickness(Parse(ParentThickness, "부모 ROI")));
+            next = new(Default.Build(Palette.Default), Child.Build(Palette.Child), Parent.Build(Palette.Parent));
         }
         catch (ArgumentException ex)
         {
@@ -100,17 +85,6 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
         Error = "";
         Publish(next);
         RefreshDrafts();
-    }
-
-    private static float Parse(string text, string role)
-    {
-        if (!float.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value)
-            || !float.IsFinite(value) || value < RoiStrokeStyle.MinimumThickness || value > RoiStrokeStyle.MaximumThickness)
-        {
-            throw new ArgumentException($"{role} 선 두께에 0.5~8 사이의 숫자를 입력하세요.");
-        }
-
-        return value;
     }
 
     private void ResetSettings()
@@ -129,21 +103,19 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
 
         Palette = next;
         Notify(nameof(Palette));
+        Notify(nameof(DefaultColor));
+        Notify(nameof(ChildColor));
+        Notify(nameof(ParentColor));
         Changed?.Invoke();
     }
 
     private void RefreshDrafts()
     {
-        DefaultThickness = Palette.Default.ThicknessDip.ToString("R", CultureInfo.CurrentCulture);
-        ChildThickness = Palette.Child.ThicknessDip.ToString("R", CultureInfo.CurrentCulture);
-        ParentThickness = Palette.Parent.ThicknessDip.ToString("R", CultureInfo.CurrentCulture);
-    }
-
-    private static Brush Swatch(Vector4 color)
-    {
-        static byte Channel(float value) => (byte)Math.Clamp((int)MathF.Round(value * 255), 0, 255);
-        var brush = new SolidColorBrush(Color.FromArgb(Channel(color.W), Channel(color.X), Channel(color.Y), Channel(color.Z)));
-        brush.Freeze();
-        return brush;
+        Default.Refresh(Palette.Default);
+        Child.Refresh(Palette.Child);
+        Parent.Refresh(Palette.Parent);
+        Notify(nameof(DefaultThickness));
+        Notify(nameof(ChildThickness));
+        Notify(nameof(ParentThickness));
     }
 }

@@ -33,6 +33,8 @@ internal static class SampleSmoke
             Assert(source8K.ReadCount > 0, "8K 타일 읽기");
             report["Image8K"] = TileReport(source8K);
             log.WriteLine("PASS 8192×8192 · 사각형/원/폴리곤 · 계층 회전/삭제/Undo/Redo · 취소 · overlay fence · 캡처");
+            await SampleLayerSmoke.RunAsync(window, outputDirectory);
+            log.WriteLine("PASS 이름 있는 레이어 · ID 제거/전체 지우기 · 중앙선 pan/zoom/resize · 재시작 · 드래그 영역 · 반투명 on/off 측정");
 
             var previous = window.Session.State;
             await window.LoadImageAsync(SampleWindow.SampleReference(24576, 8192));

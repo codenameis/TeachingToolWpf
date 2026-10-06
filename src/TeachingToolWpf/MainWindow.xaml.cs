@@ -9,6 +9,8 @@ public partial class MainWindow : Window
 {
     private readonly Presentation.EditorViewModel _model;
     private readonly Controls.RoiListBinding _selectionBinding;
+    private readonly Controls.CrosshairLayerBinding _guideBinding;
+    private Views.ConfigPage? _configPage;
     private readonly VisionCompute.ILGPU.CudaInspectionSession _inspectionCompute = new();
 
     public MainWindow()
@@ -35,6 +37,7 @@ public partial class MainWindow : Window
             new Imaging.Matching.PrimitiveShapeDetectionService(loader, Viewport.RetainFrame));
         live.Failed += ex => Dispatcher.BeginInvoke(() => _model.Fail(ex));
         DataContext = _model;
+        _guideBinding = new(Viewport, _model.GuideSettings);
         Viewport.Input = _model.Input;
         Viewport.InputEnabled = () => _model.CanNavigate;
         Viewport.KeyAction = _model.HandleKey;
@@ -131,6 +134,7 @@ public partial class MainWindow : Window
             try
             {
                 _selectionBinding.Dispose();
+                _guideBinding.Dispose();
                 _model.Dispose();
             }
             finally
@@ -138,5 +142,27 @@ public partial class MainWindow : Window
                 _inspectionCompute.Dispose();
             }
         };
+    }
+
+    private void OpenConfiguration(object sender, RoutedEventArgs e)
+    {
+        if (_configPage is null)
+        {
+            _configPage = new()
+            {
+                Owner = this,
+                DataContext = _model
+            };
+            _configPage.Closed += (_, _) => _configPage = null;
+            _configPage.Show();
+        }
+        else
+        {
+            if (_configPage.WindowState == WindowState.Minimized)
+            {
+                _configPage.WindowState = WindowState.Normal;
+            }
+            _configPage.Activate();
+        }
     }
 }

@@ -11,7 +11,6 @@
                 <Button Content="1:1" Command="{Binding ActualSize}" ToolTip="원본 1px = 물리 화면 1px"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <CheckBox Content="픽셀 선명하게" IsChecked="{Binding PointSampling}" Margin="8,0"/>
                 <Button Content="←" Command="{Binding Left}" Style="{StaticResource IconButton}" ToolTip="화면 왼쪽으로"/><Button Content="↑" Command="{Binding Up}" Style="{StaticResource IconButton}" ToolTip="화면 위로"/>
                 <Button Content="↓" Command="{Binding Down}" Style="{StaticResource IconButton}" ToolTip="화면 아래로"/><Button Content="→" Command="{Binding Right}" Style="{StaticResource IconButton}" ToolTip="화면 오른쪽으로"/>
             </StackPanel>
