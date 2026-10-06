@@ -1,5 +1,29 @@
 # 단계별 작업 목록
 
+2026-10-06 후속: 사용자 요청으로 검증된 `codex/named-drawing-layers` 작업을 커밋하여 로컬 `main`에 병합한다. 아래 로컬 수정·검증 기록은 당시 수행 범위이며, 이 후속 요청에는 푸시를 포함하지 않는다.
+
+## 2026-10-06 ConfigPage·이미지 중심 크로스헤어·선택 색상
+
+기준: [ADR-035](../docs/decisions/0035-configuration-and-image-crosshair.md), [사용법](../docs/configuration-guide.md), [검증](../docs/configuration-validation.md). 현재 `codex/named-drawing-layers`, 로컬 수정·검증.
+
+- [x] PASS: 기존 Inspection을 가져와 Add하는 문서/실행 예제. 새 검사 결과 교체 시 추가 항목 수명 안내.
+- [x] PASS: 원본 이미지 중심/Canvas 전체 크기 크로스헤어, 앱 토글 버튼, 좌표 변환·DPI·이미지 없음·화면 밖 축.
+- [x] PASS: 일반/자식/부모의 기본·단일·다중 선택 색 분리. 공통 다중 선택 색·외곽선·핸들·이름표 연결. 설정 오류 원자성, 문서·이력·GPU 형상 캐시 보존.
+- [x] PASS: 별도 ConfigPage에 ROI 색/두께, 크로스헤어 표시/색/두께, 영상 보간·장치 표시/재연결을 모음. 중복 창 방지·실행 중 설정 유지.
+- [x] PASS: 전체 Release 경고0/오류0, 전체1,066개 회귀, 전체 컨벤션. 최종 GPU/WARP 앱·독립 샘플 exit0, 설정 창/버튼 바인딩·크로스헤어 픽셀·ROI 이력/수명 회귀. SOLID5/GRASP9 검토, 예외 없음.
+- [ ] NOT_RUN: 실제 사용자 문서·가시창 물리 입력/표시·장시간·별도 저사양 PC. 기존60FPS/검사125·80ms FAIL 유지. 설정 파일 저장은 범위 밖.
+
+## 2026-10-06 이름 있는 표시 레이어·중앙 가이드
+
+기준: [ADR-034](../docs/decisions/0034-named-drawing-layers.md), [가이드](../docs/drawing-layers-guide.md), [검증](../docs/drawing-layers-validation.md). 브랜치 `codex/named-drawing-layers`, 로컬 수정·검증만 진행.
+
+- [x] PASS: 레이어 이름/ID/순서·독립 삭제/숨김·일괄 검증/게시·불변 스냅샷. 이미지/화면 좌표, 실제 윤곽, 중앙선 DIP·레이아웃 변경, 기존 검사 Clear 후 탐색 시 재표시 방지.
+- [x] PASS: ROI 생성/다중 선택의 마우스 사각 영역 한 개만 8% 채우기. 확정/취소 후 제거, 문서·선택·Undo/Redo 분리.
+- [x] PASS: 실제 RTX3060 debug의 8K/24K 독립 샘플, 레이어 캡처·중앙선 픽셀/숨김·탐색·재시작·원본 수명.
+- [x] PASS: 전체 Release 빌드 경고0/오류0, 전체1,061개 회귀, 전체 컨벤션. CPU(WARP) 독립 샘플과 실제 앱 RTX smoke exit0. SOLID5/GRASP9 검토, 원칙 예외 없음.
+- [x] PASS(측정 완료): 채우기 OFF/ON 각2구간·120입력, RTX/WARP 각480프레임. quad1개/정점6개 추가. CPU 증가를 관찰하지 못했으나 GPU 시간은 증가. 프레임 간격 p95가16.67ms를 넘으므로60FPS 통과 근거로 사용하지 않음.
+- [ ] NOT_RUN: 실제 사용자 문서·물리 입력/표시·장시간·별도 저사양 PC. 기존 대량 편집60FPS와 검사125/80ms FAIL은 유지.
+
 ## 2026-10-05~06 교육·릴리즈 전 최종 코드 품질 점검
 
 기준/증거: [품질 점검 기록](../docs/release-quality-review.md). `main`의 로컬 수정·검증이며 이번 점검의 커밋·푸시는 하지 않았다.

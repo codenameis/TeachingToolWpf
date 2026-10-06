@@ -16,6 +16,7 @@ dotnet run --project samples/VisionCanvas.Sample -c Release
 - 사각형·원 추가, 클릭으로 폴리곤 그리기, 선택한 ROI의 자식 추가
 - 목록 다중 선택, 부모/자식 회전·연쇄 삭제, Undo/Redo, 편집 취소
 - 호스트가 만든 윤곽·점·색·문구를 읽기 전용 overlay로 전달
+- 이름 있는 레이어의 도형 추가·ID 제거·비우기, 기존 Inspection 레이어에 추가, 이미지 중심을 지나는 전체 캔버스 크로스헤어. [사용 가이드](../../docs/drawing-layers-guide.md)
 
 샘플은 `EditorSession`과 `InteractionController`를 만들어 `Dx12Viewport.Input`에 연결하고, 변경된 불변 상태를 `RenderScene`으로 제출한다. GPU/타일 worker의 수명은 컨트롤이 소유한다. `SetSource`로 전달한 원본은 호스트가 다시 읽거나 해제하지 않는다. 이미지 교체 Undo/Redo는 복원할 파일을 독립적으로 다시 연 뒤에만 이력 위치를 변경한다. 원본 파일이 사라지거나 변경되면 복원을 실패로 표시한다.
 
@@ -27,6 +28,8 @@ dotnet run --project samples/VisionCanvas.Sample -c Release
 dotnet run --project samples/VisionCanvas.Sample -c Release -- --smoke --gpu-debug --output artifacts/vision-canvas-sample
 ```
 
-정상 표시 창에서 DX12 준비를 기다린 후 8K/24K 합성 타일 표시, 점 입력 폴리곤, 계층 회전·삭제·Undo/Redo·취소, 이미지 교체 이력, 작은 PNG 파일 읽기, 실제 overlay의 Present/GPU fence 완료와 화면 캡처를 확인한다. `report.json`, `smoke.log`, PNG 캡처를 기록하고 성공은 exit 0, 실패는 exit 1로 종료한다.
+정상 표시 창에서 DX12 준비를 기다린 후 8K/24K 합성 타일 표시, 점 입력 폴리곤, 계층 회전·삭제·Undo/Redo·취소, 이미지 교체 이력, 작은 PNG 파일 읽기, 실제 overlay의 Present/GPU fence 완료와 화면 캡처를 확인한다. 이름 있는 레이어의 ID 삭제/비우기, 중앙선의 탐색·창 크기 변경·재시작 후 픽셀 위치와 숨김도 확인한다. `report.json`, `smoke.log`, PNG 캡처를 기록하고 성공은 exit 0, 실패는 exit 1로 종료한다.
+
+드래그 채우기는 같은 테두리에서 OFF/ON을 두 번씩 교대로 갱신하고 `fill-phases.json`에 측정 구간을 기록한다. `--metrics <path>`와 `--render-profile <path>`를 함께 지정하면 구간별 비용을 집계할 수 있다. 16ms 지연으로 입력을 만드는 기능 진단이며 정확한 60Hz 입력이나 60FPS 수용 시험이 아니다. [측정 방법과 결과](../../docs/drawing-layers-validation.md)를 참고한다.
 
 24K는 전체 크기의 픽셀 배열을 만들지 않는 기존 `ProceduralTileSource`다. 관측하는 최대 대여 타일 배열 1 MiB는 프로세스/GPU 전체 메모리 상한이 아니다. 합성 데이터·작은 PNG의 기능 검증으로 24K 실파일·실제 카메라·성능 목표·물리 화면 scan-out 검증을 대신하지 않는다. 마우스/키보드의 물리 입력은 별도 수동 검증 대상이다.

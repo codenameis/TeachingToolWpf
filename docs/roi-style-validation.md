@@ -1,5 +1,7 @@
 # ROI 역할 색상·독립 두께 검증
 
+후속: 아래는 2026-10-02 기록이다. 색상 편집·단일/다중 선택 분리·ConfigPage의 최신 동작은 [2026-10-06 검증](configuration-validation.md)과 [사용 가이드](configuration-guide.md)를 따른다.
+
 2026-10-02. [ADR-011](decisions/0011-roi-role-styles.md)의 최종 구현을 **Core 158개+Imaging/WPF 97개, 총 255개 테스트**, Release 빌드 경고·오류 0, 실제 RTX UI/GPU smoke로 검증했다. [최종 smoke 로그](../artifacts/roi-style-final-smoke.log), [진단 결과](../artifacts/roi-style-check.json), [회전 요약](../artifacts/roi-style-final-rotation-summary.json)을 근거로 한다. 원시 JSON/CSV·캡처·로그·해시 설명은 [검증 자료 묶음](data/roi-style-validation.zip)에 담았다.
 
 ## 실제 UI·GPU 확인

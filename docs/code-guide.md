@@ -17,6 +17,7 @@
 | 무거운 편집의 준비·확정 | [EditorViewModel.Editing](../src/TeachingToolWpf/Presentation/EditorViewModel.Editing.cs) | 작업 스레드 준비 후 UI에서 유효성 확인·확정 |
 | 명시적 부모·자식 연결 | [RoiHierarchy](../src/VisionCanvas.Core/Editing/RoiHierarchy.cs) | ParentId와 하위 트리 순회. 겹침으로 연결하지 않으며 부모 밖에서도 관계 유지 |
 | 부모 색·선 두께 | [RoiStyles](../src/VisionCanvas/Rendering/RoiStyles.cs), [RoiStyleSettingsViewModel](../src/TeachingToolWpf/Presentation/RoiStyleSettingsViewModel.cs) | 표시 설정은 문서·Undo/Redo와 별도 |
+| 앱 표시 설정·크로스헤어 | [ConfigPage](../src/TeachingToolWpf/Views/ConfigPage.xaml), [CrosshairLayerBinding](../src/TeachingToolWpf/Controls/CrosshairLayerBinding.cs) | 별도 설정 창과 불변 레이어 게시. [사용 가이드](configuration-guide.md) |
 | 마우스가 들어오는 입구 | [Dx12Viewport](../src/VisionCanvas/Controls/Dx12Viewport.cs), [NativeMethods](../src/VisionCanvas/Controls/NativeMethods.cs) | Windows 입력을 앱 좌표·입력 호출로 변환 |
 | GPU가 화면을 만드는 순서 | [RenderWorker](../src/VisionCanvas/Rendering/RenderWorker.cs) | GPU 자원을 소유하는 렌더 스레드 |
 | 많은 ROI를 GPU에 보내는 방식 | [RoiPipeline](../src/VisionCanvas/Rendering/RoiPipeline.cs) | 가시 블록 재사용, 역할·형상·그리기 값 분리 |

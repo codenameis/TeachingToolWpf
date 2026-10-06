@@ -1,5 +1,9 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-06 표시 설정 후속:** [ADR-035](../docs/decisions/0035-configuration-and-image-crosshair.md). 기존 Inspection 레이어 추가 예제, 이미지 중심·Canvas 전체 크로스헤어 토글, 선택 상태/부모·자식별 색상·두께와 영상 표시를 별도 ConfigPage에 모은다. [사용법](../docs/configuration-guide.md), [검증](../docs/configuration-validation.md).
+
+- **2026-10-06 이름 있는 표시 레이어:** [ADR-034](../docs/decisions/0034-named-drawing-layers.md), [사용 가이드](../docs/drawing-layers-guide.md). 사용자 요청으로 별도 브랜치에서 Add/Update/Remove/Clear·일괄 게시·이미지/화면 좌표와 중앙 가이드, 드래그 영역만의 반투명을 구현한다. ROI/이력과 분리하며 완료 증거는 [검증](../docs/drawing-layers-validation.md)을 따른다.
+
 - **2026-10-05 271,255 ROI 그룹화·회전 프리징:** [후속 검증](../docs/group-freeze-validation.md). 그룹/해제를 비동기 준비·게시로 연결하고 마우스 회전 확정 중 Esc 복원과 협력 취소를 보강한다. 확대 단계의 원본 비용 공유·상세 형상 재사용과 GPU 페이지 배치로 반복 캐시 퇴출을 줄인다. 실제 프레임/입력·cold/warm·GPU/WARP 결과를 구별하며 전체60FPS 충족 여부는 검증 기록을 따른다.
 
 - **2026-10-05 2D 프레임 예산 후속:** [할당·이력 재사용 검증](../docs/frame-budget-validation.md). 최근 한 편집의 불변 문서 쌍과 렌더 scratch를 재사용하고 복붙의 임시 객체 생성을 줄였다. ROI·선택·뷰·이미지·이력 계약을 유지하며 검사125/80ms와 별도로 측정한다. 60FPS는 여전히 미달이며 최초 준비의 배치 처리/원자적 게시와 실제 표시·입력 검증이 남는다.
