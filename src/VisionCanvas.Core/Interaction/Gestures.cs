@@ -138,7 +138,12 @@ internal sealed class DrawGesture(InteractionController controller, PointD start
         var b = RoiImageBounds.Clamp(_view.ScreenToImage(screen), image);
         _draft = (screen - start).Length < 4 || Math.Abs(a.X - b.X) < .01 || Math.Abs(a.Y - b.Y) < .01 ? null
             : RoiGeometry.Create(controller.DrawShape, (a + b) / 2, Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
-        controller.Show(new(Draft: _draft));
+        var first = _view.ImageToScreen(a);
+        var last = _view.ImageToScreen(b);
+        controller.Show(new(Draft: _draft)
+        {
+            DragArea = _draft is null ? null : new(Math.Min(first.X, last.X), Math.Min(first.Y, last.Y), Math.Max(first.X, last.X), Math.Max(first.Y, last.Y))
+        });
     }
 
     public void Complete()

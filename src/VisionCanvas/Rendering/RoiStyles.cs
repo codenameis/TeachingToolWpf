@@ -25,15 +25,21 @@ public sealed record RoiStrokeStyle
         get;
     }
 
+    public Vector4 MultiSelectedColor
+    {
+        get;
+    }
+
     public float ThicknessDip
     {
         get;
     }
 
-    public RoiStrokeStyle(Vector4 color, Vector4 selectedColor, float thicknessDip)
+    public RoiStrokeStyle(Vector4 color, Vector4 selectedColor, float thicknessDip, Vector4? multiSelectedColor = null)
     {
         ValidateColor(color, nameof(color));
         ValidateColor(selectedColor, nameof(selectedColor));
+        ValidateColor(multiSelectedColor ?? selectedColor, nameof(multiSelectedColor));
         if (!float.IsFinite(thicknessDip) || thicknessDip < MinimumThickness || thicknessDip > MaximumThickness)
         {
             throw new ArgumentOutOfRangeException(nameof(thicknessDip), "선 두께는 0.5~8 DIP 범위여야 합니다.");
@@ -41,12 +47,13 @@ public sealed record RoiStrokeStyle
 
         Color = color;
         SelectedColor = selectedColor;
+        MultiSelectedColor = multiSelectedColor ?? selectedColor;
         ThicknessDip = thicknessDip;
     }
 
-    public RoiStrokeStyle WithThickness(float thicknessDip) => new(Color, SelectedColor, thicknessDip);
+    public RoiStrokeStyle WithThickness(float thicknessDip) => new(Color, SelectedColor, thicknessDip, MultiSelectedColor);
 
-    public Vector4 StrokeColor(bool selected) => selected ? SelectedColor : Color;
+    public Vector4 StrokeColor(bool selected, bool multiple = false) => selected ? multiple ? MultiSelectedColor : SelectedColor : Color;
 
     public float StrokeThickness(bool selected) => ThicknessDip + (selected ? .5f : 0);
 
@@ -83,9 +90,9 @@ public sealed record RoiStylePalette
     {
         get;
     } = new(
-        new(new(.66f, .73f, .84f, 1), new(.22f, .52f, 1, 1), 1),
-        new(new(.66f, .73f, .84f, 1), new(.22f, .52f, 1, 1), 1),
-        new(new(244 / 255f, 114 / 255f, 182 / 255f, 1), new(214 / 255f, 51 / 255f, 132 / 255f, 1), 1));
+        new(new(.66f, .73f, .84f, 1), new(.22f, .52f, 1, 1), 1, new(1, .72f, .18f, 1)),
+        new(new(.2f, .8f, .6f, 1), new(.1f, 1, .75f, 1), 1, new(1, .72f, .18f, 1)),
+        new(new(244 / 255f, 114 / 255f, 182 / 255f, 1), new(214 / 255f, 51 / 255f, 132 / 255f, 1), 1, new(1, .72f, .18f, 1)));
 
     public RoiStylePalette(RoiStrokeStyle defaultStyle, RoiStrokeStyle childStyle, RoiStrokeStyle parentStyle)
     {

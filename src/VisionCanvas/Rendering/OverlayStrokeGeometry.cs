@@ -7,6 +7,18 @@ internal readonly record struct OverlayStrokeSegment(PointD Start, PointD End);
 /// <summary>화면 DIP의 닫힌 윤곽을 자른 뒤 획을 생성해 화면 밖 길이만큼 점선을 만들지 않는다.</summary>
 internal static class OverlayStrokeGeometry
 {
+    internal static bool TryClipLine(PointD start, PointD end, BoundsD clip, out OverlayStrokeSegment segment)
+    {
+        segment = default;
+        var delta = end - start;
+        if (!start.IsFinite || !delta.IsFinite || !TryClip(start, delta, clip, out var entry, out var exit))
+        {
+            return false;
+        }
+        segment = new(start + (delta * entry), start + (delta * exit));
+        return true;
+    }
+
     public static IEnumerable<OverlayStrokeSegment> ClosedOutline(IReadOnlyList<PointD> points, BoundsD clip,
         double dashLength = 0, double gapLength = 0)
     {

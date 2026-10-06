@@ -6,6 +6,7 @@ using System.Windows.Media;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Diagnostics;
 using VisionCanvas.Imaging;
+using VisionCanvas.Layers;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionGeometry;
@@ -17,6 +18,9 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 {
     private RenderWorker? _renderer;
     private RenderScene? _scene;
+    private RenderScene? _sourceScene;
+    private ResultOverlay? _submittedInspection;
+    private bool _submitting;
     private bool _closed;
     private Window? _ownerWindow;
     private RenderDevicePreference _devicePreference;
@@ -43,6 +47,8 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 
     public Dx12Viewport()
     {
+        Layers = new(VerifyLayerAccess, PublishLayers);
+        Layers.Create("Inspection", LayerSpace.Image);
         Loaded += (_, _) =>
         {
             var owner = Window.GetWindow(this);
@@ -107,12 +113,73 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 
     public event Action<Exception>? InputFailed;
 
+    /// <summary>이름 있는 표시 레이어. 변경은 UI 스레드에서 하며 ROI·이력과 독립적으로 즉시 게시된다.</summary>
+    public DrawingLayerCollection Layers
+    {
+        get;
+    }
+
+    private void VerifyLayerAccess()
+    {
+        VerifyAccess();
+        ObjectDisposedException.ThrowIf(_closed, this);
+    }
+
+    private void PublishLayers()
+    {
+        if (!_submitting && _sourceScene is not null)
+        {
+            PublishScene();
+        }
+    }
+
+    private void PublishScene()
+    {
+        var inspection = Layers["Inspection"].Snapshot;
+        ResultOverlay? presented = null;
+        if (inspection.IsVisible)
+        {
+            foreach (var (_, item) in inspection.Items)
+            {
+                if (item.Graphic is ResultGraphic result)
+                {
+                    presented = result.Result;
+                    break;
+                }
+            }
+        }
+        _scene = _sourceScene! with
+        {
+            Layers = Layers.Snapshot,
+            Inspection = presented,
+            InspectionInLayer = true
+        };
+        _renderer?.Submit(_scene);
+    }
+
     public long SetSource(ITileSource source) => Tiles.SetSource(source);
 
     public void Submit(RenderScene value)
     {
-        _scene = value;
-        _renderer?.Submit(value);
+        VerifyLayerAccess();
+        ArgumentNullException.ThrowIfNull(value);
+        _submitting = true;
+        try
+        {
+            // 기존 호스트의 검사 결과도 이름 있는 레이어로 연결한다. 같은 결과의 pan/zoom은
+            // 사용자가 Clear/Remove/숨김한 표시를 되살리지 않는다. 새 결과만 한 번 교체한다.
+            if (!ReferenceEquals(value.Inspection, _submittedInspection))
+            {
+                Layers["Inspection"].ReplaceAll(value.Inspection is { } result ? [new ResultGraphic(result)] : []);
+                _submittedInspection = value.Inspection;
+            }
+            _sourceScene = value;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+        PublishScene();
     }
 
     public void Capture(string path) => _renderer?.Capture(path);

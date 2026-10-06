@@ -15,7 +15,14 @@ public enum InputModifiers
 {
     None = 0, Control = 1, Shift = 2, Alt = 4
 }
-public sealed record InteractionOverlay(Guid? Hover = null, RoiGeometry? Draft = null, BoundsD? Marquee = null, ImmutableArray<PointD> PolygonPoints = default);
+public sealed record InteractionOverlay(Guid? Hover = null, RoiGeometry? Draft = null, BoundsD? Marquee = null, ImmutableArray<PointD> PolygonPoints = default)
+{
+    /// <summary>ROI 생성 중 마우스로 지정하는 임시 사각 영역(DIP). 문서 형상은 아니다.</summary>
+    public BoundsD? DragArea
+    {
+        get; init;
+    }
+}
 
 /// <summary>Chooses an input state; each gesture owns its preview and commit/cancel behavior.</summary>
 public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null,

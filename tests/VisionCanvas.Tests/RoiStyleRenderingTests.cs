@@ -11,6 +11,41 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiStyleRenderingTests
 {
+    [Fact]
+    public void MultiSelectionUsesIndependentRoleColorsWithoutChangingGeometryOrGpuLayout()
+    {
+        var parent = Roi("parent", new(100, 100), 100);
+        var child = Roi("child", new(100, 100), 10, parent.Id);
+        var state = State(parent, child) with
+        {
+            Selection = ImmutableHashSet.Create(parent.Id, child.Id)
+        };
+        var standard = RoiStylePalette.Standard;
+        var styles = new RoiStylePalette(
+            new(standard.Default.Color, standard.Default.SelectedColor, 1, new(1, 0, 0, 1)),
+            new(standard.Child.Color, standard.Child.SelectedColor, 2, new(0, 1, 0, 1)),
+            new(standard.Parent.Color, standard.Parent.SelectedColor, 3, new(0, 0, 1, 1)));
+        var scene = new RenderScene(state, null, 0, 1000, 700, 1, new(), Styles: styles);
+        var block = Block(state);
+        var packed = RoiInstance.Pack(block, 0);
+        var selected = new RoiDrawConstants(scene, default, default, true, RoiDrawPass.Stroke);
+        Assert.Equal(styles.Default.MultiSelectedColor, selected.DefaultColor);
+        Assert.Equal(styles.Child.MultiSelectedColor, selected.ChildColor);
+        Assert.Equal(styles.Parent.MultiSelectedColor, selected.ParentColor);
+        var normal = new RoiDrawConstants(scene, default, default, false, RoiDrawPass.Stroke);
+        Assert.Equal(styles.Parent.Color, normal.ParentColor);
+        var single = new RoiDrawConstants(scene with
+        {
+            Document = state with
+            {
+                Selection = ImmutableHashSet.Create(parent.Id)
+            }
+        }, default, default, true, RoiDrawPass.Stroke);
+        Assert.Equal(styles.Parent.SelectedColor, single.ParentColor);
+        Assert.Equal(128, Marshal.SizeOf<RoiDrawConstants>());
+        Assert.Equal(packed, RoiInstance.Pack(block, 0));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

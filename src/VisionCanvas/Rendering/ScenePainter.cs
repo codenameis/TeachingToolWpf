@@ -58,11 +58,12 @@ internal sealed class ScenePainter
             _mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true, uv);
         }
         RoiBatchBoundary = _mesh.Split();
+        DrawDragFill(_mesh, scene, white);
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
         {
             var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
             _mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Outline.Select(view.ImageToScreen).ToArray(),
-                style.StrokeThickness(true), style.SelectedColor);
+                style.StrokeThickness(true), style.StrokeColor(true, scene.Document.Selection.Count > 1 && scene.Document.Selection.Contains(hover)));
         }
         if (scene.Document.Selection.Count == 1)
         {
@@ -82,14 +83,15 @@ internal sealed class ScenePainter
         }
         if (scene.Document.Selection.Count > 1)
         {
+            var selectionColor = scene.RoiStyles.Default.MultiSelectedColor;
             var bounds = scene.Document.SelectedSpatial.Bounds;
             var transform = scene.Transform?.Transform ?? default;
             var corners = SelectionCorners(bounds, view, transform);
-            _mesh.Outline(white, corners, 1, s_accent);
+            _mesh.Outline(white, corners, 1, selectionColor);
             var top = (corners[0] + corners[1]) / 2;
             var rotation = top + transform.ApplyVector(new PointD(0, -28));
-            _mesh.Line(white, top, rotation, 1, s_accent);
-            RotationHandle(white, rotation, s_accent);
+            _mesh.Line(white, top, rotation, 1, selectionColor);
+            RotationHandle(white, rotation, selectionColor);
         }
         if (scene.Overlay.Draft is { } draft)
         {
@@ -112,10 +114,6 @@ internal sealed class ScenePainter
         }
         if (scene.Overlay.Marquee is { } selection)
         {
-            _mesh.Rectangle(white, selection, s_accent with
-            {
-                W = .08f
-            });
             _mesh.Outline(white, [new(selection.Left, selection.Top), new(selection.Right, selection.Top), new(selection.Right, selection.Bottom), new(selection.Left, selection.Bottom)], 1, s_accent);
         }
         _labels.Draw(_mesh, scene, white, deferredLabel, label);
@@ -125,10 +123,25 @@ internal sealed class ScenePainter
             _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), new(.13f, .16f, .22f, .94f));
             _mesh.Rectangle(text, new(14, 12, 14 + (text.Width / scene.Dpi), 12 + (text.Height / scene.Dpi)), Vector4.One);
         }
-        ResultOverlayPainter.Draw(_mesh, scene, white, label, deferredLabel, batchLabel);
+        if (!scene.InspectionInLayer)
+        {
+            ResultOverlayPainter.Draw(_mesh, scene, white, label, deferredLabel, batchLabel);
+        }
+        DrawingLayerPainter.Draw(_mesh, scene, white, deferredLabel, label, batchLabel);
         var minimapImage = scene.IsLive ? liveOverview : scene.Image is { } source ? tiles.GetValueOrDefault(new(source.Levels - 1, 0, 0)) : null;
         MinimapPainter.Draw(_mesh, scene, white, minimapImage, label);
         return _mesh;
+    }
+
+    internal static void DrawDragFill(SpriteMesh mesh, RenderScene scene, GpuTexture white)
+    {
+        if ((scene.Overlay.DragArea ?? scene.Overlay.Marquee) is { } area)
+        {
+            mesh.Rectangle(white, area, s_accent with
+            {
+                W = .08f
+            });
+        }
     }
 
     internal static PointD[] SelectionCorners(BoundsD bounds, ViewportTransform view, RigidTransform2D transform)

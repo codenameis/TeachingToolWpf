@@ -27,8 +27,10 @@ public class RoiStylesTests
         Assert.Equal(new Vector4(0, 1, 0, 1), custom.Child.StrokeColor(false));
         Assert.Equal(standard.Parent.Color, custom.Parent.Color);
         Assert.Equal(1, standard.Default.ThicknessDip);
-        Assert.Equal(standard.Default, standard.Child);
+        Assert.NotEqual(standard.Default.Color, standard.Child.Color);
         Assert.NotEqual(standard.Default.Color, standard.Parent.Color);
+        Assert.NotEqual(standard.Default.SelectedColor, standard.Default.MultiSelectedColor);
+        Assert.Equal(standard.Default.MultiSelectedColor, standard.Default.WithThickness(3).MultiSelectedColor);
     }
 
     [Theory]

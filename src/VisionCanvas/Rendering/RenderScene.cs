@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
+using VisionCanvas.Layers;
 using VisionGeometry;
 using VisionImaging.Abstractions;
 
@@ -9,5 +11,11 @@ public sealed record RenderScene(DocumentState Document, ImageInfo? Image, long 
     InteractionOverlay Overlay, bool PointSampling = false, bool IsLive = false, VisionCanvas.Imaging.Filters.FilterPreviewResult? FilterPreview = null, RoiTransformPreview? Transform = null,
     RoiStylePalette? Styles = null, ResultOverlay? Inspection = null)
 {
+    internal ImmutableArray<LayerSnapshot> Layers { get; init; } = [];
+    internal bool InspectionInLayer
+    {
+        get; init;
+    }
+
     public RoiStylePalette RoiStyles => Styles ?? RoiStylePalette.Standard;
 }

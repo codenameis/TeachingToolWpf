@@ -12,6 +12,12 @@ internal static class ResultOverlayPainter
         {
             return;
         }
+        DrawResult(mesh, scene, result, white, label, deferredLabel, batchLabel);
+    }
+
+    internal static void DrawResult(SpriteMesh mesh, RenderScene scene, ResultOverlay result, GpuTexture white,
+        Func<string, GpuTexture> label, Func<string, GpuTexture?> deferredLabel, Func<string, GpuTextRegion?>? batchLabel)
+    {
         var view = scene.Document.Viewport;
         var clip = new BoundsD(-3, -3, scene.Width + 3, scene.Height + 3);
         // 모든 라벨 배경을 먼저 그려 인접한 검출 윤곽을 덮어 지우지 않는다.

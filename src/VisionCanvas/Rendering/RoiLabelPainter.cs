@@ -63,9 +63,11 @@ internal sealed class RoiLabelPainter
             }
 
             Occupy(box);
-            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).SelectedColor : new Vector4(.13f, .16f, .22f, .90f);
+            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).StrokeColor(true, scene.Document.Selection.Count > 1) : new Vector4(.13f, .16f, .22f, .90f);
+            var foreground = ((background.X * .299f) + (background.Y * .587f) + (background.Z * .114f)) > .55f
+                ? new Vector4(.05f, .07f, .09f, 1) : Vector4.One;
             mesh.Rectangle(white, box, background);
-            mesh.Rectangle(texture, new(box.Left + 6, box.Top + 4, box.Left + 6 + (texture.Width / scene.Dpi), box.Top + 4 + (texture.Height / scene.Dpi)), Vector4.One);
+            mesh.Rectangle(texture, new(box.Left + 6, box.Top + 4, box.Left + 6 + (texture.Width / scene.Dpi), box.Top + 4 + (texture.Height / scene.Dpi)), foreground);
         }
     }
 
