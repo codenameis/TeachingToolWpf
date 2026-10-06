@@ -38,9 +38,7 @@ internal static class ImageReplacementRun
             {
                 var sources = await Task.Run(CreateFixtures);
                 await model.InitializeAsync();
-                for (var cycle = 1;
-cycle <= cycles;
-cycle++)
+                for (var cycle = 1; cycle <= cycles; cycle++)
                 {
                     foreach (var reference in sources)
                     {

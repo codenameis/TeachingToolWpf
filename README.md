@@ -4,19 +4,25 @@ Windows x64용 비전 티칭 샘플입니다. WPF는 조작 화면을, Direct3D 
 
 화면 표시는 **GPU 우선, 사용 가능한 DX12 하드웨어가 없으면 CPU(WARP)로 자동 전환**합니다. 별도 GPU가 없는 Windows PC도 같은 회전·ROI·타일 기능을 사용합니다. 현재 모드는 상태 표시의 `GPU`/`CPU (WARP)`로 확인할 수 있습니다. GPU가 있는 PC에서 Canvas의 CPU 표시를 시험하려면 앱 또는 독립 샘플에 `--software-rendering`을 지정하세요. 실제 성능과 검증 범위는 [GPU/CPU 렌더링 검증](docs/software-rendering-validation.md)을 따릅니다.
 
+**현재 성능 수용 상태(2026-10-05): 대량 ROI 작업 전체 구간의 2D 60FPS는 FAIL입니다.** 271,255개 ROI의 그룹화·마우스 회전·Esc 취소와 반복 확대를 개선했지만, 최초 형상 준비·일부 GC·게시·이력 처리에서 약 16.67ms 프레임 예산을 넘습니다. [그룹화·회전 후속 검증](docs/group-freeze-validation.md), [프레임 예산 검증](docs/frame-budget-validation.md)에 측정 조건과 남은 지연을 기록했습니다. 실제 사용자 문서·물리 입력과 모니터 표시·장시간 부하·별도 저사양 PC 검증은 남아 있습니다.
+
+논문 형상 검사의 **CPU 125ms 이하 / CUDA 80ms 미만 목표도 FAIL**이며 2D 프레임 예산과 별개입니다. [검사 후속 검증](docs/paper-shape-125ms-validation.md)과 [작업 상태](tasks/todo.md)를 기준으로 판단하세요. 아래 500ms 시험은 이전 조건의 실측이며 현재 목표 달성을 뜻하지 않습니다.
+
 검사 도구는 **학습 패턴 찾기 / 일반 도형 찾기**로 선택합니다. **도형 샘플 → 도형 검출**은 티칭 없이 회전된 삼각형·사각형·십자가와 원을 찾습니다. 채워지고 분리된 도형이 대상이며 테두리만 있는 도형/가림은 지원하지 않습니다.
 
 커스텀 형상 두 방식은 학습 영역 안의 추가 윤곽을 최종 점수에서 감점합니다. 검출 누락이 컸던 **빠르게** 프리셋은 제거하고 **기본 후보 예산 / 확대 후보 예산**을 제공합니다. 가까운 자세 후보가 검증 예산을 독점하지 않도록 순서를 고쳐 동일 40개 합성 패턴에서 기본 설정 검출이 11개에서 40개로 늘었습니다. 합격 점수와 예산은 유지했습니다.
 
 검사는 DX12를 사용하지 않습니다. 기본은 CPU이고 선택 가능한 **GPU 후보 계산 + CPU 정밀 검사 · CUDA**는 방향 응답과 템플릿 후보 점수를 GPU에서 배치 계산합니다. 전처리·연속 방향 검증·원본 최종 판정은 CPU입니다. CUDA 장치는 앱 세션에서 재사용하고 최초 준비 시간을 별도로 표시합니다. WPF 화면의 DX12 렌더링은 유지합니다. [사용자 파라미터](docs/matching-parameters.md), [현재 실행 구조](docs/decisions/0026-8k-shape-search-latency.md)를 참고하세요.
 
-형상 검사는 원본 reader 한 개와 불변 crop의 CPU 병렬 계산을 연결합니다. 새 형상 설정은 논리 프로세서 수(최소1/최대16, 기준 장비12)를 사용하며 1~16으로 조절할 수 있습니다. **최종 v4 일반 앱에서 8K PCB 256핀을 첫 CPU 459.0 ms, 준비 후 CUDA 375.0 ms에 검출했습니다.** 실제 확대 화면에서 깨끗한 핀 1.000/사선 핀 .957을 확인했습니다. 별도 서비스 benchmark 32/32회도 500 ms 이내이며 반복 중앙값은 **논문 CPU 336.9 / CUDA 305.6 ms**, **기하 CPU 321.8 / CUDA 298.8 ms**입니다. 전체 사선 그룹과 깨끗한 그룹의 최소 점수 차이 .0295와 CPU/GPU 결과 동등성을 유지했습니다.
+형상 검사는 원본 reader 한 개와 불변 crop의 CPU 병렬 계산을 연결합니다. 새 형상 설정은 논리 프로세서 수(최소1/최대16, 기준 장비12)를 사용하며 1~16으로 조절할 수 있습니다. **이전 500ms 시험의 v4 일반 앱에서 8K PCB 256핀을 첫 CPU 459.0 ms, 준비 후 CUDA 375.0 ms에 검출했습니다.** 당시 실제 확대 화면에서 깨끗한 핀 1.000/사선 핀 .957을 확인했습니다. 별도 서비스 benchmark 32/32회도 500 ms 이내이며 반복 중앙값은 **논문 CPU 336.9 / CUDA 305.6 ms**, **기하 CPU 321.8 / CUDA 298.8 ms**였습니다. 전체 사선 그룹과 깨끗한 그룹의 최소 점수 차이 .0295와 CPU/GPU 결과 동등성을 유지했습니다.
 
-학습·최초 화면 준비·CUDA 초기화는 별도입니다. 수동 앱의 GPU 준비는 470.6 ms였으며, **정상 표시 WPF 진단의 준비 포함 첫 GPU 명령은 907.7 ms로 500 ms 미달**입니다. 준비 후 명령 15회는 통과했지만 숨김 창 진단은 서비스 밖 대기로 명령이 모두 500 ms를 넘었습니다. 다른 부하나 임의 입력의 지연 보장이 아니며 파일 입력·큰 학습 영역까지 충족한 것은 아닙니다. 이전 앱 첫 522.5/536.8 ms 실패도 보존했습니다. 최종 자동 테스트 878 PASS/skip 0, 실제 앱 기능 smoke PASS입니다. [측정 조건·실제 화면·한계](docs/shape-500ms-validation.md), [수용 기준](tasks/shape-500ms-plan.md)을 확인하세요. 숫자 입력은 `0.72`처럼 소수점을 한 글자씩 입력해도 유지됩니다. 배경 잡음·회전·배율 정합성의 이전 수정은 [정합성 재검증](docs/shape-regression-validation.md)에 기록했습니다.
+이전 시험에서 학습·최초 화면 준비·CUDA 초기화는 별도입니다. 수동 앱의 GPU 준비는 470.6 ms였으며, **정상 표시 WPF 진단의 준비 포함 첫 GPU 명령은 907.7 ms로 500 ms 미달**입니다. 준비 후 명령 15회는 통과했지만 숨김 창 진단은 서비스 밖 대기로 명령이 모두 500 ms를 넘었습니다. 다른 부하나 임의 입력의 지연 보장이 아니며 파일 입력·큰 학습 영역까지 충족한 것은 아닙니다. 이전 앱 첫 522.5/536.8 ms 실패도 보존했습니다. 당시 자동 테스트 878 PASS/skip 0, 실제 앱 기능 smoke PASS였습니다. [측정 조건·실제 화면·한계](docs/shape-500ms-validation.md), [당시 수용 기준](tasks/shape-500ms-plan.md)을 확인하세요. 숫자 입력은 `0.72`처럼 소수점을 한 글자씩 입력해도 유지됩니다. 배경 잡음·회전·배율 정합성의 이전 수정은 [정합성 재검증](docs/shape-regression-validation.md)에 기록했습니다.
 
 `VisionImaging`과 `VisionInspection`은 WPF/DirectX 없이 원본 파일을 읽고 검사합니다. 같은 서비스를 사용하는 [.NET 10 검사 CLI](src/VisionInspection.Cli/README.md)와 [JSON 레시피 예제](samples/inspection)를 추가했습니다. Windows x64와 Linux x64 native 패키지를 배포 대상에 맞춰 선택합니다. Linux 실기 실행은 아직 검증하지 않았습니다.
 
 코드를 처음 읽는다면 [코드 읽기 안내](docs/code-guide.md)에서 작업별 시작 파일, 입력 → 편집 → 렌더 흐름과 GPU 용어를 확인하세요.
+
+교육·릴리즈 전 확인한 수정, 전체 컨벤션·회귀 결과와 선택형 분석기의 잔여 진단은 [최종 코드 품질 점검](docs/release-quality-review.md)에 정리했습니다.
 
 ROI는 **사각형·원·삼각형·폴리곤**을 지원합니다. 왼쪽 **추가할 도형**에서 종류를 선택한 뒤 **ROI 추가** 또는 **그리기**를 누르세요. 사각형·원·삼각형은 즉시 추가 또는 드래그로 만들고, **폴리곤은 추가 버튼도 빈 점 입력을 시작합니다.** 이미지에서 꼭짓점을 차례로 클릭한 뒤 **완료 / Enter / 첫 점 클릭**으로 닫으세요. **새 선분이 기존 선과 교차하면 첫 교차점에서 자동 완성**하며, 그 지점부터 이어진 닫힌 영역만 ROI가 됩니다. 교차점 이전의 열린 꼬리와 교차점을 지나친 부분은 제외됩니다. **점 취소 / Backspace**는 마지막 점, **취소 / Esc**는 초안을 지웁니다. 부모·자식 추가에 같은 규칙을 적용합니다.
 
@@ -46,7 +52,7 @@ ROI는 **사각형·원·삼각형·폴리곤**을 지원합니다. 왼쪽 **추
 
 ## 실행
 
-배포 스크립트로 생성하는 실행 파일은 `artifacts/publish/TeachingToolWpf.exe`입니다. 빌드 결과물·복원 패키지·대용량 테스트 이미지는 Git에 포함하지 않으므로 처음 복제한 뒤에는 아래 명령으로 빌드하세요. 실행에는 **.NET 10 Desktop Runtime x64**가 필요합니다. DX12 GPU를 사용할 수 없으면 Windows WARP로 CPU 표시하며, 현재 장비의 자동 선택은 RTX 3060 Laptop입니다. 배포 폴더 전체를 함께 사용하세요.
+배포 스크립트로 생성하는 실행 파일은 `artifacts/publish/TeachingToolWpf.exe`입니다. 빌드 결과물·복원 패키지·대용량 테스트 이미지는 Git에 포함하지 않으므로 처음 복제한 뒤에는 아래 명령으로 빌드하세요. 실행에는 **.NET 10 Desktop Runtime x64**와 OpenCV 네이티브 실행용 **Visual C++ 2022 x64 Runtime**이 필요합니다. 네이티브 구성과 고지는 [의존성 고지](THIRD-PARTY-NOTICES.md)를 확인하세요. DX12 GPU를 사용할 수 없으면 Windows WARP로 CPU 표시하며, 현재 장비의 자동 선택은 RTX 3060 Laptop입니다. 배포 폴더 전체를 함께 사용하세요.
 
 소스에서 실행하려면 .NET 10 SDK를 설치한 뒤:
 
@@ -58,7 +64,7 @@ dotnet run --project .\src\TeachingToolWpf\TeachingToolWpf.csproj -c Release --n
 
 실행 폴더를 다시 만들 때는 restore 후 `scripts/Publish-Sample.ps1`을 실행합니다. 기존 실측 자료가 있으면 설명서와 함께 복사합니다.
 
-500ms 검증에 사용한 기준 장비용 실행본은 다음 명령으로 만듭니다. .NET 10의 AVX2 ReadyToRun과 tiered compilation 해제를 이 배포에만 적용하며 시스템 환경변수는 바꾸지 않습니다. 일반 Debug/Release 실행의 최초 JIT 시간은 위 성능과 다릅니다. 다른 CPU·Linux 실기 성능은 미검증입니다.
+다음 명령은 이전 500ms 검증 당시와 같은 기준 장비용 배포 설정으로 **현재 소스**를 게시합니다. 과거 v4 바이너리를 복원하는 명령은 아닙니다. .NET 10의 AVX2 ReadyToRun과 tiered compilation 해제를 이 배포에만 적용하며 시스템 환경변수는 바꾸지 않습니다. 일반 Debug/Release 실행의 최초 JIT 시간은 위 성능과 다릅니다. 다른 CPU·Linux 실기 성능은 미검증입니다.
 
 ```powershell
 pwsh -File scripts/Publish-Sample.ps1 -InspectionLatency -OutputDirectory artifacts/publish-shape-500ms-v4
@@ -184,7 +190,7 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artif
 
 `--memory-check`는 8K RGBA PNG와 24K Gray16 TIFF를 번갈아 열고 매번 ROI 필터를 처리합니다. 300주기는 이미지 600회 교체이며, 이번 측정 약 219초 동안 지속 증가하는 누수 징후를 발견하지 못했습니다. 조건·수치·미검증 범위는 [이미지 교체 메모리 검증](docs/memory-replacement-validation.md)을 참고하세요.
 
-미검증/후속 항목은 혼합 DPI 모니터 이동, 실제 장치 제거, 실제 카메라·촬영 파일, 8192² 실시간, 장시간 부하, 분수 배율 타일 gutter입니다. ROI 저장/불러오기, 타원/다각형, 다중 ROI 일괄 resize는 이번 샘플에 포함하지 않았습니다. [품질 검토](docs/quality-review.md), [설계 결정](docs/decisions/0003-implementation-and-measured-optimization.md), [의존성 고지](THIRD-PARTY-NOTICES.md)를 참고하세요.
+미검증/후속 항목은 혼합 DPI 모니터 이동, 실제 장치 제거, 실제 카메라·촬영 파일, 8192² 실시간, 장시간 부하, 분수 배율 타일 gutter입니다. ROI 저장/불러오기, 타원, 생성 후 폴리곤 꼭짓점 편집, 다중 ROI 일괄 resize는 이번 샘플에 포함하지 않았습니다. [품질 검토](docs/quality-review.md), [설계 결정](docs/decisions/0003-implementation-and-measured-optimization.md), [의존성 고지](THIRD-PARTY-NOTICES.md)를 참고하세요.
 
 ## 프로젝트 구조와 명시적 ROI 계층 (2026-10-05)
 

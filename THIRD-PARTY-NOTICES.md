@@ -15,7 +15,7 @@
 | NetVips.Native.linux-x64 | 8.18.6 | LGPL-3.0-or-later plus bundled dependencies · [packaging/source recipes](https://github.com/kleisauke/libvips-packaging) |
 | OpenCvSharp4.official.runtime.linux-x64.slim | 4.13.0.20260627 | Apache-2.0 · [fixed source version](https://github.com/shimat/opencvsharp/tree/4.13.0.20260627) |
 
-검사의 CUDA 전처리는 ILGPU를 사용합니다. 원문 [ILGPU](licenses/ILGPU-LICENSE.txt), [ILGPU.Algorithms](licenses/ILGPU.Algorithms-LICENSE.txt), 각각의 [전이 고지](licenses/ILGPU-THIRD-PARTY.txt)와 [Algorithms 전이 고지](licenses/ILGPU.Algorithms-THIRD-PARTY.txt)를 함께 배포합니다. NVIDIA 드라이버는 별도 설치합니다. WPF 렌더링의 DirectX 의존성은 CLI 배포에 포함하지 않습니다. Linux x64 native 패키지는 CLI의 `RuntimeIdentifier` 또는 Linux 호스트에서 선택하며 Windows DLL과 함께 섞어서 배포하지 않습니다. Linux 실제 실행 여부는 [휴대 가능한 검사 검증](docs/portable-inspection-validation.md)을 따릅니다.
+검사의 CUDA 후보 점수 계산과 별도 전처리 전용 API는 ILGPU를 사용합니다. 현재 앱/CLI는 방향 응답·정수 후보 점수를 CUDA에서 계산하고 전처리·연속 검증·원본 판정은 CPU에서 수행합니다. 원문 [ILGPU](licenses/ILGPU-LICENSE.txt), [ILGPU.Algorithms](licenses/ILGPU.Algorithms-LICENSE.txt), 각각의 [전이 고지](licenses/ILGPU-THIRD-PARTY.txt)와 [Algorithms 전이 고지](licenses/ILGPU.Algorithms-THIRD-PARTY.txt)를 함께 배포합니다. NVIDIA 드라이버는 별도 설치합니다. WPF 렌더링의 DirectX 의존성은 CLI 배포에 포함하지 않습니다. Linux x64 native 패키지는 CLI의 `RuntimeIdentifier` 또는 Linux 호스트에서 선택하며 Windows DLL과 함께 섞어서 배포하지 않습니다. Linux 실제 실행 여부는 [휴대 가능한 검사 검증](docs/portable-inspection-validation.md)을 따릅니다.
 
 OpenCV/OpenCvSharp는 제공된 바이너리를 변경하지 않고 동적으로 로드합니다. 원문은 [OpenCvSharp license](licenses/OpenCvSharp-LICENSE.txt), [OpenCV license](licenses/OpenCV-LICENSE.txt)입니다. Windows x64 `OpenCvSharpExtern.dll`을 포함하며 Visual C++ 2022 x64 runtime이 필요합니다. 이 장비에서는 네이티브 필터 실행을 검증했습니다. slim 배포자의 빌드/모듈 구성은 [runtime README](https://github.com/shimat/opencvsharp)와 고정된 소스 commit을 따릅니다.
 

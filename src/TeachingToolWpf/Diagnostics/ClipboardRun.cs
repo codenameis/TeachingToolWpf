@@ -259,9 +259,7 @@ internal static class ClipboardRun
 
                 var capture = Path.ChangeExtension(output, ".png");
                 viewport.Capture(capture);
-                for (var i = 0;
-i < 100 && !File.Exists(capture);
-i++)
+                for (var i = 0; i < 100 && !File.Exists(capture); i++)
                 {
                     await Task.Delay(100);
                 }

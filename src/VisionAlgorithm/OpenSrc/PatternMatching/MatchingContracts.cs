@@ -40,7 +40,10 @@ public sealed record TrainingOptions
     /// <summary>최종 기하 품질 계산에 필요한 전체 학습 윤곽과 마스크를 보관한다.</summary>
     public bool BuildGeometricModel { get; init; } = true;
     /// <summary>한 단계만 남은 작은 논문 형상의 원본 gradient 세부 검증. 추가 윤곽 감점과 함께 적용한다.</summary>
-    public bool UseFineDetailValidation { get; init; }
+    public bool UseFineDetailValidation
+    {
+        get; init;
+    }
     /// <summary>기하 상세 판정과 독립적으로 추가 윤곽 점수에 필요한 전체 윤곽과 마스크를 보관한다.</summary>
     public bool BuildClutterModel
     {
@@ -310,7 +313,10 @@ public sealed class ShapeModel
     public int TemplateCount => Templates.Length;
     public long EstimatedBytes => Levels.Sum(l => (long)l.Features.Length * 32) +
         Templates.Sum(t => t.Levels.Sum(l => (long)l.Length * 12)) + (ContourModel?.EstimatedBytes ?? 0) + (FineDetail?.EstimatedBytes ?? 0);
-    internal FineDetailModel? FineDetail { get; }
+    internal FineDetailModel? FineDetail
+    {
+        get;
+    }
     public bool HasFineDetailModel => FineDetail is not null;
     internal GeometricQualityModel? GeometryModel => Options.BuildGeometricModel ? ContourModel : null;
     internal GeometricQualityModel? ContourModel
@@ -382,7 +388,10 @@ public sealed record ShapeMatch(MatchPose Pose, double CandidateScore, double Sc
     int SupportedQuadrants, RefinementDiagnostics Refinement)
 {
     /// <summary>작은 논문 모델의 원본 gradient 설명 에너지(0~1). null은 세부 검증 미적용.</summary>
-    public double? DetailConsistency { get; init; }
+    public double? DetailConsistency
+    {
+        get; init;
+    }
     /// <summary>추가 윤곽 감점 전의 학습 특징 방향 일치도.</summary>
     public double DirectionScore { get; init; } = Score;
     /// <summary>최종 자세의 실제 학습 마스크 내부 추가 윤곽 비율. null은 측정하지 않았음을 뜻한다.</summary>

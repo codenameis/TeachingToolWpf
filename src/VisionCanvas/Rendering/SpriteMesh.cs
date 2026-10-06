@@ -88,9 +88,7 @@ internal sealed class SpriteMesh
 
     public void Outline(GpuTexture white, IReadOnlyList<PointD> points, double thickness, Vector4 color)
     {
-        for (var i = 0;
-i < points.Count;
-i++)
+        for (var i = 0; i < points.Count; i++)
         {
             Line(white, points[i], points[(i + 1) % points.Count], thickness, color);
         }
@@ -100,9 +98,7 @@ i++)
     {
         const int Segments = 24;
         var start = Vertices.Count;
-        for (var i = 0;
-i < Segments;
-i++)
+        for (var i = 0; i < Segments; i++)
         {
             var a = center + new PointD(radius, 0).Rotate(i * 360d / Segments);
             var b = center + new PointD(radius, 0).Rotate((i + 1) * 360d / Segments);

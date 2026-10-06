@@ -112,9 +112,7 @@ internal sealed class GpuImageResources(Dx12Device gpu, SpritePipeline pipeline,
         }
         else if (!scene.IsLive && _preparedIdentity is not null)
         {
-            for (var index = 0;
-index < 2;
-index++)
+            for (var index = 0; index < 2; index++)
             {
                 if (_video[index] is { } texture)
                 {

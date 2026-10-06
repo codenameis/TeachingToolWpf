@@ -39,9 +39,7 @@ public class TranslationPreviewTests
         editor.BeginPreview();
         editor.PreviewTranslation(new(50, 20));
         var selection = editor.TransformPreview!.Selection;
-        for (var i = 0;
-i < 100;
-i++)
+        for (var i = 0; i < 100; i++)
         {
             editor.PreviewTranslation(new(i, i / 2d));
         }
@@ -103,9 +101,7 @@ i++)
         editor.BeginPreview();
         editor.PreviewTranslation(new(1, 1));
         var allocated = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 2;
-i < 102;
-i++)
+        for (var i = 2; i < 102; i++)
         {
             editor.PreviewTranslation(new(i, i));
         }

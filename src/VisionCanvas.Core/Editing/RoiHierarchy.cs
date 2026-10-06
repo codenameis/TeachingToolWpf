@@ -40,9 +40,7 @@ public static class RoiHierarchy
 
     public static bool IsDescendant(DocumentState state, Guid child, Guid ancestor)
     {
-        for (var parent = state.Rois[child].ParentId;
-parent is { } id;
-parent = state.Rois[id].ParentId)
+        for (var parent = state.Rois[child].ParentId; parent is { } id; parent = state.Rois[id].ParentId)
         {
             if (id == ancestor)
             {

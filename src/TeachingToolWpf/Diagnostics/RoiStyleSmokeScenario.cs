@@ -202,9 +202,7 @@ internal static class RoiStyleSmokeScenario
             }
 
             viewport.Capture(path);
-            for (var attempt = 0;
-attempt < 200 && !File.Exists(path);
-attempt++)
+            for (var attempt = 0; attempt < 200 && !File.Exists(path); attempt++)
             {
                 if (renderError is not null)
                 {
@@ -234,9 +232,7 @@ attempt++)
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {
-        for (var i = 0;
-i < VisualTreeHelper.GetChildrenCount(root);
-i++)
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
         {
             var child = VisualTreeHelper.GetChild(root, i);
             yield return child;

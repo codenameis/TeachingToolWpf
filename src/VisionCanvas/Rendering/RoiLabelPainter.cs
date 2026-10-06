@@ -188,13 +188,9 @@ internal sealed class RoiLabelPainter
 
     private static IEnumerable<(int X, int Y)> Cells(BoundsD bounds)
     {
-        for (var y = (int)Math.Floor(bounds.Top / 32);
-y <= (int)Math.Floor(bounds.Bottom / 32);
-y++)
+        for (var y = (int)Math.Floor(bounds.Top / 32); y <= (int)Math.Floor(bounds.Bottom / 32); y++)
         {
-            for (var x = (int)Math.Floor(bounds.Left / 128);
-x <= (int)Math.Floor(bounds.Right / 128);
-x++)
+            for (var x = (int)Math.Floor(bounds.Left / 128); x <= (int)Math.Floor(bounds.Right / 128); x++)
             {
                 yield return (x, y);
             }

@@ -24,13 +24,9 @@ public static class TilePlanner
         var x1 = Math.Clamp((int)Math.Ceiling(last.X / tileSpan), 0, columns);
         var y1 = Math.Clamp((int)Math.Ceiling(last.Y / tileSpan), 0, rows);
         var result = new List<TileKey>();
-        for (var y = y0;
-y < y1;
-y++)
+        for (var y = y0; y < y1; y++)
         {
-            for (var x = x0;
-x < x1;
-x++)
+            for (var x = x0; x < x1; x++)
             {
                 result.Add(new(level, x, y));
             }

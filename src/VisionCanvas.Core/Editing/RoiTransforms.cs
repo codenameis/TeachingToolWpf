@@ -66,9 +66,7 @@ public static class RoiTransforms
         var low = 0d;
         var high = 1d;
         var accepted = state;
-        for (var iteration = 0;
-iteration < 40;
-iteration++)
+        for (var iteration = 0; iteration < 40; iteration++)
         {
             var fraction = (low + high) / 2;
             var partial = targets.ToDictionary(pair => pair.Key,

@@ -14,7 +14,15 @@ internal sealed class GpuTimer : IDisposable
     {
         gpu.Queue.GetTimestampFrequency(out _frequency).CheckError();
         _queries = gpu.Device.CreateQueryHeap<ID3D12QueryHeap>(new(QueryHeapType.Timestamp, 4, 0));
-        _readback = gpu.Device.CreateCommittedResource(HeapType.Readback, ResourceDescription.Buffer(32), ResourceStates.CopyDest);
+        try
+        {
+            _readback = gpu.Device.CreateCommittedResource(HeapType.Readback, ResourceDescription.Buffer(32), ResourceStates.CopyDest);
+        }
+        catch
+        {
+            _queries.Dispose();
+            throw;
+        }
     }
 
     public unsafe double? Begin(Dx12Surface surface)

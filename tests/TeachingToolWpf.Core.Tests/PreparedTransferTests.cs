@@ -38,9 +38,7 @@ public class PreparedTransferTests
         Assert.Equal(2, copies.Length);
         Assert.Equal(view, after.Viewport);
         Assert.True(after.Selection.SetEquals(copies.Select(r => r.Id)));
-        for (var i = 0;
-i < copies.Length;
-i++)
+        for (var i = 0; i < copies.Length; i++)
         {
             Assert.True((copies[i].Geometry.Center - originals[i].Geometry.Center - new PointD(10, 10)).Length < 1e-7);
             Assert.Equal(originals[i].Geometry.Width, copies[i].Geometry.Width);

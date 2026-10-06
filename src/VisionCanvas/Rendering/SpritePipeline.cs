@@ -67,27 +67,36 @@ internal sealed class SpritePipeline : IDisposable
         _gpu = gpu;
         _uploads = [new(gpu), new(gpu)];
         _heap = gpu.Device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 2048, DescriptorHeapFlags.ShaderVisible));
-        _increment = gpu.Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
-        _root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.AllowInputAssemblerInputLayout,
-            [new(new RootDescriptorTable1(new DescriptorRange1(DescriptorRangeType.ShaderResourceView, 1, 0)), ShaderVisibility.Pixel),
-             new(new RootConstants(0, 0, 2), ShaderVisibility.Pixel)],
-            [new StaticSamplerDescription(ShaderVisibility.Pixel, 0, 0) { Filter = Filter.MinMagMipLinear, AddressU = TextureAddressMode.Clamp, AddressV = TextureAddressMode.Clamp, AddressW = TextureAddressMode.Clamp },
-             new StaticSamplerDescription(ShaderVisibility.Pixel, 1, 0) { Filter = Filter.MinMagMipPoint, AddressU = TextureAddressMode.Clamp, AddressV = TextureAddressMode.Clamp, AddressW = TextureAddressMode.Clamp }]));
-        var shaderPath = Path.Combine(AppContext.BaseDirectory, "Shaders", "Viewport.hlsl");
-        _pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
+        try
         {
-            RootSignature = _root,
-            VertexShader = ShaderCompiler.CompileFile(shaderPath, "VSMain", "vs_5_1"),
-            PixelShader = ShaderCompiler.CompileFile(shaderPath, "PSMain", "ps_5_1"),
-            InputLayout = new InputLayoutDescription(new InputElementDescription("POSITION", 0, Format.R32G32_Float, 0, 0),
-                new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float, 8, 0), new InputElementDescription("COLOR", 0, Format.R32G32B32A32_Float, 16, 0)),
-            PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
-            RasterizerState = RasterizerDescription.CullNone,
-            BlendState = BlendDescription.NonPremultiplied,
-            DepthStencilState = DepthStencilDescription.None,
-            RenderTargetFormats = [Format.B8G8R8A8_UNorm],
-            SampleDescription = new(1, 0)
-        });
+            _increment = gpu.Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
+            _root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.AllowInputAssemblerInputLayout,
+                [new(new RootDescriptorTable1(new DescriptorRange1(DescriptorRangeType.ShaderResourceView, 1, 0)), ShaderVisibility.Pixel),
+                 new(new RootConstants(0, 0, 2), ShaderVisibility.Pixel)],
+                [new StaticSamplerDescription(ShaderVisibility.Pixel, 0, 0) { Filter = Filter.MinMagMipLinear, AddressU = TextureAddressMode.Clamp, AddressV = TextureAddressMode.Clamp, AddressW = TextureAddressMode.Clamp },
+                 new StaticSamplerDescription(ShaderVisibility.Pixel, 1, 0) { Filter = Filter.MinMagMipPoint, AddressU = TextureAddressMode.Clamp, AddressV = TextureAddressMode.Clamp, AddressW = TextureAddressMode.Clamp }]));
+            var shaderPath = Path.Combine(AppContext.BaseDirectory, "Shaders", "Viewport.hlsl");
+            _pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
+            {
+                RootSignature = _root,
+                VertexShader = ShaderCompiler.CompileFile(shaderPath, "VSMain", "vs_5_1"),
+                PixelShader = ShaderCompiler.CompileFile(shaderPath, "PSMain", "ps_5_1"),
+                InputLayout = new InputLayoutDescription(new InputElementDescription("POSITION", 0, Format.R32G32_Float, 0, 0),
+                    new InputElementDescription("TEXCOORD", 0, Format.R32G32_Float, 8, 0), new InputElementDescription("COLOR", 0, Format.R32G32B32A32_Float, 16, 0)),
+                PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
+                RasterizerState = RasterizerDescription.CullNone,
+                BlendState = BlendDescription.NonPremultiplied,
+                DepthStencilState = DepthStencilDescription.None,
+                RenderTargetFormats = [Format.B8G8R8A8_UNorm],
+                SampleDescription = new(1, 0)
+            });
+        }
+        catch
+        {
+            _root?.Dispose();
+            _heap.Dispose();
+            throw;
+        }
     }
 
     private CpuDescriptorHandle Cpu(int slot) => _heap.GetCPUDescriptorHandleForHeapStart() + (slot * (int)_increment);
@@ -163,9 +172,7 @@ internal sealed class SpritePipeline : IDisposable
         }
         else
         {
-            for (var y = 0;
-y < pixels.Height;
-y++)
+            for (var y = 0; y < pixels.Height; y++)
             {
                 pixels.Span.Slice(y * pixels.Stride, pixels.Stride).CopyTo(new Span<byte>(target + (y * footprint.Footprint.RowPitch), pixels.Stride));
             }
@@ -202,9 +209,7 @@ y++)
         buffer.Unmap(0);
         var commands = surface.Commands;
         Bind();
-        for (var i = 0;
-i < mesh.Batches.Count;
-i++)
+        for (var i = 0; i < mesh.Batches.Count; i++)
         {
             if (i == middleBatch)
             {

@@ -35,13 +35,9 @@ public class RoiFilterTests
     public async Task RotatedLiveRoiSamplesCorrectPixelsWithoutTakingFrameOwnership()
     {
         var pixels = new PixelBuffer(16, 16, PixelKind.Gray8);
-        for (var y = 0;
-y < 16;
-y++)
+        for (var y = 0; y < 16; y++)
         {
-            for (var x = 0;
-x < 16;
-x++)
+            for (var x = 0; x < 16; x++)
             {
                 pixels.Bytes[(y * 16) + x] = (byte)(x < 8 ? 0 : 255);
             }
@@ -66,18 +62,12 @@ x++)
     {
         using var pixels = new PixelBuffer(32, 24, kind);
         var bpp = pixels.Stride / pixels.Width;
-        for (var y = 0;
-y < 24;
-y++)
+        for (var y = 0; y < 24; y++)
         {
-            for (var x = 0;
-x < 32;
-x++)
+            for (var x = 0; x < 32; x++)
             {
                 var offset = (y * pixels.Stride) + (x * bpp);
-                for (var b = 0;
-b < bpp;
-b++)
+                for (var b = 0; b < bpp; b++)
                 {
                     pixels.Bytes[offset + b] = (byte)(x < 16 ? 40 : 210);
                 }

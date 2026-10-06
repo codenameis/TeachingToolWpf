@@ -109,9 +109,7 @@ internal static class ResponsiveEditingRun
                     action();
                     return Task.CompletedTask;
                 }
-                for (var iteration = 0;
-iteration < 4;
-iteration++)
+                for (var iteration = 0; iteration < 4; iteration++)
                 {
                     model.Session.Select([]);
                     await Measure("select-all", iteration, () => synchronous ? Sync(() => model.Session.Select(model.Session.State.Rois.Keys)) : model.SelectAll.ExecuteAsync());

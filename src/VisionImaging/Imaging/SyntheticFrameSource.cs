@@ -33,9 +33,7 @@ public sealed class SyntheticFrameSource(PixelKind kind = PixelKind.Gray8, int w
             {
                 template.Span.CopyTo(pixels.Span);
                 var stripe = (int)(sequence * 37 % (width - 64));
-                for (var y = 0;
-y < height;
-y++)
+                for (var y = 0; y < height; y++)
                 {
                     pixels.Span.Slice((y * pixels.Stride) + (stripe * Info.BytesPerPixel), 64 * Info.BytesPerPixel).Fill(240);
                 }
@@ -51,14 +49,10 @@ y++)
 
     private static void BuildTemplate(PixelBuffer image)
     {
-        for (var y = 0;
-y < image.Height;
-y++)
+        for (var y = 0; y < image.Height; y++)
         {
             var row = image.Span.Slice(y * image.Stride, image.Stride);
-            for (var x = 0;
-x < image.Width;
-x++)
+            for (var x = 0; x < image.Width; x++)
             {
                 var intensity = (byte)(32 + (((x / 128) + (y / 128)) % 2 * 80) + (x % 128 / 2));
                 if (image.Kind == PixelKind.Gray8)

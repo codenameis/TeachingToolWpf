@@ -133,9 +133,7 @@ internal static class ShapeSmokeScenario
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
     {
-        for (var i = 0;
-i < VisualTreeHelper.GetChildrenCount(parent);
-i++)
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
             yield return child;

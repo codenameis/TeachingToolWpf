@@ -32,7 +32,10 @@ internal static class RotationInspectionSmoke
                 matching.InspectRotation = true;
                 await matching.Train.ExecuteAsync();
                 if (matching.Model is null || !matching.Search.CanExecute(null))
+                {
                     throw new InvalidOperationException(matching.Status + matching.OptionsError);
+                }
+
                 foreach (var minimum in new[] { 0d, -10d })
                 {
                     matching.MinimumAcceptedAngle = minimum;
@@ -48,7 +51,10 @@ internal static class RotationInspectionSmoke
                             var log = matching.InspectionLogs[^1];
                             var displayTimeout = Stopwatch.StartNew();
                             while (matching.InspectionLogs[^1].RendererPresentationMilliseconds is null && displayTimeout.Elapsed.TotalSeconds < 10)
+                            {
                                 await Task.Delay(20);
+                            }
+
                             await Dispatcher.Yield(DispatcherPriority.ContextIdle);
                             log = matching.InspectionLogs[^1];
                             var lower = matching.Markers.Where(marker => marker.ReferencePoint.Y % 2048 > 1000).ToArray();
@@ -62,14 +68,25 @@ internal static class RotationInspectionSmoke
                             passed &= correct;
                             reports.Add(new
                             {
-                                Mode = mode.ToString(), Repetition = repetition, MinimumAcceptedAngle = minimum,
-                                Correct = correct, Reversed128AllNg = reverseNg, Upright128AllOk = normalOk,
-                                CommandMilliseconds = commandMilliseconds, log.RendererPresentationMilliseconds,
-                                matching.Status, matching.Results, Markers = matching.Markers.Select(marker => new
+                                Mode = mode.ToString(),
+                                Repetition = repetition,
+                                MinimumAcceptedAngle = minimum,
+                                Correct = correct,
+                                Reversed128AllNg = reverseNg,
+                                Upright128AllOk = normalOk,
+                                CommandMilliseconds = commandMilliseconds,
+                                log.RendererPresentationMilliseconds,
+                                matching.Status,
+                                matching.Results,
+                                Markers = matching.Markers.Select(marker => new
                                 {
-                                    marker.ReferencePoint, marker.AngleRadians, marker.Label, marker.Bounds,
+                                    marker.ReferencePoint,
+                                    marker.AngleRadians,
+                                    marker.Label,
+                                    marker.Bounds,
                                     Rgba = new[] { marker.Color.X, marker.Color.Y, marker.Color.Z, marker.Color.W }
-                                }).ToArray(), Log = log
+                                }).ToArray(),
+                                Log = log
                             });
                         }
                     }
@@ -89,14 +106,18 @@ internal static class RotationInspectionSmoke
                 Directory.CreateDirectory("artifacts/rotation-diagnosis");
                 File.WriteAllText("artifacts/rotation-diagnosis/app.json", JsonSerializer.Serialize(new
                 {
-                    Passed = passed, Failure = failure,
+                    Passed = passed,
+                    Failure = failure,
                     Timing = "VM command through await; renderer Present/fence separately. Physical click, WPF final composition and scan-out not measured.",
                     AppSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(RotationInspectionSmoke).Assembly.Location))),
                     Reports = reports
                 }, new JsonSerializerOptions { WriteIndented = true, NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals }));
                 File.WriteAllText("artifacts/rotation-diagnosis/app.inspection-log.json", InspectionRunLog.Serialize(editor.Matching.InspectionLogs));
                 Environment.ExitCode = passed ? 0 : 1;
-                if (!Environment.GetCommandLineArgs().Contains("--rotation-inspection-show")) window.Close();
+                if (!Environment.GetCommandLineArgs().Contains("--rotation-inspection-show"))
+                {
+                    window.Close();
+                }
             }
         };
     }

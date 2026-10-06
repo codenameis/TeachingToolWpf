@@ -136,8 +136,11 @@ public sealed class ShapeMatcher
                 var directional = ContinuousVerifier.Score(image.Gradients[0], model, refined.Pose);
                 verified[i] = verified[i]! with
                 {
-                    Pose = refined.Pose, Score = directional.Score, Support = directional.Support,
-                    SupportedQuadrants = directional.Quadrants, DetailConsistency = refined.Score
+                    Pose = refined.Pose,
+                    Score = directional.Score,
+                    Support = directional.Support,
+                    SupportedQuadrants = directional.Quadrants,
+                    DetailConsistency = refined.Score
                 };
             }
         });

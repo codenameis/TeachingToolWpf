@@ -20,7 +20,10 @@ public sealed class PreparedSearchImage
     }
     public long EstimatedBytes => Gradients.Sum(g => g.EstimatedBytes) +
         Maps.Sum(map => map.EstimatedBytes) + (Original?.Pixels.Length ?? 0);
-    internal GrayImage? Original { get; private init; }
+    internal GrayImage? Original
+    {
+        get; private init;
+    }
     internal ImmutableArray<GradientImage> Gradients
     {
         get;
@@ -101,7 +104,10 @@ public sealed class PreparedSearchImage
             }
             original = new(pixels, image.Width, image.Height, image.Width);
         }
-        return new(minimumGradient, gradients.ToImmutable(), maps.ToImmutable(), timer.Elapsed.TotalMilliseconds) { Original = original };
+        return new(minimumGradient, gradients.ToImmutable(), maps.ToImmutable(), timer.Elapsed.TotalMilliseconds)
+        {
+            Original = original
+        };
     }
 
     internal static void ValidateSize(GrayImage image)

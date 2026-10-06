@@ -31,9 +31,7 @@ public class ClipboardContentTests
         var target = new ImageReference("small", "small", 80, 60);
         var placed = content.Place(target, new(20, 20));
         var scale = placed[0].Geometry.Width / content.Entries[0].Geometry.Width;
-        for (var i = 0;
-i < placed.Length;
-i++)
+        for (var i = 0; i < placed.Length; i++)
         {
             var original = content.Entries[i];
             var copy = placed[i];

@@ -34,9 +34,7 @@ public sealed class RoiClipboard
         else
         {
             combined = copied[0].Geometry.Bounds;
-            for (var i = 1;
-i < copied.Length;
-i++)
+            for (var i = 1; i < copied.Length; i++)
             {
                 var next = copied[i].Geometry.Bounds;
                 combined = new(Math.Min(combined.Left, next.Left), Math.Min(combined.Top, next.Top),

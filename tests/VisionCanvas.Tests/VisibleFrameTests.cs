@@ -32,9 +32,7 @@ public class VisibleFrameTests
     {
         using var source = new PixelBuffer(100, 80, PixelKind.Gray16);
         var values = MemoryMarshal.Cast<byte, ushort>(source.Span);
-        for (var i = 0;
-i < values.Length;
-i++)
+        for (var i = 0; i < values.Length; i++)
         {
             values[i] = (ushort)i;
         }
@@ -50,13 +48,9 @@ i++)
     public void FitUsesAreaAverageWithoutChangingTheSource()
     {
         using var source = new PixelBuffer(8, 8, PixelKind.Gray8);
-        for (var y = 0;
-y < 8;
-y++)
+        for (var y = 0; y < 8; y++)
         {
-            for (var x = 0;
-x < 8;
-x++)
+            for (var x = 0; x < 8; x++)
             {
                 source.Bytes[(y * 8) + x] = (byte)(x * 20);
             }

@@ -80,7 +80,10 @@ internal sealed class FineDetailModel(ImmutableArray<FineDetailModel.Sample> sam
         // 후보 응답은 180도 무부호다. 미세 획으로 양방향을 구별하기 전에 한 방향만 확정하지 않는다.
         foreach (var offset in new[] { -Math.PI, Math.PI })
         {
-            var opposite = initial with { Angle = initial.Angle + offset };
+            var opposite = initial with
+            {
+                Angle = initial.Angle + offset
+            };
             if (!ContinuousVerifier.Allowed(opposite, model, options))
             {
                 continue;

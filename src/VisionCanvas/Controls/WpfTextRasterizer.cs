@@ -41,9 +41,7 @@ public sealed partial class WpfTextRasterizer : ITextBatchRasterizer
         var result = new PixelBuffer(width, height, PixelKind.Bgra32);
         bitmap.CopyPixels(result.Bytes, result.Stride, 0);
         // White glyphs use straight alpha in the shared sprite pipeline.
-        for (var i = 0;
-i < result.Length;
-i += 4)
+        for (var i = 0; i < result.Length; i += 4)
         {
             result.Bytes[i] = result.Bytes[i + 1] = result.Bytes[i + 2] = 255;
         }

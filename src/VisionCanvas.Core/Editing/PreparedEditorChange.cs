@@ -94,15 +94,22 @@ public sealed partial class EditorSession
         }, token);
 
     public Task<PreparedEditorChange> PrepareSelectAllAsync(CancellationToken token = default)
-        => PrepareChangeAsync(null, before => before.Selection.Count == before.Rois.Count ? before
-            : before with
+        => PrepareChangeAsync(null, before =>
+        {
+            if (before.Selection.Count == before.Rois.Count)
+            {
+                return before;
+            }
+
+            return before with
             {
                 Selection = before.Rois.Keys.Select(id =>
-    {
-        token.ThrowIfCancellationRequested();
-        return id;
-    }).ToImmutableHashSet()
-            }, token);
+                {
+                    token.ThrowIfCancellationRequested();
+                    return id;
+                }).ToImmutableHashSet()
+            };
+        }, token);
 
     public Task<PreparedEditorChange> PrepareSelectionAsync(IEnumerable<Guid> ids, CancellationToken token = default)
         => PrepareChangeAsync(null, before =>

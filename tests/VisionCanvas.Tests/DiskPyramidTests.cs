@@ -32,13 +32,41 @@ public sealed class DiskPyramidTests : IDisposable
         Assert.Equal(512, tile.Width);
         Assert.Equal(1, tile.Height);
         Assert.Equal((ushort)12345, BitConverter.ToUInt16(tile.Bytes));
-        for (var level = 1;
-level < source.Info.Levels;
-level++)
+        for (var level = 1; level < source.Info.Levels; level++)
         {
             using var reduced = source.Read(new(level, 0, 0), CancellationToken.None);
             Assert.InRange(BitConverter.ToUInt16(reduced.Bytes), 12344, 12346);
         }
+    }
+
+    [Fact]
+    public async Task RelativeCacheDirectoryImportsAndReopensOriginalPixels()
+    {
+        var path = Path.Combine(_directory, "relative-cache.png");
+        using (var black = Image.Black(600, 3))
+        using (var gray = (black + 73).Cast(Enums.BandFormat.Uchar))
+        {
+            gray.WriteToFile(path);
+        }
+        var cacheRoot = Path.Combine(_directory, "cache");
+        var relativeCache = Path.GetRelativePath(Environment.CurrentDirectory, cacheRoot);
+        Assert.False(Path.IsPathRooted(relativeCache));
+        var loader = new ImageLoader(relativeCache);
+        var reference = new ImageReference(path, "relative-cache", 600, 3);
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var source = await loader.LoadAsync(reference, new Progress<string>(), CancellationToken.None);
+            Assert.Equal(path, source.Info.Key);
+            Assert.Equal(PixelKind.Gray8, source.Info.Pixels);
+            Assert.Equal(600, source.Info.Width);
+            Assert.Equal(3, source.Info.Height);
+            using var tile = source.Read(new(0, 1, 0), CancellationToken.None);
+            Assert.Equal(88, tile.Width);
+            Assert.Equal(3, tile.Height);
+            Assert.All(tile.Bytes.Take(tile.Length), pixel => Assert.Equal((byte)73, pixel));
+        }
+        Assert.Single(Directory.GetDirectories(cacheRoot));
     }
 
     [Fact]

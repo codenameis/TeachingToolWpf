@@ -90,9 +90,7 @@ public class RoiShapeTests
         session.RotateSelection(45, new(50, 50));
         Assert.Equal(45, session.State.Rois[id].Geometry.Angle);
         Assert.True(RoiImageBounds.ContainsAll(session.State));
-        for (var handle = 0;
-handle < 8;
-handle++)
+        for (var handle = 0; handle < 8; handle++)
         {
             var resized = HandleGeometry.Resize(session.State.Rois[id].Geometry, handle, new(33, 33));
             Assert.Equal(resized.Width, resized.Height);
@@ -104,13 +102,9 @@ handle++)
     public void CircleResizeKeepsOneDiameterAtFractionalCoordinates()
     {
         var circle = RoiGeometry.Create(RoiShapeKind.Circle, new(24.39, 75.57), 13.7, 13.7).RotateAround(new(24.39, 75.57), 22.7);
-        for (var handle = 0;
-handle < 8;
-handle++)
+        for (var handle = 0; handle < 8; handle++)
         {
-            for (var i = 0;
-i < 100;
-i++)
+            for (var i = 0; i < 100; i++)
             {
                 var resized = HandleGeometry.Resize(circle, handle, new(i * 1.3789, i * .7917));
                 Assert.Equal(resized.Width, resized.Height);

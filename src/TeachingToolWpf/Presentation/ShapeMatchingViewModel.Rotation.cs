@@ -11,8 +11,15 @@ public sealed partial class ShapeMatchingViewModel
         get => IsPaperMethod && ActiveShapeState.Training.InspectRotation;
         set
         {
-            if (!IsPaperMethod) return;
-            ChangeTrainingSettings(ActiveShapeState.Training with { InspectRotation = value });
+            if (!IsPaperMethod)
+            {
+                return;
+            }
+
+            ChangeTrainingSettings(ActiveShapeState.Training with
+            {
+                InspectRotation = value
+            });
             Notify(nameof(CanEditSearchAngle));
         }
     }
@@ -22,7 +29,10 @@ public sealed partial class ShapeMatchingViewModel
         get => ActiveSearchSettings.Rotation.MinimumDegrees;
         set => ChangeSearchSettings(ActiveSearchSettings with
         {
-            Rotation = ActiveSearchSettings.Rotation with { MinimumDegrees = value }
+            Rotation = ActiveSearchSettings.Rotation with
+            {
+                MinimumDegrees = value
+            }
         });
     }
     public double MaximumAcceptedAngle
@@ -30,7 +40,10 @@ public sealed partial class ShapeMatchingViewModel
         get => ActiveSearchSettings.Rotation.MaximumDegrees;
         set => ChangeSearchSettings(ActiveSearchSettings with
         {
-            Rotation = ActiveSearchSettings.Rotation with { MaximumDegrees = value }
+            Rotation = ActiveSearchSettings.Rotation with
+            {
+                MaximumDegrees = value
+            }
         });
     }
 
@@ -38,7 +51,11 @@ public sealed partial class ShapeMatchingViewModel
 
     private static string FormatRotationDecision(ShapeMatch match, RotationAcceptance? rotation, double referenceAngle, bool incomplete)
     {
-        if (rotation is null) return "";
+        if (rotation is null)
+        {
+            return "";
+        }
+
         var verdict = incomplete ? InspectionVerdict.Warning : InspectionDecision.Evaluate(match, rotation, referenceAngle).Verdict;
         return $"\n{InspectionResultPresentation.Name(verdict)} · 학습 대비 {RotationAcceptance.DeviationDegrees(match.Pose.Angle, referenceAngle):F3}°" +
             $" · 정상 {rotation.MinimumDegrees:G}~{rotation.MaximumDegrees:G}°";

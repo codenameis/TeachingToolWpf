@@ -22,9 +22,7 @@ internal static class FilterAtlas
                 pixels.Span.Clear();
                 foreach (var p in Regions)
                 {
-                    for (var y = 0;
-y < p.Region.Height;
-y++)
+                    for (var y = 0; y < p.Region.Height; y++)
                     {
                         if (!masked)
                         {
@@ -33,9 +31,7 @@ y++)
                         }
                         else
                         {
-                            for (var x = 0;
-x < p.Region.Width;
-x++)
+                            for (var x = 0; x < p.Region.Width; x++)
                             {
                                 var source = (y * p.Region.Width) + x;
                                 var target = ((p.Y + y) * pixels.Stride) + ((p.X + x) * 4);

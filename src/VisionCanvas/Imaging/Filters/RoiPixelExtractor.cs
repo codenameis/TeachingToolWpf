@@ -21,13 +21,9 @@ internal static class RoiPixelExtractor
         var right = Math.Clamp((int)Math.Ceiling(bounds.Right / factor) + 1, left + 1, sourceWidth);
         var bottom = Math.Clamp((int)Math.Ceiling(bounds.Bottom / factor) + 1, top + 1, sourceHeight);
         using var patch = new Mat(bottom - top, right - left, OpenCvRoiFilter.Type(source.Info.Pixels), Scalar.All(0));
-        for (var y = top / 512;
-y <= (bottom - 1) / 512;
-y++)
+        for (var y = top / 512; y <= (bottom - 1) / 512; y++)
         {
-            for (var x = left / 512;
-x <= (right - 1) / 512;
-x++)
+            for (var x = left / 512; x <= (right - 1) / 512; x++)
             {
                 token.ThrowIfCancellationRequested();
                 using var tile = source.Read(new(level, x, y), token);

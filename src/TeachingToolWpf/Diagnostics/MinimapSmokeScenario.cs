@@ -37,9 +37,7 @@ internal static class MinimapSmokeScenario
         var path = $"artifacts/minimap-{name}.png";
         var requested = DateTime.UtcNow;
         viewport.Capture(path);
-        for (var i = 0;
-i < 100 && (!File.Exists(path) || File.GetLastWriteTimeUtc(path) < requested);
-i++)
+        for (var i = 0; i < 100 && (!File.Exists(path) || File.GetLastWriteTimeUtc(path) < requested); i++)
         {
             await Task.Delay(100);
         }

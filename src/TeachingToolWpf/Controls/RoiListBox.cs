@@ -100,16 +100,12 @@ internal sealed class RoiListSlots : ObservableCollection<RoiListSlot>
             Items.RemoveAt(Items.Count - 1);
         }
 
-        for (var i = 0;
-i < Items.Count;
-i++)
+        for (var i = 0; i < Items.Count; i++)
         {
             Items[i].Update(rows[i]);
         }
 
-        for (var i = Items.Count;
-i < rows.Count;
-i++)
+        for (var i = Items.Count; i < rows.Count; i++)
         {
             Items.Add(new(rows[i]));
         }

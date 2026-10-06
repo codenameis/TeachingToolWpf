@@ -50,9 +50,7 @@ internal static class RoiDragRun
                 var point = before.Viewport.ImageToScreen(roi.Geometry.Center);
                 model.Input.Down(point);
                 var target = point;
-                for (var i = 1;
-i <= (interior ? 100 : 5);
-i++)
+                for (var i = 1; i <= (interior ? 100 : 5); i++)
                 {
                     target = point + (interior ? new PointD(20 + (Math.Sin(i * .07) * 40), Math.Cos(i * .07) * 30) : new PointD(i * 10, i * 5));
                     var allocated = GC.GetAllocatedBytesForCurrentThread();
@@ -77,9 +75,7 @@ i++)
                 {
                     var image = Path.ChangeExtension(report, ".png");
                     viewport.Capture(image);
-                    for (var i = 0;
-i < 100 && !File.Exists(image);
-i++)
+                    for (var i = 0; i < 100 && !File.Exists(image); i++)
                     {
                         await Task.Delay(50);
                     }

@@ -31,9 +31,7 @@ internal sealed class FrameReadback : IDisposable
     {
         var pixels = new byte[checked(_width * _height * 4)];
         var source = _buffer.Map<byte>(0);
-        for (var row = 0;
-row < _height;
-row++)
+        for (var row = 0; row < _height; row++)
         {
             new ReadOnlySpan<byte>(source + (row * _footprint.Footprint.RowPitch), _width * 4).CopyTo(pixels.AsSpan(row * _width * 4));
         }

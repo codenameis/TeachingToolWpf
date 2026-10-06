@@ -76,9 +76,7 @@ public class RotationRangeTests
         var random = new Random(139);
         var image = new ImageReference("test", "test", 1000, 800);
         var pivot = new PointD(500, 400);
-        for (var sample = 0;
-sample < 12;
-sample++)
+        for (var sample = 0; sample < 12; sample++)
         {
             var rois = Enumerable.Range(0, 100).Select(i => RoiAt(new(random.Next(40, 960), random.Next(40, 760)),
                 random.Next(5, 30), random.Next(5, 30), random.Next(360), i)).ToArray();
@@ -93,9 +91,7 @@ sample++)
                 }
 
                 Assert.True(Fits(rois, pivot, boundary, image));
-                for (var i = 0;
-i < 20;
-i++)
+                for (var i = 0; i < 20; i++)
                 {
                     Assert.True(Fits(rois, pivot, boundary * i / 20, image));
                 }

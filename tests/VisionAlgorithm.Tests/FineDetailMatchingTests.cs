@@ -26,7 +26,7 @@ public sealed class FineDetailMatchingTests
         var detail = FineDetailModel.Create(image, region, default)!;
         var pose = new MatchPose(43.5, 37, 0);
         Assert.Equal(1, detail.Score(image, pose, ContrastPolarity.Preserve), 10);
-        var lighting = image.Pixels.ToArray().Select(value => (byte)(value / 2 + 30)).ToArray();
+        var lighting = image.Pixels.ToArray().Select(value => (byte)((value / 2) + 30)).ToArray();
         Assert.InRange(detail.Score(new(lighting, 96, 80, 96), pose, ContrastPolarity.Preserve), .999, 1);
         var changed = CreateText(removeStroke: true);
         // 획 세 픽셀의 누락을 식별하되 이를 임의의 제품 불량 임계값으로 해석하지 않는다.
@@ -132,7 +132,7 @@ public sealed class FineDetailMatchingTests
                 }
             }
         }
-        Assert.Equal(1, detail.Score(new(rotated, 80, 96, 80), new(43, 43.5, .37 + Math.PI / 2), ContrastPolarity.Preserve), 10);
+        Assert.Equal(1, detail.Score(new(rotated, 80, 96, 80), new(43, 43.5, .37 + (Math.PI / 2)), ContrastPolarity.Preserve), 10);
         Assert.Equal(1, detail.Score(new(scaled, 192, 160, 192), new(87, 74, .37, 2), ContrastPolarity.Preserve), 10);
     }
 

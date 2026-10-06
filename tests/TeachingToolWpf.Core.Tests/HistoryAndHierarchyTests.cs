@@ -62,9 +62,7 @@ public class HistoryAndHierarchyTests
     {
         var history = new EditHistory(2, 1800);
         var state = DocumentState.Empty;
-        for (var i = 0;
-i < 3;
-i++)
+        for (var i = 0; i < 3; i++)
         {
             var roi = new Roi(Guid.NewGuid(), "roi", new(new(i * 100, 0), 10, 10, 0), null, false, i);
             var next = state with

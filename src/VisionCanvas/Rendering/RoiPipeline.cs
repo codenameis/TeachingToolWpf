@@ -105,19 +105,27 @@ internal sealed class RoiPipeline : IDisposable
             [new(RootParameterType.ShaderResourceView, new RootDescriptor1(GeometryShaderRegister, RegisterSpace), ShaderVisibility.Vertex),
              new(new RootConstants(OptionsShaderRegister, RegisterSpace, RoiDrawConstants.RootConstantCount), ShaderVisibility.All),
              new(RootParameterType.ShaderResourceView, new RootDescriptor1(RolesShaderRegister, RegisterSpace), ShaderVisibility.Vertex)]));
-        var shaderPath = Path.Combine(AppContext.BaseDirectory, "Shaders", "Roi.hlsl");
-        _pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
+        try
         {
-            RootSignature = _root,
-            VertexShader = ShaderCompiler.CompileFile(shaderPath, "VSMain", "vs_5_1"),
-            PixelShader = ShaderCompiler.CompileFile(shaderPath, "PSMain", "ps_5_1"),
-            PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
-            RasterizerState = RasterizerDescription.CullNone,
-            BlendState = BlendDescription.NonPremultiplied,
-            DepthStencilState = DepthStencilDescription.None,
-            RenderTargetFormats = [Format.B8G8R8A8_UNorm],
-            SampleDescription = new(1, 0)
-        });
+            var shaderPath = Path.Combine(AppContext.BaseDirectory, "Shaders", "Roi.hlsl");
+            _pipeline = gpu.Device.CreateGraphicsPipelineState<ID3D12PipelineState>(new GraphicsPipelineStateDescription
+            {
+                RootSignature = _root,
+                VertexShader = ShaderCompiler.CompileFile(shaderPath, "VSMain", "vs_5_1"),
+                PixelShader = ShaderCompiler.CompileFile(shaderPath, "PSMain", "ps_5_1"),
+                PrimitiveTopologyType = PrimitiveTopologyType.Triangle,
+                RasterizerState = RasterizerDescription.CullNone,
+                BlendState = BlendDescription.NonPremultiplied,
+                DepthStencilState = DepthStencilDescription.None,
+                RenderTargetFormats = [Format.B8G8R8A8_UNorm],
+                SampleDescription = new(1, 0)
+            });
+        }
+        catch
+        {
+            _root.Dispose();
+            throw;
+        }
     }
 
     public void Draw(RenderScene scene, Dx12Surface surface)

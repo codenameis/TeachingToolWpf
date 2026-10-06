@@ -100,9 +100,7 @@ internal sealed class ScenePainter
         if (!scene.Overlay.PolygonPoints.IsDefaultOrEmpty)
         {
             var points = scene.Overlay.PolygonPoints.Select(view.ImageToScreen).ToArray();
-            for (var i = 1;
-i < points.Length;
-i++)
+            for (var i = 1; i < points.Length; i++)
             {
                 _mesh.Line(white, points[i - 1], points[i], 1.5, s_accent);
             }

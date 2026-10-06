@@ -94,9 +94,7 @@ internal static class FilterSmokeScenario
 
     private static IEnumerable<System.Windows.DependencyObject> Descendants(System.Windows.DependencyObject parent)
     {
-        for (var i = 0;
-i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
-i++)
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
             yield return child;

@@ -143,9 +143,7 @@ internal static class RoiRotationRun
                 });
                 using (var probe = new DispatcherProbe())
                 {
-                    for (var i = 1;
-i <= warmupCount + sampleCount;
-i++)
+                    for (var i = 1; i <= warmupCount + sampleCount; i++)
                     {
                         stage = i <= warmupCount ? "warmup" : "rotation";
                         // Every target derives from gesture start, so preview updates never accumulate rounding errors.
@@ -386,9 +384,7 @@ i++)
                 }
 
                 viewport.Capture(path);
-                for (var i = 0;
-i < 200 && !File.Exists(path);
-i++)
+                for (var i = 0; i < 200 && !File.Exists(path); i++)
                 {
                     if (renderError is not null)
                     {

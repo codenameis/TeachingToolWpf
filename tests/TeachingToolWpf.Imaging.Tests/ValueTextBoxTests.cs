@@ -17,9 +17,7 @@ public class ValueTextBoxTests
                 var field = new ValueTextBox();
                 var changes = 0;
                 field.TextChanged += (_, _) => changes++;
-                for (var i = 0;
-i < 1000;
-i++)
+                for (var i = 0; i < 1000; i++)
                 {
                     field.Value = $"영역 {i}";
                 }

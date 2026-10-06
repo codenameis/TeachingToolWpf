@@ -223,9 +223,7 @@ public sealed class RoiSpatialIndex
 
             var inside = 0d;
             var outside = degrees;
-            for (var iteration = 0;
-iteration < 48;
-iteration++)
+            for (var iteration = 0; iteration < 48; iteration++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var middle = (inside + outside) / 2;
@@ -439,9 +437,7 @@ iteration++)
             return Leaf(leaf);
         }
         var bounds = entries[start].Bounds;
-        for (var i = start + 1;
-i < start + count;
-i++)
+        for (var i = start + 1; i < start + count; i++)
         {
             bounds = Union(bounds, entries[i].Bounds);
         }
@@ -476,9 +472,7 @@ i++)
             }
 
             var updated = new Entry[entries.Length];
-            for (var index = 0;
-index < entries.Length;
-index++)
+            for (var index = 0; index < entries.Length; index++)
             {
                 var id = entries[index].Roi.Id;
                 if (!rois.TryGetValue(id, out var roi) || roi is null || roi.Id != id)

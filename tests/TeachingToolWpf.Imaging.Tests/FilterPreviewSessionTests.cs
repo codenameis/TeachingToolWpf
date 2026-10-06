@@ -54,9 +54,7 @@ public class FilterPreviewSessionTests
         editor.BeginPreview();
         editor.PreviewTranslation(new(1, 1));
         var bytes = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 2;
-i < 52;
-i++)
+        for (var i = 2; i < 52; i++)
         {
             editor.PreviewTranslation(new(i, 1));
         }

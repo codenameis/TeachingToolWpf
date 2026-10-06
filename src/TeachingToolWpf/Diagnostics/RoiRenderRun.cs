@@ -50,9 +50,7 @@ internal static class RoiRenderRun
                     await Task.Delay(300);
                     var baseline = model.Session.State.Viewport;
                     var samples = new List<double>();
-                    for (var i = 0;
-i < 180;
-i++)
+                    for (var i = 0; i < 180; i++)
                     {
                         var start = Stopwatch.GetTimestamp();
                         model.Session.SetViewport(motion == "zoom" ? baseline.ZoomAt(new(viewport.ViewWidth / 2, viewport.ViewHeight / 2), Math.Pow(2, Math.Sin(i * .04) * 3))
@@ -76,9 +74,7 @@ i++)
                         }
 
                         viewport.Capture(capture);
-                        for (var i = 0;
-i < 200 && !File.Exists(capture);
-i++)
+                        for (var i = 0; i < 200 && !File.Exists(capture); i++)
                         {
                             await Task.Delay(50);
                         }

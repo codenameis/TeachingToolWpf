@@ -71,15 +71,11 @@ public class RoiInstanceTests
         var block = index.Blocks(index.Bounds).Single();
         var packed = RoiInstance.Pack(block, 0);
         Assert.Equal(32, Marshal.SizeOf<RoiInstance>());
-        for (var i = 0;
-i < shapes.Length;
-i++)
+        for (var i = 0; i < shapes.Length; i++)
         {
             var instance = packed[i];
             var signs = new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) };
-            for (var j = 0;
-j < 4;
-j++)
+            for (var j = 0; j < 4; j++)
             {
                 var relative = instance.Center + (instance.AxisX * signs[j].Item1) + (instance.AxisY * signs[j].Item2);
                 var point = block.Bounds.Center + new PointD(relative.X, relative.Y);
@@ -125,9 +121,7 @@ j++)
             var sine = (float)transform.Sine;
             var expected = shape.RotateAround(pivot, angle).Translate(new(17, -13)).FrameCorners;
             var signs = new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) };
-            for (var i = 0;
-i < signs.Length;
-i++)
+            for (var i = 0; i < signs.Length; i++)
             {
                 // Same float operations and block-relative inputs as Roi.hlsl; the oracle uses domain double corners.
                 var local = packed[0].Center + (packed[0].AxisX * signs[i].Item1) + (packed[0].AxisY * signs[i].Item2);
@@ -207,9 +201,7 @@ i++)
         var transform = new RigidTransform2D(bounds.Center, 90, new(11, 23));
         var corners = ScenePainter.SelectionCorners(bounds, view, transform);
         var expected = new RoiGeometry(bounds.Center, bounds.Width, bounds.Height, 0).RotateAround(bounds.Center, 90).Translate(new(11, 23)).FrameCorners;
-        for (var i = 0;
-i < 4;
-i++)
+        for (var i = 0; i < 4; i++)
         {
             Assert.InRange((corners[i] - view.ImageToScreen(expected[i])).Length, 0, 1e-9);
         }

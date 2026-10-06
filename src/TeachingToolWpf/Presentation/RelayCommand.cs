@@ -46,9 +46,9 @@ public sealed class AsyncCommand(Func<Task> execute, Action<Exception> failed, F
         }
 
         _running = true;
-        Refresh();
         try
         {
+            Refresh();
             await execute();
         }
         finally

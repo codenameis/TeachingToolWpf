@@ -43,9 +43,7 @@ internal static class BoxResampler
                     _ => Color(source.Bytes, sourceRow, source.Stride, target.Bytes, destination, width, factor)
                 };
             }
-            for (;
-x < target.Width;
-x++)
+            for (; x < target.Width; x++)
             {
                 Scalar(source, target, sourceRow, destination, x, rows, Math.Min(factor, width - (x * factor)), factor);
             }
@@ -57,18 +55,12 @@ x++)
         var channels = source.Kind is PixelKind.Rgba32 or PixelKind.Bgra32 ? 4 : 1;
         var bytes = source.Kind == PixelKind.Gray16 ? 2 : channels;
         var samples = rows * columns;
-        for (var channel = 0;
-channel < channels;
-channel++)
+        for (var channel = 0; channel < channels; channel++)
         {
             uint sum = 0;
-            for (var y = 0;
-y < rows;
-y++)
+            for (var y = 0; y < rows; y++)
             {
-                for (var dx = 0;
-dx < columns;
-dx++)
+                for (var dx = 0; dx < columns; dx++)
                 {
                     var offset = row + (y * source.Stride) + (((x * factor) + dx) * bytes) + channel;
                     sum += source.Kind == PixelKind.Gray16 ? Unsafe.ReadUnaligned<ushort>(ref source.Bytes[offset]) : source.Bytes[offset];
@@ -110,23 +102,17 @@ dx++)
         var block = 32 / factor;
         var onesByte = Vector256.Create((sbyte)1);
         var onesShort = Vector256.Create((short)1);
-        for (;
-(x * factor) + 32 <= width;
-x += block)
+        for (; (x * factor) + 32 <= width; x += block)
         {
             if (factor == 2)
             {
                 var sum = Vector256<short>.Zero;
-                for (var y = 0;
-y < factor;
-y++)
+                for (var y = 0; y < factor; y++)
                 {
                     sum = Avx2.Add(sum, Avx2.MultiplyAddAdjacent(Unsafe.ReadUnaligned<Vector256<byte>>(ref input[row + (y * stride) + (x * factor)]), onesByte));
                 }
 
-                for (var i = 0;
-i < 16;
-i++)
+                for (var i = 0; i < 16; i++)
                 {
                     output[destination + x + i] = (byte)((sum.GetElement(i) + 2) >> 2);
                 }
@@ -134,17 +120,13 @@ i++)
             else
             {
                 var sum = Vector256<int>.Zero;
-                for (var y = 0;
-y < factor;
-y++)
+                for (var y = 0; y < factor; y++)
                 {
                     var pairs = Avx2.MultiplyAddAdjacent(Unsafe.ReadUnaligned<Vector256<byte>>(ref input[row + (y * stride) + (x * factor)]), onesByte);
                     sum = Avx2.Add(sum, Avx2.MultiplyAddAdjacent(pairs, onesShort));
                 }
                 sum = Reduce(sum, factor / 4);
-                for (var i = 0;
-i < block;
-i++)
+                for (var i = 0; i < block; i++)
                 {
                     output[destination + x + i] = (byte)((sum.GetElement(Lane(i, block)) + (factor * factor / 2)) / (factor * factor));
                 }
@@ -157,27 +139,19 @@ i++)
     {
         var x = 0;
         var block = Math.Max(1, 8 / factor);
-        for (;
-(x * factor) + Math.Max(8, factor) <= width;
-x += block)
+        for (; (x * factor) + Math.Max(8, factor) <= width; x += block)
         {
             var sum = Vector256<int>.Zero;
-            for (var column = 0;
-column < Math.Max(8, factor);
-column += 8)
+            for (var column = 0; column < Math.Max(8, factor); column += 8)
             {
-                for (var y = 0;
-y < factor;
-y++)
+                for (var y = 0; y < factor; y++)
                 {
                     sum = Avx2.Add(sum, Avx2.ConvertToVector256Int32(Unsafe.ReadUnaligned<Vector128<ushort>>(ref input[row + (y * stride) + (((x * factor) + column) * 2)])));
                 }
             }
 
             sum = Reduce(sum, factor);
-            for (var i = 0;
-i < block;
-i++)
+            for (var i = 0; i < block; i++)
             {
                 var total = factor >= 8 ? sum.GetElement(0) + sum.GetElement(4) : sum.GetElement(Lane(i, block));
                 Unsafe.WriteUnaligned(ref output[destination + ((x + i) * 2)], (ushort)((total + (factor * factor / 2)) / (factor * factor)));
@@ -191,19 +165,13 @@ i++)
         var x = 0;
         var block = Math.Max(1, 8 / factor);
         var mask = Vector256.Create(0x00ff00ffu);
-        for (;
-(x * factor) + Math.Max(8, factor) <= width;
-x += block)
+        for (; (x * factor) + Math.Max(8, factor) <= width; x += block)
         {
             var rb = Vector256<uint>.Zero;
             var ga = Vector256<uint>.Zero;
-            for (var column = 0;
-column < Math.Max(8, factor);
-column += 8)
+            for (var column = 0; column < Math.Max(8, factor); column += 8)
             {
-                for (var y = 0;
-y < factor;
-y++)
+                for (var y = 0; y < factor; y++)
                 {
                     var value = Unsafe.ReadUnaligned<Vector256<uint>>(ref input[row + (y * stride) + (((x * factor) + column) * 4)]);
                     rb = Avx2.Add(rb, Avx2.And(value, mask));
@@ -213,9 +181,7 @@ y++)
 
             rb = Reduce(rb.AsInt32(), factor).AsUInt32();
             ga = Reduce(ga.AsInt32(), factor).AsUInt32();
-            for (var i = 0;
-i < block;
-i++)
+            for (var i = 0; i < block; i++)
             {
                 var sumRb = factor >= 8 ? rb.GetElement(0) + rb.GetElement(4) : rb.GetElement(Lane(i, block));
                 var sumGa = factor >= 8 ? ga.GetElement(0) + ga.GetElement(4) : ga.GetElement(Lane(i, block));

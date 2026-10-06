@@ -42,9 +42,7 @@ internal static class RotationCommitProfile
         var transform = new RigidTransform2D(pivot, AngleDegrees);
         var fixtureMilliseconds = Stopwatch.GetElapsedTime(fixtureStart).TotalMilliseconds;
         var iterations = new List<Iteration>();
-        for (var index = 0;
-index < WarmupCount + SampleCount;
-index++)
+        for (var index = 0; index < WarmupCount + SampleCount; index++)
         {
             iterations.Add(Profile(selection, transform, index + 1, index < WarmupCount));
         }
@@ -131,9 +129,7 @@ index++)
         var columns = (int)Math.Ceiling(Math.Sqrt(Math.Ceiling(count / 9d)));
         var cell = 4096d / columns;
         var rois = ImmutableDictionary.CreateBuilder<Guid, Roi>();
-        for (var index = 0;
-index < count;
-index++)
+        for (var index = 0; index < count; index++)
         {
             var component = index / 9;
             var pad = (index % 9) - 1;

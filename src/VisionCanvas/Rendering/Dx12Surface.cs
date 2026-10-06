@@ -73,9 +73,7 @@ internal sealed class Dx12Surface : IDisposable
 
     private void CreateBuffers()
     {
-        for (var i = 0;
-i < BackBufferCount;
-i++)
+        for (var i = 0; i < BackBufferCount; i++)
         {
             _buffers[i] = _swapChain.GetBuffer<ID3D12Resource>((uint)i);
             _gpu.Device.CreateRenderTargetView(_buffers[i]!, null, RenderTargetView(i));

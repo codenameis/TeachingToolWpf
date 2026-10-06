@@ -41,7 +41,22 @@ internal sealed class FrameUploadArena(Dx12Device gpu) : IDisposable
         {
             var size = Math.Max(MinimumBlockCapacityBytes, AlignUp(bytes, BufferCapacityAlignmentBytes));
             var resource = gpu.Device.CreateCommittedResource(HeapType.Upload, ResourceDescription.Buffer(size), ResourceStates.GenericRead);
-            _blocks.Add(new(resource, size, (nint)resource.Map<byte>(0)));
+            var mapped = false;
+            try
+            {
+                var pointer = (nint)resource.Map<byte>(0);
+                mapped = true;
+                _blocks.Add(new(resource, size, pointer));
+            }
+            catch
+            {
+                if (mapped)
+                {
+                    resource.Unmap(0);
+                }
+                resource.Dispose();
+                throw;
+            }
         }
         var block = _blocks[_currentBlockIndex];
         var offset = _usedBytes;

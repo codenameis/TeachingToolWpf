@@ -47,9 +47,7 @@ public abstract record RoiShape
     public virtual bool ContainsLocal(PointD point, double width, double height, double tolerance)
     {
         var inside = false;
-        for (var i = 0;
-i < Vertices.Length;
-i++)
+        for (var i = 0; i < Vertices.Length; i++)
         {
             var first = Vertices[i];
             var second = Vertices[(i + 1) % Vertices.Length];
@@ -143,9 +141,7 @@ internal static class PolygonMath
     {
         var sum = 0d;
         // 큰 이미지 좌표에서도 원점 오프셋에 의한 상쇄를 줄인다.
-        for (var i = 1;
-i + 1 < points.Count;
-i++)
+        for (var i = 1; i + 1 < points.Count; i++)
         {
             sum += Cross(points[i] - points[0], points[i + 1] - points[0]);
         }
@@ -164,9 +160,7 @@ i++)
     public static bool Contains(IReadOnlyList<PointD> vertices, PointD point, double tolerance)
     {
         var inside = false;
-        for (var i = 0;
-i < vertices.Count;
-i++)
+        for (var i = 0; i < vertices.Count; i++)
         {
             var a = vertices[i];
             var b = vertices[(i + 1) % vertices.Count];
@@ -211,9 +205,7 @@ i++)
             throw new ArgumentException("폴리곤 면적은 0보다 커야 합니다.");
         }
 
-        for (var i = 0;
-i < points.Count;
-i++)
+        for (var i = 0; i < points.Count; i++)
         {
             var next = (i + 1) % points.Count;
             if ((points[i] - points[next]).Length < .000001)
@@ -228,9 +220,7 @@ i++)
                 throw new ArgumentException("폴리곤의 인접한 변이 되접힐 수 없습니다.");
             }
 
-            for (var j = i + 1;
-j < points.Count;
-j++)
+            for (var j = i + 1; j < points.Count; j++)
             {
                 var end = (j + 1) % points.Count;
                 if (j == next || end == i)
@@ -250,9 +240,7 @@ j++)
     {
         var cuts = new List<double> { 0, 1 };
         var edge = b - a;
-        for (var i = 0;
-i < parent.Count;
-i++)
+        for (var i = 0; i < parent.Count; i++)
         {
             var c = parent[i];
             var d = parent[(i + 1) % parent.Count];
@@ -270,9 +258,7 @@ i++)
             }
         }
         cuts.Sort();
-        for (var i = 1;
-i < cuts.Count;
-i++)
+        for (var i = 1; i < cuts.Count; i++)
         {
             if (!Contains(parent, a + (edge * ((cuts[i - 1] + cuts[i]) / 2)), tolerance))
             {

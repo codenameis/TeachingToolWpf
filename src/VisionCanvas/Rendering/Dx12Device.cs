@@ -74,9 +74,7 @@ internal sealed class Dx12Device : IDisposable
         }
 
         var messages = new List<string>();
-        for (ulong i = 0;
-i < queue.NumStoredMessagesAllowedByRetrievalFilter;
-i++)
+        for (ulong i = 0; i < queue.NumStoredMessagesAllowedByRetrievalFilter; i++)
         {
             var message = queue.GetMessage(i);
             if (message.Severity is MessageSeverity.Corruption or MessageSeverity.Error or MessageSeverity.Warning)

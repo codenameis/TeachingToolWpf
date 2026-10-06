@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Immutable;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -177,6 +178,53 @@ public class RoiRowsTests
     });
 
     [Fact]
+    public void DeepHierarchyBuildsEveryRowWithoutUsingTheCallStack()
+    {
+        const int Count = 30_000;
+        var rois = ImmutableDictionary.CreateBuilder<Guid, Roi>();
+        var ids = new Guid[Count];
+        var geometry = new RoiGeometry(new(50, 50), 20, 20, 0);
+        for (var index = 0; index < Count; index++)
+        {
+            var id = Guid.NewGuid();
+            ids[index] = id;
+            rois.Add(id, new(id, $"R{index}", geometry, index == 0 ? null : ids[index - 1], false, index));
+        }
+        var state = new DocumentState(rois.ToImmutable(), [], null, ViewportTransform.Identity);
+
+        var rows = RoiRow.Build(state);
+
+        Assert.Equal(Count, rows.Count);
+        for (var index = 0; index < Count; index++)
+        {
+            Assert.Equal(ids[index], rows[index].Id);
+            Assert.Equal(index, rows[index].Depth);
+        }
+        Assert.Equal("부모 1", rows[0].Kind);
+        Assert.Equal("자식 · 사각형", rows[^1].Kind);
+    }
+
+    [Fact]
+    public void HierarchyRowsKeepPreorderAndSiblingOrder()
+    {
+        var geometry = new RoiGeometry(new(50, 50), 20, 20, 0);
+        var root = new Roi(Guid.NewGuid(), "Root", geometry, null, true, 10);
+        var siblingRoot = new Roi(Guid.NewGuid(), "Other root", geometry, null, false, 20);
+        var child = new Roi(Guid.NewGuid(), "First child", geometry, root.Id, false, 30);
+        var siblingChild = new Roi(Guid.NewGuid(), "Second child", geometry, root.Id, false, 40);
+        var grandchild = new Roi(Guid.NewGuid(), "Grandchild", geometry, child.Id, false, 50);
+        var rois = new[] { siblingChild, siblingRoot, grandchild, child, root }.ToImmutableDictionary(roi => roi.Id);
+        var state = new DocumentState(rois, [], null, ViewportTransform.Identity);
+
+        var rows = RoiRow.Build(state);
+
+        Assert.Equal(new[] { root.Id, child.Id, grandchild.Id, siblingChild.Id, siblingRoot.Id }, rows.Select(row => row.Id));
+        Assert.Equal(new[] { 0, 1, 2, 1, 0 }, rows.Select(row => row.Depth));
+        Assert.Equal("그룹 2", rows[0].Kind);
+        Assert.Equal("부모 1", rows[1].Kind);
+    }
+
+    [Fact]
     public void CancelledRowBuildDoesNotPublishPartialRowsOrChangeTheDocument()
     {
         var editor = new EditorSession();
@@ -212,9 +260,7 @@ public class RoiRowsTests
 
     private static TextBlock? FindText(DependencyObject parent)
     {
-        for (var i = 0;
-i < VisualTreeHelper.GetChildrenCount(parent);
-i++)
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
             if (child is TextBlock text)

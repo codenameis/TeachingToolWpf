@@ -75,9 +75,7 @@ internal static class RoiInteractionRun
                             var samples = new List<double>();
                             var allocated = new List<long>();
                             var details = new List<object>();
-                            for (var i = 0;
-i < iterations + 5;
-i++)
+                            for (var i = 0; i < iterations + 5; i++)
                             {
                                 var roiIndex = distributed ? (int)((long)i * Math.Max(1, rois.Length / (iterations + 5)) % rois.Length) : i * 97 % rois.Length;
                                 var roi = rois[roiIndex];
@@ -240,9 +238,7 @@ i++)
     {
         var columns = (int)Math.Ceiling(Math.Sqrt(hierarchy ? Math.Ceiling(count / 9d) : count));
         var cell = 8192d / columns;
-        for (var i = 0;
-i < count;
-i++)
+        for (var i = 0; i < count; i++)
         {
             var component = hierarchy ? i / 9 : i;
             var origin = new PointD(component % columns * cell, component / columns * cell);

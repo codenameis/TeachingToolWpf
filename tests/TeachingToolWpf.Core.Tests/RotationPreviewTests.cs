@@ -175,18 +175,14 @@ public class RotationPreviewTests
         editor.Select(editor.State.Rois.Keys);
         var before = editor.State;
         editor.BeginPreview();
-        for (var i = 0;
-i < 10;
-i++)
+        for (var i = 0; i < 10; i++)
         {
             editor.PreviewRotation(new(5000, 4000), i * .1);
         }
 
         var selection = editor.TransformPreview!.Selection;
         var allocated = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0;
-i < 100;
-i++)
+        for (var i = 0; i < 100; i++)
         {
             editor.PreviewRotation(new(5000, 4000), 1 + (i * .01));
         }

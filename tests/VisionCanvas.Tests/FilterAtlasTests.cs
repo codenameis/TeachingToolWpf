@@ -27,9 +27,7 @@ public class FilterAtlasTests
                 var uv = page.Uv(p);
                 Assert.Equal(p.X, uv.Left * page.Width, 10);
                 Assert.Equal(p.Y, uv.Top * page.Height, 10);
-                for (var y = 0;
-y < p.Region.Height;
-y++)
+                for (var y = 0; y < p.Region.Height; y++)
                 {
                     Assert.True(p.Region.Gray8.AsSpan(y * p.Region.Width, p.Region.Width)
                         .SequenceEqual(pixels.Span.Slice(((p.Y + y) * pixels.Stride) + p.X, p.Region.Width)));

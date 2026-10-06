@@ -241,9 +241,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             }
 
             var handles = HandleGeometry.ResizeHandles(selected.Geometry, state.Viewport);
-            for (var i = 0;
-i < handles.Count;
-i++)
+            for (var i = 0; i < handles.Count; i++)
             {
                 if ((handles[i] - screen).Length < 9)
                 {

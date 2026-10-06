@@ -54,9 +54,7 @@ internal sealed class GpuLiveOverview : IDisposable
 
     public void Clear(Dx12Surface surface)
     {
-        for (var i = 0;
-i < _textures.Length;
-i++)
+        for (var i = 0; i < _textures.Length; i++)
         {
             if (_textures[i] is { } texture)
             {

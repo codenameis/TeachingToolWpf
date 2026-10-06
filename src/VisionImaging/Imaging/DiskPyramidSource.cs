@@ -23,9 +23,7 @@ public sealed class DiskPyramidSource : ITileSource
         var opened = new List<Image>();
         try
         {
-            for (var i = 0;
-i < info.Levels;
-i++)
+            for (var i = 0; i < info.Levels; i++)
             {
                 opened.Add(Image.NewFromFile(Path.Combine(directory, $"{i}.v"), access: Enums.Access.Random));
             }
@@ -53,6 +51,7 @@ i++)
         VipsRuntime.Configure();
         cancellationToken.ThrowIfCancellationRequested();
         path = Path.GetFullPath(path);
+        cacheRoot = Path.GetFullPath(cacheRoot);
         var stamp = Version(path);
         var id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(path + stamp)));
         var directory = Path.Combine(cacheRoot, id);
@@ -81,9 +80,7 @@ i++)
             normalized.SetProgress(new Progress<int>(p => progress.Report($"원본 읽기 {p}%")), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             normalized.WriteToFile(Path.Combine(staging, "0.v"));
-            for (var level = 1;
-level < info.Levels;
-level++)
+            for (var level = 1; level < info.Levels; level++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 progress.Report($"확대/축소용 이미지 준비 {level}/{info.Levels - 1}");

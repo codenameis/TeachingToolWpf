@@ -35,9 +35,7 @@ public class SpatialIndexTests
         var random = new Random(53);
         editor.InitializeImage(new("test", "test", 2000, 2000), ViewportTransform.Identity);
         editor.AddRange(Enumerable.Range(0, 100).Select(_ => new RoiGeometry(new(random.Next(400, 1600), random.Next(400, 1600)), random.Next(20, 300), random.Next(20, 300), random.Next(360))));
-        for (var i = 0;
-i < 30;
-i++)
+        for (var i = 0; i < 30; i++)
         {
             var id = editor.State.Rois.Keys.ElementAt(i);
             editor.Select([id]);
@@ -78,9 +76,7 @@ i++)
                 expected[id] = roi;
             }
         }
-        for (var i = 0;
-i < 100;
-i++)
+        for (var i = 0; i < 100; i++)
         {
             var x = random.Next(1000);
             var y = random.Next(1000);
@@ -96,9 +92,7 @@ i++)
     {
         var index = new RoiSpatialIndex([]);
         var values = new List<Roi>();
-        for (var i = 0;
-i < 1000;
-i++)
+        for (var i = 0; i < 1000; i++)
         {
             var roi = new Roi(Guid.NewGuid(), "R", new(new(i * 100, 0), 10, 10, 0), null, false, i);
             values.Add(roi);

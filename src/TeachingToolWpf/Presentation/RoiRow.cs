@@ -20,20 +20,36 @@ public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
             return r.ParentId is not null;
         }).ToLookup(r => r.ParentId!.Value);
         var result = new List<RoiRow>(state.Rois.Count);
-        void Add(Roi roi, int depth)
+        var pending = new Stack<IEnumerator<Roi>>();
+        pending.Push(state.Rois.Values.Where(r => r.ParentId is null).OrderBy(r => r.Order).GetEnumerator());
+        try
         {
-            var count = children[roi.Id].Count();
-            result.Add(new(roi.Id, roi.Name, Describe(roi, count), depth));
-            foreach (var child in children[roi.Id].OrderBy(r => r.Order))
+            // 형제 순회만 깊이별로 보관해 큰 목록 복사와 깊은 계층의 호출 스택 고갈을 피한다.
+            while (pending.TryPeek(out var siblings))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Add(child, depth + 1);
+                if (!siblings.MoveNext())
+                {
+                    pending.Pop().Dispose();
+                    continue;
+                }
+
+                var roi = siblings.Current;
+                var directChildren = children[roi.Id];
+                var count = directChildren.Count();
+                result.Add(new(roi.Id, roi.Name, Describe(roi, count), pending.Count - 1));
+                if (count > 0)
+                {
+                    pending.Push(directChildren.OrderBy(r => r.Order).GetEnumerator());
+                }
             }
         }
-        foreach (var roi in state.Rois.Values.Where(r => r.ParentId is null).OrderBy(r => r.Order))
+        finally
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            Add(roi, 0);
+            while (pending.TryPop(out var siblings))
+            {
+                siblings.Dispose();
+            }
         }
         return result;
     }

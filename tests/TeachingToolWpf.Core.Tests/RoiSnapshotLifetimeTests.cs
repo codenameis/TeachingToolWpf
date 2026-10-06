@@ -29,9 +29,7 @@ public class RoiSnapshotLifetimeTests
         var editor = new EditorSession();
         var id = editor.Add(new(new(100, 100), 20, 20, 0));
         var oldMap = RenameAndObserve(editor, id);
-        for (var i = 0;
-i < 2000;
-i++)
+        for (var i = 0; i < 2000; i++)
         {
             editor.Rename(id, $"R{i}");
         }
@@ -58,9 +56,7 @@ i++)
         var parent = editor.Add(new(new(100, 100), 100, 100, 0));
         var child = editor.AddChild(parent, new(new(100, 100), 10, 10, 0));
         editor.TranslateSelection(new(200, 0));
-        for (var i = 0;
-i < 2000;
-i++)
+        for (var i = 0; i < 2000; i++)
         {
             editor.Undo();
             editor.Redo();

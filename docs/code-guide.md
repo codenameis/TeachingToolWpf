@@ -1,6 +1,6 @@
 # 코드를 읽기 시작하는 순서
 
-이 앱은 **입력 → 편집 상태 → 화면 그리기**로 읽으면 된다. ROI 규칙을 바꾸기 위해 DX12 포인터나 셰이더부터 이해할 필요는 없다. 편집 상태는 Core가, WPF 연결은 Presentation이, GPU 자원은 Rendering이 소유한다.
+이 앱은 **입력 → 편집 상태 → 화면 그리기**로 읽으면 된다. ROI 규칙을 바꾸기 위해 DX12 포인터나 셰이더부터 이해할 필요는 없다. 순수 기하는 `VisionGeometry`, 편집 상태는 `VisionCanvas.Core`, 영상 수명 계약은 `VisionImaging.Abstractions`가 소유한다. WPF 연결은 앱의 Presentation이, GPU 자원은 `VisionCanvas`의 Rendering이 소유한다.
 
 식별자와 괄호는 [Microsoft 기준 C# 컨벤션](csharp-code-conventions.md)을 따른다. `_viewport`는 인스턴스 필드, `s_procedure`는 정적 필드, `SizeInBytes`는 상수 또는 속성처럼 이름으로 역할을 구분한다. 지속 지침은 [AGENTS.md](../AGENTS.md), 검사 설정은 [`.editorconfig`](../.editorconfig)에 있다.
 
@@ -9,17 +9,18 @@
 | 하려는 일 | 먼저 읽을 파일 | 알아둘 경계 |
 |---|---|---|
 | 버튼·단축키 연결 | [EditorViewModel](../src/TeachingToolWpf/Presentation/EditorViewModel.cs) | WPF 요청을 같은 편집 명령으로 전달 |
-| ROI 생성·그룹화·삭제·Undo/Redo | [EditorSession](../src/TeachingToolWpf.Core/Editing/EditorSession.cs) | 문서 변경과 한 번의 편집 이력 확정 |
-| 사각형·원·삼각형·폴리곤 | [RoiGeometry](../src/TeachingToolWpf.Core/Geometry/RoiGeometry.cs), [RoiShape](../src/TeachingToolWpf.Core/Geometry/RoiShape.cs) | 공통 프레임과 불변 윤곽 전략. FrameCorners는 실제 도형이 아닌 편집 프레임 |
-| 폴리곤 점 입력·교차점 닫힘 | [RoiCreation](../src/TeachingToolWpf/Presentation/EditorViewModel.RoiCreation.cs), [PolygonClosure](../src/TeachingToolWpf.Core/Geometry/PolygonClosure.cs) | 추가 버튼은 빈 초안 시작. 첫 교차점의 닫힌 경로만 한 번 확정 |
-| 드래그 중 이동·회전·취소 | [InteractionController](../src/TeachingToolWpf.Core/Interaction/InteractionController.cs), [Gestures](../src/TeachingToolWpf.Core/Interaction/Gestures.cs) | 이미지 좌표와 도구 상태 |
+| ROI 생성·그룹화·삭제·Undo/Redo | [EditorSession](../src/VisionCanvas.Core/Editing/EditorSession.cs) | 문서 변경과 한 번의 편집 이력 확정 |
+| 사각형·원·삼각형·폴리곤 | [RoiGeometry](../src/VisionGeometry/RoiGeometry.cs), [RoiShape](../src/VisionGeometry/RoiShape.cs) | 공통 프레임과 불변 윤곽 전략. FrameCorners는 실제 도형이 아닌 편집 프레임 |
+| 폴리곤 점 입력·교차점 닫힘 | [RoiCreation](../src/TeachingToolWpf/Presentation/EditorViewModel.RoiCreation.cs), [PolygonClosure](../src/VisionCanvas.Core/Geometry/PolygonClosure.cs) | 추가 버튼은 빈 초안 시작. 첫 교차점의 닫힌 경로만 한 번 확정 |
+| 드래그 중 이동·회전·취소 | [InteractionController](../src/VisionCanvas.Core/Interaction/InteractionController.cs), [Gestures](../src/VisionCanvas.Core/Interaction/Gestures.cs) | 이미지 좌표와 도구 상태 |
 | 큰 선택 집합의 준비·최신 포인터 | [RoiPreviewPreparation](../src/TeachingToolWpf/Presentation/RoiPreviewPreparation.cs) | 작업 하나만 실행, 이전 드래그 결과는 폐기 |
 | 무거운 편집의 준비·확정 | [EditorViewModel.Editing](../src/TeachingToolWpf/Presentation/EditorViewModel.Editing.cs) | 작업 스레드 준비 후 UI에서 유효성 확인·확정 |
-| 명시적 부모·자식 연결 | [RoiHierarchy](../src/TeachingToolWpf.Core/Editing/RoiHierarchy.cs) | ParentId와 하위 트리 순회. 겹침으로 연결하지 않으며 부모 밖에서도 관계 유지 |
+| 명시적 부모·자식 연결 | [RoiHierarchy](../src/VisionCanvas.Core/Editing/RoiHierarchy.cs) | ParentId와 하위 트리 순회. 겹침으로 연결하지 않으며 부모 밖에서도 관계 유지 |
 | 부모 색·선 두께 | [RoiStyles](../src/VisionCanvas/Rendering/RoiStyles.cs), [RoiStyleSettingsViewModel](../src/TeachingToolWpf/Presentation/RoiStyleSettingsViewModel.cs) | 표시 설정은 문서·Undo/Redo와 별도 |
 | 마우스가 들어오는 입구 | [Dx12Viewport](../src/VisionCanvas/Controls/Dx12Viewport.cs), [NativeMethods](../src/VisionCanvas/Controls/NativeMethods.cs) | Windows 입력을 앱 좌표·입력 호출로 변환 |
 | GPU가 화면을 만드는 순서 | [RenderWorker](../src/VisionCanvas/Rendering/RenderWorker.cs) | GPU 자원을 소유하는 렌더 스레드 |
 | 많은 ROI를 GPU에 보내는 방식 | [RoiPipeline](../src/VisionCanvas/Rendering/RoiPipeline.cs) | 가시 블록 재사용, 역할·형상·그리기 값 분리 |
+| 작은 ROI 버퍼의 할당·해제 | [RoiBufferArena](../src/VisionCanvas/Rendering/RoiBufferArena.cs) | GPU 페이지 안의 정렬된 구간을 대여하고 fence 이후 마지막 lease 반환 시 페이지 해제 |
 | 셰이더에 보내는 값의 의미 | [RoiDrawConstants](../src/VisionCanvas/Rendering/RoiDrawConstants.cs), [Roi.hlsl](../src/VisionCanvas/Shaders/Roi.hlsl) | 배율·원점·회전·색·두께의 동일한 128바이트 배치 |
 | 셰이더 컴파일·오류 확인 | [ShaderCompiler](../src/VisionCanvas/Rendering/ShaderCompiler.cs) | 파일을 바이트로 전달해 한글 주석도 소스가 잘리지 않게 처리 |
 | 이미지 열기·교체 | [ImageCoordinator](../src/TeachingToolWpf/Presentation/ImageCoordinator.cs) | 성공 후 문서 교체, 실패/취소 시 유지 |
@@ -28,7 +29,7 @@
 | 오른쪽 패턴 티칭 UI 상태 | [ShapeMatchingViewModel](../src/TeachingToolWpf/Presentation/ShapeMatchingViewModel.cs), [ShapeMatchingPanel](../src/TeachingToolWpf/Views/ShapeMatchingPanel.xaml) | worker 취소, source epoch 검사, ROI 편집 이력과 분리 |
 | 원본 타일/프레임 adapter | [ShapeMatchingService](../src/VisionInspection/Matching/ShapeMatchingService.cs), [MatchingImageReader](../src/VisionInspection/Matching/MatchingImageReader.cs) | display preview를 재사용하지 않고 독립 source를 열어 필요한 영역을 읽음 |
 | 화면 없는 검사 실행 | [RecipeRunner](../src/VisionInspection.Cli/RecipeRunner.cs), [CLI](../src/VisionInspection.Cli/README.md) | WPF와 같은 검사 서비스를 JSON 레시피로 호출 |
-| CUDA 검사 전처리 | [CudaImagePreprocessor](../src/VisionCompute.ILGPU/CudaImagePreprocessor.cs) | 평활화·Sobel만 GPU, 공통 CPU 정규화·검색. 화면 DX12와 분리 |
+| CUDA 검사 후보 점수·장치 수명 | [CudaImagePreprocessor](../src/VisionCompute.ILGPU/CudaImagePreprocessor.cs), [CudaInspectionSession](../src/VisionCompute.ILGPU/CudaInspectionSession.cs) | 앱/CLI는 방향 응답·정수 후보 점수를 GPU에서 계산. 전처리·연속 검증·원본 판정은 CPU, 화면 DX12와 분리 |
 | 검사 판정·표시 변환 | [InspectionDecision](../src/TeachingToolWpf/Imaging/Matching/InspectionDecision.cs), [InspectionResultPresentation](../src/TeachingToolWpf/Presentation/InspectionResultPresentation.cs) | 완전성·정밀화 진단 → 판정색, 원본 좌표의 검출 경계·특징점 |
 | GPU 결과 marker | [MatchMarker / ResultOverlay](../src/VisionCanvas/Rendering/MatchMarker.cs), [ResultOverlayPainter](../src/VisionCanvas/Rendering/ResultOverlayPainter.cs) | algorithm 참조 없이 배너·검색 윤곽·기준점·방향·특징점을 표시 |
 
@@ -54,6 +55,8 @@
 `ShapePyramidSearch`는 큰 원본의 검사 피라미드 후보 검색과 원본 crop 정밀화를 연결한다. `MatchingImageReader.ReadReduced`는 원본 level-0만 읽고 학습과 동일하게 축소한다. `TemplateMatchingService`는 별도 OpenCV 기본 템플릿 흐름, `ShapeMatchingViewModel.TemplateMatching`은 선택·명령·게시를 담당한다. `CorrelationMatcher.FindCandidates`는 창별 억제 전 후보를 반환하고 앱에서 전역 `Suppress`를 한 번 수행한다.
 
 `VisionAlgorithm`은 WPF/Core/Canvas/DX12 참조가 없으며 OpenCvSharp Mat은 `OpenSrc/PatternMatching/Imaging`에만 둔다. 논문과의 정확한 차이·새 예산은 [ADR-016](decisions/0016-template-matching-and-pyramid-search.md), 합성 실측은 [8K 성능 기록](matching-performance-2026-10-04.md)에 있다.
+
+앱/CLI의 CUDA 혼합 경로는 `CudaInspectionSession`에서 한 검사 lease를 빌려 후보 점수를 계산한다. `CudaImagePreprocessor`에는 별도의 Gaussian/Sobel 전처리 전용 API도 남아 있지만, 현재 앱/CLI의 전처리는 CPU에서 수행한다. 두 호출 경로와 메모리·취소 계약은 [CUDA 구현 안내](../src/VisionCompute.ILGPU/README.md)를 따른다.
 
 `EditorViewModel.PatternSample`은 앱의 `Assets/pattern-matching.png`를 기존 이미지 교체 명령으로 연다. `ShapeMatchingViewModel`은 실행/실패 상태도 범용 overlay로 전달한다. 원본 후보 정밀화는 `PreparedSearchImage.CreateForRefinement`의 gradient 피라미드를 사용하며 전체 응답맵은 재생성하지 않는다. 변경 이유와 수렴 범위 한계는 [ADR-017](decisions/0017-default-chip-inspection.md), 실제 시작 화면 검증은 `Diagnostics/InspectionSmoke.Startup.cs`를 참고한다.
 
@@ -82,6 +85,8 @@
 
 ## 수정 후 확인할 것
 
-ROI 규칙은 Core 테스트, 입력·표시 연결과 GPU 전달 계약은 Imaging/WPF 테스트로 확인한다. 메모리 해제·캡처·실제 입력을 건드리면 RTX smoke도 실행한다. 대량 ROI 경로를 바꾸면 같은 입력에서 회전 콜백 비용·프레임 간격·업로드 양을 각각 비교한다. 작은 콜백 시간을 전체 작업의 무지연으로 해석하지 않는다.
+ROI 규칙은 `TeachingToolWpf.Core.Tests`, 캔버스·GPU 전달 계약은 `VisionCanvas.Tests`, 앱 입력·표시 연결은 `TeachingToolWpf.Imaging.Tests`로 확인한다. 메모리 해제·캡처·실제 입력을 건드리면 RTX smoke도 실행한다. 대량 ROI 경로를 바꾸면 같은 입력에서 회전 콜백 비용·프레임 간격·업로드 양을 각각 비교한다. 작은 콜백 시간을 전체 작업의 무지연으로 해석하지 않는다.
+
+현재 대량 ROI 작업 전체 구간의 2D 60FPS 수용은 FAIL이며 최초 준비·일부 GC·게시·이력 비용이 남아 있다. [그룹화·회전·Esc 후속 검증](group-freeze-validation.md)과 [프레임 예산 검증](frame-budget-validation.md)을 먼저 확인한다. 별도 검사 목표인 [논문 형상 CPU 125ms / CUDA 80ms 미만](paper-shape-125ms-validation.md)도 FAIL이다. 기존 낮은 콜백 시간이나 500ms 검사 실측으로 두 목표를 통과한 것으로 설명하지 않는다.
 
 실제 실행 명령은 [AGENTS.md](../AGENTS.md), ROI 동작 기준은 [구현 계획](../tasks/plan.md), 매칭 설계·상태는 [VisionAlgorithm 계획](../tasks/pattern-matching-plan.md)과 [매칭 검증 기록](shape-matching-validation.md), 성능상 남은 ROI 비용은 [회전 성능 기록](rotation-performance.md), 가독성 정리 범위와 검증은 [가독성 정리 검증](readability-validation.md)에 있다.

@@ -33,9 +33,7 @@ public class RoiPreviewPreparationTests
         session.BeginPreview();
         coordinator.SubmitTranslation(new(1, 2));
         await gate.Started.Task;
-        for (var i = 2;
-i <= 100;
-i++)
+        for (var i = 2; i <= 100; i++)
         {
             coordinator.SubmitTranslation(new(i, i + 1));
         }

@@ -20,6 +20,8 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
     private bool _closed;
     private Window? _ownerWindow;
     private RenderDevicePreference _devicePreference;
+    private Task? _restart;
+    private Task _rendererShutdown = Task.CompletedTask;
 
     /// <summary>Set before the viewport creates its native window. Automatic prefers hardware, then WARP.</summary>
     public RenderDevicePreference DevicePreference
@@ -140,13 +142,33 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         }
     }
 
-    public async Task RestartAsync()
+    /// <summary>UI 스레드에서 호출한다. 진행 중인 재시작 요청은 같은 완료 작업을 공유한다.</summary>
+    public Task RestartAsync()
     {
+        VerifyAccess();
+        if (_closed || Handle == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _restart is { IsCompleted: false } ? _restart : _restart = RestartRendererAsync();
+    }
+
+    private async Task RestartRendererAsync()
+    {
+        // 공유 Task를 먼저 게시한다. 종료가 즉시 끝나거나 LayoutChanged가 재진입해도 재시작은 하나다.
+        await Task.Yield();
+        if (_closed || Handle == 0)
+        {
+            return;
+        }
+
         var previous = _renderer;
         _renderer = null;
         if (previous is not null)
         {
-            await Task.Run(previous.Dispose);
+            _rendererShutdown = Task.Run(previous.Dispose);
+            await _rendererShutdown;
         }
 
         if (_closed || Handle == 0)
@@ -288,6 +310,8 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         _frames.Dispose();
         _renderer?.Dispose();
         _renderer = null;
+        // HWND보다 전용 렌더 스레드가 먼저 끝나야 한다. UI 재개를 기다리는 _restart는 기다리지 않는다.
+        _rendererShutdown.GetAwaiter().GetResult();
         Tiles.Dispose();
         NativeMethods.DestroyWindow(hwnd.Handle);
         if (_ownerWindow is not null)

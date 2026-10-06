@@ -31,9 +31,7 @@ public class ShapeRenderingTests
         }
 
         var outline = shape.Outline;
-        for (var i = 0;
-i < count;
-i++)
+        for (var i = 0; i < count; i++)
         {
             var start = block.Bounds.Center + new PointD(instances[i].Center.X, instances[i].Center.Y);
             var end = start + new PointD(instances[i].AxisX.X, instances[i].AxisX.Y);
@@ -57,13 +55,9 @@ i++)
         Assert.Equal(PixelKind.Rgba32, pixels.Kind);
         Assert.Equal(0, mask[0]);
         Assert.Equal(255, mask[5050]);
-        for (var y = 0;
-y < 100;
-y++)
+        for (var y = 0; y < 100; y++)
         {
-            for (var x = 0;
-x < 100;
-x++)
+            for (var x = 0; x < 100; x++)
             {
                 var offset = ((placement.Y + y) * pixels.Stride) + ((placement.X + x) * 4);
                 Assert.Equal(200, pixels.Span[offset]);
