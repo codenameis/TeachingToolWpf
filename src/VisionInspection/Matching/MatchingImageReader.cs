@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionGeometry;
 using VisionImaging;
 using VisionImaging.Abstractions;
 
@@ -14,6 +15,11 @@ internal sealed class MatchingImageReader : IDisposable
     private readonly MatchingTileCache _tiles = new();
     private readonly MatchingReducedTileCache _reducedTiles = new();
     private bool _disposed;
+
+    public RoiExclusion? Exclusion
+    {
+        get; set;
+    }
 
     public bool PreferDirectGray
     {
@@ -70,7 +76,30 @@ internal sealed class MatchingImageReader : IDisposable
                 }
             }
         }
-        return new(bytes, width, height, width);
+        return new(bytes, width, height, width, ReadExclusion(left, top, width, height, token));
+    }
+
+    private byte[]? ReadExclusion(int left, int top, int width, int height, CancellationToken token)
+    {
+        if (Exclusion is not { } exclusion || exclusion.Regions.IsDefaultOrEmpty ||
+            !exclusion.Owner.Bounds.Intersects(new(left, top, left + width, top + height)))
+        {
+            return null;
+        }
+        byte[]? mask = null;
+        for (var y = 0; y < height; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = 0; x < width; x++)
+            {
+                if (exclusion.Contains(new(left + x + .5, top + y + .5)))
+                {
+                    mask ??= new byte[checked(width * height)];
+                    mask[(y * width) + x] = 255;
+                }
+            }
+        }
+        return mask;
     }
 
     public GrayImage ReadReduced(int left, int top, int width, int height, int factor, CancellationToken token)

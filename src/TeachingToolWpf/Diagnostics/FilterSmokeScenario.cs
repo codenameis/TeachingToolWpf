@@ -50,6 +50,7 @@ internal static class FilterSmokeScenario
         await Task.Delay(500);
         viewport.Capture("artifacts/filter-smoke.png");
         await Task.Delay(500);
+        await IndustrialFilterSmokeScenario.Run(model, viewport);
         model.Filters.Stop.Execute(null);
         Require(model.Filters.Result is null, "original view clears preview");
         await model.Images.ReplaceAsync(new("sample:24576:32768", "24K", 24576, 32768));
@@ -73,7 +74,7 @@ internal static class FilterSmokeScenario
     private static void VerifyThresholdEdit(EditorViewModel model, Dx12Viewport viewport)
     {
         var window = System.Windows.Window.GetWindow(viewport);
-        var panel = Descendants(window).OfType<Views.FilterPanel>().Single();
+        var panel = Descendants(window).OfType<VisionCanvas.Filters.Wpf.Controls.FilterPanel>().Single();
         var input = (System.Windows.Controls.TextBox)panel.FindName("ThresholdInput");
         var property = System.Windows.Controls.TextBox.TextProperty;
         var binding = input.GetBindingExpression(property)!;

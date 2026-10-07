@@ -20,8 +20,50 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
     private string _angle = "";
 
     private string _relative = "—";
+    private int _selectedType;
+    private string _searchHorizontal = "20";
+    private string _searchVertical = "20";
+    private bool _isNameVisible = true;
 
     public bool HasSingleSelection => _id is not null;
+
+    public bool IsGrouping => _id is { } id && editor.State.IsGroupingRoi(id);
+
+    public bool CanChangeType => HasSingleSelection && !IsGrouping;
+
+    public IReadOnlyList<string> Types { get; } = ["일반 ROI", "검색 범위 ROI"];
+
+    public int SelectedType
+    {
+        get => _selectedType;
+        set
+        {
+            if (Set(ref _selectedType, value))
+            {
+                Notify(nameof(HasSearchRange));
+            }
+        }
+    }
+
+    public bool HasSearchRange => CanChangeType && SelectedType == 1;
+
+    public string SearchHorizontal
+    {
+        get => _searchHorizontal;
+        set => Set(ref _searchHorizontal, value);
+    }
+
+    public string SearchVertical
+    {
+        get => _searchVertical;
+        set => Set(ref _searchVertical, value);
+    }
+
+    public bool IsNameVisible
+    {
+        get => _isNameVisible;
+        set => Set(ref _isNameVisible, value);
+    }
 
     public string ShapeDescription => _id is { } value ? editor.State.Rois[value].Geometry.ShapeName : "";
 
@@ -78,6 +120,9 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
         Notify(nameof(HasSingleSelection));
         Notify(nameof(ShapeDescription));
         Notify(nameof(SizeHint));
+        Notify(nameof(IsGrouping));
+        Notify(nameof(CanChangeType));
+        Notify(nameof(HasSearchRange));
         if (_id is not { } value)
         {
             Name = X = Y = Width = Height = Angle = "";
@@ -87,6 +132,10 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
         var roi = editor.State.Rois[value];
         var geometry = editor.TransformPreview?.Geometry(roi) ?? roi.Geometry;
         Name = roi.Name;
+        IsNameVisible = roi.IsNameVisible;
+        SelectedType = roi.SearchRange is null || IsGrouping ? 0 : 1;
+        SearchHorizontal = Format(roi.SearchRange?.Horizontal ?? 20);
+        SearchVertical = Format(roi.SearchRange?.Vertical ?? 20);
         X = Format(geometry.Center.X);
         Y = Format(geometry.Center.Y);
         Width = Format(geometry.Width);
@@ -119,6 +168,8 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
                 newWidth = newHeight;
             }
         }
-        editor.SetProperties(value, Name, original.WithFrame(new(Parse(X), Parse(Y)), newWidth, newHeight, Parse(Angle)));
+        var searchRange = IsGrouping ? editor.State.Rois[value].SearchRange
+            : HasSearchRange ? new RoiSearchRange(Parse(SearchHorizontal), Parse(SearchVertical)) : null;
+        editor.SetProperties(value, Name, original.WithFrame(new(Parse(X), Parse(Y)), newWidth, newHeight, Parse(Angle)), searchRange, IsNameVisible);
     }
 }

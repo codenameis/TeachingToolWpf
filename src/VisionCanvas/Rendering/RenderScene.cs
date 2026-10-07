@@ -11,6 +11,13 @@ public sealed record RenderScene(DocumentState Document, ImageInfo? Image, long 
     InteractionOverlay Overlay, bool PointSampling = false, bool IsLive = false, VisionCanvas.Imaging.Filters.FilterPreviewResult? FilterPreview = null, RoiTransformPreview? Transform = null,
     RoiStylePalette? Styles = null, ResultOverlay? Inspection = null)
 {
+    public bool ShowMasks { get; init; } = true;
+    public int SelectedMaskIndex { get; init; } = -1;
+    public bool MaskEditing
+    {
+        get; init;
+    }
+
     internal ImmutableArray<LayerSnapshot> Layers { get; init; } = [];
     internal bool InspectionInLayer
     {

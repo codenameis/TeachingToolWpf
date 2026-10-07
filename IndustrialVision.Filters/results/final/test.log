@@ -1,0 +1,6 @@
+C:\Users\Kim Bohyun\Desktop\Projects\TeachingToolWpf\IndustrialVision.Filters\tests\IndustrialVision.Filters.Tests\bin\Release\net10.0\IndustrialVision.Filters.Tests.dll(.NETCoreApp,Version=v10.0)에 대한 테스트 실행
+지정된 패턴과 일치한 총 테스트 파일 수는 1개입니다.
+경고: 결과 파일을 덮어쓰는 중: C:\Users\Kim Bohyun\Desktop\Projects\TeachingToolWpf\IndustrialVision.Filters\tests\IndustrialVision.Filters.Tests\TestResults\accuracy.trx
+결과 파일: C:\Users\Kim Bohyun\Desktop\Projects\TeachingToolWpf\IndustrialVision.Filters\tests\IndustrialVision.Filters.Tests\TestResults\accuracy.trx
+
+통과!  - 실패:     0, 통과:   204, 건너뜀:     0, 전체:   204, 기간: 1 s - IndustrialVision.Filters.Tests.dll (net10.0)

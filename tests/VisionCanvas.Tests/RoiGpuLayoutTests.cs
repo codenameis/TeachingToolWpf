@@ -21,7 +21,7 @@ public class RoiGpuLayoutTests
         {
             (nameof(RoiDrawConstants.ClipScale), 0),
             (nameof(RoiDrawConstants.ImageScale), 8),
-            (nameof(RoiDrawConstants.ReservedView), 12),
+            (nameof(RoiDrawConstants.SearchRangePass), 12),
             (nameof(RoiDrawConstants.ScreenOrigin), 16),
             (nameof(RoiDrawConstants.ShadowPass), 24),
             (nameof(RoiDrawConstants.SummaryOpacity), 28),

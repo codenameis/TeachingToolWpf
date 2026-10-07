@@ -111,7 +111,7 @@ internal sealed class RoiLabelPainter
                     break;
                 }
 
-                if (!selected && (state.Selection.Contains(roi.Id) || (roi.ParentId is not null && !children.ContainsKey(roi.Id))))
+                if (!roi.IsNameVisible || (!selected && (state.Selection.Contains(roi.Id) || (roi.ParentId is not null && !roi.IsGroup && !children.ContainsKey(roi.Id)))))
                 {
                     continue;
                 }

@@ -264,10 +264,10 @@ public sealed class InspectionResultTests
             get; private set;
         }
 
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => TrainingError is { } error ? Task.FromException<ShapeTrainingOutput>(error) : Task.FromResult(new ShapeTrainingOutput(Model, 0, 0));
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             Searches++;
             return Error is { } error ? Task.FromException<ShapeSearchOutput>(error) : Pending?.Task ?? Task.FromResult(Output);

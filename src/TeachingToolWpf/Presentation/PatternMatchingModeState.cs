@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionGeometry;
@@ -74,6 +75,15 @@ internal sealed record MatchingSearchSettings
 
 internal sealed class ShapeMatchingModeState
 {
+    public Guid? TeachingRoiId
+    {
+        get; set;
+    }
+    public ImmutableArray<MaskRegion> TeachingMasks { get; set; } = [];
+    public bool IsMaskDirty
+    {
+        get; set;
+    }
     public ShapeModel? Model
     {
         get; set;
@@ -103,6 +113,15 @@ internal sealed class ShapeMatchingModeState
 
 internal sealed class TemplateMatchingModeState
 {
+    public Guid? TeachingRoiId
+    {
+        get; set;
+    }
+    public ImmutableArray<MaskRegion> TeachingMasks { get; set; } = [];
+    public bool IsMaskDirty
+    {
+        get; set;
+    }
     public CorrelationTemplate? Model
     {
         get; set;

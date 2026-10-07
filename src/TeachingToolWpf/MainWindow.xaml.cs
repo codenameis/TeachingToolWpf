@@ -12,6 +12,8 @@ public partial class MainWindow : Window
     private readonly Controls.CrosshairLayerBinding _guideBinding;
     private Views.ConfigPage? _configPage;
     private readonly VisionCompute.ILGPU.CudaInspectionSession _inspectionCompute = new();
+    private readonly VisionCanvas.Imaging.Filters.RoiFilterPreview _filterPreview;
+    private IndustrialVision.Filters.Gpu.CudaBackend? _filterGpu;
 
     public MainWindow()
     {
@@ -30,7 +32,8 @@ public partial class MainWindow : Window
         VisionImaging.VipsRuntime.Configure();
         var live = new Presentation.LivePreview(Viewport, kind => new VisionImaging.SyntheticFrameSource(kind));
         var loader = new VisionImaging.ImageLoader(cache);
-        _model = new(Viewport, loader, live, new VisionCanvas.Imaging.Filters.RoiFilterPreview(loader, Viewport.RetainFrame),
+        _filterPreview = new(loader, Viewport.RetainFrame, () => _filterGpu ??= new IndustrialVision.Filters.Gpu.CudaBackend());
+        _model = new(Viewport, loader, live, _filterPreview,
             new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame, _inspectionCompute.Rent, _inspectionCompute.PrepareAsync,
                 Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, Viewport.RetainFrame),
@@ -51,7 +54,8 @@ public partial class MainWindow : Window
         _selectionBinding = new(Regions.List, _model);
         PreviewKeyDown += (_, args) =>
         {
-            if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase || args.OriginalSource is TextBox)
+            if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase or System.Windows.Controls.Primitives.RangeBase ||
+                args.OriginalSource is TextBox or System.Windows.Controls.Primitives.RangeBase)
             {
                 return;
             }
@@ -129,6 +133,30 @@ public partial class MainWindow : Window
             };
         }
 
+        var filtersDrained = false;
+        var drainingFilters = false;
+        Closing += async (_, args) =>
+        {
+            if (filtersDrained)
+            {
+                return;
+            }
+            args.Cancel = true;
+            if (drainingFilters)
+            {
+                return;
+            }
+            drainingFilters = true;
+            // Keep the dispatcher alive until cancellation has drained native/GPU work.
+            _model.Filters.Dispose();
+            // WhenIdle may already be complete; leave Closing before calling Close again.
+            await Task.Yield();
+            await _model.Filters.WhenIdle;
+            _filterPreview.Dispose();
+            _filterGpu?.Dispose();
+            filtersDrained = true;
+            Close();
+        };
         Closed += (_, _) =>
         {
             try

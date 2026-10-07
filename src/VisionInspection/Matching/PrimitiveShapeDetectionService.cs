@@ -13,14 +13,14 @@ public sealed record PrimitiveDetectionOutput(ImmutableArray<PrimitiveShapeDetec
 public interface IPrimitiveShapeDetectionService
 {
     Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region,
-        PrimitiveDetectionOptions options, CancellationToken token);
+        PrimitiveDetectionOptions options, CancellationToken token, RoiExclusion? exclusion = null);
 }
 
 /// <summary>독립 원본 reader와 제한된 창을 소유한다. 최대 도형 폭보다 넓은 halo와 중심 소유권으로 이음새를 처리한다.</summary>
 public sealed class PrimitiveShapeDetectionService(IImageLoader loader, Func<VideoFrame?> retainFrame) : IPrimitiveShapeDetectionService
 {
     public Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region,
-        PrimitiveDetectionOptions options, CancellationToken token)
+        PrimitiveDetectionOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             options.Validate();
@@ -31,6 +31,7 @@ public sealed class PrimitiveShapeDetectionService(IImageLoader loader, Func<Vid
             var timer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
             var halo = (int)Math.Ceiling(options.MaximumSize) + 4;
+            reader.Exclusion = exclusion;
             var interior = Math.Min(768, (int)Math.Sqrt(PrimitiveShapeDetector.MaximumPixels) - (2 * halo));
             var bounds = region?.Bounds ?? new BoundsD(0, 0, image.Width, image.Height);
             var found = new List<PrimitiveShapeDetection>();

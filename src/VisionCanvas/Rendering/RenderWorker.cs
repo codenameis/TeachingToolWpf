@@ -103,6 +103,7 @@ public sealed class RenderWorker : IDisposable
             using var pipeline = new SpritePipeline(gpu);
             using var profile = new RenderProfile();
             using var roiPipeline = new RoiPipeline(gpu, profile.Enabled);
+            using var maskPipeline = new MaskPipeline(gpu);
             using var gpuTimer = gpu.IsSoftware ? null : new GpuTimer(gpu);
             using var metrics = new FrameMetrics();
             var painter = new ScenePainter();
@@ -139,7 +140,7 @@ public sealed class RenderWorker : IDisposable
                     var current = submission?.Scene;
                     var nothingChanged = ReferenceEquals(current, presentedScene)
                         && targetWidth == surface.Width && targetHeight == surface.Height
-                        && !_frames.HasPending && !_tiles.HasReady && !labels.HasPending
+                        && !_frames.HasPending && !_tiles.HasReady && !labels.HasPending && !roiPipeline.HasPendingDetails
                         && Volatile.Read(ref _captureRequest) is null && white is not null;
                     if (nothingChanged)
                     {
@@ -192,17 +193,21 @@ public sealed class RenderWorker : IDisposable
                             text => labels.TryGet(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview,
                             resultLabels.Get);
                         var submitStart = Stopwatch.GetTimestamp();
-                        pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () => roiPipeline.Draw(current, surface));
+                        pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () =>
+                        {
+                            maskPipeline.Draw(current, surface);
+                            roiPipeline.Draw(current, surface);
+                        });
                         var submitEnd = Stopwatch.GetTimestamp();
                         var gcPauseDelta = profile.Enabled ? GC.GetTotalPauseDuration() - gcPauseStart : default;
                         profile.Record(current, cpuStart, paintStart, submitStart, submitEnd, allocationStart, mesh, roiPipeline, labels, gcPauseDelta);
                         labels.End(surface);
-                        if (labels.HasPending)
+                        if (labels.HasPending || roiPipeline.HasPendingDetails)
                         {
                             Invalidate();
                         }
                     }
-                    var capture = TryTakeReadyCapture(submission, images, labels);
+                    var capture = roiPipeline.HasPendingDetails ? null : TryTakeReadyCapture(submission, images, labels);
                     using var readback = capture is null ? null : new FrameReadback(gpu, surface);
                     gpuTimer?.End(surface);
                     var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
@@ -210,7 +215,7 @@ public sealed class RenderWorker : IDisposable
                     var completionFence = surface.Present();
                     presentedScene = current;
                     if (current?.Inspection is { BatchLabels: true } overlay &&
-                        overlay.PresentationId != presentedOverlay && !labels.HasPending)
+                        overlay.PresentationId != presentedOverlay && !labels.HasPending && !roiPipeline.HasPendingDetails)
                     {
                         // 렌더 소유 스레드에서 이번 결과의 fence를 관찰한다. 다음 프레임이나 UI의 동기 대기에 의존하지 않는다.
                         gpu.Wait(completionFence);

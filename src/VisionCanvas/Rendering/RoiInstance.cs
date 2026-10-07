@@ -27,12 +27,12 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
     public static (RoiInstance[] Instances, uint[] Roles) PackWithRoles(RoiSpatialBlock block, double aggregateSize, DocumentState document)
         => Build(block, aggregateSize, document, includeGeometry: true);
 
-    public static uint[] ResolveRoles(RoiSpatialBlock block, double aggregateSize, DocumentState document)
-        => Build(block, aggregateSize, document, includeGeometry: false).Roles;
+    public static uint[] ResolveRoles(RoiSpatialBlock block, double aggregateSize, DocumentState document, RoiRoleLookup? lookup = null)
+        => Build(block, aggregateSize, document, includeGeometry: false, lookup).Roles;
 
     internal static bool PackInto(RoiSpatialBlock block, double aggregateSize, DocumentState document,
-        List<RoiInstance> instances, List<uint> roles, Dictionary<RoiGeometry, int> unique)
-        => Fill(block, aggregateSize, document, instances, roles, unique);
+        List<RoiInstance> instances, List<uint> roles, Dictionary<RoiGeometry, int> unique, RoiRoleLookup? lookup = null)
+        => Fill(block, aggregateSize, document, instances, roles, unique, lookup);
 
     internal static void ReleasePackingBuffers(List<RoiInstance> instances, List<uint> roles, Dictionary<RoiGeometry, int> unique)
     {
@@ -54,23 +54,27 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
         }
     }
 
-    private static (RoiInstance[] Instances, uint[] Roles) Build(RoiSpatialBlock block, double aggregateSize, DocumentState? document, bool includeGeometry)
+    private static (RoiInstance[] Instances, uint[] Roles) Build(RoiSpatialBlock block, double aggregateSize, DocumentState? document, bool includeGeometry, RoiRoleLookup? lookup = null)
     {
         var instances = includeGeometry ? new List<RoiInstance>() : null;
         var roles = document is null ? null : new List<uint>();
         var unique = new Dictionary<RoiGeometry, int>();
-        Fill(block, aggregateSize, document, instances, roles, unique);
+        Fill(block, aggregateSize, document, instances, roles, unique, lookup);
         return (instances?.ToArray() ?? [], roles?.ToArray() ?? []);
     }
 
     private static bool Fill(RoiSpatialBlock block, double aggregateSize, DocumentState? document,
-        List<RoiInstance>? instances, List<uint>? roles, Dictionary<RoiGeometry, int> unique)
+        List<RoiInstance>? instances, List<uint>? roles, Dictionary<RoiGeometry, int> unique, RoiRoleLookup? lookup = null)
     {
         instances?.Clear();
         roles?.Clear();
         unique.Clear();
         var origin = block.Bounds.Center;
         var hasSummary = false;
+        if (document is not null)
+        {
+            lookup?.Update(document.Snapshot.Children);
+        }
         // 최초 업로드는 형상과 역할을 같은 순회로 만든다. 역할만 바뀌면 형상을 다시 계산하지 않는다.
         try
         {
@@ -88,7 +92,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
                     roles?.Add((uint)RoiRole.Default);
                     continue;
                 }
-                var role = document is null ? 0 : (uint)RoiStyleRoles.Resolve(document, roi.Id);
+                var role = lookup?.Resolve(roi.Id) ?? (document is null ? 0 : (uint)RoiStyleRoles.Resolve(document, roi.Id));
                 if (unique.TryGetValue(roi.Geometry, out var index))
                 {
                     // 같은 윤곽에는 부모 > 자식 > 일반 우선순위를 적용한다.
@@ -157,6 +161,8 @@ internal sealed class RoiRoleCache
 {
     // 작은 비가시 블록 하나가 이전 문서 전체의 계층 배열을 붙잡지 않도록 한다.
     private WeakReference<object>? _hierarchyVersion;
+    private WeakReference<object>? _previousVersion;
+    private uint[]? _previousValues;
 
     public uint[] Values
     {
@@ -174,7 +180,7 @@ internal sealed class RoiRoleCache
         _hierarchyVersion = new(document.Snapshot.Children);
     }
 
-    public bool Refresh(RoiSpatialBlock block, double aggregateSize, DocumentState document, int instanceCount)
+    public bool Refresh(RoiSpatialBlock block, double aggregateSize, DocumentState document, int instanceCount, RoiRoleLookup? lookup = null)
     {
         var version = document.Snapshot.Children;
         if (_hierarchyVersion is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, version))
@@ -182,7 +188,22 @@ internal sealed class RoiRoleCache
             return false;
         }
 
-        return RefreshValues(version, RoiInstance.ResolveRoles(block, aggregateSize, document), instanceCount);
+        // 한 번의 Undo/Redo 전환은 정점/중복 윤곽을 다시 순회하지 않는다. 두 역할 배열만 보관한다.
+        if (_previousVersion is { } alternate && alternate.TryGetTarget(out var other) && ReferenceEquals(other, version))
+        {
+            (_hierarchyVersion, _previousVersion) = (_previousVersion, _hierarchyVersion);
+            (Values, _previousValues) = (_previousValues!, Values);
+            return true;
+        }
+
+        if (version.IsEmpty)
+        {
+            var defaults = new uint[instanceCount];
+            Array.Fill(defaults, (uint)RoiRole.Default);
+            return RefreshValues(version, defaults, instanceCount);
+        }
+
+        return RefreshValues(version, RoiInstance.ResolveRoles(block, aggregateSize, document, lookup), instanceCount);
     }
 
     // 배열 소유권을 받는다. 이미 패킹한 역할을 재사용해 계층을 두 번 순회하지 않는다.
@@ -196,21 +217,16 @@ internal sealed class RoiRoleCache
             throw new InvalidOperationException("ROI 역할과 형상 인스턴스 개수가 다릅니다.");
         }
 
-        if (_hierarchyVersion is null)
-        {
-            _hierarchyVersion = new(version);
-        }
-        else
-        {
-            _hierarchyVersion.SetTarget(version);
-        }
-
         // 계층 버전은 갱신하되 실제 역할이 같으면 GPU 복사를 생략한다.
         if (Values.AsSpan().SequenceEqual(next))
         {
+            _hierarchyVersion = new(version);
             return false;
         }
 
+        _previousVersion = _hierarchyVersion;
+        _previousValues = Values;
+        _hierarchyVersion = new(version);
         Values = next;
         return true;
     }

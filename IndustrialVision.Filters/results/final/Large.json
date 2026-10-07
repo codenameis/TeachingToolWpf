@@ -1,0 +1,509 @@
+{
+  "Suite": "Large",
+  "Framework": ".NET 10.0.12",
+  "OS": "Microsoft Windows 10.0.26200",
+  "Architecture": "X64",
+  "Processors": 12,
+  "Device": {
+    "Status": "PASS",
+    "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "Backend": "CUDA",
+    "MemoryBytes": 6441926656,
+    "ComparedValues": 4096
+  },
+  "ColdBackendMs": 1155.5535,
+  "Samples": 10,
+  "Warmups": 3,
+  "BinarySha256": "B0161930799A25D7855E895E36EC778230A8B2A32A56189FD399C81A0A936CBE",
+  "TieredCompilation": false,
+  "AllocationScope": "Process-wide managed bytes; concurrent runtime activity may be included.",
+  "WorkingMemoryScope": "Owned array payloads; excludes driver/JIT/pool retained/process overhead and borrowed input.",
+  "Results": [
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Gray8",
+      "Mode": "CpuOnly",
+      "Scope": "host-to-host",
+      "Samples": 10,
+      "CompileMs": 12.1673,
+      "ColdExecutionMs": 1405.1707,
+      "P50Ms": 1367.1676,
+      "P95Ms": 1493.4196,
+      "MPixPerSecond": 49.086054994281604,
+      "UploadBytes": 0,
+      "DownloadBytes": 0,
+      "HostBytes": 1477181460,
+      "GpuBytes": 0,
+      "AllocatedP50": 36928,
+      "Checksum": 3438802843233592696,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        }
+      ],
+      "RawMilliseconds": [
+        1481.0634,
+        1423.6136,
+        1313.7181,
+        1493.4196,
+        1438.6623,
+        1366.2543,
+        1327.9791,
+        1304.0453,
+        1367.1676,
+        1390.1014
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Gray8",
+      "Mode": "CpuGpu",
+      "Scope": "host-to-host",
+      "Samples": 10,
+      "CompileMs": 273.4569,
+      "ColdExecutionMs": 633.4644,
+      "P50Ms": 616.9525,
+      "P95Ms": 621.3679,
+      "MPixPerSecond": 108.77476629075983,
+      "UploadBytes": 268435456,
+      "DownloadBytes": 268435456,
+      "HostBytes": 671088640,
+      "GpuBytes": 1610612756,
+      "AllocatedP50": 304,
+      "Checksum": 3438802843233592696,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        }
+      ],
+      "RawMilliseconds": [
+        613.976,
+        621.3679,
+        619.1185,
+        614.524,
+        616.9525,
+        617.4078,
+        614.8447,
+        618.7945,
+        616.8615,
+        619.2139
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Gray8",
+      "Mode": "CpuGpu",
+      "Scope": "device-resident-synchronized",
+      "Samples": 10,
+      "CompileMs": 273.4569,
+      "ColdExecutionMs": 633.4644,
+      "P50Ms": 26.764,
+      "P95Ms": 27.6498,
+      "MPixPerSecond": 2507.430279479898,
+      "UploadBytes": 0,
+      "DownloadBytes": 0,
+      "HostBytes": 671088640,
+      "GpuBytes": 1610612756,
+      "AllocatedP50": null,
+      "Checksum": 3438802843233592696,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        }
+      ],
+      "RawMilliseconds": [
+        26.1039,
+        27.2193,
+        26.764,
+        27.6498,
+        25.9401,
+        27.2789,
+        26.9112,
+        27.5509,
+        26.6692,
+        26.4302
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Gray16",
+      "Mode": "CpuOnly",
+      "Scope": "host-to-host",
+      "Samples": 10,
+      "CompileMs": 0.0728,
+      "ColdExecutionMs": 1934.7346,
+      "P50Ms": 1475.412,
+      "P95Ms": 1837.4555,
+      "MPixPerSecond": 45.48483000002711,
+      "UploadBytes": 0,
+      "DownloadBytes": 0,
+      "HostBytes": 1477181460,
+      "GpuBytes": 0,
+      "AllocatedP50": 36992,
+      "Checksum": 9151370633762323194,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        }
+      ],
+      "RawMilliseconds": [
+        1392.1608,
+        1475.412,
+        1371.0128,
+        1512.184,
+        1804.4325,
+        1837.4555,
+        1420.5257,
+        1386.5919,
+        1565.0983,
+        1491.4546
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Gray16",
+      "Mode": "CpuGpu",
+      "Scope": "host-to-host",
+      "Samples": 10,
+      "CompileMs": 252.5041,
+      "ColdExecutionMs": 656.9933,
+      "P50Ms": 636.1965,
+      "P95Ms": 649.1316,
+      "MPixPerSecond": 105.48449103382367,
+      "UploadBytes": 268435456,
+      "DownloadBytes": 268435456,
+      "HostBytes": 671088640,
+      "GpuBytes": 1610612756,
+      "AllocatedP50": 304,
+      "Checksum": 9151370633762323194,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        }
+      ],
+      "RawMilliseconds": [
+        633.5012,
+        639.0196,
+        632.0338,
+        636.1965,
+        649.1316,
+        634.3256,
+        630.5124,
+        640.7811,
+        637.6681,
+        640.4181
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Gray16",
+      "Mode": "CpuGpu",
+      "Scope": "device-resident-synchronized",
+      "Samples": 10,
+      "CompileMs": 252.5041,
+      "ColdExecutionMs": 656.9933,
+      "P50Ms": 27.053,
+      "P95Ms": 27.8758,
+      "MPixPerSecond": 2480.6440690496433,
+      "UploadBytes": 0,
+      "DownloadBytes": 0,
+      "HostBytes": 671088640,
+      "GpuBytes": 1610612756,
+      "AllocatedP50": null,
+      "Checksum": 9151370633762323194,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        }
+      ],
+      "RawMilliseconds": [
+        25.8193,
+        26.8364,
+        27.0844,
+        27.0129,
+        27.053,
+        27.525,
+        27.0629,
+        27.8758,
+        26.7477,
+        27.6949
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Float32",
+      "Mode": "CpuOnly",
+      "Scope": "host-to-host",
+      "Samples": 10,
+      "CompileMs": 0.0416,
+      "ColdExecutionMs": 1605.0765,
+      "P50Ms": 1421.936,
+      "P95Ms": 1780.7271,
+      "MPixPerSecond": 47.19541807788818,
+      "UploadBytes": 0,
+      "DownloadBytes": 0,
+      "HostBytes": 1477181460,
+      "GpuBytes": 0,
+      "AllocatedP50": 37312,
+      "Checksum": 9151370633762323194,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "CPU",
+          "Reason": "CpuOnly was requested."
+        }
+      ],
+      "RawMilliseconds": [
+        1498.293,
+        1445.4922,
+        1423.35,
+        1415.3771,
+        1420.4939,
+        1386.4675,
+        1421.936,
+        1780.7271,
+        1669.4942,
+        1378.5878
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Float32",
+      "Mode": "CpuGpu",
+      "Scope": "host-to-host",
+      "Samples": 10,
+      "CompileMs": 312.1079,
+      "ColdExecutionMs": 654.8346,
+      "P50Ms": 629.1769,
+      "P95Ms": 637.8627,
+      "MPixPerSecond": 106.66136026290857,
+      "UploadBytes": 268435456,
+      "DownloadBytes": 268435456,
+      "HostBytes": 671088640,
+      "GpuBytes": 1610612756,
+      "AllocatedP50": 304,
+      "Checksum": 9151370633762323194,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        }
+      ],
+      "RawMilliseconds": [
+        630.6631,
+        629.1769,
+        628.9223,
+        635.9486,
+        637.8627,
+        632.7236,
+        636.1483,
+        624.7763,
+        628.7252,
+        626.6571
+      ]
+    },
+    {
+      "Filter": "Flat-Gaussian-BlackHat-Threshold",
+      "Size": 8192,
+      "Format": "Float32",
+      "Mode": "CpuGpu",
+      "Scope": "device-resident-synchronized",
+      "Samples": 10,
+      "CompileMs": 312.1079,
+      "ColdExecutionMs": 654.8346,
+      "P50Ms": 27.2614,
+      "P95Ms": 27.7464,
+      "MPixPerSecond": 2461.6807647442906,
+      "UploadBytes": 0,
+      "DownloadBytes": 0,
+      "HostBytes": 671088640,
+      "GpuBytes": 1610612756,
+      "AllocatedP50": null,
+      "Checksum": 9151370633762323194,
+      "MaximumAbsoluteError": 0,
+      "Stages": [
+        {
+          "Filter": "FlatField",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Gaussian",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Morphology",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        },
+        {
+          "Filter": "Threshold",
+          "Device": "NVIDIA GeForce RTX 3060 Laptop GPU",
+          "Reason": "Requested CUDA; one continuous resident segment. No performance crossover model is asserted."
+        }
+      ],
+      "RawMilliseconds": [
+        26.1643,
+        26.6018,
+        27.07,
+        27.373,
+        27.2614,
+        27.4805,
+        27.337,
+        27.7464,
+        27.2874,
+        26.3787
+      ]
+    }
+  ]
+}

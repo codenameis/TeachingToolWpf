@@ -289,10 +289,10 @@ public sealed class GeometricQualityPresentationTests
             }
         }
 
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => Task.FromResult(new ShapeTrainingOutput(_model, 0, 0));
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             Options = options;
             Token = token;
@@ -310,10 +310,10 @@ public sealed class GeometricQualityPresentationTests
             get; private set;
         }
 
-        public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token)
+        public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null)
             => Task.FromResult(new TemplateTrainingOutput(_model, 0));
 
-        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             Options = options;
             return Task.FromResult(new TemplateSearchOutput([new(new(120, 130), .95)], 1, false, 0, 0));

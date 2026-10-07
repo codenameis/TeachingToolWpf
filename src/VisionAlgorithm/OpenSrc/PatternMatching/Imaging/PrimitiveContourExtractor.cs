@@ -26,11 +26,13 @@ internal static class PrimitiveContourExtractor
         using var filtered = new Mat();
         using var binary = new Mat();
         Cv2.MedianBlur(source, filtered, 3);
-        var thresholdType = ThresholdTypes.Binary | (options.AutomaticThreshold ? ThresholdTypes.Otsu : 0);
-        Cv2.Threshold(filtered, binary, options.Threshold, 255, thresholdType);
+        var masked = !image.ExcludedPixels.IsEmpty;
+        var thresholdType = ThresholdTypes.Binary | (options.AutomaticThreshold && !masked ? ThresholdTypes.Otsu : 0);
+        var threshold = options.AutomaticThreshold && masked ? MaskedThreshold(filtered, image, token) : options.Threshold;
+        Cv2.Threshold(filtered, binary, threshold, 255, thresholdType);
         token.ThrowIfCancellationRequested();
         if (options.Polarity == ForegroundPolarity.Dark ||
-            (options.Polarity == ForegroundPolarity.Auto && Cv2.CountNonZero(binary) > image.Width * image.Height / 2))
+            (options.Polarity == ForegroundPolarity.Auto && (masked ? MostlyBright(binary, image, token) : Cv2.CountNonZero(binary) > image.Width * image.Height / 2)))
         {
             Cv2.BitwiseNot(binary, binary);
         }
@@ -66,5 +68,55 @@ internal static class PrimitiveContourExtractor
                 hierarchy[index].Child >= 0));
         }
         return (output.ToImmutable(), limited);
+    }
+
+    private static double MaskedThreshold(Mat filtered, GrayImage image, CancellationToken token)
+    {
+        var values = new List<byte>();
+        for (var y = 1; y < image.Height - 1; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = 1; x < image.Width - 1; x++)
+            {
+                var valid = true;
+                for (var dy = -1; dy <= 1 && valid; dy++)
+                {
+                    for (var dx = -1; dx <= 1; dx++)
+                    {
+                        valid &= image.ExcludedPixels.Span[((y + dy) * image.Width) + x + dx] == 0;
+                    }
+                }
+                if (valid)
+                {
+                    values.Add(filtered.At<byte>(y, x));
+                }
+            }
+        }
+        if (values.Count == 0)
+        {
+            throw new ArgumentException("마스크를 제외한 유효 검사 픽셀이 없습니다.");
+        }
+        using var samples = Mat.FromPixelData(1, values.Count, MatType.CV_8UC1, values.ToArray());
+        using var result = new Mat();
+        return Cv2.Threshold(samples, result, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
+    }
+
+    private static bool MostlyBright(Mat binary, GrayImage image, CancellationToken token)
+    {
+        var valid = 0;
+        var bright = 0;
+        for (var y = 0; y < image.Height; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = 0; x < image.Width; x++)
+            {
+                if (image.ExcludedPixels.Span[(y * image.Width) + x] == 0)
+                {
+                    valid++;
+                    bright += binary.At<byte>(y, x) == 0 ? 0 : 1;
+                }
+            }
+        }
+        return bright > valid / 2;
     }
 }

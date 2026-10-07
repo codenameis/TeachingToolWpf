@@ -8,7 +8,7 @@ namespace VisionCanvas.Core.Interaction;
 
 public enum EditorTool
 {
-    Select, Pan, Draw
+    Select, Pan, Draw, Mask
 }
 [Flags]
 public enum InputModifiers
@@ -19,6 +19,11 @@ public sealed record InteractionOverlay(Guid? Hover = null, RoiGeometry? Draft =
 {
     /// <summary>ROI 생성 중 마우스로 지정하는 임시 사각 영역(DIP). 문서 형상은 아니다.</summary>
     public BoundsD? DragArea
+    {
+        get; init;
+    }
+
+    public MaskRegion? MaskDraft
     {
         get; init;
     }
@@ -34,6 +39,31 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     private readonly List<PointD> _polygonPoints = [];
     private ImageReference? _polygonImage;
     private Guid? _drawParentId;
+
+    public Guid? MaskTargetId
+    {
+        get; private set;
+    }
+    public MaskShape MaskShape
+    {
+        get; private set;
+    }
+
+    public void StartMask(MaskShape shape)
+    {
+        if (NavigationOnly || editor.IsPreviewing || editor.State.Selection.Count != 1)
+        {
+            return;
+        }
+        var id = editor.State.Selection.Single();
+        if (editor.State.IsGroupingRoi(id) || editor.State.Rois[id].Masks.Length >= EditorSession.MaximumMasksPerRoi)
+        {
+            return;
+        }
+        MaskTargetId = id;
+        MaskShape = shape;
+        Tool = EditorTool.Mask;
+    }
 
     public Guid? DrawParentId
     {
@@ -228,6 +258,10 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         {
             _gesture = new DrawGesture(this, screen);
         }
+        else if (Tool == EditorTool.Mask && MaskTargetId is { } maskTarget && editor.State.Rois.TryGetValue(maskTarget, out var owner))
+        {
+            _gesture = new MaskDrawGesture(this, owner, screen);
+        }
         else
         {
             _gesture = StartSelection(screen, modifiers);
@@ -293,7 +327,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         {
             ShowPolygon(RoiImageBounds.Clamp(editor.State.Viewport.ScreenToImage(screen), editor.State.Image));
         }
-        else if (!NavigationOnly)
+        else if (!NavigationOnly && Tool != EditorTool.Mask)
         {
             var hit = Hit(screen);
             if (Overlay.Hover != hit)
@@ -345,6 +379,12 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     public void ValidateDraftImage()
     {
+        if (Tool == EditorTool.Mask && (MaskTargetId is not { } id || !editor.State.Selection.Contains(id) ||
+            editor.State.Selection.Count != 1 || !editor.State.Rois.TryGetValue(id, out var owner) ||
+            editor.State.IsGroupingRoi(id) || owner.Masks.Length >= EditorSession.MaximumMasksPerRoi))
+        {
+            Tool = EditorTool.Select;
+        }
         if (_polygonPoints.Count > 0 && _polygonImage != editor.State.Image)
         {
             Cancel();

@@ -12,6 +12,82 @@ public sealed class PyramidMatchingIntegrationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ShapeExclusionRejectsMaskedTargetsAfterOriginalPyramidRefinement(bool geometric)
+    {
+        var scene = SyntheticScene.Create(800, 300, new MatchPose(160, 150, 0, 4), new MatchPose(620, 150, 0, 4));
+        var loader = new Loader(scene);
+        var image = new ImageReference("fixture", "fixture", scene.Width, scene.Height);
+        var service = new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper);
+        var roi = new RoiGeometry(new(160, 150), 256, 256, 0);
+        var trained = await service.TrainAsync(image, false, roi, new()
+        {
+            MinimumAngleDegrees = 0,
+            MaximumAngleDegrees = 0,
+            BuildGeometricModel = geometric,
+            BuildClutterModel = true
+        }, default);
+        Assert.True(trained.Model.Levels.Length >= 3);
+        var exclusion = new RoiExclusion(new(new(400, 150), 800, 300, 0), [new(MaskShape.Rectangle, new(0, 0, .4, 1))]);
+        var options = new SearchOptions { EvaluateGeometry = geometric, ClutterWeight = 1 };
+        var baseline = await service.SearchAsync(image, false, trained.Model, null, options, default);
+        Assert.Equal(2, baseline.Matches.Length);
+        var result = await service.SearchAsync(image, false, trained.Model, null, options, default, exclusion);
+        Assert.False(result.Truncated);
+        Assert.InRange(Assert.Single(result.Matches).Pose.X, 619, 621);
+        Assert.Equal(baseline.Matches.Single(match => match.Pose.X > 400), result.Matches[0]);
+        Assert.Equal(3, loader.Disposed);
+    }
+
+    [Fact]
+    public async Task OriginalTrainingMasksExcludePixelsForBothMatchersAndDoNotModifySource()
+    {
+        var scene = SyntheticScene.Create(256, 128, new MatchPose(64, 64, 0), new MatchPose(192, 64, 0));
+        var original = scene.Pixels.ToArray();
+        var loader = new Loader(scene);
+        var image = new ImageReference("fixture", "fixture", 256, 128);
+        var roi = new RoiGeometry(new(64, 64), 64, 64, 0);
+        var exclusion = new RoiExclusion(roi, [new(MaskShape.Rectangle, new(.5, .25, .9, .6))]);
+        var shapeService = new ShapeMatchingService(loader, () => null);
+        var shape = await shapeService.TrainAsync(image, false, roi, new()
+        {
+            MinimumAngleDegrees = 0,
+            MaximumAngleDegrees = 0
+        }, default, exclusion);
+        Assert.All(shape.Model.Levels[0].Features, feature => Assert.False(exclusion.Contains(new(64 + feature.X, 64 + feature.Y))));
+        var templateService = new TemplateMatchingService(loader, () => null);
+        var template = await templateService.TrainAsync(image, false, roi, default, exclusion);
+        var changed = original.ToArray();
+        for (var y = 0; y < 128; y++)
+        {
+            for (var x = 0; x < 256; x++)
+            {
+                if (exclusion.Contains(new(x + .5, y + .5)))
+                {
+                    changed[(y * 256) + x] = (byte)(255 - changed[(y * 256) + x]);
+                }
+            }
+        }
+        var changedService = new TemplateMatchingService(new Loader(new(changed, 256, 128, 256)), () => null);
+        var matches = await changedService.SearchAsync(image, false, template.Model, null, new()
+        {
+            MinimumScore = .99
+        }, default);
+        Assert.Contains(matches.Matches, match => match.ReferencePoint.X == 64 && match.Score > .999);
+        var searchMask = new RoiExclusion(new(new(128, 64), 256, 128, 0), [new(MaskShape.Ellipse, new(0, 0, .5, 1))]);
+        var masked = await templateService.SearchAsync(image, false, template.Model, null, new()
+        {
+            MinimumScore = .99
+        }, default, searchMask);
+        Assert.Equal(192, Assert.Single(masked.Matches).ReferencePoint.X);
+        Assert.Equal(original, scene.Pixels.ToArray());
+        var full = new RoiExclusion(roi, [new(MaskShape.Rectangle, new(0, 0, 1, 1))]);
+        await Assert.ThrowsAsync<ArgumentException>(() => templateService.TrainAsync(image, false, roi, default, full));
+        await Assert.ThrowsAsync<ArgumentException>(() => shapeService.TrainAsync(image, false, roi, new(), default, full));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task PaperPipelinePreservesRotatedScaledTargetsAndGeometryFallback(bool geometric)
     {
         MatchPose[] expected = [new(100, 100, 0), new(256.3, 256.7, .23, 1.1), new(510.7, 385.2, -.21, .9)];

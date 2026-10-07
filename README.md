@@ -2,6 +2,10 @@
 
 Windows x64용 비전 티칭 샘플입니다. WPF는 조작 화면을, Direct3D 12는 이미지·ROI·선택 핸들·한글 태그를 그립니다. 8K 합성 영상과 24K급 완성 이미지 파일을 다룹니다.
 
+ROI 속성에서 **일반/검색 범위 타입**, 가로·세로 검색 여유, 이름과 캔버스 이름 표시를 설정할 수 있습니다. 검색 범위는 빨간 점선이며 부모 ROI는 그룹 전용입니다. [사용법과 검증](docs/roi-search-range.md)을 참고하세요.
+
+오른쪽 **마스킹**에서 ROI 안의 사각형·타원 제외 영역을 그릴 수 있습니다. 이동·회전·크기·복사·Undo/Redo를 따르며 원본 학습과 선택 검사에 연결됩니다. [마스크 사용법과 적용 규칙](docs/roi-masking.md)을 참고하세요.
+
 화면 표시는 **GPU 우선, 사용 가능한 DX12 하드웨어가 없으면 CPU(WARP)로 자동 전환**합니다. 별도 GPU가 없는 Windows PC도 같은 회전·ROI·타일 기능을 사용합니다. 현재 모드는 상태 표시의 `GPU`/`CPU (WARP)`로 확인할 수 있습니다. GPU가 있는 PC에서 Canvas의 CPU 표시를 시험하려면 앱 또는 독립 샘플에 `--software-rendering`을 지정하세요. 실제 성능과 검증 범위는 [GPU/CPU 렌더링 검증](docs/software-rendering-validation.md)을 따릅니다.
 
 **현재 성능 수용 상태(2026-10-05): 대량 ROI 작업 전체 구간의 2D 60FPS는 FAIL입니다.** 271,255개 ROI의 그룹화·마우스 회전·Esc 취소와 반복 확대를 개선했지만, 최초 형상 준비·일부 GC·게시·이력 처리에서 약 16.67ms 프레임 예산을 넘습니다. [그룹화·회전 후속 검증](docs/group-freeze-validation.md), [프레임 예산 검증](docs/frame-budget-validation.md)에 측정 조건과 남은 지연을 기록했습니다. 실제 사용자 문서·물리 입력과 모니터 표시·장시간 부하·별도 저사양 PC 검증은 남아 있습니다.
@@ -118,15 +122,15 @@ pwsh -File scripts/Publish-Sample.ps1 -InspectionLatency -OutputDirectory artifa
 ## ROI 필터 미리보기
 
 1. ROI를 하나 이상 선택합니다.
-2. 오른쪽 **ROI 필터**에서 **Binarize · 이진화** 또는 **Edge · Canny**를 선택하고 임계값을 입력합니다.
-3. **미리보기**를 누르면 선택 ROI에 설정을 등록하고 해당 영역에만 결과를 표시합니다. 회전한 ROI도 해당 영역에 맞춰 표시합니다.
-4. **등록된 ROI는 다시 선택하면 자동으로 필터를 표시합니다.** 미등록 ROI는 원본을 표시합니다. 다중 선택은 ROI마다 저장된 설정을 사용하며, 서로 다른 설정이면 안내 문구를 표시합니다.
-5. 미리보기 중 이동/회전/크기·필터 변경을 자동 반영합니다. 임계값은 입력칸을 벗어나면 확정하며 한 번의 Undo로 되돌립니다. 다중 선택에서 설정을 수정하면 선택 전체에 같은 설정을 등록합니다.
-6. **원본 보기**는 설정을 유지한 채 현재 표시만 끕니다. 다른 ROI를 선택했다가 돌아오면 다시 표시합니다. **등록 해제**는 선택 전체의 설정을 지웁니다. **없음 · 원본**도 설정을 해제합니다.
+2. 오른쪽 **ROI 필터**에서 기존 **Binarize / Canny** 또는 새 **Gaussian·형태학·원본 임계값·연속 처리 프리셋**을 선택합니다. 새 엔진은 **CpuOnly / CpuGpu**와 반경·sigma·임계값을 설정합니다. [사용법·실기 검증](docs/industrial-roi-filters.md).
+3. **설정 적용**으로 선택 ROI에 등록하고 **미리보기 ON/OFF**로 표시를 제어합니다. 회전한 ROI도 해당 영역에 맞춰 표시합니다.
+4. **ON일 때 등록된 ROI를 다시 선택하면 자동으로 표시합니다.** OFF는 선택을 바꿔도 유지합니다. 미등록 ROI는 원본을 표시하며 다중 선택은 ROI마다 저장된 설정을 사용합니다.
+5. ON 상태에서 ROI 이동/회전/크기와 파라미터 조절 도중에도 결과를 갱신합니다. 숫자 입력은 포커스를 잃을 때 확정합니다. 슬라이더는 움직이는 동안 임시 미리보기, 놓을 때 한 번의 이력으로 확정하고 Esc로 취소합니다.
+6. **등록 해제** 또는 **없음 · 원본**은 선택 전체의 설정을 지웁니다. 별도 MVVM 컨트롤 프로젝트의 [사용법·검증](docs/filter-controls.md), [재사용 방법](src/VisionCanvas.Filters.Wpf/README.md)을 참고하세요.
 
 필터 등록·변경·해제는 Undo/Redo 대상이며 복사·붙여넣기와 삭제/이미지 교체 Undo에서도 복원됩니다. 계산된 미리보기 픽셀은 이력에 저장하지 않으며 원본 파일을 변경하지 않습니다. 설정은 현재 문서 안에서 유지되며 파일로 레시피를 저장하는 기능은 아직 없습니다.
 
-OpenCV 4.13 / OpenCvSharp로 처리합니다. 임계값은 Gray8 기준 0–255이며 Gray16은 0–65535를 0–255로 매핑합니다. 컬러는 회색조 변환 후 처리합니다. 대용량에서는 필요한 타일만 읽고, ROI당 긴 축 최대 **1,024px**, 선택 전체 약 **4Mpx** 범위의 미리보기로 계산합니다. 축소된 Edge 결과는 원본 해상도 검사 결과와 다를 수 있습니다. 라이브 필터는 최신 프레임으로 최대 **초당 5회** 갱신하며 처리 중 요청을 쌓지 않습니다. 라이브 영상 자체의 표시 주기와는 별개입니다.
+기존 Binarize/Canny는 OpenCV 4.13이며 Gray16을 8비트로 매핑한 뒤 처리합니다. 새 IndustrialVision 필터는 **Gray16 명암을 연산 중 유지**하고 화면 출력만 8비트로 변환합니다. CUDA에서는 연속 필터 사이에 영상을 유지하며 실제 장치·CPU 전환 이유·시간·전송량을 표시합니다. 컬러 입력은 회색조로 변환합니다. 대용량에서는 필요한 타일만 읽고 ROI당 긴 축 최대 **1,024px**, 선택 전체 약 **4Mpx** 범위의 미리보기로 계산합니다. 이 결과는 원본 해상도 검사 입력이 아닙니다. 라이브 필터는 최신 프레임으로 최대 **초당 5회** 갱신하며 처리 중 요청을 쌓지 않습니다. 라이브 영상 자체의 표시 주기와는 별개입니다.
 
 부모 이동·회전은 자손에게 적용합니다. 부모 resize는 자식의 크기와 상대 위치를 유지하고, 부모 중심이 이동한 만큼 자식도 이동합니다. 편집 확정 후 포함에서 벗어나면 유효 부모 또는 루트로 재배치합니다. 그룹화는 실제 새 부모 사각형을 만들며, 선택하지 않은 ROI까지 포함되면 기존 포함 규칙이 적용됩니다.
 
@@ -197,7 +201,7 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artif
 ## 프로젝트 구조와 명시적 ROI 계층 (2026-10-05)
 
 - `src/TeachingToolWpf`: 실행 앱, 패널·ViewModel, 검사 연결, 진단 시나리오.
-- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core와 VisionImaging.Abstractions를 참조한다. NetVips 파일 구현은 호스트가 선택한다.
+- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core, VisionImaging.Abstractions와 IndustrialVision.Filters.Pipeline을 참조한다. NetVips 파일 구현과 필터 CUDA 구현은 호스트가 선택한다.
 - `src/VisionCanvas.Core`: GPU 없는 ROI·계층·입력·이력. 순수 기하와 이미지 계약은 VisionGeometry/VisionImaging.Abstractions로 분리한다.
 - `src/VisionAlgorithm`: 독립 알고리즘. 캔버스와 상호 참조하지 않는다.
 - `tests`, `benchmarks`, `samples`: 각각 프로젝트 이름별 폴더. 독립 사용 예제는 VisionCanvas.Sample이다.

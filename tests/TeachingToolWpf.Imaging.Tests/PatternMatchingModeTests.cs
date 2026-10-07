@@ -10,6 +10,68 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class PatternMatchingModeTests
 {
+    [Theory]
+    [InlineData(PatternMatchingMethod.Shape)]
+    [InlineData(PatternMatchingMethod.GeometricShape)]
+    [InlineData(PatternMatchingMethod.OpenCvTemplate)]
+    public async Task MaskChangeInvalidatesTrainingEvenWithAnotherRoiSelectedAndUndoRestoresIt(PatternMatchingMethod method)
+    {
+        var (_, editor, viewModel) = Create();
+        using var lifetime = viewModel;
+        viewModel.Method = method;
+        await viewModel.Train.ExecuteAsync();
+        var id = editor.State.Selection.Single();
+        editor.AddMask(id, new(MaskShape.Rectangle, new(.1, .1, .2, .2)));
+        editor.Select([]);
+        viewModel.Update(editor.State, 1, false, true);
+        Assert.True(viewModel.IsTrainingDirty);
+        Assert.False(viewModel.Search.CanExecute(null));
+        editor.Undo();
+        viewModel.Update(editor.State, 1, false, true);
+        Assert.False(viewModel.IsTrainingDirty);
+        Assert.True(viewModel.Search.CanExecute(null));
+        editor.Redo();
+        editor.Select([id]);
+        viewModel.Update(editor.State, 1, false, true);
+        await viewModel.Train.ExecuteAsync();
+        Assert.False(viewModel.IsTrainingDirty);
+    }
+
+    [Theory]
+    [InlineData(PatternMatchingMethod.Shape)]
+    [InlineData(PatternMatchingMethod.GeometricShape)]
+    [InlineData(PatternMatchingMethod.OpenCvTemplate)]
+    public async Task SearchTypeKeepsTeachingFootprintAndUsesExpandedBoundary(PatternMatchingMethod method)
+    {
+        var (service, editor, viewModel) = Create();
+        using var lifetime = viewModel;
+        var id = editor.State.Selection.Single();
+        var geometry = editor.State.Rois[id].Geometry;
+        editor.SetProperties(id, "검색", geometry, new(25, 15), true);
+        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Method = method;
+        viewModel.UseSelection = true;
+        await viewModel.Train.ExecuteAsync();
+        await viewModel.Search.ExecuteAsync();
+        Assert.Equal(new RoiSearchRange(25, 15).Expand(geometry).Outline, viewModel.Overlay!.SearchBoundary);
+        if (method != PatternMatchingMethod.OpenCvTemplate)
+        {
+            Assert.Equal(geometry, service.TrainingRegion);
+            Assert.Equal(new RoiSearchRange(25, 15).Expand(geometry), service.SearchRegion);
+        }
+        editor.SetProperties(id, "검색", geometry, new(30, 15), false);
+        viewModel.Update(editor.State, 1, false, true);
+        Assert.Null(viewModel.Overlay);
+        Assert.True(viewModel.HasModel);
+        editor.AddChild(id, new(new(100, 100), 10, 10, 0));
+        editor.Select([id]);
+        viewModel.Update(editor.State, 1, false, true);
+        Assert.False(viewModel.Train.CanExecute(null));
+        Assert.False(viewModel.Search.CanExecute(null));
+        viewModel.UseSelection = false;
+        Assert.True(viewModel.Search.CanExecute(null));
+    }
+
     [Fact]
     public async Task RotationInspectionExpandsSearchAndKeepsAcceptanceIndependentAndPaperOnly()
     {
@@ -441,6 +503,14 @@ public sealed class PatternMatchingModeTests
 
     private sealed class ShapeService : IShapeMatchingService
     {
+        public RoiGeometry? TrainingRegion
+        {
+            get; private set;
+        }
+        public RoiGeometry? SearchRegion
+        {
+            get; private set;
+        }
         public TrainingOptions? TrainingOptions
         {
             get; private set;
@@ -479,15 +549,17 @@ public sealed class PatternMatchingModeTests
                     PyramidLevels = 4
                 }), 0, 0);
 
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
+            TrainingRegion = roi;
             TrainingOptions = options;
             Token = token;
             return PendingTraining?.Task ?? Task.FromResult(CreateModel(options));
         }
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
+            SearchRegion = region;
             options.Validate();
             SearchOptions = options;
             Token = token;
@@ -497,11 +569,11 @@ public sealed class PatternMatchingModeTests
 
     private sealed class TemplateService : ITemplateMatchingService
     {
-        public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token)
+        public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null)
             => Task.FromResult(new TemplateTrainingOutput(CorrelationTemplate.Train(new(new byte[] { 10, 80, 30, 170, 60, 200 }, 3, 2, 3),
                 new(ReadOnlyMemory<byte>.Empty, new(1.5, 1))), 0));
 
-        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => Task.FromResult(new TemplateSearchOutput([new(new(120, 130), .95)], 1, false, 0, 0));
     }
 }

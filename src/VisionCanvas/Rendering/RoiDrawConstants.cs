@@ -6,7 +6,7 @@ namespace VisionCanvas.Rendering;
 
 internal enum RoiDrawPass
 {
-    Shadow, Stroke
+    Shadow, Stroke, SearchRange
 }
 
 /// <summary>Roi.hlsl Options의 128바이트 배치. 필드 순서는 GPU 계약이다.</summary>
@@ -18,7 +18,7 @@ internal readonly struct RoiDrawConstants
 
     public readonly Vector2 ClipScale;
     public readonly float ImageScale;
-    public readonly float ReservedView;
+    public readonly float SearchRangePass;
     public readonly Vector2 ScreenOrigin;
     public readonly float ShadowPass;
     public readonly float SummaryOpacity;
@@ -44,7 +44,7 @@ internal readonly struct RoiDrawConstants
 
         ClipScale = new((float)(2 / scene.Width), (float)(-2 / scene.Height));
         ImageScale = (float)scene.Document.Viewport.Scale;
-        ReservedView = 0;
+        SearchRangePass = pass == RoiDrawPass.SearchRange ? 1 : 0;
         ScreenOrigin = new((float)screenOrigin.X, (float)screenOrigin.Y);
         ShadowPass = isShadow ? 1 : 0;
         SummaryOpacity = selected ? 1 : .5f;
@@ -60,5 +60,10 @@ internal readonly struct RoiDrawConstants
             palette.Child.StrokeThickness(selected) + shadowExpansion,
             palette.Parent.StrokeThickness(selected) + shadowExpansion,
             0);
+        if (pass == RoiDrawPass.SearchRange)
+        {
+            DefaultColor = ChildColor = ParentColor = new(1, 0, 0, 1);
+            StrokeWidths = new(1.5f, 1.5f, 1.5f, 0);
+        }
     }
 }

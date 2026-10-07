@@ -27,6 +27,7 @@ internal sealed class RoiPipeline : IDisposable
     private const long CacheBudgetBytes = 128L * 1024 * 1024;
     private const double ViewportPaddingDip = 8;
     private const double SummarySizeDip = 6;
+    private const double DetailPreparationBudget = 4; // milliseconds
 
     private sealed class KeyComparer : IEqualityComparer<(object Identity, int? Level)>
     {
@@ -46,12 +47,18 @@ internal sealed class RoiPipeline : IDisposable
 
         public ulong RoleOffset => Allocation.Offset + ((ulong)Count * RoiInstance.SizeInBytes);
 
-        public long OwnedBytes => (long)Count * RoiInstance.RoleSizeInBytes;
+        // 현재/직전 계층의 역할 배열 두 벌을 보수적으로 예약한다.
+        public long OwnedBytes => (long)Count * RoiInstance.RoleSizeInBytes * 2;
 
         public double FullDetailAggregateSize
         {
             get;
             set;
+        }
+
+        public double AggregateSize
+        {
+            get; init;
         }
 
         public void Dispose() => Allocation.Dispose();
@@ -63,11 +70,25 @@ internal sealed class RoiPipeline : IDisposable
     private readonly RoiBufferArena _buffers;
     // null 단계는 요약 없는 형상 한 벌이다. 다른 단계에 같은 Block 별칭을 등록하지 않는다.
     private readonly Dictionary<(object Identity, int? Level), Block> _blocks = new(new KeyComparer());
+    private readonly Dictionary<object, Block> _lastDetails = new(ReferenceEqualityComparer.Instance);
     private readonly RoiCacheMemory _cacheMemory = new();
+    private readonly RoiRoleLookup _roleLookup = new();
     private readonly List<RoiInstance> _packingInstances = [];
     private readonly List<uint> _packingRoles = [];
     private readonly Dictionary<RoiGeometry, int> _packingUnique = [];
     private long _frame;
+    private long _preparationStart;
+    private int _preparedBlocks;
+
+    public bool HasPendingDetails
+    {
+        get; private set;
+    }
+
+    public int DeferredBlocks
+    {
+        get; private set;
+    }
 
     public long UploadedBytes
     {
@@ -81,7 +102,7 @@ internal sealed class RoiPipeline : IDisposable
         private set;
     }
 
-    public long CacheBytes => _cacheMemory.Bytes + _buffers.ActiveAllocationBytes;
+    public long CacheBytes => _cacheMemory.Bytes + _buffers.ActiveAllocationBytes + _roleLookup.EstimatedBytes;
 
     public double PackMilliseconds
     {
@@ -136,6 +157,10 @@ internal sealed class RoiPipeline : IDisposable
         PackMilliseconds = 0;
         CreateMilliseconds = 0;
         UploadMilliseconds = 0;
+        HasPendingDetails = false;
+        DeferredBlocks = 0;
+        _preparedBlocks = 0;
+        _preparationStart = Stopwatch.GetTimestamp();
         _uploads[surface.FrameIndex].Reset();
 
         var view = scene.Document.Viewport;
@@ -170,18 +195,35 @@ internal sealed class RoiPipeline : IDisposable
                 DrawIndex(scene.Document.SelectedSpatial, selected: true, transform: default);
             }
         }
+        if (scene.Transform is { } searchPreview)
+        {
+            DrawIndex(searchPreview.Selection.StationarySearch, false, default, searchRange: true);
+            DrawIndex(searchPreview.Selection.MovingSearch, false, searchPreview.Transform, searchRange: true);
+        }
+        else
+        {
+            DrawIndex(scene.Document.Snapshot.SearchSpatial, false, default, searchRange: true);
+        }
         EvictInactiveBlocks(surface);
 
-        void DrawIndex(RoiSpatialIndex index, bool selected, RigidTransform2D transform)
+        void DrawIndex(RoiSpatialIndex index, bool selected, RigidTransform2D transform, bool searchRange = false)
         {
             var query = transform.InverseTransformBounds(visible);
             foreach (var region in index.Blocks(query))
             {
                 var block = GetOrUploadBlock(region, level, aggregateSize, scene.Document, surface);
+                _lastDetails[region.Identity] = block;
                 block.LastUsed = _frame;
                 InstanceCount += block.Count;
-                DrawBlock(block, scene, surface, RoiDrawPass.Shadow, selected, transform);
-                DrawBlock(block, scene, surface, RoiDrawPass.Stroke, selected, transform);
+                if (searchRange)
+                {
+                    DrawBlock(block, scene, surface, RoiDrawPass.SearchRange, selected, transform);
+                }
+                else
+                {
+                    DrawBlock(block, scene, surface, RoiDrawPass.Shadow, selected, transform);
+                    DrawBlock(block, scene, surface, RoiDrawPass.Stroke, selected, transform);
+                }
             }
         }
     }
@@ -197,7 +239,7 @@ internal sealed class RoiPipeline : IDisposable
         if (block is not null)
         {
             var roleAggregate = ReferenceEquals(block, fullDetail) ? block.FullDetailAggregateSize : aggregateSize;
-            if (block.Roles.Refresh(region, roleAggregate, document, block.Count))
+            if (block.Roles.Refresh(region, roleAggregate, document, block.Count, _roleLookup))
             {
                 UploadRoleChanges(block, surface);
             }
@@ -205,10 +247,26 @@ internal sealed class RoiPipeline : IDisposable
             return block;
         }
 
+        // 같은 불변 형상 블록의 직전 LOD를 현재 view/preview로 그린다. 새 블록은 생략하지 않는다.
+        // 최소 한 블록은 진행해 지속 입력/느린 장치에서도 상세화가 굶지 않게 한다.
+        if (_preparedBlocks > 0 && Stopwatch.GetElapsedTime(_preparationStart).TotalMilliseconds >= DetailPreparationBudget
+            && _lastDetails.TryGetValue(region.Identity, out var fallback))
+        {
+            if (fallback.Roles.Refresh(region, fallback.AggregateSize, document, fallback.Count, _roleLookup))
+            {
+                UploadRoleChanges(fallback, surface);
+            }
+            HasPendingDetails = true;
+            DeferredBlocks++;
+            return fallback;
+        }
+
+        _preparedBlocks++;
+
         var packStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
         try
         {
-            var hasSummary = RoiInstance.PackInto(region, aggregateSize, document, _packingInstances, _packingRoles, _packingUnique);
+            var hasSummary = RoiInstance.PackInto(region, aggregateSize, document, _packingInstances, _packingRoles, _packingUnique, _roleLookup);
             // 역할은 보관 캐시가 소유한다. 형상 scratch는 아래 동기 업로드가 끝나면 바로 재사용한다.
             var packedRoles = _packingRoles.ToArray();
             if (!hasSummary && fullDetail is not null)
@@ -231,7 +289,7 @@ internal sealed class RoiPipeline : IDisposable
             {
                 PackMilliseconds += Stopwatch.GetElapsedTime(packStart).TotalMilliseconds;
             }
-            block = UploadBlock(region, CollectionsMarshal.AsSpan(_packingInstances), roles, surface);
+            block = UploadBlock(region, aggregateSize, CollectionsMarshal.AsSpan(_packingInstances), roles, surface);
             if (!hasSummary)
             {
                 block.FullDetailAggregateSize = aggregateSize;
@@ -284,13 +342,25 @@ internal sealed class RoiPipeline : IDisposable
         void Retire((object Identity, int? Level) key, Block block)
         {
             _blocks.Remove(key);
+            if (_lastDetails.TryGetValue(key.Identity, out var last) && ReferenceEquals(last, block))
+            {
+                _lastDetails.Remove(key.Identity);
+                foreach (var remaining in _blocks)
+                {
+                    if (ReferenceEquals(remaining.Key.Identity, key.Identity))
+                    {
+                        _lastDetails[key.Identity] = remaining.Value;
+                        break;
+                    }
+                }
+            }
             _cacheMemory.Remove(key.Identity, block.OwnedBytes);
             block.Allocation.Retire();
             surface.Retire(block);
         }
     }
 
-    private unsafe Block UploadBlock(RoiSpatialBlock region, ReadOnlySpan<RoiInstance> instances, RoiRoleCache roles, Dx12Surface surface)
+    private unsafe Block UploadBlock(RoiSpatialBlock region, double aggregateSize, ReadOnlySpan<RoiInstance> instances, RoiRoleCache roles, Dx12Surface surface)
     {
         var createStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
         var geometryBytes = checked((ulong)instances.Length * RoiInstance.SizeInBytes);
@@ -321,7 +391,10 @@ internal sealed class RoiPipeline : IDisposable
             {
                 UploadMilliseconds += Stopwatch.GetElapsedTime(uploadStart).TotalMilliseconds;
             }
-            return new(allocation, region.Bounds.Center, instances.Length, roles);
+            return new(allocation, region.Bounds.Center, instances.Length, roles)
+            {
+                AggregateSize = aggregateSize
+            };
         }
         catch
         {
@@ -365,6 +438,7 @@ internal sealed class RoiPipeline : IDisposable
             block.Dispose();
         }
         _blocks.Clear();
+        _lastDetails.Clear();
         _cacheMemory.Clear();
         _buffers.Dispose();
 

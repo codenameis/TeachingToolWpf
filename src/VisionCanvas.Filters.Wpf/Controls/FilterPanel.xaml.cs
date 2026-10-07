@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace TeachingToolWpf.Views;
+namespace VisionCanvas.Filters.Wpf.Controls;
 
 public partial class FilterPanel : UserControl
 {

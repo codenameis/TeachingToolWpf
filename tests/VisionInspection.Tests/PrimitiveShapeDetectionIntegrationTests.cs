@@ -11,6 +11,24 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class PrimitiveShapeDetectionIntegrationTests
 {
     [Fact]
+    public async Task ExclusionInsideSolidShapeRejectsItWithoutCreatingCutContours()
+    {
+        var image = PrimitiveShapeFixture.Create(512, 256, new(PrimitiveShapeKind.Circle, 128, 128),
+            new(PrimitiveShapeKind.Rectangle, 380, 128));
+        var loader = new Loader(image);
+        var service = new PrimitiveShapeDetectionService(loader, () => null);
+        var reference = new ImageReference("fixture", "fixture", 512, 256);
+        var original = image.Pixels.ToArray();
+        var baseline = await service.DetectAsync(reference, false, null, new(), default);
+        Assert.Equal(2, baseline.Shapes.Length);
+        var exclusion = new RoiExclusion(new(new(128, 128), 20, 20, 30), [new(MaskShape.Ellipse, new(0, 0, 1, 1))]);
+        var masked = await service.DetectAsync(reference, false, null, new(), default, exclusion);
+        Assert.Equal(PrimitiveShapeKind.Rectangle, Assert.Single(masked.Shapes).Kind);
+        Assert.False(masked.Incomplete);
+        Assert.Equal(original, image.Pixels.ToArray());
+    }
+
+    [Fact]
     public async Task MixedFixtureUsesOriginalPixelsAndExportsUnannotatedPng()
     {
         var image = PrimitiveShapeFixture.Mixed();

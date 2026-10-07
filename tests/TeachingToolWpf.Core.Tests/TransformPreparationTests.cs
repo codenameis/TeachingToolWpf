@@ -8,6 +8,34 @@ namespace TeachingToolWpf.Core.Tests;
 public class TransformPreparationTests
 {
     [Fact]
+    public async Task PreparedGroupWarmsMovingAndStationarySearchBoundariesBeforePublication()
+    {
+        var editor = Create();
+        var first = Assert.Single(editor.State.Rois).Key;
+        var second = editor.Add(new(new(700, 400), 80, 50, 0));
+        var stationary = editor.Add(new(new(1000, 400), 80, 50, 0));
+        foreach (var id in new[] { first, second, stationary })
+        {
+            editor.SetProperties(id, "검색", editor.State.Rois[id].Geometry, new(20, 10), true);
+        }
+        editor.Select([first, second]);
+        var before = editor.State;
+        var prepared = await editor.PrepareGroupAsync();
+        Assert.Same(before, editor.State);
+        Assert.True(prepared.State.IsTransformSelectionPrepared);
+        var selection = prepared.State.TransformSelection;
+        Assert.Equal(new[] { first, second }.Order(), selection.MovingSearch.Visible(selection.MovingSearch.Bounds, 0)
+            .Select(item => item.Roi!.Id).Order());
+        Assert.Equal(stationary, Assert.Single(selection.StationarySearch.Visible(selection.StationarySearch.Bounds, 0)).Roi!.Id);
+        editor.CommitPrepared(prepared);
+        editor.BeginPreview();
+        editor.PreviewTranslation(new(20, 10));
+        Assert.Same(selection.MovingSearch, editor.TransformPreview!.Selection.MovingSearch);
+        editor.CancelPreview();
+        Assert.Same(prepared.State.Rois, editor.State.Rois);
+    }
+
+    [Fact]
     public void WholeGroupRefitDoesNotRetainCanceledOperationInSharedSpatialIndex()
     {
         var editor = new EditorSession();
@@ -49,6 +77,10 @@ public class TransformPreparationTests
         _ = selection.RotationLimits(selection.Bounds.Center + new PointD(10, 0));
         Assert.False(state.IsTransformSelectionPrepared);
         _ = selection.RotationLimits(selection.Bounds.Center);
+        Assert.False(selection.IsPrepared);
+        _ = selection.MovingSearch;
+        Assert.False(selection.IsPrepared);
+        _ = selection.StationarySearch;
         Assert.True(selection.IsPrepared);
         Assert.True(state.IsTransformSelectionPrepared);
         _ = selection.RotationLimits(selection.Bounds.Center + new PointD(10, 0));
@@ -167,6 +199,8 @@ public class TransformPreparationTests
         var selection = state.TransformSelection;
         _ = selection.Moving;
         _ = selection.Stationary;
+        _ = selection.MovingSearch;
+        _ = selection.StationarySearch;
         _ = selection.RotationLimits(selection.Bounds.Center);
     }
 }

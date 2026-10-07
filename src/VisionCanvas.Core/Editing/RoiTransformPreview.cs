@@ -20,11 +20,17 @@ public sealed class RoiTransformSelection
     private readonly Lazy<RoiSpatialIndex> _moving;
 
     private readonly Lazy<RoiSpatialIndex> _stationary;
+    private readonly Lazy<RoiSpatialIndex> _movingSearch;
+    private readonly Lazy<RoiSpatialIndex> _stationarySearch;
     private RotationConstraint? _rotationConstraint;
 
     public RoiSpatialIndex Moving => _moving.Value;
 
     public RoiSpatialIndex Stationary => _stationary.Value;
+
+    public RoiSpatialIndex MovingSearch => _movingSearch.Value;
+
+    public RoiSpatialIndex StationarySearch => _stationarySearch.Value;
 
     public BoundsD Bounds
     {
@@ -36,7 +42,7 @@ public sealed class RoiTransformSelection
         get
         {
             var cached = Volatile.Read(ref _rotationConstraint);
-            return _moving.IsValueCreated && _stationary.IsValueCreated && cached is { } constraint
+            return _moving.IsValueCreated && _stationary.IsValueCreated && _movingSearch.IsValueCreated && _stationarySearch.IsValueCreated && cached is { } constraint
                 && constraint.Pivot == Bounds.Center && constraint.Limits.IsValueCreated;
         }
     }
@@ -49,6 +55,8 @@ public sealed class RoiTransformSelection
             : RoiHierarchy.Subtree(before, RoiHierarchy.EffectiveRoots(before)).ToFrozenSet();
         Bounds = before.SelectedSpatial.Bounds;
         var all = Affected.Count == before.Rois.Count;
+        _movingSearch = new(() => all ? before.Snapshot.SearchSpatial : before.Snapshot.SearchSpatial.Filter(Affected, include: true));
+        _stationarySearch = new(() => all ? new([]) : before.Snapshot.SearchSpatial.Filter(Affected, include: false));
         _moving = new(() => all ? before.Snapshot.Spatial : Affected.SetEquals(before.Selection) ? before.SelectedSpatial
             : before.Snapshot.IsSpatialCreated && Affected.Count > 64 && Affected.Count > before.Rois.Count / 8 ? before.Snapshot.Spatial.Filter(Affected, include: true)
             : new(Affected.Select(id => before.Rois[id])));

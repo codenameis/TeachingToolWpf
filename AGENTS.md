@@ -111,6 +111,14 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 작업 원칙
 
+2026-10-06 ROI 마스크 후속: [ADR-040](docs/decisions/0040-roi-masking.md)에 따라 사각형/타원 제외 영역은 `Roi.Masks`의 불변 정규화 좌표로 저장한다. 실제 ROI와 교차하고 이동·회전·resize·복사·통합 이력을 따른다. 선택 ROI의 GPU 사선 음영 보기 토글은 검사 적용과 분리한다. 원본 학습 픽셀을 제외하고 선택 검사에서는 마스크와 겹친 대상을 제외한다. 부분 가림 재점수화나 모든 ROI의 전역 마스크로 표현하지 않는다. 학습 마스크 변경은 재학습 전 검사를 막으며 원본/취소/후보 예산을 유지한다. [사용법·검증](docs/roi-masking.md).
+
+2026-10-06 필터 UI 후속: [ADR-039](docs/decisions/0039-filter-controls-and-continuous-preview.md)에 따라 필터 패널/VM은 VisionCanvas.Filters.Wpf에 둔다. 외부 DataContext와 자체 리소스를 사용하고 앱/CUDA를 역참조하지 않는다. 미리보기 OFF는 선택 후에도 유지한다. 슬라이더 중간값은 임시 요청으로 처리하고 종료 시 한 번만 이력에 등록한다. 연속 ROI 입력은 실행 하나/대기 최신 하나로 처리하며 마지막 완료 위치와 최종 최신 결과를 구별한다. [검증](docs/filter-controls.md).
+
+2026-10-06 사용자 후속 승인: [ADR-038](docs/decisions/0038-industrial-roi-filters.md)에 따라 VisionCanvas는 독립 IndustrialVision.Filters.Pipeline을 참조한다. TeachingToolWpf가 선택형 ILGPU CUDA를 지연 주입하며 Canvas/Core에 CUDA 의존성을 추가하지 않는다. 기존 OpenCV Binarize/Canny와 ROI 등록·통합 이력을 유지한다. 새 Gray16 연산은 표시 변환 전까지 원본 명암을 유지하지만 ROI 필터 자체는 최대1024px/라이브5Hz 미리보기이며 검사 원본을 대체하지 않는다. GPU 연속 단계·fallback 사유·수명과 [실기 검증 범위](docs/industrial-roi-filters.md)를 보존한다.
+
+2026-10-06 그룹화 후 탐색 후속: [ADR-037](docs/decisions/0037-progressive-roi-detail-preparation.md)에 따라 ROI 상세화는 같은 불변 블록의 기존 LOD를 현재 viewport/preview로 계속 표시하며 프레임별4ms 준비 예산으로 진행한다. 예산은 단일 블록/최초 표시/GC를 포함한 프레임 상한 보장이 아니다. 상세화 완료 전 캡처·검사 표시 완료를 알리지 않고, 역할 캐시 두 버전과 조회 용량을 메모리 예산에 포함한다. 검색 색인은 기존 편집 worker에서 준비한다. 정확한 ROI/선택/검사/이력 계약과 전체60FPS 목표는 유지한다. [검증 기록](docs/group-cold-validation.md).
+
 2026-10-05 사용자 우선순위 확정: 이 채팅의 최적화 목표는 **2D 표시와 입력 반응의 60FPS 유지(프레임 예산 약16.67ms)**다. 수만 ROI 복사·붙여넣기, 선택·이동·회전, Undo/Redo 준비·게시 중에도 탐색이 끊기지 않는지를 먼저 검증한다. CPU125ms/CUDA80ms는 형상검사의 별도 실행 시간 목표이며 이 작업의 프레임 예산이 아니다. 작업 전체 완료 시간 단축만으로 성공을 선언하지 않고, 연속 입력 구간의 프레임 간격·긴 멈춤·입력 대기·GC를 측정한다. 정적 화면의 렌더 생략과 실제 작업 중 프레임 누락을 구별하며 정확성·계층·Undo/Redo와 설계 원칙을 유지한다. 기존 B1의58FPS 허용이나 B4의 스트레스 FPS 유예는 이 후속 목표의 수용 기준으로 사용하지 않는다. GPU/WARP·하드웨어·부하별 실측과 미달을 구별한다.
 
 2026-10-05 GPU 없는 Windows PC 지원 승인: [ADR-033](docs/decisions/0033-automatic-software-rendering.md)에 따라 VisionCanvas는 DX12 하드웨어 장치를 우선 사용하고 생성할 수 없으면 Windows WARP로 CPU 표시한다. 기존 회전·타일·ROI·이력·소유권 경로를 유지한다. CPU/GPU 모드와 미측정 GPU 시간을 구별하고, 강제 WARP 시험을 실제 저사양 PC의 성능 보장으로 표현하지 않는다. 검사 CUDA 선택과 표시 장치 선택을 연결하지 않는다. [검증](docs/software-rendering-validation.md)을 따른다.
@@ -215,6 +223,8 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - 2026-10-04 사용자 요청으로 `src/VisionCanvas`를 분리했다. HWND 입력·DX12·셰이더·영상/타일·필터 표시와 좁은 viewport 계약을 소유한다. 이후 ADR-023에 따라 공통 원본 I/O를 VisionImaging으로 옮겼으며 Canvas의 프로젝트 참조는 Core와 VisionImaging이다. 알고리즘/검사 공급자를 참조하지 않는다. 앱은 `src/TeachingToolWpf`, 검사·공급자 UI는 앱에 남긴다. 기존 namespace는 호환성을 위해 유지하며 프로젝트 경계는 참조 그래프로 검증한다. [ADR-014](docs/decisions/0014-canvas-and-explicit-hierarchy.md)와 ADR-023을 따른다.
 
 ## 좌표와 ROI 불변 조건
+
+- 2026-10-06 [ADR-036](docs/decisions/0036-roi-search-range-and-group-label.md): 일반/검색 ROI 타입은 nullable `Roi.SearchRange`로 저장한다. 로컬 축 양쪽의 여유(px, 기본20)를 수치 편집하고 검색 경계는 중심/각도를 공유하는 빨간 점선 사각형이다. 실제 ROI 도형·hit/변형 제한은 유지한다. 실제 자식이 있거나 `IsGroup`인 부모는 그룹 전용으로 학습/선택 검사 입력에서 제외한다. 자식 없는 독립 ROI 검사는 유지한다. `IsNameVisible`은 캔버스 이름만 제어하고 선택 중에도 적용한다. 이름·검색 값·표시를 한 속성 명령과 복사/Undo/Redo에 보존한다. 파생 검색 BVH/보관 GPU 배치를 재사용하며 매 프레임 전체 문서 복사를 추가하지 않는다. [사용법/검증](docs/roi-search-range.md).
 
 - 원본 이미지 픽셀 좌표, WPF DIP, 렌더 타깃 물리 픽셀을 구별한다. 이미지 원점은 좌상단, +X는 오른쪽, +Y는 아래쪽이다.
 - 도메인 좌표·계층 변환 계산은 `double`을 사용한다. GPU에는 뷰포트 기준 상대 좌표를 전달해 큰 원본 좌표의 정밀도 손실을 줄인다.

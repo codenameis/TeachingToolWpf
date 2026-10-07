@@ -1,12 +1,46 @@
-using TeachingToolWpf.Presentation;
 using VisionCanvas.Core.Editing;
+using VisionCanvas.Filters.Wpf.ViewModels;
 using VisionCanvas.Imaging.Filters;
 using VisionGeometry;
+using RoiPropertiesViewModel = TeachingToolWpf.Presentation.RoiPropertiesViewModel;
 
 namespace TeachingToolWpf.Imaging.Tests;
 
 public class FilterPreviewSessionTests
 {
+    [Fact]
+    public async Task IndustrialParametersRegisterAndInvalidTextDoesNotReplaceTheRecipe()
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
+        var id = editor.Add(new(new(30, 30), 10, 10, 0));
+        var processor = new Processor();
+        processor.Release.SetResult();
+        using var model = new FilterPreviewViewModel(processor, editor);
+        editor.Changed += (_, _) => model.Update(editor.State, false);
+        model.Update(editor.State, false);
+        model.SelectedFilter = RoiFilterKind.GaussianBlackHatThreshold;
+        model.Radius = "5";
+        model.Sigma = 1.75.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        model.Threshold = "4095";
+        model.Execution = RoiFilterExecution.CpuGpu;
+        model.Preview.Execute(null);
+        await model.WhenIdle;
+        Assert.Equal(new(RoiFilterKind.GaussianBlackHatThreshold, 4095, Radius: 5, Sigma: 1.75,
+            Execution: RoiFilterExecution.CpuGpu), editor.State.Rois[id].Filter);
+        var before = editor.State;
+        model.Radius = "1.5";
+        Assert.Same(before, editor.State);
+        Assert.Contains("반경 정수", model.Status);
+        model.Radius = "7";
+        await model.WhenIdle;
+        Assert.Equal(7, editor.State.Rois[id].Filter.Radius);
+        editor.Undo();
+        await model.WhenIdle;
+        Assert.Equal("5", model.Radius);
+        Assert.Equal(RoiFilterExecution.CpuGpu, model.Execution);
+    }
+
     [Fact]
     public async Task RotationPreviewUsesRotatedRegionAndCancellationRestoresFilter()
     {
@@ -156,7 +190,7 @@ public class FilterPreviewSessionTests
     }
 
     [Fact]
-    public async Task ReselectingRegisteredRoiRestoresFilterWhileUnregisteredRoiStaysOriginal()
+    public async Task PreviewToggleRemainsOffAcrossSelectionsAndEnablingRestoresRegisteredSettings()
     {
         var editor = new EditorSession();
         editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
@@ -181,6 +215,10 @@ public class FilterPreviewSessionTests
         Assert.Equal(RoiFilterKind.None, model.SelectedFilter);
         editor.Select([registered]);
         model.Update(editor.State, false);
+        await model.WhenIdle;
+        Assert.Null(model.Result);
+        Assert.False(model.IsPreviewEnabled);
+        model.IsPreviewEnabled = true;
         await model.WhenIdle;
         Assert.Equal(registered, Assert.Single(model.Result!.Regions).Id);
         Assert.Equal("77", model.Threshold);
@@ -268,5 +306,71 @@ public class FilterPreviewSessionTests
         await model.WhenIdle;
         Assert.Null(model.Result);
         Assert.False(model.IsActive);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkerCancellationIsHandledAndTheNextPreviewCompletes(bool replaceSettings)
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("sample", "sample", 100, 100), ViewportTransform.Identity);
+        var id = editor.Add(new(new(30, 30), 10, 10, 0));
+        editor.SetFilters(new(RoiFilterKind.BlackHat));
+        var processor = new CancelingProcessor();
+        using var model = new FilterPreviewViewModel(processor, editor);
+        model.Update(editor.State, false);
+        try
+        {
+            await processor.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (replaceSettings)
+            {
+                model.Radius = "7";
+            }
+            else
+            {
+                model.Stop.Execute(null);
+            }
+            await model.WhenIdle.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(processor.Canceled);
+            Assert.DoesNotContain("실패", model.Status);
+            Assert.False(model.IsBusy);
+            if (!replaceSettings)
+            {
+                Assert.Null(model.Result);
+                model.IsPreviewEnabled = true;
+                await model.WhenIdle.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            Assert.Equal(id, Assert.Single(model.Result!.Regions).Id);
+            Assert.Equal(2, processor.Calls);
+            Assert.Equal(replaceSettings ? 7 : 3, processor.Last!.Settings(editor.State.Rois[id]).Radius);
+        }
+        finally
+        {
+            model.Dispose();
+            await model.WhenIdle;
+        }
+    }
+
+    private sealed class CancelingProcessor : IRoiFilterPreview
+    {
+        public readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Calls;
+        public bool Canceled;
+        public FilterRequest? Last;
+
+        public Task<FilterPreviewResult> ProcessAsync(FilterRequest request, CancellationToken token) => Task.Run(() =>
+        {
+            Last = request;
+            if (Interlocked.Increment(ref Calls) == 1)
+            {
+                Started.SetResult();
+                Canceled = token.WaitHandle.WaitOne(TimeSpan.FromSeconds(10));
+                token.ThrowIfCancellationRequested();
+                throw new TimeoutException("The preview did not cancel its obsolete worker.");
+            }
+            return new FilterPreviewResult(request.Rois.Select(r =>
+                new FilteredRoi(r.Id, request.Geometry(r), 1, 1, [255])).ToArray(), 1);
+        }, token);
     }
 }

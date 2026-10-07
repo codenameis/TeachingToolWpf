@@ -65,7 +65,7 @@ internal sealed class ScenePainter
             _mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Outline.Select(view.ImageToScreen).ToArray(),
                 style.StrokeThickness(true), style.StrokeColor(true, scene.Document.Selection.Count > 1 && scene.Document.Selection.Contains(hover)));
         }
-        if (scene.Document.Selection.Count == 1)
+        if (scene.Document.Selection.Count == 1 && !scene.MaskEditing)
         {
             var roi = scene.Document.Rois[scene.Document.Selection.Single()];
             var color = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, roi.Id)).SelectedColor;

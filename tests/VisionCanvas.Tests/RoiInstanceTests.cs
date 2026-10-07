@@ -12,6 +12,51 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiInstanceTests
 {
     [Fact]
+    public void HiddenParentNameStaysHiddenWhenSelectedAndUndoRestoresLabel()
+    {
+        var editor = new EditorSession();
+        var parent = editor.Add(new(new(200, 200), 80, 80, 0));
+        editor.AddChild(parent, new(new(200, 200), 20, 20, 0));
+        editor.Select([parent]);
+        var painter = new RoiLabelPainter();
+        var mesh = new SpriteMesh();
+        var texture = new GpuTexture(null!, 0, PixelKind.Rgba32, 40, 12, _ => { });
+        var labels = new List<string>();
+        GpuTexture Rasterize(string text)
+        {
+            labels.Add(text);
+            return texture;
+        }
+        void Draw()
+        {
+            labels.Clear();
+            mesh.Begin(500, 500);
+            painter.Draw(mesh, new(editor.State, null, 0, 500, 500, 1, new InteractionOverlay()), texture, Rasterize, Rasterize);
+        }
+        editor.SetProperties(parent, "한글 그룹", editor.State.Rois[parent].Geometry, null, false);
+        Draw();
+        Assert.Empty(labels);
+        editor.Undo();
+        Draw();
+        Assert.Single(labels);
+        editor.Redo();
+        Draw();
+        Assert.Empty(labels);
+    }
+
+    [Fact]
+    public void SearchDrawUsesRedDashedPassWithoutChangingGpuLayout()
+    {
+        var scene = new RenderScene(DocumentState.Empty, null, 0, 500, 500, 1.5, new InteractionOverlay());
+        var constants = new RoiDrawConstants(scene, default, default, false, RoiDrawPass.SearchRange);
+        Assert.Equal(128, Marshal.SizeOf<RoiDrawConstants>());
+        Assert.Equal(1, constants.SearchRangePass);
+        Assert.Equal(new Vector4(1, 0, 0, 1), constants.DefaultColor);
+        Assert.Equal(constants.DefaultColor, constants.ParentColor);
+        Assert.Equal(new Vector4(1.5f, 1.5f, 1.5f, 0), constants.StrokeWidths);
+    }
+
+    [Fact]
     public void LabelsFollowEnteringAndLeavingTranslationCandidatesAndCancel()
     {
         var editor = new EditorSession();

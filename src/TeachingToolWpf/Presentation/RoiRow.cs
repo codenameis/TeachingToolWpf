@@ -4,8 +4,8 @@ namespace TeachingToolWpf.Presentation;
 
 public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
 {
-    internal static string Describe(Roi roi, int children) => roi.IsGroup ? $"그룹 {children}" : children > 0 ? $"부모 {children}"
-        : $"{(roi.ParentId is null ? "부모" : "자식")} · {roi.Geometry.ShapeName}";
+    internal static string Describe(Roi roi, int children) => roi.IsGroup || children > 0 ? $"그룹 {children}"
+        : $"{(roi.SearchRange is null ? "일반" : "검색 범위")} · {roi.Geometry.ShapeName}";
 
     public double IndentWidth => Depth * 12;
 

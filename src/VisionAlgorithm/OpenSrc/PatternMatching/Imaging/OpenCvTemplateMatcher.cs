@@ -53,7 +53,8 @@ internal static class OpenCvTemplateMatcher
             for (var x = 0; x < width; x++)
             {
                 var index = (y * width) + x;
-                if (!float.IsFinite(scores[index]) || !(options.Region?.Contains(x + template.ReferencePoint.X, y + template.ReferencePoint.Y) ?? true))
+                if (!float.IsFinite(scores[index]) || !(options.Region?.Contains(x + template.ReferencePoint.X, y + template.ReferencePoint.Y) ?? true) ||
+                    (scores[index] >= options.MinimumScore && OverlapsMask(image, template, x, y, token)))
                 {
                     scores[index] = float.NegativeInfinity;
                 }
@@ -84,6 +85,27 @@ internal static class OpenCvTemplateMatcher
             .Select(peak => new CorrelationMatch(new(peak.X + template.ReferencePoint.X, peak.Y + template.ReferencePoint.Y),
                 Math.Clamp(peak.Score, -1, 1))).ToImmutableArray();
         return new(selected, truncated, timer.Elapsed.TotalMilliseconds);
+    }
+
+    private static bool OverlapsMask(GrayImage image, CorrelationTemplate template, int left, int top, CancellationToken token)
+    {
+        if (image.ExcludedPixels.IsEmpty)
+        {
+            return false;
+        }
+        for (var y = 0; y < template.Height; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = 0; x < template.Width; x++)
+            {
+                if ((template.Mask.Length == 0 || template.Mask[(y * template.Width) + x] != 0) &&
+                    image.ExcludedPixels.Span[((top + y) * image.Width) + left + x] != 0)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     internal static double Overlap(ImagePoint first, ImagePoint second, CorrelationTemplate template)
     {

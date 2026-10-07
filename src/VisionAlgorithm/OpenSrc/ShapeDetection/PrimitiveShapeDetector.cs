@@ -23,6 +23,10 @@ public static class PrimitiveShapeDetector
         foreach (var contour in extraction.Contours)
         {
             token.ThrowIfCancellationRequested();
+            if (OverlapsMask(image, contour, token))
+            {
+                continue;
+            }
             var width = contour.Points.Max(point => point.X) - contour.Points.Min(point => point.X);
             var height = contour.Points.Max(point => point.Y) - contour.Points.Min(point => point.Y);
             if (Math.Min(width, height) < options.MinimumSize)
@@ -46,5 +50,30 @@ public static class PrimitiveShapeDetector
         }
         return new(shapes.OrderByDescending(shape => shape.Score).ThenBy(shape => shape.Center.Y).ThenBy(shape => shape.Center.X)
             .Take(options.MaximumResults).ToImmutableArray(), clipped.ToImmutable(), extraction.Limited || shapes.Count > options.MaximumResults);
+    }
+
+    private static bool OverlapsMask(GrayImage image, PrimitiveContour contour, CancellationToken token)
+    {
+        if (image.ExcludedPixels.IsEmpty)
+        {
+            return false;
+        }
+        var region = new SearchRegion(contour.Points);
+        var left = Math.Max(0, (int)Math.Floor(contour.Points.Min(point => point.X)) - 1);
+        var top = Math.Max(0, (int)Math.Floor(contour.Points.Min(point => point.Y)) - 1);
+        var right = Math.Min(image.Width - 1, (int)Math.Ceiling(contour.Points.Max(point => point.X)) + 1);
+        var bottom = Math.Min(image.Height - 1, (int)Math.Ceiling(contour.Points.Max(point => point.Y)) + 1);
+        for (var y = top; y <= bottom; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var x = left; x <= right; x++)
+            {
+                if (image.ExcludedPixels.Span[(y * image.Width) + x] != 0 && region.ContainsWithin(x + .5, y + .5, 1.5))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

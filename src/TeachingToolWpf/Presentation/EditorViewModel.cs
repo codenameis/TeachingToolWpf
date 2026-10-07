@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
+using VisionCanvas.Filters.Wpf.ViewModels;
 using VisionCanvas.Presentation;
 using VisionGeometry;
 using VisionImaging;
@@ -68,6 +69,11 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     } = new();
 
     public InteractionController Input
+    {
+        get;
+    }
+
+    public RoiMaskViewModel Masks
     {
         get;
     }
@@ -172,13 +178,14 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     public string ToolHint => Input.Tool switch
     {
+        EditorTool.Mask => "마스크 그리기 · ROI 안에서 드래그 · 완료/Esc로 종료 · 가운데 버튼으로 이동",
         EditorTool.Draw when Input.DrawShape == RoiShapeKind.Polygon => $"꼭짓점 {Input.PolygonPointCount}개 · 클릭으로 연결 · 교차점에서 자동 완성 · 완료/Enter/첫 점 · 취소: Esc",
         EditorTool.Draw => $"{(Input.DrawParentId is null ? "부모" : "자식")} ROI 그리기 · 완료 후 선택 도구 복귀 · 취소: Esc",
         EditorTool.Pan => "드래그해 화면을 이동하세요. 휠로 확대·축소합니다.",
         _ => "클릭으로 선택 · Ctrl로 다중 선택 · 휠로 확대·축소"
     };
 
-    public string ToolName => Input.Tool switch { EditorTool.Pan => "이동", EditorTool.Draw => Input.DrawParentId is null ? "부모 ROI 그리기" : "자식 ROI 그리기", _ => "선택" };
+    public string ToolName => Input.Tool switch { EditorTool.Mask => "마스크 그리기", EditorTool.Pan => "이동", EditorTool.Draw => Input.DrawParentId is null ? "부모 ROI 그리기" : "자식 ROI 그리기", _ => "선택" };
 
     public bool IsSelect => Input.Tool == EditorTool.Select;
 
@@ -436,6 +443,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         }, System.Windows.Threading.Dispatcher.CurrentDispatcher);
         _previewPreparation = new(Session, Fail, () => Status = "선택 영역 준비 중… 최신 포인터 위치 반영", preparePreview);
         Input = new(Session, CompletePreview, CompleteSelection, _previewPreparation.SubmitTranslation, _previewPreparation.SubmitRotation);
+        Masks = new(Session, Input, message => Status = message);
+        Masks.Changed += Publish;
         Images = new(Session, viewport, loader, Live.CloseAsync, PrepareRowsAsync);
         Matching = new(shapeMatching ?? new Imaging.Matching.ShapeMatchingService(loader, () => null,
                 pipeline: Imaging.Matching.ShapeSearchPipeline.Paper),
@@ -624,6 +633,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     private void InputChanged()
     {
+        Masks.Update(CanEdit);
         if (!Session.IsPreviewing)
         {
             _previewPreparation.Cancel();
@@ -714,7 +724,8 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     private void Refresh()
     {
         Input.NavigationOnly = !CanEdit;
-        Filters.Update(Session.State, Live.Image is not null, Session.TransformPreview);
+        Masks.Update(CanEdit);
+        Filters.Update(Session.State, Live.Image is not null, Session.TransformPreview, DisplayImage?.Pixels ?? PixelKind.Gray8);
         Inspections.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing);
         Notify(nameof(CanEdit));
         Notify(nameof(CanNavigate));
@@ -806,7 +817,12 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     public void Publish()
     {
         Input.SetViewportSize(_viewport.ViewWidth, _viewport.ViewHeight);
-        _viewport.Submit(new(Session.State, DisplayImage, Images.Generation, _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview, StyleSettings.Palette, Inspections.Overlay));
+        _viewport.Submit(new(Session.State, DisplayImage, Images.Generation, _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview, StyleSettings.Palette, Inspections.Overlay)
+        {
+            ShowMasks = Masks.ShowMasks,
+            SelectedMaskIndex = Masks.SelectedIndex,
+            MaskEditing = Input.Tool == EditorTool.Mask
+        });
     }
 
     public void SelectRows(IEnumerable<Guid> ids)
@@ -822,6 +838,10 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         if (key == Key.Escape)
         {
             Input.Cancel();
+            if (Input.Tool == EditorTool.Mask)
+            {
+                Input.Tool = EditorTool.Select;
+            }
             // Mouse Up releases the gesture before its prepared edit finishes.
             Session.CancelPreview();
             _previewPreparation.Cancel();

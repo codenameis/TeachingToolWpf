@@ -7,6 +7,15 @@ namespace VisionCanvas.Core.Editing;
 
 public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? ParentId, bool IsGroup, long Order)
 {
+    public ImmutableArray<MaskRegion> Masks { get; init; } = [];
+
+    public RoiSearchRange? SearchRange
+    {
+        get; init;
+    }
+
+    public bool IsNameVisible { get; init; } = true;
+
     public FilterSettings Filter
     {
         get;
@@ -63,6 +72,8 @@ public sealed record DocumentState(
     }
 
     public RoiSnapshot Snapshot => _snapshot;
+
+    public bool IsGroupingRoi(Guid id) => Rois[id].IsGroup || Snapshot.Children.ContainsKey(id);
 
     public bool IsTransformSelectionPrepared
     {

@@ -1,10 +1,17 @@
 <Solution>
+  <Folder Name="/IndustrialVision.Filters/">
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Core/IndustrialVision.Filters.Core.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Cpu/IndustrialVision.Filters.Cpu.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Gpu.ILGPU/IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <Project Path="src/TeachingToolWpf/TeachingToolWpf.csproj" />
     <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
     <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
+    <Project Path="src/VisionCanvas.Filters.Wpf/VisionCanvas.Filters.Wpf.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />
     <Project Path="src/VisionInspection/VisionInspection.csproj" />

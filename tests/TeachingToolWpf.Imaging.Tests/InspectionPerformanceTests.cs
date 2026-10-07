@@ -236,11 +236,11 @@ public sealed class InspectionPerformanceTests
             get; init;
         }
 
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => Task.FromResult(new ShapeTrainingOutput(ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
                 new(ReadOnlyMemory<byte>.Empty, new(48, 48)), options), 0, 0));
 
-        public async Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public async Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             LastOptions = options;
             PreparedBeforeSearch = PreparationCalls > 0;

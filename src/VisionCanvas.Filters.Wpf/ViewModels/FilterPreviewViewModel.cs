@@ -1,8 +1,8 @@
-using System.Globalization;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
+using VisionImaging.Abstractions;
 
-namespace TeachingToolWpf.Presentation;
+namespace VisionCanvas.Filters.Wpf.ViewModels;
 
 public sealed record FilterOption(RoiFilterKind Kind, string Label)
 {
@@ -10,7 +10,7 @@ public sealed record FilterOption(RoiFilterKind Kind, string Label)
 }
 
 /// <summary>UI-owned preview session, with one worker and one replaceable pending request.</summary>
-public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
+public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposable
 {
     private readonly IRoiFilterPreview _processor;
     private readonly EditorSession _editor;
@@ -23,7 +23,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
 
     private bool _disposed;
 
-    private bool _suppressed;
+    private bool _previewEnabled = true;
 
     private bool _editing;
     private RoiFilterKind _selectedFilter;
@@ -32,6 +32,9 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     private string _edgeLow = "50";
 
     private string _edgeHigh = "150";
+    private string _radius = "3";
+    private string _sigma = "1";
+    private RoiFilterExecution _execution;
 
     private string _status = "필터를 선택한 뒤 미리보기를 누르세요.";
     private FilterRequest? _pending;
@@ -46,7 +49,19 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public IReadOnlyList<FilterOption> Options
     {
         get;
-    } = [new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화"), new(RoiFilterKind.Edge, "Edge · Canny")];
+    } =
+    [
+        new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화 (OpenCV)"),
+        new(RoiFilterKind.Edge, "Edge · Canny (OpenCV)"),
+        new(RoiFilterKind.Gaussian, "Gaussian · 평활화"),
+        new(RoiFilterKind.Erosion, "Erosion · 침식"), new(RoiFilterKind.Dilation, "Dilation · 팽창"),
+        new(RoiFilterKind.Opening, "Opening · 열기"), new(RoiFilterKind.Closing, "Closing · 닫기"),
+        new(RoiFilterKind.WhiteTopHat, "White Top-hat · 밝은 결함"), new(RoiFilterKind.BlackHat, "Black-hat · 어두운 결함"),
+        new(RoiFilterKind.NativeThreshold, "Threshold · 원본 명암 임계값"),
+        new(RoiFilterKind.GaussianBlackHatThreshold, "Gaussian → Black-hat → Threshold")
+    ];
+
+    public IReadOnlyList<RoiFilterExecution> ExecutionOptions { get; } = Enum.GetValues<RoiFilterExecution>();
 
     public RoiFilterKind SelectedFilter
     {
@@ -55,8 +70,7 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         {
             if (Set(ref _selectedFilter, value))
             {
-                Notify(nameof(IsBinarize));
-                Notify(nameof(IsEdge));
+                NotifyFilterFields();
                 DraftChanged();
             }
         }
@@ -101,8 +115,75 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public bool IsBinarize => SelectedFilter == RoiFilterKind.Binarize;
 
     public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
+    public bool IsIndustrial => new FilterSettings(SelectedFilter).IsIndustrial;
+    public bool UsesRadius => new FilterSettings(SelectedFilter).UsesRadius;
+    public bool UsesSigma => new FilterSettings(SelectedFilter).UsesSigma;
+    public bool UsesThreshold => IsBinarize || new FilterSettings(SelectedFilter).UsesNativeThreshold;
+    public string ThresholdCaption => IsBinarize ? "이진화 임계값 · 0–255" : "원본 명암 임계값 · Gray8 0–255 / Gray16 0–65535";
+
+    public string Radius
+    {
+        get => _radius;
+        set
+        {
+            if (Set(ref _radius, value))
+            {
+                DraftChanged();
+            }
+        }
+    }
+
+    public string Sigma
+    {
+        get => _sigma;
+        set
+        {
+            if (Set(ref _sigma, value))
+            {
+                DraftChanged();
+            }
+        }
+    }
+
+    public RoiFilterExecution Execution
+    {
+        get => _execution;
+        set
+        {
+            if (Set(ref _execution, value))
+            {
+                DraftChanged();
+            }
+        }
+    }
+
+    private void NotifyFilterFields()
+    {
+        Notify(nameof(IsBinarize));
+        Notify(nameof(IsEdge));
+        Notify(nameof(IsIndustrial));
+        Notify(nameof(UsesRadius));
+        Notify(nameof(UsesSigma));
+        Notify(nameof(UsesThreshold));
+        Notify(nameof(ThresholdCaption));
+        RefreshSliderValues();
+        Notify(nameof(ThresholdMaximum));
+    }
 
     public bool HasMixedFilters => _document.SelectionFacts.HasMixedFilters;
+
+    public bool IsPreviewEnabled
+    {
+        get => _previewEnabled;
+        set
+        {
+            if (Set(ref _previewEnabled, value))
+            {
+                Schedule(force: true, invalidate: true);
+                RefreshCommands();
+            }
+        }
+    }
 
     public bool IsActive
     {
@@ -131,6 +212,11 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         get;
     }
 
+    public RelayCommand Apply
+    {
+        get;
+    }
+
     public RelayCommand Stop
     {
         get;
@@ -155,7 +241,16 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     {
         _processor = processor;
         _editor = editor;
-        Preview = new(Register, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && !editor.IsPreviewing);
+        Preview = new(() =>
+        {
+            IsPreviewEnabled = true;
+            Register();
+        }, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && !editor.IsPreviewing);
+        Apply = new(Register, () => _document.Selection.Count > 0 && !editor.IsPreviewing);
+        BeginParameterEdit = new(StartParameterEdit, () => !_disposed && !_parameterEditing &&
+            !editor.IsPreviewing && _document.Selection.Count > 0 && SelectedFilter != RoiFilterKind.None);
+        EndParameterEdit = new(CompleteParameterEdit, () => _parameterEditing);
+        CancelParameterEdit = new(CancelParameterChanges, () => _parameterEditing);
         Stop = new(StopPreview, () => IsActive);
         ClearRegistration = new(() =>
         {
@@ -165,8 +260,14 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
             () => !editor.IsPreviewing && !_document.SelectionFacts.RegisteredFilters.IsEmpty);
     }
 
-    public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null)
+    public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null, PixelKind? pixelKind = null)
     {
+        var maximum = pixelKind is null ? _inputMaximum : pixelKind == PixelKind.Gray16 ? 65535 : 255;
+        if (_inputMaximum != maximum)
+        {
+            _inputMaximum = maximum;
+            Notify(nameof(ThresholdMaximum));
+        }
         var editingChanged = _editing != _editor.IsPreviewing;
         _editing = _editor.IsPreviewing;
         if (ReferenceEquals(_document.Rois, state.Rois) && ReferenceEquals(_document.Selection, state.Selection) && _document.Image == state.Image && _live == isLive && _transformPreview == preview)
@@ -182,28 +283,34 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         var selectionChanged = _document.Image != state.Image || !_document.Selection.SetEquals(state.Selection);
         var settingsChanged = !selectionChanged && !ReferenceEquals(_document.Rois, state.Rois) &&
             state.Selection.Any(id => !_document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
+        var sourceChanged = _live != isLive;
         _document = state;
         _live = isLive;
         _transformPreview = preview;
         Notify(nameof(HasMixedFilters));
         if (selectionChanged || settingsChanged)
         {
-            _suppressed = false;
+            ResetParameterEdit();
             var settings = state.SelectionFacts.First?.Filter ?? new(RoiFilterKind.None);
-            Set(ref _selectedFilter, settings.Kind, nameof(SelectedFilter));
-            Set(ref _threshold, settings.Threshold.ToString(CultureInfo.CurrentCulture), nameof(Threshold));
-            Set(ref _edgeLow, settings.EdgeLow.ToString(CultureInfo.CurrentCulture), nameof(EdgeLow));
-            Set(ref _edgeHigh, settings.EdgeHigh.ToString(CultureInfo.CurrentCulture), nameof(EdgeHigh));
-            Notify(nameof(IsBinarize));
-            Notify(nameof(IsEdge));
+            LoadSettings(settings);
         }
-        Schedule();
+        var invalidate = selectionChanged || settingsChanged || sourceChanged;
+        Schedule(invalidate: invalidate, keepVisible: !invalidate);
         RefreshCommands();
     }
 
     private void DraftChanged()
     {
-        if (IsActive || SelectedFilter == RoiFilterKind.None)
+        RefreshSliderValues();
+        if (_parameterEditing)
+        {
+            if (TryReadSettings(out var settings))
+            {
+                _draftSettings = settings;
+                Schedule(force: true, keepVisible: true);
+            }
+        }
+        else if (IsActive || SelectedFilter == RoiFilterKind.None || !_document.SelectionFacts.RegisteredFilters.IsEmpty)
         {
             Register();
         }
@@ -218,78 +325,73 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
             return;
         }
 
-        try
+        if (TryReadSettings(out var settings))
         {
-            static double Number(string value) => double.Parse(value, CultureInfo.CurrentCulture);
-            var settings = new FilterSettings(SelectedFilter, IsBinarize ? Number(Threshold) : 128,
-                IsEdge ? Number(EdgeLow) : 50, IsEdge ? Number(EdgeHigh) : 150);
-            settings.Validate();
             _editor.SetFilters(settings);
-            _suppressed = false;
             Update(_editor.State, _live);
-            Schedule(force: true);
-        }
-        catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
-        {
-            Status = "임계값을 확인하세요. 0–255 숫자와 Edge 하한 < 상한이 필요합니다.";
+            Schedule(force: true, invalidate: true);
         }
     }
 
     private void RefreshCommands()
     {
         Preview?.Refresh();
+        Apply?.Refresh();
         Stop?.Refresh();
         ClearRegistration?.Refresh();
+        BeginParameterEdit?.Refresh();
+        EndParameterEdit?.Refresh();
+        CancelParameterEdit?.Refresh();
     }
 
     private void ClearResult()
     {
+        if (_result is null)
+        {
+            return;
+        }
         _result = null;
         Changed?.Invoke();
     }
 
     public void StopPreview()
     {
-        _suppressed = true;
-        IsActive = false;
-        _revision++;
-        _pending = _requested = null;
-        _cancellation?.Cancel();
-        ClearResult();
-        Status = "원본 표시 · 등록 설정 유지 · 다시 선택하면 자동 미리보기";
-        RefreshCommands();
+        IsPreviewEnabled = false;
     }
 
-    private void Schedule(bool force = false, bool keepVisible = false)
+    private void Schedule(bool force = false, bool keepVisible = false, bool invalidate = false)
     {
         if (_disposed)
         {
             return;
         }
 
-        var rois = _document.SelectionFacts.RegisteredFilters;
-        IsActive = !_suppressed && _document.Image is not null && rois.Length > 0;
+        IReadOnlyList<Roi> rois = _parameterRois ?? (IReadOnlyList<Roi>)_document.SelectionFacts.RegisteredFilters;
+        IsActive = IsPreviewEnabled && _document.Image is not null && rois.Count > 0;
         if (!IsActive)
         {
             _revision++;
             _pending = _requested = null;
             _cancellation?.Cancel();
             ClearResult();
-            Status = _suppressed ? "원본 표시 · 등록 설정 유지 · 다시 선택하면 자동 미리보기" : "등록된 필터 없음 · 필터 선택 후 미리보기로 등록하세요.";
+            Status = !IsPreviewEnabled ? "미리보기 꺼짐 · 등록 설정 유지" : "등록된 필터 없음 · 필터 선택 후 설정을 적용하세요.";
             return;
         }
         try
         {
-            var next = new FilterRequest(_document.Image!, _live, rois, _transformPreview);
+            var next = new FilterRequest(_document.Image!, _live, rois, _transformPreview) { OverrideSettings = _draftSettings };
             if (!force && _requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive &&
-                old.Transform == next.Transform && old.Rois.SequenceEqual(next.Rois))
+                old.Transform == next.Transform && old.OverrideSettings == next.OverrideSettings && old.Rois.SequenceEqual(next.Rois))
             {
                 return;
             }
 
             _pending = _requested = next;
-            _revision++;
-            _cancellation?.Cancel();
+            if (invalidate)
+            {
+                _revision++;
+                _cancellation?.Cancel();
+            }
             if (!keepVisible)
             {
                 ClearResult();
@@ -315,15 +417,20 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
-            while (_pending is { } request && !_disposed)
+            while (_pending is not null && !_disposed)
             {
-                _pending = null;
                 var version = _revision;
                 using var current = new CancellationTokenSource();
                 _cancellation = current;
                 try
                 {
-                    await Task.Delay(100, current.Token); // Coalesce rapid selection/property/drag changes.
+                    // A bounded refresh interval, not a debounce restarted on every pointer event.
+                    await Task.Delay(100, current.Token);
+                    if (_pending is not { } request)
+                    {
+                        continue;
+                    }
+                    _pending = null;
                     var output = await _processor.ProcessAsync(request, current.Token);
                     if (_disposed || version != _revision || !IsActive)
                     {
@@ -331,7 +438,8 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
                     }
 
                     _result = output;
-                    Status = $"미리보기 켜짐 · {output.Regions.Count}개 ROI · {output.Milliseconds:F0} ms";
+                    var state = _pending is null ? "미리보기 켜짐" : "갱신 중 · 마지막 완료 결과 표시";
+                    Status = $"{state} · {output.Regions.Count}개 ROI · 전체 {output.Milliseconds:F0} ms\n{DescribeExecution(output)}";
                     Changed?.Invoke();
                 }
                 catch (OperationCanceledException) when (current.IsCancellationRequested)
@@ -363,9 +471,28 @@ public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _disposed = true;
+        ResetParameterEdit();
         _revision++;
         _pending = _requested = null;
         _cancellation?.Cancel();
         _result = null;
+    }
+
+    private static string DescribeExecution(FilterPreviewResult output)
+    {
+        var reports = output.Regions.Where(region => region.Execution is not null).Select(region => region.Execution!).ToArray();
+        if (reports.Length == 0)
+        {
+            return "OpenCV · CPU";
+        }
+        var stages = reports.SelectMany(report => report.Stages).ToArray();
+        var devices = string.Join(", ", stages.Select(stage => stage.Device == "CPU" ? "CPU" : "CUDA · " + stage.Device).Distinct());
+        var fallback = string.Join("\n", stages.Where(stage => stage.Device == "CPU" && stage.Reason != "CpuOnly was requested.")
+            .Select(stage => $"{stage.Filter}: CPU 전환 · {stage.Reason}").Distinct());
+        var legacy = reports.Length < output.Regions.Count ? " + OpenCV CPU" : "";
+        var memory = reports.Max(report => report.HostWorkingBytes + report.GpuWorkingBytes) / (1024d * 1024);
+        var transfer = reports.Sum(report => report.UploadBytes + report.DownloadBytes) / (1024d * 1024);
+        return $"IndustrialVision · {devices}{legacy}\n엔진 최대 작업 메모리 {memory:F1} MiB · 전송 {transfer:F1} MiB" +
+            (fallback.Length == 0 ? "" : "\n" + fallback);
     }
 }

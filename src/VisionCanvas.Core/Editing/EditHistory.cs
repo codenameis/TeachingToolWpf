@@ -57,6 +57,8 @@ public sealed class DocumentEdit
 
             changes.Add(new(id, old, next));
             estimatedBytes += 320L + (((old?.Name.Length ?? 0) + (next?.Name.Length ?? 0)) * 2);
+            estimatedBytes += 32L + (old?.SearchRange is null ? 0 : 32) + (next?.SearchRange is null ? 0 : 32);
+            estimatedBytes += ((old?.Masks.Length ?? 0) + (next?.Masks.Length ?? 0)) * 64L;
             estimatedBytes += ((old?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? old.Geometry.Shape.Vertices.Length : 0)
                 + (next?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? next.Geometry.Shape.Vertices.Length : 0)) * 16L;
         }

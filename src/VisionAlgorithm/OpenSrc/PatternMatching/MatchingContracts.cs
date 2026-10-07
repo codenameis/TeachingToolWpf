@@ -288,6 +288,10 @@ internal sealed record PoseTemplate(double Angle, double Scale, ImmutableArray<I
 
 public sealed class ShapeModel
 {
+    internal TrainingPixelMask? PixelMask
+    {
+        get; init;
+    }
     public Guid Id { get; } = Guid.NewGuid();
     public int FormatVersion => 1;
     public ImagePoint TrainingReferencePoint
@@ -312,7 +316,7 @@ public sealed class ShapeModel
     }
     public int TemplateCount => Templates.Length;
     public long EstimatedBytes => Levels.Sum(l => (long)l.Features.Length * 32) +
-        Templates.Sum(t => t.Levels.Sum(l => (long)l.Length * 12)) + (ContourModel?.EstimatedBytes ?? 0) + (FineDetail?.EstimatedBytes ?? 0);
+        Templates.Sum(t => t.Levels.Sum(l => (long)l.Length * 12)) + (ContourModel?.EstimatedBytes ?? 0) + (FineDetail?.EstimatedBytes ?? 0) + (ContourModel is null ? PixelMask?.EstimatedBytes ?? 0 : 0);
     internal FineDetailModel? FineDetail
     {
         get;
@@ -359,7 +363,10 @@ public sealed class ShapeModel
             Levels.Skip(level).Select(value => value with { Factor = value.Factor / factor }).ToImmutableArray(),
             Bounds.Select(point => new ImagePoint(point.X / factor, point.Y / factor)).ToImmutableArray(),
             Templates.Select(template => template with { Levels = template.Levels.Skip(level).ToImmutableArray() }).ToImmutableArray(),
-            level == 0 ? ContourModel : null, level == 0 ? FineDetail : null);
+            level == 0 ? ContourModel : null, level == 0 ? FineDetail : null)
+        {
+            PixelMask = level == 0 ? PixelMask : null
+        };
     }
 }
 

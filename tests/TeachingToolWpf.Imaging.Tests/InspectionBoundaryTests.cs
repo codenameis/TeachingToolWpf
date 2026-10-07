@@ -281,10 +281,10 @@ public sealed class InspectionBoundaryTests
             get; set;
         }
 
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => TrainingCompletion?.Task ?? Task.FromResult(new ShapeTrainingOutput(Model, 0, 0));
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             var match = new ShapeMatch(Pose, .95, .96, .9, 4, new(RefinementStatus.Converged, Pose, 1, .1, 3, 100, true));
             return SearchCompletion?.Task ?? Task.FromResult(new ShapeSearchOutput([match], 1, false, 0, 0, []));
@@ -308,10 +308,10 @@ public sealed class InspectionBoundaryTests
             get; set;
         }
 
-        public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token)
+        public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null)
             => TrainingCompletion?.Task ?? Task.FromResult(new TemplateTrainingOutput(Model, 0));
 
-        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => SearchCompletion?.Task ?? Task.FromResult(new TemplateSearchOutput([new(ReferencePoint, .95)], 1, false, 0, 0));
     }
 }

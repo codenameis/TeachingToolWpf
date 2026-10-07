@@ -1,0 +1,7 @@
+{
+  "Processor": "AMD Ryzen 5 5600H with Radeon Graphics         ",
+  "LogicalProcessors": 12,
+  "Gpu": "NVIDIA GeForce RTX 3060 Laptop GPU, 581.83, 6144 MiB",
+  "Sdk": "10.0.401",
+  "Scope": "Windows x64; no power policy changes; other OS workloads not controlled"
+}

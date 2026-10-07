@@ -104,7 +104,10 @@ public static class ShapeTrainer
         }
         var detail = options.UseFineDetailValidation && options.BuildClutterModel && !options.BuildGeometricModel && levels.Count == 1
             ? FineDetailModel.Create(image, region, cancellationToken) : null;
-        return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), geometryModel, detail);
+        return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), geometryModel, detail)
+        {
+            PixelMask = new(image.Width, image.Height, geometryModel?.OwnedMask ?? region.Mask.ToArray(), region.ReferencePoint, region.ReferenceAngle)
+        };
     }
 
     private static ImmutableArray<ImagePoint> CreateBounds(GrayImage image, TrainingRegion region)

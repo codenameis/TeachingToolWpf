@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <DefineConstants Condition="'$(EnableGpu)' == 'true'">$(DefineConstants);ENABLE_GPU</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
+    <ProjectReference Include="../../src/IndustrialVision.Filters.Gpu.ILGPU/IndustrialVision.Filters.Gpu.ILGPU.csproj" Condition="'$(EnableGpu)' == 'true'" />
+  </ItemGroup>
+</Project>

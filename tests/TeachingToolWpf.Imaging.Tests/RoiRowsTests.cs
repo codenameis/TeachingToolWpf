@@ -200,8 +200,8 @@ public class RoiRowsTests
             Assert.Equal(ids[index], rows[index].Id);
             Assert.Equal(index, rows[index].Depth);
         }
-        Assert.Equal("부모 1", rows[0].Kind);
-        Assert.Equal("자식 · 사각형", rows[^1].Kind);
+        Assert.Equal("그룹 1", rows[0].Kind);
+        Assert.Equal("일반 · 사각형", rows[^1].Kind);
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public class RoiRowsTests
         Assert.Equal(new[] { root.Id, child.Id, grandchild.Id, siblingChild.Id, siblingRoot.Id }, rows.Select(row => row.Id));
         Assert.Equal(new[] { 0, 1, 2, 1, 0 }, rows.Select(row => row.Depth));
         Assert.Equal("그룹 2", rows[0].Kind);
-        Assert.Equal("부모 1", rows[1].Kind);
+        Assert.Equal("그룹 1", rows[1].Kind);
     }
 
     [Fact]

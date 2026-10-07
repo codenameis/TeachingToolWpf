@@ -10,6 +10,26 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class PrimitiveShapeDetectionViewModelTests
 {
     [Fact]
+    public async Task SelectionUsesSearchRangeAndRejectsGroupingParent()
+    {
+        var (service, editor, model) = Create();
+        using var lifetime = model;
+        var id = editor.State.Selection.Single();
+        var geometry = editor.State.Rois[id].Geometry;
+        editor.SetProperties(id, "search", geometry, new(10, 15), true);
+        model.Update(editor.State, 1, false, true);
+        model.UseSelection = true;
+        await model.Detect.ExecuteAsync();
+        Assert.Equal(new RoiSearchRange(10, 15).Expand(geometry), service.Region);
+        editor.AddChild(id, new(new(128, 128), 20, 20, 0));
+        editor.Select([id]);
+        model.Update(editor.State, 1, false, true);
+        Assert.False(model.Detect.CanExecute(null));
+        model.UseSelection = false;
+        Assert.True(model.Detect.CanExecute(null));
+    }
+
+    [Fact]
     public async Task DetectionUsesIndependentOptionsAndActualClosedContourWithoutEditingDocument()
     {
         var (service, editor, model) = Create();
@@ -177,7 +197,7 @@ public sealed class PrimitiveShapeDetectionViewModelTests
             [new(100, 100), new(140, 100), new(140, 140), new(100, 140)])], 1, false, 0, 1);
 
         public Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region,
-            PrimitiveDetectionOptions options, CancellationToken token)
+            PrimitiveDetectionOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             Options = options;
             Region = region;

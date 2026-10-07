@@ -1,0 +1,58 @@
+<UserControl x:Class="TeachingToolWpf.Views.RoiMaskPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:TeachingToolWpf.Controls">
+    <Border BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,1" Padding="0,18" Margin="0,8,0,16">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,8">
+                <CheckBox DockPanel.Dock="Right" Content="표시" IsChecked="{Binding ShowMasks}" IsEnabled="{Binding CanToggleVisibility}" VerticalAlignment="Center"
+                          ToolTip="선택 ROI의 마스크 표시만 전환합니다. 검사 적용은 유지됩니다." AutomationProperties.Name="마스크 표시"/>
+                <TextBlock Text="마스킹" FontSize="13" FontWeight="SemiBold"/>
+            </DockPanel>
+            <TextBlock Text="{Binding Summary}" Foreground="{StaticResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <Button Content="▧  사각형 추가" Command="{Binding DrawRectangle}" AutomationProperties.Name="사각 마스크 추가">
+                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}"><Style.Triggers>
+                        <DataTrigger Binding="{Binding IsRectangleDrawing}" Value="True"><Setter Property="BorderBrush" Value="#E03360"/><Setter Property="Background" Value="#FFF0F4"/></DataTrigger>
+                    </Style.Triggers></Style></Button.Style>
+                </Button>
+                <Button Grid.Column="2" Content="◉  타원 추가" Command="{Binding DrawEllipse}" AutomationProperties.Name="타원 마스크 추가">
+                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}"><Style.Triggers>
+                        <DataTrigger Binding="{Binding IsEllipseDrawing}" Value="True"><Setter Property="BorderBrush" Value="#E03360"/><Setter Property="Background" Value="#FFF0F4"/></DataTrigger>
+                    </Style.Triggers></Style></Button.Style>
+                </Button>
+            </Grid>
+            <Button Content="마스크 그리기 완료" Command="{Binding Finish}" Style="{StaticResource PrimaryButton}" Margin="0,8,0,0"
+                    Visibility="{Binding IsDrawing, Converter={StaticResource BoolVisibility}}" AutomationProperties.Name="마스크 그리기 완료"/>
+            <TextBlock Text="{Binding Hint}" TextWrapping="Wrap" FontSize="10" LineHeight="17" Margin="0,10,0,10" Foreground="{StaticResource TextSecondary}"/>
+            <ListBox ItemsSource="{Binding Rows}" SelectedIndex="{Binding SelectedIndex}" DisplayMemberPath="Name" MaxHeight="132"
+                     Visibility="{Binding HasMasks, Converter={StaticResource BoolVisibility}}"
+                     AutomationProperties.Name="마스크 목록" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+            <Expander Header="선택 마스크 위치 · 크기" IsExpanded="False" Visibility="{Binding HasSelectedMask, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <StackPanel Margin="0,8,0,0">
+                <TextBlock Text="ROI 좌상단 기준 위치 / 크기 (px)" Style="{StaticResource Caption}" Margin="0,0,0,6"/>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <StackPanel><TextBlock Text="X" Style="{StaticResource Caption}"/><controls:ValueTextBox Value="{Binding X, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ValueTextBoxStyle}" AutomationProperties.Name="마스크 X"/></StackPanel>
+                    <StackPanel Grid.Column="2"><TextBlock Text="Y" Style="{StaticResource Caption}"/><controls:ValueTextBox Value="{Binding Y, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ValueTextBoxStyle}" AutomationProperties.Name="마스크 Y"/></StackPanel>
+                </Grid>
+                <Grid Margin="0,8,0,8">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <StackPanel><TextBlock Text="너비" Style="{StaticResource Caption}"/><controls:ValueTextBox Value="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ValueTextBoxStyle}" AutomationProperties.Name="마스크 너비"/></StackPanel>
+                    <StackPanel Grid.Column="2"><TextBlock Text="높이" Style="{StaticResource Caption}"/><controls:ValueTextBox Value="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ValueTextBoxStyle}" AutomationProperties.Name="마스크 높이"/></StackPanel>
+                </Grid>
+                <Button Content="선택 마스크 변경 적용" Command="{Binding Apply}" Style="{StaticResource SecondaryButton}"/>
+            </StackPanel>
+            </Expander>
+            <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="#B3261E" FontSize="10" Margin="0,6"/>
+            <Grid Visibility="{Binding HasMasks, Converter={StaticResource BoolVisibility}}">
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <Button Content="선택 삭제" Command="{Binding Remove}" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="선택 마스크 삭제"/>
+                <Button Grid.Column="2" Content="모두 지우기" Command="{Binding Clear}" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="마스크 모두 삭제"/>
+            </Grid>
+            <TextBlock Text="사선 음영 = 제외 영역 · ROI 밖은 적용되지 않습니다.&#x0a;마스크 변경 후 다시 학습하세요. Ctrl+Z로 복원할 수 있습니다."
+                       Foreground="{StaticResource TextSecondary}" FontSize="10" TextWrapping="Wrap" LineHeight="17" Margin="0,10,0,0"/>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -19,8 +19,12 @@ public sealed class PreparedSearchImage
         get;
     }
     public long EstimatedBytes => Gradients.Sum(g => g.EstimatedBytes) +
-        Maps.Sum(map => map.EstimatedBytes) + (Original?.Pixels.Length ?? 0);
+        Maps.Sum(map => map.EstimatedBytes) + (Original?.Pixels.Length ?? 0) + ExcludedPixels.Length;
     internal GrayImage? Original
+    {
+        get; private init;
+    }
+    internal ReadOnlyMemory<byte> ExcludedPixels
     {
         get; private init;
     }
@@ -104,9 +108,12 @@ public sealed class PreparedSearchImage
             }
             original = new(pixels, image.Width, image.Height, image.Width);
         }
+        // 재사용되는 전처리 결과는 호출자 입력 버퍼의 반환/변경 이후에도 마스크를 보존한다.
+        var excludedPixels = image.ExcludedPixels.ToArray();
         return new(minimumGradient, gradients.ToImmutable(), maps.ToImmutable(), timer.Elapsed.TotalMilliseconds)
         {
-            Original = original
+            Original = original,
+            ExcludedPixels = excludedPixels
         };
     }
 

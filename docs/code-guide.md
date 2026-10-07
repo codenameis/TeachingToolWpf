@@ -10,6 +10,8 @@
 |---|---|---|
 | 버튼·단축키 연결 | [EditorViewModel](../src/TeachingToolWpf/Presentation/EditorViewModel.cs) | WPF 요청을 같은 편집 명령으로 전달 |
 | ROI 생성·그룹화·삭제·Undo/Redo | [EditorSession](../src/VisionCanvas.Core/Editing/EditorSession.cs) | 문서 변경과 한 번의 편집 이력 확정 |
+| ROI 마스크 그리기·목록·검사 제외 | [RoiMaskViewModel](../src/TeachingToolWpf/Presentation/RoiMaskViewModel.cs), [MaskDrawGesture](../src/VisionCanvas.Core/Interaction/MaskDrawGesture.cs), [MaskRegion](../src/VisionGeometry/MaskRegion.cs) | 정규화 불변 값과 통합 이력. [MaskPipeline](../src/VisionCanvas/Rendering/MaskPipeline.cs)은 표시만, 중립 RoiExclusion은 원본 검사 연결. [적용 규칙·검증](roi-masking.md) |
+| 검색 ROI·그룹 이름 표시 | [RoiSearchRange](../src/VisionCanvas.Core/Editing/RoiSearchRange.cs), [검색 색인](../src/VisionCanvas.Core/Editing/RoiSnapshot.Search.cs), [속성 VM](../src/TeachingToolWpf/Presentation/RoiPropertiesViewModel.cs) | 수치 여유·타입·이름 표시를 한 편집으로 저장. [사용법](roi-search-range.md) |
 | 사각형·원·삼각형·폴리곤 | [RoiGeometry](../src/VisionGeometry/RoiGeometry.cs), [RoiShape](../src/VisionGeometry/RoiShape.cs) | 공통 프레임과 불변 윤곽 전략. FrameCorners는 실제 도형이 아닌 편집 프레임 |
 | 폴리곤 점 입력·교차점 닫힘 | [RoiCreation](../src/TeachingToolWpf/Presentation/EditorViewModel.RoiCreation.cs), [PolygonClosure](../src/VisionCanvas.Core/Geometry/PolygonClosure.cs) | 추가 버튼은 빈 초안 시작. 첫 교차점의 닫힌 경로만 한 번 확정 |
 | 드래그 중 이동·회전·취소 | [InteractionController](../src/VisionCanvas.Core/Interaction/InteractionController.cs), [Gestures](../src/VisionCanvas.Core/Interaction/Gestures.cs) | 이미지 좌표와 도구 상태 |
@@ -25,7 +27,7 @@
 | 셰이더에 보내는 값의 의미 | [RoiDrawConstants](../src/VisionCanvas/Rendering/RoiDrawConstants.cs), [Roi.hlsl](../src/VisionCanvas/Shaders/Roi.hlsl) | 배율·원점·회전·색·두께의 동일한 128바이트 배치 |
 | 셰이더 컴파일·오류 확인 | [ShaderCompiler](../src/VisionCanvas/Rendering/ShaderCompiler.cs) | 파일을 바이트로 전달해 한글 주석도 소스가 잘리지 않게 처리 |
 | 이미지 열기·교체 | [ImageCoordinator](../src/TeachingToolWpf/Presentation/ImageCoordinator.cs) | 성공 후 문서 교체, 실패/취소 시 유지 |
-| ROI 필터 미리보기 | [FilterPreviewViewModel](../src/TeachingToolWpf/Presentation/FilterPreviewViewModel.cs), [Imaging/Filters](../src/VisionCanvas/Imaging/Filters) | OpenCV는 영상 처리 경계 안에서 사용 |
+| ROI 필터 컨트롤/미리보기 | [VisionCanvas.Filters.Wpf](../src/VisionCanvas.Filters.Wpf/README.md), [Imaging/Filters](../src/VisionCanvas/Imaging/Filters) | MVVM 파라미터·토글·연속 갱신과 CPU/CUDA 계산 경계 분리 |
 | 형상 모델 학습·검색 계약 | [ShapeTrainer](../src/VisionAlgorithm/OpenSrc/PatternMatching/ShapeTrainer.cs), [ShapeMatcher](../src/VisionAlgorithm/OpenSrc/PatternMatching/ShapeMatcher.cs) | 순수 C# Gray8 입력, 불변 모델, 원본 픽셀 좌표 |
 | 오른쪽 패턴 티칭 UI 상태 | [ShapeMatchingViewModel](../src/TeachingToolWpf/Presentation/ShapeMatchingViewModel.cs), [ShapeMatchingPanel](../src/TeachingToolWpf/Views/ShapeMatchingPanel.xaml) | worker 취소, source epoch 검사, ROI 편집 이력과 분리 |
 | 원본 타일/프레임 adapter | [ShapeMatchingService](../src/VisionInspection/Matching/ShapeMatchingService.cs), [MatchingImageReader](../src/VisionInspection/Matching/MatchingImageReader.cs) | display preview를 재사용하지 않고 독립 source를 열어 필요한 영역을 읽음 |

@@ -15,6 +15,7 @@ internal sealed class GeometricQualityModel
     private readonly int _height;
 
     public ReadOnlySpan<EdgePoint> ContrastReferences => _contrastReferences;
+    internal ReadOnlyMemory<byte> OwnedMask => _mask;
 
     public long EstimatedBytes => ((_contour.LongLength + _contrastReferences.LongLength) * Unsafe.SizeOf<EdgePoint>()) +
         (_rowStarts.LongLength * sizeof(int)) + _mask.LongLength;

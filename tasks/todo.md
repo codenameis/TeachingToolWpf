@@ -1,5 +1,60 @@
 # 단계별 작업 목록
 
+## 2026-10-06 ROI 마스킹 UI·학습·검사
+
+`main` 로컬 변경만 진행. [ADR-040](../docs/decisions/0040-roi-masking.md), [사용법·검증](../docs/roi-masking.md).
+
+- [x] PASS: 사각형/타원 그리기·목록·수치 편집·개별/전체 삭제·보기 토글, 불변 ROI 상대 좌표·복사·통합 Undo/Redo.
+- [x] PASS: 원본 학습 제외와 선택 검사 대상 제외, 세 방식의 마스크 변경 재학습 차단/Undo 복원. Core7/MVVM5/원본 통합4/GPU 배치1/후보 예산1/실제 CUDA1 신규 테스트.
+- [x] PASS: 숫자 정밀도·64개 상한·입력 마스크 버퍼 수명 보완을 포함한 최종 전체 회귀1,137개 통과(실패/건너뜀0). Release 빌드 경고/오류0, diff 검사, SOLID5/GRASP9 검토.
+- [ ] FAIL→NOT_RUN: 첫 GPU UI 스모크의 타원 시작점이 원 밖인 테스트 입력을 수정했으나 재실행 거절로 최종 UI·음영 픽셀 확인 미완료. WARP 미실행.
+- [ ] NOT_RUN: 초기 컨벤션 실패 후 변경 파일의 whitespace/style 적용. 최종 검사 실행 거절로 `Format-Code.ps1 -Verify` 통과 미확인.
+- [ ] NOT_RUN: 마스크 부하의60FPS·CPU125ms/CUDA80ms, Linux·현장 영상. 기존 미달 유지.
+
+## 2026-10-06 MVVM WPF 필터 컨트롤·토글
+
+- [x] PASS: VisionCanvas.Filters.Wpf 프로젝트에 독립 리소스/외부 DataContext 방식의 패널·ViewModel 분리. 앱/CUDA 역참조 없음.
+- [x] PASS: 필터별 숫자·슬라이더 파라미터, 임시 계산 후 gesture당 한 번 등록·Undo, Esc와 잘못된 입력 처리.
+- [x] PASS: ON/OFF 유지, OFF에서 재선택해도 원본 유지, 연속 ROI 이동·회전·크기 요청에서 실행 취소 반복 제거 및 최신 결과 완료.
+- [x] PASS: 관련 앱/실제 CUDA 15 + 기존 Canvas 어댑터22 테스트. 별도 실행 디렉터리의 실제 전체 WPF smoke 종료0, 이동 중 결과8개 게시. [증거](../docs/filter-controls.md).
+- [x] PASS: 전체 Release 빌드 경고/오류0, C# 컨벤션·diff 검사, SOLID5/GRASP9 검토.
+- [ ] NOT_RUN: 물리 마우스/다른 장비의 지연 분포와 60FPS 필터 처리. 기존 엔진의 미완료 알고리즘 범위는 그대로 남음.
+
+## 2026-10-06 IndustrialVision ROI 필터
+
+`main` 로컬 변경만 진행. [ADR-038](../docs/decisions/0038-industrial-roi-filters.md), [사용법·증거](../docs/industrial-roi-filters.md).
+
+- [x] PASS: Canvas → 독립 Pipeline 참조, CPU 기본 실행과 앱의 지연 CUDA 주입. 기존 OpenCV Binarize/Canny 유지.
+- [x] PASS: Gaussian·형태학 6종·원본 임계값·3단계 프리셋, 반경/sigma/임계값/장치 설정, ROI 등록·Undo/Redo·복사 유지.
+- [x] PASS: Gray16 4095/4096 구별, 독립 morphology 기준, RGB/BGR, 회전 원형 마스크, 오류/취소/fallback, 계획 재사용. Canvas 전체194+후속 통합15, 앱10, Core13 테스트 통과(겹치는 테스트 포함).
+- [x] PASS: 실제 RTX3060 CUDA에서 새 9개 항목 CPU 비교, 3단계 한 번 업/다운로드. WPF 전체 smoke 종료0, Release 경고/오류0, 스타일 검사 통과.
+- [ ] NOT_RUN: 이 UI의 warm p50/p95 성능·현장 영상 검사 품질·실제 무GPU PC. 초기 CUDA 준비 포함 기능 smoke는 CPU보다 느림.
+- [ ] 미완료: 보정 맵 UI/Flat-field 등록, 나머지 엔진 단계 A/B/C, 자유 레시피 편집과 검사 원본 연결. [엔진 상태표](../IndustrialVision.Filters/docs/filter-status.csv).
+
+## 2026-10-06 20만 ROI 그룹화 후 탐색 프리징
+
+`main`의 기존 검색 ROI 작업을 보존한 로컬 수정·검증. [ADR-037](../docs/decisions/0037-progressive-roi-detail-preparation.md), [수치와 증거](../docs/group-cold-validation.md).
+
+- [x] PASS: 같은 불변 블록의 기존 표시를 유지하며 새 확대 LOD를 프레임별로 준비. 상세화 후 정지 화면 렌더 생략 재개, 완료 전 캡처/검사 표시 완료 통지 금지.
+- [x] PASS: 계층 역할 ID 조회·현재/직전 배열 재사용, 약한 참조와 캐시 예산 반영. 검색 공간/변형 색인을 기존 worker에서 준비하고 준비 완료 판정에 포함.
+- [x] PASS(개선): RTX3060 20만 ROI 첫 확대 최대 제출183.91→8.82ms, Undo121.51→2.53ms, 회전 확정 직후37.68→6.23ms. 최종 상세화 대기0, 반복 업로드0.
+- [x] PASS: GPU 회전/Esc 복원·다중 선택 이동·Undo/Redo·캡처, WARP 그룹화/Esc·확대·Undo/Redo. GPU/WARP 전체 UI/픽셀/8K 스모크 종료0, D3D12 오류 없음.
+- [x] PASS: 6개 프로젝트1093테스트(기존 PNG 캐시 접근 오류1건은 동일 코드로 Inspection 독립 재실행107개 통과), Release 경고/오류0, 전체 컨벤션·diff 검사, SOLID5/GRASP9 검토.
+- [ ] FAIL: 모든 조작60FPS. 최종 GPU zoom Present 최대37.89ms, 회전 확정 UI probe44.66ms, WARP zoom Present190.43ms. 첫 블록/최초 표시·GC·이력 게시가 남는다.
+- [ ] NOT_RUN: 사용자 실제 ROI 배치와 물리 마우스, 대량 검색 ROI/복잡한 폴리곤의 연속60FPS.
+
+## 2026-10-06 검색 범위 ROI·그룹 부모 이름
+
+현재 `main`에서 로컬 구현·검증. [ADR-036](../docs/decisions/0036-roi-search-range-and-group-label.md), [사용법과 증거](../docs/roi-search-range.md).
+
+- [x] PASS: 일반/검색 ROI 타입, 숫자 여유, 원래4종 도형 유지, 빨간 GPU 점선과 검색 범위 전용 공간 조회.
+- [x] PASS: 원자적 속성 편집, 실패/취소·Undo/Redo·복사·이동/회전, 이름 및 이름표 표시.
+- [x] PASS: 그룹 부모 검사 입력 제외, 실제 ROI 학습과 확장 범위 검색 분리, 전체 이미지 검사 보존.
+- [x] PASS: 실제 RTX3060 GPU WPF 입력/점선 픽셀·그룹 이름/Visible/Undo/Redo 자동 smoke 종료0.
+- [x] PASS: CPU(WARP) 동일 UI/픽셀/이력 및 전체 smoke 종료0.6개 프로젝트1,086개 테스트 통과.
+- [x] PASS: Release 빌드 경고/오류0, Microsoft C# 컨벤션·diff 검사. SOLID5/GRASP9 검토를 ADR-036에 기록, 원칙 예외 없음.
+- [ ] NOT_RUN: 물리 마우스 수동 확인, 수만 검색 ROI60FPS 실측. 기존 성능 미달 상태 유지.
+
 2026-10-06 후속: 사용자 요청으로 검증된 `codex/named-drawing-layers` 작업을 커밋하여 로컬 `main`에 병합한다. 아래 로컬 수정·검증 기록은 당시 수행 범위이며, 이 후속 요청에는 푸시를 포함하지 않는다.
 
 ## 2026-10-06 ConfigPage·이미지 중심 크로스헤어·선택 색상

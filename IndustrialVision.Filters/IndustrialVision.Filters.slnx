@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IndustrialVision.Filters.Core/IndustrialVision.Filters.Core.csproj" />
+    <Project Path="src/IndustrialVision.Filters.Cpu/IndustrialVision.Filters.Cpu.csproj" />
+    <Project Path="src/IndustrialVision.Filters.Gpu.ILGPU/IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+    <Project Path="src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
+  </Folder>
+  <Folder Name="/tests/"><Project Path="tests/IndustrialVision.Filters.Tests/IndustrialVision.Filters.Tests.csproj" /></Folder>
+  <Folder Name="/benchmarks/"><Project Path="benchmarks/IndustrialVision.Filters.Benchmarks/IndustrialVision.Filters.Benchmarks.csproj" /></Folder>
+  <Folder Name="/samples/"><Project Path="samples/IndustrialVision.Filters.Console/IndustrialVision.Filters.Console.csproj" /></Folder>
+</Solution>

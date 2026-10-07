@@ -23,6 +23,11 @@ internal static class RenderSmoke
             try
             {
                 await model.InitializeAsync();
+                if (Environment.GetCommandLineArgs().Contains("--mask-smoke"))
+                {
+                    await MaskSmokeScenario.Run(window, model, viewport);
+                    return;
+                }
                 await ExplicitHierarchySmokeScenario.Run(window, model, viewport);
                 await EditingSmokeScenario.Run(model, viewport);
                 await InspectorSmokeScenario.Run(window, model);
@@ -33,6 +38,8 @@ internal static class RenderSmoke
                 await CrosshairSmokeScenario.Run(window, model, viewport);
                 File.AppendAllText("artifacts/smoke.log", "ConfigPage bindings/reopen and image-centered full-canvas crosshair button/pan/zoom/resize/restart/pixels passed" + Environment.NewLine);
                 await ShapeSmokeScenario.Run(window, model, viewport);
+                await RoiSearchSmokeScenario.Run(window, model, viewport);
+                File.AppendAllText("artifacts/smoke.log", "ROI search type/numeric inspector/red dash pixels, grouping-only parent/name visibility and Undo/Redo passed" + Environment.NewLine);
                 var session = model.Session;
                 var parent = session.Add(new(new(4096, 4096), 4400, 4200, 12));
                 session.Rename(parent, "메인 검사 영역");

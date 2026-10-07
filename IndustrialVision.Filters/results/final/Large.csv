@@ -1,0 +1,10 @@
+filter,size,format,mode,scope,samples,p50_ms,p95_ms,mpix_s,upload_bytes,download_bytes,host_bytes,gpu_bytes,allocated_p50,checksum,max_abs_error
+Flat-Gaussian-BlackHat-Threshold,8192,Gray8,CpuOnly,host-to-host,10,1367.167600,1493.419600,49.086,0,0,1477181460,0,36928,3438802843233592696,0
+Flat-Gaussian-BlackHat-Threshold,8192,Gray8,CpuGpu,host-to-host,10,616.952500,621.367900,108.775,268435456,268435456,671088640,1610612756,304,3438802843233592696,0
+Flat-Gaussian-BlackHat-Threshold,8192,Gray8,CpuGpu,device-resident-synchronized,10,26.764000,27.649800,2507.430,0,0,671088640,1610612756,,3438802843233592696,0
+Flat-Gaussian-BlackHat-Threshold,8192,Gray16,CpuOnly,host-to-host,10,1475.412000,1837.455500,45.485,0,0,1477181460,0,36992,9151370633762323194,0
+Flat-Gaussian-BlackHat-Threshold,8192,Gray16,CpuGpu,host-to-host,10,636.196500,649.131600,105.484,268435456,268435456,671088640,1610612756,304,9151370633762323194,0
+Flat-Gaussian-BlackHat-Threshold,8192,Gray16,CpuGpu,device-resident-synchronized,10,27.053000,27.875800,2480.644,0,0,671088640,1610612756,,9151370633762323194,0
+Flat-Gaussian-BlackHat-Threshold,8192,Float32,CpuOnly,host-to-host,10,1421.936000,1780.727100,47.195,0,0,1477181460,0,37312,9151370633762323194,0
+Flat-Gaussian-BlackHat-Threshold,8192,Float32,CpuGpu,host-to-host,10,629.176900,637.862700,106.661,268435456,268435456,671088640,1610612756,304,9151370633762323194,0
+Flat-Gaussian-BlackHat-Threshold,8192,Float32,CpuGpu,device-resident-synchronized,10,27.261400,27.746400,2461.681,0,0,671088640,1610612756,,9151370633762323194,0

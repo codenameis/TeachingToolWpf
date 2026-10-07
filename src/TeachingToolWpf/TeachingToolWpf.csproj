@@ -13,10 +13,12 @@
   <ItemGroup>
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
     <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
     <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
     <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
+    <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README.md;..\..\AGENTS.md;..\..\Agent.MD;..\..\THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TieredCompilation>false</TieredCompilation></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
+    <ProjectReference Include="../../src/IndustrialVision.Filters.Gpu.ILGPU/IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+    <Compile Include="../../samples/IndustrialVision.Filters.Console/SyntheticExample.cs" Link="SyntheticExample.cs" />
+  </ItemGroup>
+</Project>

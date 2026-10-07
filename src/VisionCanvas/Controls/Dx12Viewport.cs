@@ -287,7 +287,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         {
             ViewportWindow.UseCursor(Input?.Tool switch
             {
-                EditorTool.Draw => NativeCursor.Cross,
+                EditorTool.Draw or EditorTool.Mask => NativeCursor.Cross,
                 EditorTool.Pan => NativeCursor.Hand,
                 _ => NativeCursor.Arrow
             });

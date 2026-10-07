@@ -55,7 +55,9 @@ public sealed partial class ShapeMatchingViewModel
     public bool IsTemplateMethod => Method == PatternMatchingMethod.OpenCvTemplate;
     public CorrelationTemplate? TemplateModel => _templateState.Model;
     public bool HasModel => IsShapeMethod ? Model is not null : TemplateModel is not null;
-    public bool IsTrainingDirty => IsShapeMethod && Model is not null && ActiveShapeState.Training != ActiveShapeState.TrainedSettings;
+    public bool IsTrainingDirty => IsShapeMethod
+        ? Model is not null && (ActiveShapeState.Training != ActiveShapeState.TrainedSettings || ActiveShapeState.IsMaskDirty)
+        : TemplateModel is not null && _templateState.IsMaskDirty;
     public string MethodDescription => Method switch
     {
         PatternMatchingMethod.Shape => "방향 후보 검색 → 원본 윤곽 검증·자세 정밀화. 학습 영역에 추가된 윤곽을 최종 점수에서 감점합니다. 회전/배율을 지원합니다.",
@@ -79,7 +81,7 @@ public sealed partial class ShapeMatchingViewModel
         }
     }
     private string TemplateSummary => TemplateModel is { } template
-        ? $"OpenCV {template.Width}×{template.Height} px · {template.EstimatedBytes / 1048576d:F1} MiB"
+        ? $"OpenCV {template.Width}×{template.Height} px · {template.EstimatedBytes / 1048576d:F1} MiB" + (IsTrainingDirty ? " · 마스크 변경: 다시 학습하세요." : "")
         : "OpenCV 템플릿 없음 · ROI 선택 후 학습하세요.";
 
     private void ClearModel()
@@ -111,16 +113,21 @@ public sealed partial class ShapeMatchingViewModel
         var roi = _selection!;
         var live = _live;
         var method = Method;
+        var exclusion = _selectionExclusion;
+        var roiId = _selectedRoiId;
         await RunAsync(async (token, epoch) =>
         {
             Status = "원본 명암 템플릿 준비 중…";
-            var output = await _templateService!.TrainAsync(image, live, roi, token);
+            var output = await _templateService!.TrainAsync(image, live, roi, token, exclusion);
             if (!Current(epoch, token, method))
             {
                 return;
             }
             _templateState.Model = output.Model;
             _templateState.TeachingRegion = roi;
+            _templateState.TeachingRoiId = roiId;
+            _templateState.TeachingMasks = exclusion?.Regions ?? [];
+            _templateState.IsMaskDirty = false;
             PresentActivity("학습 완료 · 검사 실행을 누르세요.");
             Status = $"OpenCV 학습 {output.Milliseconds:F1} ms · 회전/배율은 학습 상태로 고정";
             Results = "학습 완료 · 검사 실행으로 같은 모양의 위치를 찾으세요.";
@@ -137,13 +144,14 @@ public sealed partial class ShapeMatchingViewModel
         var method = Method;
         var template = _templateState.Model!;
         var teachingRegion = _templateState.TeachingRegion!;
-        var roi = UseSelection ? _selection : null;
+        var roi = UseSelection ? _searchSelection : null;
+        var exclusion = UseSelection ? _selectionExclusion : null;
         var live = _live;
         var options = CreateTemplateSearchOptions();
         await RunAsync(async (token, epoch) =>
         {
             Status = "OpenCV 원본 템플릿 검색 중… 네이티브 창 처리 후 취소됩니다.";
-            var output = await _templateService!.SearchAsync(image, live, template, roi, options, token);
+            var output = await _templateService!.SearchAsync(image, live, template, roi, options, token, exclusion);
             if (!Current(epoch, token, method) || !ReferenceEquals(template, _templateState.Model))
             {
                 return;

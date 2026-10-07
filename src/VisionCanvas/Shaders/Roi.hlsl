@@ -10,14 +10,14 @@ StructuredBuffer<uint> roles : register(t1);
 
 // RoiDrawConstants와 동일한 128바이트 배치. 각 줄의 묶음은 16바이트 경계를 유지한다.
 cbuffer Options : register(b0) {
-    float2 clipScale; float imageScale; float reservedView;
+    float2 clipScale; float imageScale; float searchRangePass;
     float2 screenOrigin; float shadowPass; float summaryOpacity;
     float4 shadowColor;
     float2 rotation; float2 reservedRotation;
     float4 roleColors[3];
     float4 roleWidths;
 };
-struct Pixel { float4 position : SV_POSITION; float4 color : COLOR; float2 circleOffset : TEXCOORD0; float2 circleStroke : TEXCOORD1; };
+struct Pixel { float4 position : SV_POSITION; float4 color : COLOR; float2 circleOffset : TEXCOORD0; float2 circleStroke : TEXCOORD1; float strokeDistance : TEXCOORD2; };
 static const uint RectangleEdgeCount = 4;
 static const uint VerticesPerEdge = 6;
 static const uint ParentRole = 2;
@@ -44,6 +44,7 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
     Pixel pixel;
     pixel.circleOffset = 0;
     pixel.circleStroke = 0;
+    pixel.strokeDistance = 0;
     pixel.color = shadowPass != 0 ? shadowColor : roleColors[role];
     float2 screenPosition;
     if (roi.summary == 3) {
@@ -80,6 +81,7 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
             edgeEnd = ToScreen(roi.center + roi.axisX);
         }
         float2 edgeDirection = edgeEnd-edgeStart;
+        pixel.strokeDistance = (strokeCorner == 1 || strokeCorner == 2) ? length(edgeDirection) : 0;
         float2 halfWidthNormal = float2(-edgeDirection.y,edgeDirection.x)
             * (roleWidths[role]*.5/max(length(edgeDirection),.00001));
         screenPosition = StrokeCorner(strokeCorner, edgeStart, edgeEnd, halfWidthNormal);
@@ -88,6 +90,8 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
     return pixel;
 }
 float4 PSMain(Pixel pixel) : SV_TARGET {
+    // 화면 DIP 기준 8px 선 / 5px 공백으로 확대율과 무관한 대시 길이를 유지한다.
+    if (searchRangePass != 0 && fmod(pixel.strokeDistance, 13) >= 8) discard;
     if (pixel.circleStroke.x > 0) {
         float distance = abs(length(pixel.circleOffset)-pixel.circleStroke.x);
         pixel.color.a *= saturate(pixel.circleStroke.y + .5 - distance);

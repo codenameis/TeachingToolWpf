@@ -124,9 +124,9 @@ public sealed class ShapeMatchingIntegrationTests
     private sealed class DelayedService : IShapeMatchingService
     {
         public TaskCompletionSource<ShapeTrainingOutput> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => Completion.Task;
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => throw new NotSupportedException();
     }
 

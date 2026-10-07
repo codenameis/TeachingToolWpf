@@ -12,13 +12,13 @@ public sealed record TemplateSearchOutput(ImmutableArray<CorrelationMatch> Match
 
 public interface ITemplateMatchingService
 {
-    Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token);
-    Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token);
+    Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null);
+    Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null);
 }
 
 public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame) : ITemplateMatchingService
 {
-    public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token)
+    public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             ShapeMatchingService.ValidateRegion(image, roi);
@@ -35,7 +35,8 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
                 token.ThrowIfCancellationRequested();
                 for (var x = 0; x < pixels.Width; x++)
                 {
-                    mask[(y * pixels.Width) + x] = roi.Contains(new PointD(left + x + .5, top + y + .5)) ? (byte)255 : (byte)0;
+                    var point = new PointD(left + x + .5, top + y + .5);
+                    mask[(y * pixels.Width) + x] = roi.Contains(point) && exclusion?.Contains(point) != true ? (byte)255 : (byte)0;
                 }
             }
             var model = CorrelationTemplate.Train(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / 180), token);
@@ -43,7 +44,7 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
         }, token);
 
     public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model,
-        RoiGeometry? region, SearchOptions options, CancellationToken token)
+        RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             options.Validate();
@@ -58,6 +59,7 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
             var timer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
             var matches = new PriorityQueue<CorrelationMatch, (double Score, double Y, double X)>();
+            reader.Exclusion = exclusion;
             var windows = 0;
             var truncated = false;
             var readMilliseconds = timer.Elapsed.TotalMilliseconds;

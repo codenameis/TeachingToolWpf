@@ -164,16 +164,27 @@ public sealed partial class EditorSession
     }
 
     public void SetProperties(Guid id, string name, RoiGeometry geometry)
+        => SetProperties(id, name, geometry, State.Rois[id].SearchRange, State.Rois[id].IsNameVisible);
+
+    public void SetProperties(Guid id, string name, RoiGeometry geometry, RoiSearchRange? searchRange, bool isNameVisible)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 256)
         {
             throw new ArgumentException("이름은 1–256자여야 합니다.");
         }
 
+        if (State.IsGroupingRoi(id) && searchRange != State.Rois[id].SearchRange)
+        {
+            throw new ArgumentException("그룹 부모에는 검색 범위를 설정할 수 없습니다.", nameof(searchRange));
+        }
+        // 확장 크기의 오버플로도 형상/이름을 게시하기 전에 검증한다.
+        _ = searchRange?.Expand(geometry);
         var next = RoiTransforms.Apply(State, [id], _ => geometry);
         Commit("ROI 속성 변경", next.WithRoisFrom(State, next.Rois.SetItem(id, next.Rois[id] with
         {
-            Name = name.Trim()
+            Name = name.Trim(),
+            SearchRange = searchRange,
+            IsNameVisible = isNameVisible
         }),
             ReferenceEquals(next, State) ? [id] : next.Snapshot.ChangedIds.Append(id)));
     }

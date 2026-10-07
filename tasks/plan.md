@@ -1,5 +1,15 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-06 ROI 마스킹:** [ADR-040](../docs/decisions/0040-roi-masking.md). 정규화 사각형/타원 제외 영역, GPU 사선 음영, 통합 편집 이력과 복사, 원본 학습 마스크와 선택 검사 대상 제외. 표시 토글과 검사 적용을 분리한다. [사용법·검증](../docs/roi-masking.md).
+
+- **2026-10-06 MVVM 필터 컨트롤:** [ADR-039](../docs/decisions/0039-filter-controls-and-continuous-preview.md). 별도 VisionCanvas.Filters.Wpf가 패널·파라미터·토글을 소유한다. 슬라이더 임시 결과와 한 번의 이력 확정을 분리하고, 연속 이동 중 단일 worker/최신 대기 요청으로 갱신한다. [검증](../docs/filter-controls.md).
+
+- **2026-10-06 산업용 ROI 필터 연결:** [ADR-038](../docs/decisions/0038-industrial-roi-filters.md). Canvas가 독립 IndustrialVision.Filters.Pipeline을 참조하고 앱에서 선택형 CUDA를 주입한다. 구현된 Gaussian·형태학·원본 임계값과 연속 프리셋을 기존 ROI 등록/미리보기/이력에 연결한다. 원본 해상도 검사와 축소 표시를 구별하며 [검증](../docs/industrial-roi-filters.md)을 따른다.
+
+- **2026-10-06 20만 ROI 그룹화 후 탐색 정지:** [ADR-037](../docs/decisions/0037-progressive-roi-detail-preparation.md). 같은 불변 블록의 기존 표시를 유지하며 새 LOD 준비를 프레임별로 나누고 계층 역할·검색 경계 준비를 재사용한다. [검증 기록](../docs/group-cold-validation.md)에서 최초/반복 탐색과 전체60FPS 미달을 구별한다.
+
+- **2026-10-06 검색 범위 ROI·그룹 부모:** [ADR-036](../docs/decisions/0036-roi-search-range-and-group-label.md). 일반/검색 타입, 로컬 축 양쪽 여유(px), 빨간 점선, 그룹 부모 검사 입력 제외와 이름/이름 표시를 속성·이력·검사 입력에 연결한다. [사용법과 검증](../docs/roi-search-range.md).
+
 - **2026-10-06 표시 설정 후속:** [ADR-035](../docs/decisions/0035-configuration-and-image-crosshair.md). 기존 Inspection 레이어 추가 예제, 이미지 중심·Canvas 전체 크로스헤어 토글, 선택 상태/부모·자식별 색상·두께와 영상 표시를 별도 ConfigPage에 모은다. [사용법](../docs/configuration-guide.md), [검증](../docs/configuration-validation.md).
 
 - **2026-10-06 이름 있는 표시 레이어:** [ADR-034](../docs/decisions/0034-named-drawing-layers.md), [사용 가이드](../docs/drawing-layers-guide.md). 사용자 요청으로 별도 브랜치에서 Add/Update/Remove/Clear·일괄 게시·이미지/화면 좌표와 중앙 가이드, 드래그 영역만의 반투명을 구현한다. ROI/이력과 분리하며 완료 증거는 [검증](../docs/drawing-layers-validation.md)을 따른다.

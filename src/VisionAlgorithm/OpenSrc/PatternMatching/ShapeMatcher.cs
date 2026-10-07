@@ -102,7 +102,10 @@ public sealed class ShapeMatcher
         CandidateBatch batch, double candidateTime, CancellationToken cancellationToken)
     {
         var timer = Stopwatch.StartNew();
-        var candidates = VerificationCandidateScheduler.Select(batch.Candidates, model, options.MaximumVerifiedCandidates, cancellationToken);
+        var eligible = !image.ExcludedPixels.IsEmpty && model.PixelMask is { } mask
+            ? batch.Candidates.Where(candidate => !mask.Overlaps(image, candidate.Pose, model.Bounds, cancellationToken)).ToList()
+            : batch.Candidates;
+        var candidates = VerificationCandidateScheduler.Select(eligible, model, options.MaximumVerifiedCandidates, cancellationToken);
         var detail = options.Verify && options.ClutterWeight > 0 ? model.FineDetail : null;
         if (detail is not null && image.Original is null)
         {
@@ -159,6 +162,10 @@ public sealed class ShapeMatcher
             {
                 DirectionScore = final.Score
             };
+            if (model.PixelMask?.Overlaps(image, final.Pose, model.Bounds, cancellationToken) == true)
+            {
+                continue;
+            }
             if (!(options.Region?.Contains(final.Pose.X, final.Pose.Y) ?? true) ||
                 final.Pose.X < 0 || final.Pose.Y < 0 || final.Pose.X > image.Width || final.Pose.Y > image.Height ||
                 (options.Verify && (final.Score < options.MinimumScore || final.Support < options.MinimumSupport)))
@@ -206,7 +213,7 @@ public sealed class ShapeMatcher
         var output = MatchSuppression.Apply(model, matches, options.MaximumOverlap, int.MaxValue);
         return new(output.Take(options.MaximumMatches).ToImmutableArray(), new(image.ElapsedMilliseconds, candidateTime, verificationTime, refinementTime,
             timer.Elapsed.TotalMilliseconds, batch.EvaluatedTemplates, batch.Candidates.Count, batch.BudgetExceeded,
-            batch.Candidates.Count > options.MaximumVerifiedCandidates, image.EstimatedBytes + (candidates.Length * 128L),
+            eligible.Count > options.MaximumVerifiedCandidates, image.EstimatedBytes + (candidates.Length * 128L),
             "180° 무부호 후보 → 선택한 극성의 연속 방향 점수 × (1 - 추가 윤곽 가중치 × 대비 에너지 비율); 개수 비율과 기하 제한은 별도 유지; 반환 각도는 이미지 기준 절대각이며 범위는 학습 ROI 대비 편차; 검증 상한에서는 서로 다른 근접 자세 묶음을 먼저 방문하며 피라미드/국소 최대/후보 예산은 근사 탐색", output.Length > options.MaximumMatches)
         {
             CandidateGridMilliseconds = batch.GridMilliseconds,

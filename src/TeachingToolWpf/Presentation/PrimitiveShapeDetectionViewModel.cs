@@ -17,6 +17,7 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IDispos
     private PrimitiveDetectionOptions _options = new();
     private ImageReference? _image;
     private RoiGeometry? _selection;
+    private RoiExclusion? _selectionExclusion;
     private long _generation;
     private long _epoch;
     private bool _live;
@@ -190,12 +191,16 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IDispos
 
     public void Update(DocumentState state, long generation, bool live, bool canExecute, bool toolAvailable = true)
     {
-        var selection = state.Selection.Count == 1 ? state.Rois[state.Selection.Single()].Geometry : null;
-        var changed = _image != state.Image || _generation != generation || _live != live || (UseSelection && _selection != selection) ||
+        var selected = state.Selection.Count == 1 ? state.Rois[state.Selection.Single()] : null;
+        var selection = selected is not null && !state.IsGroupingRoi(selected.Id)
+            ? selected.SearchRange?.Expand(selected.Geometry) ?? selected.Geometry : null;
+        var exclusion = selection is not null && !selected!.Masks.IsEmpty ? new RoiExclusion(selected.Geometry, selected.Masks) : null;
+        var changed = _image != state.Image || _generation != generation || _live != live || (UseSelection && (_selection != selection || _selectionExclusion != exclusion)) ||
             (_live && _inputAvailable && !canExecute);
         _image = state.Image;
         _generation = generation;
         _selection = selection;
+        _selectionExclusion = exclusion;
         _live = live;
         _inputAvailable = canExecute;
         _canExecute = canExecute && toolAvailable;
@@ -213,6 +218,7 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IDispos
     {
         var image = _image!;
         var region = UseSelection ? _selection : null;
+        var exclusion = UseSelection ? _selectionExclusion : null;
         var options = _options;
         var live = _live;
         using var cancellation = new CancellationTokenSource();
@@ -232,7 +238,7 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IDispos
         Publish();
         try
         {
-            var output = await _service.DetectAsync(image, live, region, options, combined.Token);
+            var output = await _service.DetectAsync(image, live, region, options, combined.Token, exclusion);
             combined.Token.ThrowIfCancellationRequested();
             if (_disposed || epoch != _epoch)
             {

@@ -1,0 +1,90 @@
+<UserControl x:Class="VisionCanvas.Filters.Wpf.Controls.FilterPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:VisionCanvas.Filters.Wpf.Controls">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#64748B"/>
+        <SolidColorBrush x:Key="Stroke" Color="#E2E8F0"/>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#334155"/>
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style TargetType="local:ParameterSlider">
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="BeginEditCommand" Value="{Binding BeginParameterEdit}"/>
+            <Setter Property="EndEditCommand" Value="{Binding EndParameterEdit}"/>
+            <Setter Property="CancelEditCommand" Value="{Binding CancelParameterEdit}"/>
+        </Style>
+    </UserControl.Resources>
+    <StackPanel>
+        <DockPanel Margin="0,0,0,12">
+            <Border DockPanel.Dock="Right" Background="#EBF1FF" CornerRadius="4" Padding="6,3"><TextBlock Text="IndustrialVision" Foreground="#2463EB" FontSize="9" FontWeight="SemiBold"/></Border>
+            <TextBlock Text="ROI 필터" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </DockPanel>
+        <ComboBox ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Kind" SelectedValue="{Binding SelectedFilter}" ToolTip="{Binding SelectedItem, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="ROI 필터 선택"/>
+        <ToggleButton x:Name="PreviewToggle" IsChecked="{Binding IsPreviewEnabled, Mode=TwoWay}" AutomationProperties.Name="실시간 필터 미리보기" Margin="0,12,0,0" Padding="12,8">
+            <ToggleButton.Style>
+                <Style TargetType="ToggleButton">
+                    <Setter Property="Content" Value="미리보기 OFF · 원본"/>
+                    <Setter Property="Background" Value="#F1F5F9"/>
+                    <Setter Property="Foreground" Value="#334155"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Content" Value="미리보기 ON · 자동 갱신"/>
+                            <Setter Property="Background" Value="#2563EB"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </ToggleButton.Style>
+        </ToggleButton>
+        <TextBlock Text="서로 다른 설정 · 각 ROI 필터로 표시 중" Visibility="{Binding HasMixedFilters, Converter={StaticResource BoolVisibility}}" TextWrapping="Wrap" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+        <StackPanel Visibility="{Binding IsIndustrial, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <TextBlock Text="실행 모드 · CpuGpu는 CUDA 요청, 불가 시 사유 표시" TextWrapping="Wrap" Style="{StaticResource Caption}"/>
+            <ComboBox ItemsSource="{Binding ExecutionOptions}" SelectedItem="{Binding Execution}" AutomationProperties.Name="필터 실행 모드"/>
+        </StackPanel>
+        <StackPanel Visibility="{Binding UsesRadius, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <TextBlock Text="반경 · 1–31 (커널 크기 2r+1, 미리보기 픽셀)" TextWrapping="Wrap" Style="{StaticResource Caption}"/>
+            <TextBox x:Name="RadiusInput" Text="{Binding Radius, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="필터 반경"/>
+            <local:ParameterSlider x:Name="RadiusSlider" Minimum="1" Maximum="31" SmallChange="1" LargeChange="2" Value="{Binding RadiusValue, Mode=TwoWay}" AutomationProperties.Name="필터 반경 조절"/>
+        </StackPanel>
+        <StackPanel Visibility="{Binding UsesSigma, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <TextBlock Text="Gaussian sigma · 0 초과–100 이하" Style="{StaticResource Caption}"/>
+            <TextBox x:Name="SigmaInput" Text="{Binding Sigma, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Gaussian sigma"/>
+            <local:ParameterSlider Minimum="0.01" Maximum="100" SmallChange="0.1" LargeChange="1" Value="{Binding SigmaValue, Mode=TwoWay}" AutomationProperties.Name="Gaussian sigma 조절"/>
+        </StackPanel>
+        <StackPanel Visibility="{Binding UsesThreshold, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <TextBlock Text="{Binding ThresholdCaption}" TextWrapping="Wrap" Style="{StaticResource Caption}"/>
+            <TextBox x:Name="ThresholdInput" Text="{Binding Threshold, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="이진화 임계값"/>
+            <local:ParameterSlider Minimum="0" Maximum="{Binding ThresholdMaximum}" SmallChange="1" LargeChange="10" Value="{Binding ThresholdValue, Mode=TwoWay}" AutomationProperties.Name="임계값 조절"/>
+        </StackPanel>
+        <Grid Visibility="{Binding IsEdge, Converter={StaticResource BoolVisibility}}" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <StackPanel><TextBlock Text="Edge 하한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeLow, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Edge 하한"/><local:ParameterSlider Minimum="0" Maximum="255" SmallChange="1" Value="{Binding EdgeLowValue, Mode=TwoWay}" AutomationProperties.Name="Edge 하한 조절"/></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="Edge 상한" Style="{StaticResource Caption}"/><TextBox Text="{Binding EdgeHigh, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Edge 상한"/><local:ParameterSlider Minimum="0" Maximum="255" SmallChange="1" Value="{Binding EdgeHighValue, Mode=TwoWay}" AutomationProperties.Name="Edge 상한 조절"/></StackPanel>
+        </Grid>
+        <Button Content="등록 해제" Command="{Binding ClearRegistration}" HorizontalAlignment="Left" ToolTip="선택된 모든 ROI의 필터 등록 해제 · Undo 가능" Margin="0,6,0,0"/>
+        <Button Content="설정 적용" Command="{Binding Apply}" Style="{StaticResource PrimaryButton}" Margin="0,12,0,0" ToolTip="선택 ROI에 설정 등록 · 미리보기 토글 상태 유지"/>
+        <TextBlock Text="{Binding ValidationMessage}" TextWrapping="Wrap" Foreground="#B91C1C" FontSize="11" Margin="0,6,0,0"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="10" LineHeight="17" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,0"/>
+        <TextBlock Text="ON: ROI 이동·회전·크기·파라미터 자동 갱신&#x0a;슬라이더를 놓으면 한 번 확정 · Esc로 취소&#x0a;OFF: 선택을 바꿔도 원본 유지&#x0a;최대 1,024 px · 라이브 최대 5회/초 · 검사 원본과 별도&#x0a;Gray16 연산 후 표시만 8비트 · 최초 CUDA 준비 포함" TextWrapping="Wrap" FontSize="10" LineHeight="17" Foreground="{StaticResource TextSecondary}" Margin="0,8,0,0"/>
+        <Border Height="1" Background="{StaticResource Stroke}" Margin="0,20"/>
+    </StackPanel>
+</UserControl>

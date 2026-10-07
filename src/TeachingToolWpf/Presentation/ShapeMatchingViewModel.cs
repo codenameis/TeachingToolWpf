@@ -15,6 +15,9 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
     private readonly IShapeMatchingService _service;
     private ImageReference? _image;
     private RoiGeometry? _selection;
+    private RoiGeometry? _searchSelection;
+    private RoiExclusion? _selectionExclusion;
+    private Guid? _selectedRoiId;
     private long _generation;
     private bool _live;
     private bool _canExecute;
@@ -126,9 +129,25 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
 
     public void Update(DocumentState state, long generation, bool live, bool canExecute, bool toolAvailable = true)
     {
-        var selection = state.Selection.Count == 1 ? state.Rois[state.Selection.Single()].Geometry : null;
+        var selected = state.Selection.Count == 1 ? state.Rois[state.Selection.Single()] : null;
+        var selection = selected is not null && !state.IsGroupingRoi(selected.Id) ? selected.Geometry : null;
+        var searchSelection = selection is null ? null : selected!.SearchRange?.Expand(selection) ?? selection;
+        var exclusion = selection is not null && !selected!.Masks.IsEmpty ? new RoiExclusion(selection, selected.Masks) : null;
+        var wasDirty = IsTrainingDirty;
+        foreach (var mode in new[] { _paperState, _geometricState })
+        {
+            if (mode.TeachingRoiId is { } id && state.Rois.TryGetValue(id, out var trained))
+            {
+                mode.IsMaskDirty = !mode.TeachingMasks.SequenceEqual(trained.Masks);
+            }
+        }
+        if (_templateState.TeachingRoiId is { } templateId && state.Rois.TryGetValue(templateId, out var templateRoi))
+        {
+            _templateState.IsMaskDirty = !_templateState.TeachingMasks.SequenceEqual(templateRoi.Masks);
+        }
         if (_image != state.Image || _generation != generation || _live != live ||
-            ((UseSelection || _training) && _selection != selection) ||
+            (_training && _selection != selection) || (UseSelection && _searchSelection != searchSelection) ||
+            ((_training || UseSelection) && _selectionExclusion != exclusion) || wasDirty != IsTrainingDirty ||
             (_live && _inputAvailable && !canExecute))
         {
             Invalidate();
@@ -136,9 +155,14 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         _image = state.Image;
         _generation = generation;
         _selection = selection;
+        _searchSelection = searchSelection;
+        _selectionExclusion = exclusion;
+        _selectedRoiId = selection is null ? null : selected!.Id;
         _live = live;
         _inputAvailable = canExecute;
         _canExecute = canExecute && toolAvailable;
+        Notify(nameof(IsTrainingDirty));
+        Notify(nameof(ModelSummary));
         RefreshCommands();
     }
 
@@ -157,10 +181,12 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         var state = ActiveShapeState;
         var training = state.Training;
         var options = training.ToOptions(IsGeometricMethod);
+        var exclusion = _selectionExclusion;
+        var roiId = _selectedRoiId;
         await RunAsync(async (token, epoch) =>
         {
             Status = "원본 ROI 특징으로 모델 생성 중…";
-            var output = await _service.TrainAsync(image, live, roi, options, token);
+            var output = await _service.TrainAsync(image, live, roi, options, token, exclusion);
             if (!Current(epoch, token, method))
             {
                 return;
@@ -168,6 +194,9 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
             state.Model = output.Model;
             state.TeachingRegion = roi;
             state.TrainedSettings = training;
+            state.TeachingRoiId = roiId;
+            state.TeachingMasks = exclusion?.Regions ?? [];
+            state.IsMaskDirty = false;
             PresentActivity("학습 완료 · 검사 실행을 누르세요.");
             Status = $"읽기/변환/마스크 {output.ReadMilliseconds:F1} ms · 학습 {output.TrainingMilliseconds:F1} ms";
             Notify(nameof(ModelSummary));
@@ -192,7 +221,8 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         var state = ActiveShapeState;
         var model = state.Model!;
         var teachingRegion = state.TeachingRegion!;
-        var roi = UseSelection ? _selection : null;
+        var roi = UseSelection ? _searchSelection : null;
+        var exclusion = UseSelection ? _selectionExclusion : null;
         var live = _live;
         var options = CreateShapeSearchOptions();
         var rotation = ActiveRotationAcceptance;
@@ -228,7 +258,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
                 ? "CUDA 후보 계산 + CPU 정밀 검사 중… 취소 가능" : "CPU 원본 해상도 검색 중… 취소 가능";
             UpdateInspectionLog(logId, log => log with { Stage = "search" });
             var serviceTimer = Stopwatch.StartNew();
-            var output = await _service.SearchAsync(image, live, model, roi, options, token);
+            var output = await _service.SearchAsync(image, live, model, roi, options, token, exclusion);
             var serviceAwait = serviceTimer.Elapsed.TotalMilliseconds;
             UpdateInspectionLog(logId, log => log.WithOutput(output) with { ServiceAwaitMilliseconds = serviceAwait, Stage = "result_publish" });
             if (!Current(epoch, token, method) || !ReferenceEquals(model, state.Model))
@@ -296,7 +326,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         _cancellation = cancellation;
         var epoch = ++_epoch;
         PresentActivity(_training ? "학습 중 · 원본 ROI의 특징을 추출하고 있습니다." : "검사 중 · 원본 이미지에서 검색하고 있습니다. 취소 가능",
-            _training ? [] : SearchBoundary(_image!, UseSelection ? _selection : null));
+            _training ? [] : SearchBoundary(_image!, UseSelection ? _searchSelection : null));
         RefreshCommands();
         try
         {

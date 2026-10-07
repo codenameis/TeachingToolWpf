@@ -120,6 +120,10 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         token.ThrowIfCancellationRequested();
         _ = selection.Stationary;
         token.ThrowIfCancellationRequested();
+        _ = selection.MovingSearch;
+        token.ThrowIfCancellationRequested();
+        _ = selection.StationarySearch;
+        token.ThrowIfCancellationRequested();
         _ = selection.RotationLimits(selection.Bounds.Center);
         token.ThrowIfCancellationRequested();
     }

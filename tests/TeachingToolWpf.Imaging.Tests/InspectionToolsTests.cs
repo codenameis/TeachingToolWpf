@@ -70,7 +70,7 @@ public sealed class InspectionToolsTests
         }
         public TaskCompletionSource<PrimitiveDetectionOutput> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region, PrimitiveDetectionOptions options, CancellationToken token)
+        public Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region, PrimitiveDetectionOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             Token = token;
             return Completion.Task;
@@ -79,10 +79,10 @@ public sealed class InspectionToolsTests
 
     private sealed class PatternService : IShapeMatchingService
     {
-        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+        public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => throw new InvalidOperationException("패턴 서비스 실행은 이 조정 테스트의 대상이 아닙니다.");
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => throw new InvalidOperationException("동시 실행되면 안 됩니다.");
     }
 }

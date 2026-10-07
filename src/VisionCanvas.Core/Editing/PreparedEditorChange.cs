@@ -182,6 +182,8 @@ public sealed partial class EditorSession
         token.ThrowIfCancellationRequested();
         _ = state.Snapshot.Children;
         token.ThrowIfCancellationRequested();
+        _ = state.Snapshot.SearchSpatial;
+        token.ThrowIfCancellationRequested();
         _ = state.SelectionFacts.HasMultipleRoots;
         token.ThrowIfCancellationRequested();
         _ = state.SelectedSpatial;
@@ -192,6 +194,10 @@ public sealed partial class EditorSession
             _ = transform.Moving;
             token.ThrowIfCancellationRequested();
             _ = transform.Stationary;
+            token.ThrowIfCancellationRequested();
+            _ = transform.MovingSearch;
+            token.ThrowIfCancellationRequested();
+            _ = transform.StationarySearch;
             token.ThrowIfCancellationRequested();
             _ = transform.RotationLimits(transform.Bounds.Center);
         }

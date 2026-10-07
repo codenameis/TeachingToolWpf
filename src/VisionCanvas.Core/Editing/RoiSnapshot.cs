@@ -5,7 +5,7 @@ using VisionGeometry;
 namespace VisionCanvas.Core.Editing;
 
 /// <summary>Derived immutable indexes shared by selection/view snapshots. No UI or GPU ownership.</summary>
-public sealed class RoiSnapshot
+public sealed partial class RoiSnapshot
 {
     private readonly Lazy<RoiSpatialIndex> _spatial;
     private readonly Lazy<ImmutableDictionary<Guid, ImmutableArray<Guid>>> _children;
@@ -48,6 +48,7 @@ public sealed class RoiSnapshot
         _spatial = new(() => new(rois.Values));
         _children = new(() => rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
             .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
+        _search = new(BuildSearchIndex);
     }
 
     internal RoiSnapshot(RoiSnapshot previous, ImmutableDictionary<Guid, Roi> rois, ImmutableArray<Guid> changedIds, RoiSnapshot? spatialSeed = null, bool refitSpatial = false, CancellationToken token = default)
@@ -70,7 +71,7 @@ public sealed class RoiSnapshot
             token.ThrowIfCancellationRequested();
             var old = oldRois.GetValueOrDefault(id);
             var next = rois.GetValueOrDefault(id);
-            rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup || old.Geometry.Shape.Kind != next.Geometry.Shape.Kind;
+            rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup || old.Geometry.Shape.Kind != next.Geometry.Shape.Kind || (old.SearchRange is null) != (next.SearchRange is null);
             if (old?.ParentId != next?.ParentId)
             {
                 topologyChanged = true;
@@ -106,6 +107,7 @@ public sealed class RoiSnapshot
         if (!topologyChanged)
         {
             _children = previous._children;
+            _search = CreateSearchIndex(previous);
             return;
         }
         var oldChildren = bulk ? null : previous.Children;
@@ -140,6 +142,7 @@ public sealed class RoiSnapshot
             }
             return result.ToImmutable();
         });
+        _search = CreateSearchIndex(previous);
     }
 
     private static bool RequiresRebuild(int changedCount, int totalCount)

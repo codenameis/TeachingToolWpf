@@ -1,0 +1,71 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "IndustrialVision.Filters.Console/1.0.0": {
+        "dependencies": {
+          "IndustrialVision.Filters.Pipeline": "1.0.0"
+        },
+        "runtime": {
+          "IndustrialVision.Filters.Console.dll": {}
+        }
+      },
+      "IndustrialVision.Filters.Core/1.0.0": {
+        "runtime": {
+          "IndustrialVision.Filters.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "IndustrialVision.Filters.Cpu/1.0.0": {
+        "dependencies": {
+          "IndustrialVision.Filters.Core": "1.0.0"
+        },
+        "runtime": {
+          "IndustrialVision.Filters.Cpu.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "IndustrialVision.Filters.Pipeline/1.0.0": {
+        "dependencies": {
+          "IndustrialVision.Filters.Cpu": "1.0.0"
+        },
+        "runtime": {
+          "IndustrialVision.Filters.Pipeline.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "IndustrialVision.Filters.Console/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IndustrialVision.Filters.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IndustrialVision.Filters.Cpu/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "IndustrialVision.Filters.Pipeline/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

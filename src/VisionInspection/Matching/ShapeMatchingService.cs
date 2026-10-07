@@ -30,8 +30,8 @@ public sealed record ShapeSearchOutput(ImmutableArray<ShapeMatch> Matches, int W
 
 public interface IShapeMatchingService
 {
-    Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token);
-    Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token);
+    Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null);
+    Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null);
 }
 
 public enum ShapeSearchPipeline
@@ -58,7 +58,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
         return timer.Elapsed.TotalMilliseconds;
     }
 
-    public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token)
+    public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             options.Validate();
@@ -84,7 +84,8 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                 token.ThrowIfCancellationRequested();
                 for (var x = 0; x < pixels.Width; x++)
                 {
-                    mask[(y * pixels.Width) + x] = roi.Contains(new PointD(left + x + 0.5, top + y + 0.5)) ? (byte)255 : (byte)0;
+                    var point = new PointD(left + x + .5, top + y + .5);
+                    mask[(y * pixels.Width) + x] = roi.Contains(point) && exclusion?.Contains(point) != true ? (byte)255 : (byte)0;
                 }
             }
             var readTime = timer.Elapsed.TotalMilliseconds;
@@ -94,7 +95,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
         }, token);
 
     public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region,
-        SearchOptions options, CancellationToken token)
+        SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             ShapeMatcher.ValidateSearchOptions(model, options);
@@ -112,6 +113,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
             var readTime = readTimer.Elapsed.TotalMilliseconds;
             reader.PreferDirectGray = paper;
+            reader.Exclusion = exclusion;
             if (model.Levels.Length >= 3 && (paper || (long)image.Width * image.Height > PreparedSearchImage.MaximumPixels))
             {
                 var coarseInterior = paper && (long)image.Width * image.Height <= PreparedSearchImage.MaximumPixels ? 64 : 256;

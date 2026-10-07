@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../IndustrialVision.Filters.Core/IndustrialVision.Filters.Core.csproj" />
+    <PackageReference Include="ILGPU" Version="1.5.3" />
+  </ItemGroup>
+</Project>
