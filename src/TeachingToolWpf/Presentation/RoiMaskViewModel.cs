@@ -126,7 +126,7 @@ public sealed class RoiMaskViewModel : ObservableObject
     {
         _canEdit = canEdit;
         var state = _session.State;
-        var owner = state.Selection.Count == 1 && !state.IsGroupingRoi(state.Selection.Single())
+        var owner = state.SelectionCount == 1 && state.Selection.Count == 1 && !state.IsGroupingRoi(state.Selection.Single())
             ? state.Rois[state.Selection.Single()] : null;
         if (_owner != owner)
         {

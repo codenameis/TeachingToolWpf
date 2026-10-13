@@ -99,6 +99,12 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         set;
     }
 
+    /// <summary>별도 문서의 포인터 처리. 지정하면 기본 ROI Input보다 우선한다.</summary>
+    public IViewportInput? PointerInput
+    {
+        get; set;
+    }
+
     public Func<bool>? InputEnabled
     {
         get;
@@ -278,6 +284,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
     protected override nint WndProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
         var windowMessage = (NativeWindowMessage)message;
+        var input = PointerInput ?? Input;
         if (windowMessage == NativeWindowMessage.GetDialogCode)
         {
             handled = true;
@@ -285,7 +292,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         }
         if (windowMessage == NativeWindowMessage.SetCursor && NativeMethods.IsClientCursorMessage(lParam))
         {
-            ViewportWindow.UseCursor(Input?.Tool switch
+            ViewportWindow.UseCursor(input?.Tool switch
             {
                 EditorTool.Draw or EditorTool.Mask => NativeCursor.Cross,
                 EditorTool.Pan => NativeCursor.Hand,
@@ -294,7 +301,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             handled = true;
             return 1;
         }
-        if (Input is null)
+        if (input is null)
         {
             return base.WndProc(hwnd, message, wParam, lParam, ref handled);
         }
@@ -302,21 +309,30 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
         try
         {
             var point = ClientPixelsToDips(NativeMethods.DecodePoint(lParam));
-            if ((windowMessage is NativeWindowMessage.LeftButtonDown or NativeWindowMessage.MiddleButtonDown) &&
+            if ((windowMessage is NativeWindowMessage.LeftButtonDown or NativeWindowMessage.LeftButtonDoubleClick or
+                NativeWindowMessage.MiddleButtonDown or NativeWindowMessage.MiddleButtonDoubleClick) &&
                 (InputEnabled?.Invoke() ?? true))
             {
                 NativeMethods.SetFocus(hwnd);
                 NativeMethods.SetCapture(hwnd);
-                Input.Down(point, Modifiers, windowMessage == NativeWindowMessage.MiddleButtonDown ||
-                    NativeMethods.IsKeyPressed(NativeVirtualKey.Space));
+                var pan = windowMessage is NativeWindowMessage.MiddleButtonDown or NativeWindowMessage.MiddleButtonDoubleClick ||
+                    NativeMethods.IsKeyPressed(NativeVirtualKey.Space);
+                if (windowMessage == NativeWindowMessage.LeftButtonDoubleClick && !pan)
+                {
+                    input.DoubleClick(point, Modifiers);
+                }
+                else
+                {
+                    input.Down(point, Modifiers, pan);
+                }
                 handled = true;
             }
             else if (windowMessage is NativeWindowMessage.LeftButtonUp or NativeWindowMessage.MiddleButtonUp)
             {
                 // ReleaseCapture가 CaptureChanged를 재진입시킬 수 있으므로 먼저 편집을 끝낸다.
-                if (Input.IsDragging)
+                if (input.IsDragging)
                 {
-                    Input.Up(point, Modifiers);
+                    input.Up(point, Modifiers);
                 }
 
                 NativeMethods.ReleaseCapture();
@@ -324,13 +340,13 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             }
             else if (windowMessage == NativeWindowMessage.MouseMove && (InputEnabled?.Invoke() ?? true))
             {
-                Input.Move(point, Modifiers);
+                input.Move(point, Modifiers);
                 handled = true;
             }
             else if (windowMessage == NativeWindowMessage.MouseWheel)
             {
                 var wheelPoint = WheelPositionInDips(hwnd, lParam);
-                Input.Wheel(wheelPoint, NativeMethods.DecodeWheelNotches(wParam));
+                input.Wheel(wheelPoint, NativeMethods.DecodeWheelNotches(wParam));
                 handled = true;
             }
             else if (windowMessage == NativeWindowMessage.KeyDown)
@@ -342,14 +358,14 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
                     NativeMethods.ReleaseCapture();
                 }
             }
-            else if ((windowMessage is NativeWindowMessage.CaptureChanged or NativeWindowMessage.KillFocus) && Input.IsDragging)
+            else if ((windowMessage is NativeWindowMessage.CaptureChanged or NativeWindowMessage.KillFocus) && input.IsDragging)
             {
-                Input.Cancel();
+                input.Cancel();
             }
         }
         catch (Exception ex)
         {
-            Input.Cancel();
+            input.Cancel();
             NativeMethods.ReleaseCapture();
             InputFailed?.Invoke(ex);
         }

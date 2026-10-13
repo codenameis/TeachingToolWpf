@@ -178,6 +178,31 @@ public class RoiRowsTests
     });
 
     [Fact]
+    public void RepeatedBatchRowAndCtrlSelectionKeepPartialCells() => OnSta(() =>
+    {
+        var surface = new Surface();
+        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        var list = new RoiListBox { SelectionMode = SelectionMode.Extended };
+        using var binding = new RoiListBinding(list, model);
+        model.Session.InitializeImage(new("rows", "rows", 8192, 8192), ViewportTransform.Identity);
+        var normal = model.Session.Add(new(new(100, 100), 20, 20, 0));
+        model.Session.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
+        var batch = Assert.Single(model.Session.State.RepeatedRois).Value;
+        Assert.Equal(2, model.Rows.Count);
+        Assert.Equal(batch.Id, RoiListBox.RowFromItem(Assert.Single(list.SelectedItems.Cast<object>()))!.Id);
+        model.Session.SelectRegion(new(2000, 2000, 4096, 6000));
+        var partial = model.Session.State.RepeatedSelection[batch.Id];
+        model.SelectRows([normal, batch.Id], preserveRepeatedRanges: true);
+        Assert.Same(partial, model.Session.State.RepeatedSelection[batch.Id]);
+        Assert.Contains(normal, model.Session.State.Selection);
+        model.SelectRows([batch.Id]);
+        Assert.Equal(100020001, model.Session.State.SelectionCount);
+        model.SelectRows([normal]);
+        Assert.Empty(model.Session.State.RepeatedSelection);
+        Assert.Single(model.Session.State.Selection);
+    });
+
+    [Fact]
     public void DeepHierarchyBuildsEveryRowWithoutUsingTheCallStack()
     {
         const int Count = 30_000;

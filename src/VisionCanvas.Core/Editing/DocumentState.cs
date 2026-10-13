@@ -24,14 +24,14 @@ public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? Paren
 }
 
 /// <summary>Immutable image-space geometry prevents precision drift during reparenting.</summary>
-public sealed record DocumentState(
+public sealed partial record DocumentState(
     ImmutableDictionary<Guid, Roi> Rois,
-    ImmutableHashSet<Guid> Selection,
+    RoiIdSet Selection,
     ImageReference? Image,
     ViewportTransform Viewport)
 {
     private RoiSnapshot _snapshot = new(Rois);
-    private ImmutableHashSet<Guid> _selection = Selection;
+    private RoiIdSet _selection = Selection;
     private Lazy<RoiSpatialIndex>? _selectedSpatial;
     private Lazy<RoiSelectionFacts>? _selectionFacts;
     private Lazy<RoiTransformSelection>? _transformSelection;
@@ -47,7 +47,7 @@ public sealed record DocumentState(
         }
     }
 
-    public ImmutableHashSet<Guid> Selection
+    public RoiIdSet Selection
     {
         get => _selection;
         init
@@ -162,9 +162,10 @@ public sealed record DocumentState(
         };
 
     public bool Equals(DocumentState? other) => other is not null && ReferenceEquals(Rois, other.Rois) &&
-        ReferenceEquals(Selection, other.Selection) && Image == other.Image && Viewport == other.Viewport;
+        ReferenceEquals(Selection, other.Selection) && ReferenceEquals(RepeatedRois, other.RepeatedRois) &&
+        ReferenceEquals(RepeatedSelection, other.RepeatedSelection) && Image == other.Image && Viewport == other.Viewport;
 
-    public override int GetHashCode() => HashCode.Combine(Rois, Selection, Image, Viewport);
+    public override int GetHashCode() => HashCode.Combine(Rois, Selection, RepeatedRois, RepeatedSelection, Image, Viewport);
 
     public static DocumentState Empty => new(ImmutableDictionary<Guid, Roi>.Empty,
         ImmutableHashSet<Guid>.Empty, null, ViewportTransform.Identity);

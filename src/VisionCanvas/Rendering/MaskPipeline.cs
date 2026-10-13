@@ -62,7 +62,7 @@ internal sealed class MaskPipeline : IDisposable
 
     public unsafe void Draw(RenderScene scene, Dx12Surface surface)
     {
-        if (!scene.ShowMasks || scene.Document.Selection.Count != 1)
+        if (!scene.ShowMasks || scene.Document.SelectionCount != 1 || scene.Document.Selection.Count != 1)
         {
             return;
         }

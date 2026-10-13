@@ -6,6 +6,12 @@ using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionGeometry;
 
+if (args.Contains("--selection-profile"))
+{
+    await SelectionProfile.RunAsync(args);
+    return;
+}
+
 if (args.Contains("--copy-paste-profile"))
 {
     await CopyPasteProfile.RunAsync(args);

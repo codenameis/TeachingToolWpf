@@ -1,6 +1,6 @@
 namespace VisionGeometry;
 
-/// <summary>One image-space transform shared by geometry, input and rendering. Default is identity.</summary>
+/// <summary>기하·입력·렌더가 공유하는 이미지 좌표의 강체 변환(회전과 이동). 기본값은 항등 변환이다.</summary>
 public readonly record struct RigidTransform2D
 {
     public PointD Pivot
@@ -44,9 +44,14 @@ public readonly record struct RigidTransform2D
         (_sine, _cosine) = reduced == 0 ? (0, 1) : Math.SinCos(reduced * Math.PI / 180);
     }
 
-    public PointD Apply(PointD point) => AngleDegrees % 360 == 0 ? point + Translation : Pivot + ApplyVector(point - Pivot) + Translation;
+    // 회전 중심을 원점으로 옮겨 회전한 다음 중심과 이동량을 더한다. p' = c + R(p - c) + t.
+    public PointD Apply(PointD point) => AngleDegrees % 360 == 0
+        ? point + Translation
+        : Pivot + ApplyVector(point - Pivot) + Translation;
 
-    public PointD ApplyVector(PointD vector) => new((vector.X * Cosine) - (vector.Y * Sine), (vector.X * Sine) + (vector.Y * Cosine));
+    public PointD ApplyVector(PointD vector) => new(
+        (vector.X * Cosine) - (vector.Y * Sine),
+        (vector.X * Sine) + (vector.Y * Cosine));
 
     public PointD InverseApply(PointD point)
     {
@@ -55,8 +60,11 @@ public readonly record struct RigidTransform2D
             return point - Translation;
         }
 
+        // 역변환은 이동을 먼저 빼고 반대 각도로 회전한다. 원래 변환의 역순이어야 한다.
         var relative = point - Translation - Pivot;
-        return Pivot + new PointD((relative.X * Cosine) + (relative.Y * Sine), (-relative.X * Sine) + (relative.Y * Cosine));
+        return Pivot + new PointD(
+            (relative.X * Cosine) + (relative.Y * Sine),
+            (-relative.X * Sine) + (relative.Y * Cosine));
     }
 
     public BoundsD TransformBounds(BoundsD bounds) => Enclose(Apply(new(bounds.Left, bounds.Top)), Apply(new(bounds.Right, bounds.Top)),

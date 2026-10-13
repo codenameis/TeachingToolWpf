@@ -82,6 +82,14 @@ public partial class MainWindow : Window
         {
             Diagnostics.FrameCadenceRun.Attach(this, Viewport, _model);
         }
+        else if (Environment.GetCommandLineArgs().Contains("--main-repeated-benchmark"))
+        {
+            Diagnostics.RepeatedDocumentRun.Attach(this, Viewport, _model);
+        }
+        else if (Environment.GetCommandLineArgs().Contains("--selection-benchmark"))
+        {
+            Diagnostics.SelectionRun.Attach(this, Viewport, _model);
+        }
         else if (Environment.GetCommandLineArgs().Contains("--responsive-editing"))
         {
             Diagnostics.ResponsiveEditingRun.Attach(this, Viewport, _model);

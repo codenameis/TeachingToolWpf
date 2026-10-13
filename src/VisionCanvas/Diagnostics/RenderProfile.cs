@@ -40,7 +40,7 @@ internal sealed class RenderProfile : IDisposable
 
         var interval = _previousFrameStart == 0 ? 0 : Stopwatch.GetElapsedTime(_previousFrameStart, start).TotalMilliseconds;
         _previousFrameStart = start;
-        _writer.WriteLine(string.Join(',', new object[] { _clock.Elapsed.TotalSeconds, scene.Document.Rois.Count, scene.Document.Selection.Count,
+        _writer.WriteLine(string.Join(',', new object[] { _clock.Elapsed.TotalSeconds, scene.Document.RoiCount, scene.Document.SelectionCount,
             Stopwatch.GetElapsedTime(start, paint).TotalMilliseconds, Stopwatch.GetElapsedTime(paint, submit).TotalMilliseconds,
             Stopwatch.GetElapsedTime(submit, end).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated, mesh.Vertices.Count, mesh.Batches.Count, rois.InstanceCount, rois.UploadedBytes, rois.CacheBytes,
             labels.HasPending ? 1 : 0, labels.Created, labels.RetainedCount, labels.RetainedBytes, labels.Evicted,

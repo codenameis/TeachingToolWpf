@@ -166,15 +166,17 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     public string ImageDetails => DisplayImage is { } image ? $"{image.Width:N0} × {image.Height:N0} px   ·   {image.Pixels}" : "이미지를 열어 주세요";
 
-    public string SelectionSummary => $"{Session.State.Selection.Count}개 선택 / ROI {Session.State.Rois.Count}개";
+    public string SelectionSummary => $"{Session.State.SelectionCount:N0}개 선택 / ROI {Session.State.RoiCount:N0}개";
 
-    public int RoiCount => Session.State.Rois.Count;
+    public long RoiCount => Session.State.RoiCount;
 
     public bool HasRois => RoiCount > 0;
 
     public bool IsLiveRunning => Live.IsRunning;
 
-    public string SelectionTitle => Session.State.Selection.Count switch { 0 => "선택한 영역 없음", 1 => "영역 속성", _ => "여러 영역 선택" };
+    public string SelectionTitle => Session.State.SelectionCount switch { 0 => "선택한 영역 없음", 1 => "영역 속성", _ => "여러 영역 선택" };
+    public bool HasRepeatedSelection => !Session.State.RepeatedSelection.IsEmpty;
+    public bool CanUseOrdinaryRoiTools => !HasRepeatedSelection;
 
     public string ToolHint => Input.Tool switch
     {
@@ -442,7 +444,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
             }
         }, System.Windows.Threading.Dispatcher.CurrentDispatcher);
         _previewPreparation = new(Session, Fail, () => Status = "선택 영역 준비 중… 최신 포인터 위치 반영", preparePreview);
-        Input = new(Session, CompletePreview, CompleteSelection, _previewPreparation.SubmitTranslation, _previewPreparation.SubmitRotation);
+        Input = new(Session, CompletePreview, CompleteSelection, _previewPreparation.SubmitTranslation, _previewPreparation.SubmitRotation, CompleteRegionSelection);
         Masks = new(Session, Input, message => Status = message);
         Masks.Changed += Publish;
         Images = new(Session, viewport, loader, Live.CloseAsync, PrepareRowsAsync);
@@ -460,6 +462,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         PanTool = Command(() => SetTool(EditorTool.Pan), navigation: true);
         DrawTool = Command(() => StartRoiDrawing(null), HasImage);
         AddRoi = Command(AddRoiInView, HasImage);
+        AddRepeatedTest = Command(AddRepeatedTestInDocument, HasImage);
         AddChildRoi = Command(AddChildRoiInView, CanAddChildRoi);
         DrawChildRoi = Command(() => StartRoiDrawing(Session.State.Selection.Single()), CanAddChildRoi);
         CompletePolygon = Command(Input.CompletePolygon, () => Input.CanCompletePolygon);
@@ -477,13 +480,13 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         Delete = Async(() => EditCompletion = PrepareEditAsync("선택 ROI 삭제", Session.PrepareDeleteAsync), HasSelection);
         Copy = Command(CopySelection, HasSelection);
         Paste = Async(() => PasteCompletion = PasteAsync(), () => HasImage() && _clipboard.HasContent);
-        Group = Async(() => EditCompletion = PrepareEditAsync("부모 ROI로 그룹화", Session.PrepareGroupAsync), () => Session.State.SelectionFacts.HasMultipleRoots);
-        Ungroup = Async(() => EditCompletion = PrepareEditAsync("그룹 해제", Session.PrepareUngroupAsync), () => Session.State.SelectionFacts.HasGroup);
-        ResetAngle = Command(Session.ResetAngles, HasSelection);
+        Group = Async(() => EditCompletion = PrepareEditAsync("부모 ROI로 그룹화", Session.PrepareGroupAsync), () => !HasRepeatedSelection && Session.State.SelectionFacts.HasMultipleRoots);
+        Ungroup = Async(() => EditCompletion = PrepareEditAsync("그룹 해제", Session.PrepareUngroupAsync), () => !HasRepeatedSelection && Session.State.SelectionFacts.HasGroup);
+        ResetAngle = Command(Session.ResetAngles, () => HasSelection() && !HasRepeatedSelection);
         RotateLeft = Command(() => Rotate(-15), HasSelection);
         RotateRight = Command(() => Rotate(15), HasSelection);
         ApplyProperties = Command(Properties.Apply, () => Properties.HasSingleSelection);
-        SelectAll = Async(() => EditCompletion = PrepareEditAsync("전체 선택", Session.PrepareSelectAllAsync), () => Session.State.Rois.Count != 0);
+        SelectAll = Async(() => EditCompletion = PrepareEditAsync("전체 선택", Session.PrepareSelectAllAsync), () => Session.State.RoiCount != 0);
         CancelImport = new(Images.Cancel, () => Images.IsBusy);
         OpenImage = Async(OpenAsync);
         Sample8K = Async(() => LoadSampleAsync(8192, 8192));
@@ -590,7 +593,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     private bool HasImage() => DisplayImage is not null;
 
-    private bool HasSelection() => Session.State.Selection.Count > 0;
+    private bool HasSelection() => Session.State.SelectionCount > 0;
 
     private RelayCommand Command(Action action, Func<bool>? available = null, bool navigation = false)
     {
@@ -672,21 +675,22 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     private void RefreshRowsForDocument(DocumentState state)
     {
-        if (Session.IsPreviewing || ReferenceEquals(_rowVersion, state.Snapshot.RowVersion))
+        if (Session.IsPreviewing || (ReferenceEquals(_rowVersion, state.Snapshot.RowVersion) && ReferenceEquals(_repeatedRowVersion, state.RepeatedRowVersion)))
         {
             return;
         }
 
-        if (_preparedRows is { } prepared && ReferenceEquals(prepared.Version, state.Snapshot.RowVersion))
+        if (_preparedRows is { } prepared && ReferenceEquals(prepared.Version, state.Snapshot.RowVersion) && ReferenceEquals(prepared.RepeatedVersion, state.RepeatedRowVersion))
         {
             Rows = prepared.Rows;
         }
-        else if (!Rows.TryRefreshMetadata(_rowRois, state))
+        else if (!ReferenceEquals(_repeatedRowVersion, state.RepeatedRowVersion) || !Rows.TryRefreshMetadata(_rowRois, state))
         {
             Rows = new(RoiRow.Build(state));
         }
 
         _rowVersion = state.Snapshot.RowVersion;
+        _repeatedRowVersion = state.RepeatedRowVersion;
         var lastPage = Math.Max(0, (Rows.Count - 1) / RowPageSize);
         ChangeRowPage(Math.Min(_rowPage, lastPage), force: true);
     }
@@ -726,7 +730,9 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         Input.NavigationOnly = !CanEdit;
         Masks.Update(CanEdit);
         Filters.Update(Session.State, Live.Image is not null, Session.TransformPreview, DisplayImage?.Pixels ?? PixelKind.Gray8);
-        Inspections.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing);
+        Inspections.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing && !HasRepeatedSelection);
+        Notify(nameof(HasRepeatedSelection));
+        Notify(nameof(CanUseOrdinaryRoiTools));
         Notify(nameof(CanEdit));
         Notify(nameof(CanNavigate));
         Notify(nameof(SelectionSummary));
@@ -793,7 +799,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     private void Rotate(double angle)
     {
         Session.BeginPreview();
-        _previewPreparation.SubmitRotation(Session.State.SelectedSpatial.Bounds.Center, angle);
+        _previewPreparation.SubmitRotation(Session.State.RepeatedSelection.IsEmpty ? Session.State.SelectedSpatial.Bounds.Center : Session.State.TransformSelection.Bounds.Center, angle);
         CompletePreview("ROI 회전");
     }
 
@@ -825,11 +831,19 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         });
     }
 
-    public void SelectRows(IEnumerable<Guid> ids)
+    public void SelectRows(IEnumerable<Guid> ids, bool preserveRepeatedRanges = false)
     {
         if (CanEdit && !Input.IsDragging)
         {
-            Session.Select(ids);
+            var captured = ids.ToArray();
+            if (captured.Length <= SynchronousPreviewRoiLimit || Session.State.Rois.Count <= SynchronousSelectionDocumentLimit)
+            {
+                Session.SelectEntries(captured, preserveRepeatedRanges);
+            }
+            else
+            {
+                EditCompletion = ObserveEditAsync(PrepareEditAsync("목록 선택", token => Session.PrepareEntrySelectionAsync(captured, token, preserveRepeatedRanges)));
+            }
         }
     }
 

@@ -13,7 +13,9 @@
                 <StackPanel Visibility="{Binding Inspections.ShowShapes, Converter={StaticResource BoolVisibility}}">
                     <views:PrimitiveShapeDetectionPanel DataContext="{Binding Inspections.Shapes}"/>
                 </StackPanel>
-                <filters:FilterPanel DataContext="{Binding Filters}"/>
+                <TextBlock Text="반복 ROI: 위치·크기·회전·부분 선택·복붙을 지원합니다. 그룹화·이름·검색 범위·필터·마스크·검사는 일반 ROI에서 사용하세요."
+                           TextWrapping="Wrap" Margin="0,8,0,12" FontSize="11" Visibility="{Binding HasRepeatedSelection, Converter={StaticResource BoolVisibility}}"/>
+                <Border IsEnabled="{Binding CanUseOrdinaryRoiTools}"><filters:FilterPanel DataContext="{Binding Filters}"/></Border>
                 <StackPanel Visibility="{Binding Properties.HasSingleSelection, Converter={StaticResource BoolVisibility}}">
                     <TextBlock Text="{Binding Properties.ShapeDescription}" FontWeight="SemiBold" Margin="0,12,0,6"/>
                     <TextBlock Text="그룹 부모 · 자식 관리 전용 (검사 대상 아님)" TextWrapping="Wrap" Margin="0,0,0,12"
@@ -23,8 +25,8 @@
                         <ComboBox ItemsSource="{Binding Properties.Types}" SelectedIndex="{Binding Properties.SelectedType}" AutomationProperties.Name="ROI 타입" Margin="0,0,0,12"/>
                     </StackPanel>
                     <TextBlock Text="이름" Style="{StaticResource Caption}"/>
-                    <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.Name, UpdateSourceTrigger=PropertyChanged}" MaxLength="256" AutomationProperties.Name="ROI 이름"/>
-                    <CheckBox Content="캔버스에 이름 표시 (Visible)" IsChecked="{Binding Properties.IsNameVisible}" Margin="0,12,0,0" AutomationProperties.Name="캔버스 이름 표시"/>
+                    <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.Name, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Properties.CanEditMetadata}" MaxLength="256" AutomationProperties.Name="ROI 이름"/>
+                    <CheckBox Content="캔버스에 이름 표시 (Visible)" IsChecked="{Binding Properties.IsNameVisible}" IsEnabled="{Binding Properties.CanEditMetadata}" Margin="0,12,0,0" AutomationProperties.Name="캔버스 이름 표시"/>
                     <StackPanel Visibility="{Binding Properties.HasSearchRange, Converter={StaticResource BoolVisibility}}" Margin="0,20,0,0">
                         <TextBlock Text="검색 범위 · 빨간 점선" FontWeight="SemiBold" Margin="0,0,0,12"/>
                         <TextBlock Text="가로 양쪽 여유 (px)" Style="{StaticResource Caption}"/>

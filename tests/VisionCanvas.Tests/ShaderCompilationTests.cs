@@ -10,6 +10,9 @@ public class ShaderCompilationTests
     [Theory]
     [InlineData("Roi.hlsl", "VSMain", "vs_5_1")]
     [InlineData("Roi.hlsl", "PSMain", "ps_5_1")]
+    [InlineData("RepeatedRoi.hlsl", "VSMain", "vs_5_1")]
+    [InlineData("RepeatedRoi.hlsl", "PSMain", "ps_5_1")]
+    [InlineData("RepeatedRoi.hlsl", "PSMainCpu", "ps_5_1")]
     [InlineData("Viewport.hlsl", "VSMain", "vs_5_1")]
     [InlineData("Viewport.hlsl", "PSMain", "ps_5_1")]
     public void ApplicationShadersCompileWithoutCreatingAGpuDevice(string file, string entryPoint, string profile)

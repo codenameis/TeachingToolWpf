@@ -1,4 +1,5 @@
 using VisionCanvas.Core.Editing;
+using VisionGeometry;
 
 namespace TeachingToolWpf.Presentation;
 
@@ -6,7 +7,8 @@ public sealed partial class EditorViewModel
 {
     private const int SynchronousPreviewRoiLimit = 256;
     private const int SynchronousSelectionDocumentLimit = 4096;
-    private (object Version, RoiRows Rows)? _preparedRows;
+    private (object Version, object RepeatedVersion, RoiRows Rows)? _preparedRows;
+    private object? _repeatedRowVersion;
 
     public Task EditCompletion
     {
@@ -16,14 +18,14 @@ public sealed partial class EditorViewModel
 
     private async Task PrepareRowsAsync(DocumentState state, CancellationToken token)
     {
-        if (ReferenceEquals(_rowVersion, state.Snapshot.RowVersion))
+        if (ReferenceEquals(_rowVersion, state.Snapshot.RowVersion) && ReferenceEquals(_repeatedRowVersion, state.RepeatedRowVersion))
         {
             return;
         }
 
         var rows = await EditPreparation.Run(() => new RoiRows(RoiRow.Build(state, token)), token);
         token.ThrowIfCancellationRequested();
-        _preparedRows = (state.Snapshot.RowVersion, rows);
+        _preparedRows = (state.Snapshot.RowVersion, state.RepeatedRowVersion, rows);
     }
 
     private Task PrepareEditAsync(string name, Func<CancellationToken, Task<PreparedEditorChange>> prepare)
@@ -119,6 +121,34 @@ public sealed partial class EditorViewModel
         }
 
         EditCompletion = ObserveEditAsync(PrepareEditAsync("영역 선택", token => Session.PrepareSelectionAsync(ids, token)));
+    }
+
+    private void CompleteRegionSelection(BoundsD bounds, bool additive)
+    {
+        if (Session.State.RoiCount <= SynchronousSelectionDocumentLimit)
+        {
+            Session.SelectRegion(bounds, additive);
+        }
+        else
+        {
+            EditCompletion = ObserveEditAsync(PrepareEditAsync("영역 선택", token => Session.PrepareRegionSelectionAsync(bounds, additive, token)));
+        }
+    }
+
+    public RelayCommand AddRepeatedTest { get; private set; } = null!;
+
+    private void AddRepeatedTestInDocument()
+    {
+        var image = Session.State.Image ?? throw new InvalidOperationException("이미지를 먼저 열어 주세요.");
+        var pitch = Math.Min(image.Width, image.Height) * .45 / 10001;
+        if (pitch < .025)
+        {
+            throw new InvalidOperationException("1억 ROI 테스트에는 가로·세로 556px 이상의 이미지가 필요합니다.");
+        }
+
+        Session.AddRepeatedGrid(new(10001, 10001, pitch, new(image.Width / 2d, image.Height / 2d)));
+        SetTool(VisionCanvas.Core.Interaction.EditorTool.Select);
+        Status = "현재 이미지 중심에 100,020,001개 추가 · 영역 선택 / Ctrl+C·V / 이동·회전 / Ctrl+Z";
     }
 
     // UI 이벤트의 오류를 알리면서도 진단·종료 코드가 완료를 기다릴 수 있도록 Task를 보관한다.

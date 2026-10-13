@@ -1,0 +1,47 @@
+<Window x:Class="TeachingToolWpf.Views.RepeatedRoiWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:canvas="clr-namespace:VisionCanvas.Controls;assembly=VisionCanvas"
+        Title="1억 ROI 반복 격자 편집·성능 테스트" Width="1440" Height="880" MinWidth="1000" MinHeight="600"
+        Background="{StaticResource Shell}" FontFamily="Segoe UI, Malgun Gothic">
+    <Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,10">
+            <TextBlock Text="{Binding CountText}" FontSize="20" FontWeight="SemiBold" Margin="4,0,0,8"/>
+            <WrapPanel>
+                <Button Content="전체 ROI 선택" Command="{Binding SelectAll}"/>
+                <Button Content="선택 도구" Command="{Binding Select}"/>
+                <Button Content="화면 이동" Command="{Binding Pan}"/>
+                <Button Content="화면 맞춤" Command="{Binding Fit}"/>
+                <Button Content="선택 위치 확대" Command="{Binding Detail}"/>
+                <Button Content="←" Command="{Binding MoveLeft}"/><Button Content="→" Command="{Binding MoveRight}"/>
+                <Button Content="↑" Command="{Binding MoveUp}"/><Button Content="↓" Command="{Binding MoveDown}"/>
+                <Button Content="−15°" Command="{Binding RotateLeft}"/><Button Content="+15°" Command="{Binding RotateRight}"/>
+                <Button Content="Undo" Command="{Binding Undo}"/><Button Content="Redo" Command="{Binding Redo}"/>
+            </WrapPanel>
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions>
+            <canvas:Dx12Viewport x:Name="Viewport" AutomationProperties.Name="1억 ROI 테스트 캔버스"/>
+            <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                <TextBlock Text="{Binding SelectionText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="행 / 열 (1부터)"/>
+                <TextBox Text="{Binding Row, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="격자 행"/>
+                <TextBox Text="{Binding Column, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="격자 열"/>
+                <Button Content="개별 ROI 선택" Command="{Binding SelectCell}" Margin="0,5,0,15"/>
+                <TextBlock Text="중심 X"/><TextBox Text="{Binding X}"/>
+                <TextBlock Text="중심 Y"/><TextBox Text="{Binding Y}"/>
+                <TextBlock Text="너비"/><TextBox Text="{Binding Width}"/>
+                <TextBlock Text="높이"/><TextBox Text="{Binding Height}"/>
+                <TextBlock Text="절대 각도 (°)"/><TextBox Text="{Binding Angle}"/>
+                <Button Content="개별 ROI 적용" Command="{Binding Apply}" Margin="0,8,0,16"/>
+                <TextBlock Text="전체 선택 상태에서 드래그하면 격자 전체가 이동합니다. 더블클릭하면 해당 ROI 하나를 선택합니다. 원형 핸들은 회전, 휠은 확대/축소, Space+드래그는 화면 이동입니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}"/>
+                <TextBlock Text="반복 사각형의 편집 시험입니다. 축소 시 요약 표시하며, 전체 개수와 개별 좌표는 유지됩니다. 60FPS 달성 여부는 연속 입력 측정으로 확인합니다." TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{StaticResource TextSecondary}"/>
+            </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+            <TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding Performance}" Foreground="{StaticResource TextSecondary}"/>
+        </StackPanel>
+    </Grid>
+</Window>

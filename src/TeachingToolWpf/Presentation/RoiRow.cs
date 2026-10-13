@@ -51,6 +51,11 @@ public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
                 siblings.Dispose();
             }
         }
+        foreach (var batch in state.RepeatedRois.Values.OrderBy(batch => batch.Order))
+        {
+            result.Add(new(batch.Id, batch.Name, $"반복 {batch.Count:N0}개", 0));
+        }
+
         return result;
     }
 }

@@ -11,6 +11,7 @@ public sealed class RenderWorker : IDisposable
     private const double BytesPerGibibyte = 1024d * 1024 * 1024;
     private const int MetricsNotificationFrameInterval = 30;
     private readonly AutoResetEvent _wake = new(false);
+    private readonly ManualResetEvent _stop = new(false);
     private readonly Thread _thread;
     private readonly nint _hwnd;
     private readonly TileWorker _tiles;
@@ -18,7 +19,7 @@ public sealed class RenderWorker : IDisposable
     private readonly LatestFrameMailbox _frames;
     private readonly IFramePreparer _framePreparer;
     private readonly RenderDevicePreference _devicePreference;
-    private sealed record Submission(long Version, RenderScene Scene);
+    private sealed record Submission(long Version, RenderScene Scene, long Received);
     private sealed record CaptureRequest(long Version, string Path);
     private Submission? _latestSubmission;
     private CaptureRequest? _captureRequest;
@@ -82,7 +83,7 @@ public sealed class RenderWorker : IDisposable
 
     public void Submit(RenderScene value)
     {
-        var submission = new Submission(Interlocked.Increment(ref _sceneVersion), value);
+        var submission = new Submission(Interlocked.Increment(ref _sceneVersion), value, Stopwatch.GetTimestamp());
         Volatile.Write(ref _latestSubmission, submission);
         Invalidate();
     }
@@ -100,10 +101,12 @@ public sealed class RenderWorker : IDisposable
         {
             using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"), _devicePreference);
             using var surface = new Dx12Surface(gpu, _hwnd, _width, _height);
+            WaitHandle[] frameSignals = [surface.FrameReady, _stop];
             using var pipeline = new SpritePipeline(gpu);
             using var profile = new RenderProfile();
             using var roiPipeline = new RoiPipeline(gpu, profile.Enabled);
             using var maskPipeline = new MaskPipeline(gpu);
+            using var repeatedPipeline = new RepeatedRoiPipeline(gpu);
             using var gpuTimer = gpu.IsSoftware ? null : new GpuTimer(gpu);
             using var metrics = new FrameMetrics();
             var painter = new ScenePainter();
@@ -114,6 +117,7 @@ public sealed class RenderWorker : IDisposable
             GpuTexture? white = null;
             VideoFrame? retainedFrame = null;
             long frame = 0;
+            var frameReady = false;
             RenderScene? presentedScene = null;
             var presentedOverlay = Guid.Empty;
             StatusChanged?.Invoke(gpu.IsSoftware
@@ -151,8 +155,32 @@ public sealed class RenderWorker : IDisposable
                     var cpuStart = Stopwatch.GetTimestamp();
                     var allocationStart = profile.Enabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
                     var gcPauseStart = profile.Enabled ? GC.GetTotalPauseDuration() : default;
+                    var pacingStart = Stopwatch.GetTimestamp();
+                    if (!frameReady && WaitHandle.WaitAny(frameSignals, 1000) != 0)
+                    {
+                        gpu.Device.DeviceRemovedReason.CheckError();
+                        Invalidate();
+                        continue;
+                    }
+                    var pacingElapsed = Stopwatch.GetElapsedTime(pacingStart).TotalMilliseconds;
+                    if (_stopping)
+                    {
+                        break;
+                    }
+                    frameReady = true;
+                    targetWidth = Volatile.Read(ref _width);
+                    targetHeight = Volatile.Read(ref _height);
+                    if (targetWidth <= 0 || targetHeight <= 0)
+                    {
+                        // 최소화 중에는 획득한 표시 허가를 다음 유효 프레임까지 보존한다.
+                        continue;
+                    }
                     surface.Resize(targetWidth, targetHeight);
                     surface.Begin();
+                    // 표시 대기 중 도착한 최신 불변 스냅샷을 그린다.
+                    submission = Volatile.Read(ref _latestSubmission);
+                    current = submission?.Scene;
+                    var sceneAge = submission is null ? 0 : Stopwatch.GetElapsedTime(submission.Received).TotalMilliseconds;
                     frame++;
                     var gpuElapsed = gpuTimer?.Begin(surface);
                     pipeline.BeginFrame(surface);
@@ -196,6 +224,7 @@ public sealed class RenderWorker : IDisposable
                         pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () =>
                         {
                             maskPipeline.Draw(current, surface);
+                            repeatedPipeline.Draw(current, surface);
                             roiPipeline.Draw(current, surface);
                         });
                         var submitEnd = Stopwatch.GetTimestamp();
@@ -213,6 +242,7 @@ public sealed class RenderWorker : IDisposable
                     var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
                     var presentStart = Stopwatch.GetTimestamp();
                     var completionFence = surface.Present();
+                    frameReady = false;
                     presentedScene = current;
                     if (current?.Inspection is { BatchLabels: true } overlay &&
                         overlay.PresentationId != presentedOverlay && !labels.HasPending && !roiPipeline.HasPendingDetails)
@@ -223,7 +253,8 @@ public sealed class RenderWorker : IDisposable
                         OverlayPresented?.Invoke(new(overlay.PresentationId, Stopwatch.GetTimestamp()));
                     }
                     var measurement = metrics.Record(cpuElapsed, gpuElapsed, Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds, videoFrame?.Timestamp,
-                        _frames.Dropped, images.Bytes, videoFrame?.Sequence);
+                        _frames.Dropped, images.Bytes, videoFrame?.Sequence, surface.FenceWaitMilliseconds, sceneAge,
+                        metrics.Enabled ? surface.ReadPresentationStatistics() : null, pacingElapsed);
                     if (frame % MetricsNotificationFrameInterval == 0)
                     {
                         MetricsChanged?.Invoke(measurement);
@@ -283,6 +314,7 @@ public sealed class RenderWorker : IDisposable
         _tiles.TileReady -= Invalidate;
         _frames.Available -= Invalidate;
         _stopping = true;
+        _stop.Set();
         _wake.Set();
         if (_thread.IsAlive)
         {
@@ -290,5 +322,6 @@ public sealed class RenderWorker : IDisposable
         }
 
         _wake.Dispose();
+        _stop.Dispose();
     }
 }

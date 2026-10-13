@@ -87,41 +87,27 @@ public sealed partial class EditorSession
                 token.ThrowIfCancellationRequested();
                 rois.Remove(id);
             }
-            return before.WithRois(rois.ToImmutable(), ids) with
+            return DeleteRepeatedSelection(before.WithRois(rois.ToImmutable(), ids)) with
             {
                 Selection = before.Selection.Except(ids)
             };
         }, token);
 
     public Task<PreparedEditorChange> PrepareSelectAllAsync(CancellationToken token = default)
-        => PrepareChangeAsync(null, before =>
-        {
-            if (before.Selection.Count == before.Rois.Count)
-            {
-                return before;
-            }
-
-            return before with
-            {
-                Selection = before.Rois.Keys.Select(id =>
-                {
-                    token.ThrowIfCancellationRequested();
-                    return id;
-                }).ToImmutableHashSet()
-            };
-        }, token);
+        => PrepareChangeAsync(null, before => SelectAllState(before, token), token);
 
     public Task<PreparedEditorChange> PrepareSelectionAsync(IEnumerable<Guid> ids, CancellationToken token = default)
         => PrepareChangeAsync(null, before =>
         {
-            var selection = ids.Where(id =>
+            var selection = RoiIdSet.CreateRange(ids.Where(id =>
             {
                 token.ThrowIfCancellationRequested();
                 return before.Rois.ContainsKey(id);
-            }).ToImmutableHashSet();
-            return selection.SetEquals(before.Selection) ? before : before with
+            }));
+            return selection.SetEquals(before.Selection) && before.RepeatedSelection.IsEmpty ? before : before with
             {
-                Selection = selection
+                Selection = selection,
+                RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
             };
         }, token);
 
@@ -187,13 +173,14 @@ public sealed partial class EditorSession
         _ = state.SelectionFacts.HasMultipleRoots;
         token.ThrowIfCancellationRequested();
         _ = state.SelectedSpatial;
-        if (!state.Selection.IsEmpty)
+        if (state.SelectionCount != 0)
         {
             var transform = state.TransformSelection;
             token.ThrowIfCancellationRequested();
             _ = transform.Moving;
             token.ThrowIfCancellationRequested();
             _ = transform.Stationary;
+            _ = transform.StationaryRepeated;
             token.ThrowIfCancellationRequested();
             _ = transform.MovingSearch;
             token.ThrowIfCancellationRequested();

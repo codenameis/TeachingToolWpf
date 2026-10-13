@@ -36,7 +36,13 @@ public sealed record RoiGeometry
 
     public PointD[] Outline => Shape.Vertices.Select(p => ToWorld(new(p.X * Width, p.Y * Height))).ToArray();
 
-    public string ShapeName => Shape.Kind switch { RoiShapeKind.Circle => "원", RoiShapeKind.Triangle => "삼각형", RoiShapeKind.Polygon => "폴리곤", _ => "사각형" };
+    public string ShapeName => Shape.Kind switch
+    {
+        RoiShapeKind.Circle => "원",
+        RoiShapeKind.Triangle => "삼각형",
+        RoiShapeKind.Polygon => "폴리곤",
+        _ => "사각형"
+    };
 
     public RoiGeometry(PointD center, double width, double height, double angle, RoiShape? shape = null)
     {
@@ -139,10 +145,12 @@ public sealed record RoiGeometry
 
             if (Shape.Kind == RoiShapeKind.Rectangle)
             {
-                var (sin, cos) = Math.SinCos(Angle * Math.PI / 180);
-                var x = ((Width * Math.Abs(cos)) + (Height * Math.Abs(sin))) / 2;
-                var y = ((Width * Math.Abs(sin)) + (Height * Math.Abs(cos))) / 2;
-                return new(Center.X - x, Center.Y - y, Center.X + x, Center.Y + y);
+                // 회전 사각형을 감싸는 축 정렬 경계. 실제 ROI 내부 판정은 Contains가 담당한다.
+                var (sine, cosine) = Math.SinCos(Angle * Math.PI / 180);
+                var halfBoundsWidth = ((Width * Math.Abs(cosine)) + (Height * Math.Abs(sine))) / 2;
+                var halfBoundsHeight = ((Width * Math.Abs(sine)) + (Height * Math.Abs(cosine))) / 2;
+                return new(Center.X - halfBoundsWidth, Center.Y - halfBoundsHeight,
+                    Center.X + halfBoundsWidth, Center.Y + halfBoundsHeight);
             }
             return new(-Support(new(-1, 0)), -Support(new(0, -1)), Support(new(1, 0)), Support(new(0, 1)));
         }

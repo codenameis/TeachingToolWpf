@@ -8,16 +8,17 @@ namespace VisionCanvas.Core.Editing;
 public sealed class RoiClipboard
 {
     private ImmutableArray<Roi> _entries = [];
+    private ImmutableArray<RepeatedRoiBatch> _repeated = [];
     private BoundsD _bounds;
     private int _pastes;
 
-    public bool HasContent => !_entries.IsEmpty;
+    public bool HasContent => !_entries.IsEmpty || !_repeated.IsEmpty;
 
-    public int Count => _entries.Length;
+    public long Count => _entries.Length + _repeated.Sum(batch => (long)batch.Count);
 
-    public int Copy(DocumentState state)
+    public long Copy(DocumentState state)
     {
-        if (state.Selection.IsEmpty)
+        if (state.SelectionCount == 0)
         {
             return 0;
         }
@@ -26,12 +27,14 @@ public sealed class RoiClipboard
         var source = allSelected ? state.Rois.Values
             : RoiHierarchy.Subtree(state, RoiHierarchy.EffectiveRoots(state)).Select(id => state.Rois[id]);
         var copied = source.OrderBy(r => r.Order).ToImmutableArray();
-        BoundsD combined;
-        if (allSelected && state.Snapshot.IsSpatialCreated)
+        var repeated = state.RepeatedSelection.Select(pair => state.RepeatedRois[pair.Key].Slice(pair.Value))
+            .OfType<RepeatedRoiBatch>().OrderBy(batch => batch.Order).ToImmutableArray();
+        BoundsD combined = default;
+        if (!copied.IsEmpty && allSelected && state.Snapshot.IsSpatialCreated)
         {
             combined = state.Snapshot.Spatial.Bounds;
         }
-        else
+        else if (!copied.IsEmpty)
         {
             combined = copied[0].Geometry.Bounds;
             for (var i = 1; i < copied.Length; i++)
@@ -41,14 +44,23 @@ public sealed class RoiClipboard
                     Math.Max(combined.Right, next.Right), Math.Max(combined.Bottom, next.Bottom));
             }
         }
+        var hasBounds = !copied.IsEmpty;
+        foreach (var batch in repeated)
+        {
+            var next = batch.Bounds;
+            combined = hasBounds ? new(Math.Min(combined.Left, next.Left), Math.Min(combined.Top, next.Top),
+                Math.Max(combined.Right, next.Right), Math.Max(combined.Bottom, next.Bottom)) : next;
+            hasBounds = true;
+        }
         _entries = copied;
+        _repeated = repeated;
         _bounds = combined;
         _pastes = 0;
-        return _entries.Length;
+        return Count;
     }
 
     /// <summary>Captures shared immutable entries and the next paste number without traversing any ROI.</summary>
-    public RoiClipboardContent Capture() => new(_entries, _bounds, _pastes + 1);
+    public RoiClipboardContent Capture() => new(_entries, _repeated, _bounds, _pastes + 1);
 
     internal void Pasted() => _pastes++;
 }
@@ -56,6 +68,11 @@ public sealed class RoiClipboard
 /// <summary>Worker-owned placement input, independent of later copy or paste actions.</summary>
 public sealed class RoiClipboardContent
 {
+    public ImmutableArray<RepeatedRoiBatch> Repeated
+    {
+        get;
+    }
+    internal long OrderCount => Entries.Length + Repeated.Length;
     public ImmutableArray<Roi> Entries
     {
         get;
@@ -72,9 +89,10 @@ public sealed class RoiClipboardContent
         get;
     }
 
-    internal RoiClipboardContent(ImmutableArray<Roi> entries, BoundsD bounds, int pasteNumber)
+    internal RoiClipboardContent(ImmutableArray<Roi> entries, ImmutableArray<RepeatedRoiBatch> repeated, BoundsD bounds, int pasteNumber)
     {
         Entries = entries;
+        Repeated = repeated;
         Bounds = bounds;
         PasteNumber = pasteNumber;
     }

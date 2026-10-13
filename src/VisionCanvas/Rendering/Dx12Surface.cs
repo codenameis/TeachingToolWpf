@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Microsoft.Win32.SafeHandles;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
 using Vortice.Mathematics;
@@ -8,14 +10,16 @@ namespace VisionCanvas.Rendering;
 internal sealed class Dx12Surface : IDisposable
 {
     private const int BackBufferCount = 2;
+    private const SwapChainFlags Flags = SwapChainFlags.FrameLatencyWaitableObject;
     private readonly Dx12Device _gpu;
     private readonly IDXGISwapChain3 _swapChain;
     private readonly ID3D12DescriptorHeap _renderTargets;
     private readonly ID3D12Resource?[] _buffers = new ID3D12Resource[BackBufferCount];
-    private readonly ID3D12CommandAllocator[] _allocators;
+    private readonly ID3D12CommandAllocator[] _allocators = new ID3D12CommandAllocator[BackBufferCount];
     private readonly ulong[] _frameCompletionFences = new ulong[BackBufferCount];
     private readonly List<IDisposable>[] _resourcesAwaitingGpu = [[], []];
     private readonly uint _descriptorSize;
+    private readonly AutoResetEvent _frameReady = new(false);
 
     public ID3D12GraphicsCommandList Commands
     {
@@ -42,30 +46,60 @@ internal sealed class Dx12Surface : IDisposable
 
     public ID3D12Resource CurrentBuffer => _buffers[FrameIndex]!;
 
+    public double FenceWaitMilliseconds
+    {
+        get; private set;
+    }
+
+    public WaitHandle FrameReady => _frameReady;
+
+    public FrameStatistics? ReadPresentationStatistics()
+        => _swapChain.GetFrameStatistics(out var statistics).Success ? statistics : null;
+
     public Dx12Surface(Dx12Device gpu, nint hwnd, int width, int height)
     {
         _gpu = gpu;
         Width = Math.Max(1, width);
         Height = Math.Max(1, height);
-        using var chain = gpu.Factory.CreateSwapChainForHwnd(gpu.Queue, hwnd, new SwapChainDescription1
+        try
         {
-            Width = (uint)Width,
-            Height = (uint)Height,
-            Format = Format.B8G8R8A8_UNorm,
-            BufferCount = BackBufferCount,
-            BufferUsage = Usage.RenderTargetOutput,
-            SampleDescription = new SampleDescription(1, 0),
-            SwapEffect = SwapEffect.FlipDiscard,
-            Scaling = Scaling.Stretch,
-            AlphaMode = AlphaMode.Ignore
-        });
-        _swapChain = chain.QueryInterface<IDXGISwapChain3>();
-        _renderTargets = gpu.Device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, BackBufferCount));
-        _descriptorSize = gpu.Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
-        _allocators = [gpu.Device.CreateCommandAllocator(CommandListType.Direct), gpu.Device.CreateCommandAllocator(CommandListType.Direct)];
-        Commands = gpu.Device.CreateCommandList<ID3D12GraphicsCommandList>(CommandListType.Direct, _allocators[0]);
-        Commands.Close();
-        CreateBuffers();
+            using var chain = gpu.Factory.CreateSwapChainForHwnd(gpu.Queue, hwnd, new SwapChainDescription1
+            {
+                Width = (uint)Width,
+                Height = (uint)Height,
+                Format = Format.B8G8R8A8_UNorm,
+                BufferCount = BackBufferCount,
+                BufferUsage = Usage.RenderTargetOutput,
+                SampleDescription = new SampleDescription(1, 0),
+                SwapEffect = SwapEffect.FlipDiscard,
+                Scaling = Scaling.Stretch,
+                AlphaMode = AlphaMode.Ignore,
+                Flags = Flags
+            });
+            _swapChain = chain.QueryInterface<IDXGISwapChain3>();
+            _swapChain.MaximumFrameLatency = 1;
+            var frameReady = _swapChain.FrameLatencyWaitableObject;
+            if (frameReady == 0)
+            {
+                throw new InvalidOperationException("DXGI frame latency wait handle is unavailable.");
+            }
+            _frameReady.SafeWaitHandle.Dispose();
+            _frameReady.SafeWaitHandle = new SafeWaitHandle(frameReady, true);
+            _renderTargets = gpu.Device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, BackBufferCount));
+            _descriptorSize = gpu.Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
+            for (var i = 0; i < BackBufferCount; i++)
+            {
+                _allocators[i] = gpu.Device.CreateCommandAllocator(CommandListType.Direct);
+            }
+            Commands = gpu.Device.CreateCommandList<ID3D12GraphicsCommandList>(CommandListType.Direct, _allocators[0]);
+            Commands.Close();
+            CreateBuffers();
+        }
+        catch
+        {
+            ReleaseResources();
+            throw;
+        }
     }
 
     private CpuDescriptorHandle RenderTargetView(int index) =>
@@ -93,7 +127,7 @@ internal sealed class Dx12Surface : IDisposable
             buffer?.Dispose();
         }
 
-        _swapChain.ResizeBuffers(BackBufferCount, (uint)width, (uint)height, Format.B8G8R8A8_UNorm, SwapChainFlags.None).CheckError();
+        _swapChain.ResizeBuffers(BackBufferCount, (uint)width, (uint)height, Format.B8G8R8A8_UNorm, Flags).CheckError();
         Width = width;
         Height = height;
         CreateBuffers();
@@ -103,7 +137,9 @@ internal sealed class Dx12Surface : IDisposable
     {
         FrameIndex = (int)_swapChain.CurrentBackBufferIndex;
         // 같은 프레임 슬롯의 명령 메모리와 업로드 버퍼는 fence 완료 후에만 재사용한다.
+        var waitStart = Stopwatch.GetTimestamp();
         _gpu.Wait(_frameCompletionFences[FrameIndex]);
+        FenceWaitMilliseconds = Stopwatch.GetElapsedTime(waitStart).TotalMilliseconds;
         DisposeRetiredResources(FrameIndex);
         _allocators[FrameIndex].Reset();
         Commands.Reset(_allocators[FrameIndex]);
@@ -145,26 +181,32 @@ internal sealed class Dx12Surface : IDisposable
         }
         finally
         {
-            foreach (var frame in _resourcesAwaitingGpu)
-            {
-                foreach (var resource in frame)
-                {
-                    resource.Dispose();
-                }
-            }
-            foreach (var buffer in _buffers)
-            {
-                buffer?.Dispose();
-            }
-
-            foreach (var allocator in _allocators)
-            {
-                allocator.Dispose();
-            }
-
-            Commands.Dispose();
-            _renderTargets.Dispose();
-            _swapChain.Dispose();
+            ReleaseResources();
         }
+    }
+
+    private void ReleaseResources()
+    {
+        foreach (var frame in _resourcesAwaitingGpu)
+        {
+            foreach (var resource in frame)
+            {
+                resource.Dispose();
+            }
+        }
+        foreach (var buffer in _buffers)
+        {
+            buffer?.Dispose();
+        }
+
+        foreach (var allocator in _allocators)
+        {
+            allocator?.Dispose();
+        }
+
+        Commands?.Dispose();
+        _renderTargets?.Dispose();
+        _swapChain?.Dispose();
+        _frameReady.Dispose();
     }
 }

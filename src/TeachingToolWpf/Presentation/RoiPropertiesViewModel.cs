@@ -7,6 +7,7 @@ namespace TeachingToolWpf.Presentation;
 public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObject
 {
     private Guid? _id;
+    private RepeatedRoiCell? _cell;
     private string _name = "";
 
     private string _x = "";
@@ -25,11 +26,12 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
     private string _searchVertical = "20";
     private bool _isNameVisible = true;
 
-    public bool HasSingleSelection => _id is not null;
+    public bool HasSingleSelection => _id is not null || _cell is not null;
+    public bool CanEditMetadata => _id is not null;
 
     public bool IsGrouping => _id is { } id && editor.State.IsGroupingRoi(id);
 
-    public bool CanChangeType => HasSingleSelection && !IsGrouping;
+    public bool CanChangeType => CanEditMetadata && !IsGrouping;
 
     public IReadOnlyList<string> Types { get; } = ["일반 ROI", "검색 범위 ROI"];
 
@@ -65,10 +67,13 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
         set => Set(ref _isNameVisible, value);
     }
 
-    public string ShapeDescription => _id is { } value ? editor.State.Rois[value].Geometry.ShapeName : "";
+    public string ShapeDescription => SelectedGeometry?.ShapeName ?? "";
 
     public string SizeHint => _id is { } value && editor.State.Rois[value].Geometry.Shape.Kind == RoiShapeKind.Circle
         ? "원: 너비·높이는 같은 지름으로 적용됩니다." : "원본 이미지 픽셀 기준";
+
+    private RoiGeometry? SelectedGeometry => _id is { } id ? editor.State.Rois[id].Geometry
+        : _cell is { } cell ? editor.State.RepeatedRois[cell.BatchId].Geometry(cell.Index) : null;
 
     public string Name
     {
@@ -116,13 +121,32 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
 
     public void Refresh()
     {
-        _id = editor.State.Selection.Count == 1 ? editor.State.Selection.Single() : null;
+        _id = editor.State.SelectionCount == 1 && editor.State.Selection.Count == 1 ? editor.State.Selection.Single() : null;
+        _cell = editor.State.SingleRepeatedCell;
         Notify(nameof(HasSingleSelection));
+        Notify(nameof(CanEditMetadata));
         Notify(nameof(ShapeDescription));
         Notify(nameof(SizeHint));
         Notify(nameof(IsGrouping));
         Notify(nameof(CanChangeType));
         Notify(nameof(HasSearchRange));
+        if (_cell is { } cell)
+        {
+            var selected = SelectedGeometry!;
+            if (editor.TransformPreview is { } preview)
+            {
+                selected = selected.WithFrame(preview.Transform.Apply(selected.Center), selected.Width, selected.Height, selected.Angle + preview.Transform.AngleDegrees);
+            }
+
+            Name = $"{editor.State.RepeatedRois[cell.BatchId].Name} · 셀 {cell.Index:N0}";
+            X = Format(selected.Center.X);
+            Y = Format(selected.Center.Y);
+            Width = Format(selected.Width);
+            Height = Format(selected.Height);
+            Angle = Format(selected.Angle);
+            RelativeAngle = $"배치 {cell.BatchId:N} / 셀 {cell.Index}";
+            return;
+        }
         if (_id is not { } value)
         {
             Name = X = Y = Width = Height = Angle = "";
@@ -147,14 +171,15 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
 
     public void Apply()
     {
-        if (_id is not { } value)
+        if (_id is null && _cell is null)
         {
             return;
         }
+        var value = _id.GetValueOrDefault();
 
         static double Parse(string text) => double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value) && double.IsFinite(value)
             ? value : throw new ArgumentException("속성에는 유한한 숫자를 입력하세요.");
-        var original = editor.State.Rois[value].Geometry;
+        var original = SelectedGeometry!;
         var newWidth = Parse(Width);
         var newHeight = Parse(Height);
         if (original.Shape.Kind == RoiShapeKind.Circle)
@@ -167,6 +192,11 @@ public sealed class RoiPropertiesViewModel(EditorSession editor) : ObservableObj
             {
                 newWidth = newHeight;
             }
+        }
+        if (_cell is { } cell)
+        {
+            editor.SetRepeatedGeometry(cell, original.WithFrame(new(Parse(X), Parse(Y)), newWidth, newHeight, Parse(Angle)));
+            return;
         }
         var searchRange = IsGrouping ? editor.State.Rois[value].SearchRange
             : HasSearchRange ? new RoiSearchRange(Parse(SearchHorizontal), Parse(SearchVertical)) : null;

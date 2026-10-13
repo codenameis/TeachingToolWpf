@@ -10,6 +10,11 @@ internal static class RoiGrouping
     public static DocumentState Group(DocumentState before, long order, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!before.RepeatedSelection.IsEmpty)
+        {
+            throw new InvalidOperationException("그룹화는 일반 ROI 선택에서 사용할 수 있습니다.");
+        }
+
         var roots = RoiHierarchy.EffectiveRoots(before).Select(id =>
         {
             token.ThrowIfCancellationRequested();
@@ -62,6 +67,11 @@ internal static class RoiGrouping
     public static DocumentState Ungroup(DocumentState before, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!before.RepeatedSelection.IsEmpty)
+        {
+            throw new InvalidOperationException("그룹 해제는 일반 ROI 선택에서 사용할 수 있습니다.");
+        }
+
         var groups = before.Selection.Where(id =>
         {
             token.ThrowIfCancellationRequested();

@@ -29,13 +29,18 @@ public sealed class RoiSelectionFacts
         get;
     }
 
-    internal RoiSelectionFacts(ImmutableDictionary<Guid, Roi> rois, ImmutableHashSet<Guid> selection)
+    internal RoiSelectionFacts(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection)
     {
         // Command availability shares this result across navigation without adding work to unrelated facts.
         _hasMultipleRoots = new(() => FindMultipleRoots(rois, selection));
         var registered = ImmutableArray.CreateBuilder<Roi>();
         FilterSettings? firstSettings = null;
-        foreach (var roi in selection.Count == rois.Count ? rois.Values : selection.Select(id => rois[id]))
+        // Large partial selections scan immutable values once instead of performing a tree lookup
+        // for every randomly ordered selected ID. Small selections keep the direct lookup path.
+        var selectedRois = selection.Count == rois.Count ? rois.Values
+            : selection.Count > rois.Count / 8 ? rois.Values.Where(roi => selection.Contains(roi.Id))
+            : selection.Select(id => rois[id]);
+        foreach (var roi in selectedRois)
         {
             if (First is null || roi.Order < First.Order)
             {
@@ -61,7 +66,7 @@ public sealed class RoiSelectionFacts
         RegisteredFilters = registered.ToImmutable();
     }
 
-    private static bool FindMultipleRoots(ImmutableDictionary<Guid, Roi> rois, ImmutableHashSet<Guid> selection)
+    private static bool FindMultipleRoots(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection)
     {
         if (selection.Count < 2)
         {

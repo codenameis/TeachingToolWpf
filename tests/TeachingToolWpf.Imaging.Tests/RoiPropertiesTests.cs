@@ -6,6 +6,37 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class RoiPropertiesTests
 {
     [Fact]
+    public void RepeatedCellGeometryUsesTheCommonPropertiesAndHistory()
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("image", "image", 8192, 8192), VisionGeometry.ViewportTransform.Identity);
+        var id = editor.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
+        var cell = new RepeatedRoiCell(id, 50010000);
+        editor.SelectRepeated(cell);
+        var original = editor.State.RepeatedRois[id].Geometry(cell.Index);
+        var properties = new RoiPropertiesViewModel(editor);
+        properties.Refresh();
+        Assert.True(properties.HasSingleSelection);
+        Assert.False(properties.CanEditMetadata);
+        Assert.False(properties.CanChangeType);
+        properties.X = "4010";
+        properties.Y = "4020";
+        properties.Width = "40";
+        properties.Height = "20";
+        properties.Angle = "35";
+        properties.Apply();
+        Assert.Equal(new VisionGeometry.RoiGeometry(new(4010, 4020), 40, 20, 35), editor.State.RepeatedRois[id].Geometry(cell.Index));
+        editor.Undo();
+        Assert.Equal(original, editor.State.RepeatedRois[id].Geometry(cell.Index));
+        properties.X = "invalid";
+        Assert.Throws<ArgumentException>(properties.Apply);
+        Assert.True(editor.CanRedo);
+        editor.SelectAll();
+        properties.Refresh();
+        Assert.False(properties.HasSingleSelection);
+    }
+
+    [Fact]
     public void NumericDraftCommitsOnceAndInvalidInputPreservesDocumentAndRedo()
     {
         var editor = new EditorSession();

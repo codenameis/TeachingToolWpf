@@ -31,7 +31,7 @@ public sealed record InteractionOverlay(Guid? Hover = null, RoiGeometry? Draft =
 
 /// <summary>Chooses an input state; each gesture owns its preview and commit/cancel behavior.</summary>
 public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null,
-    Action<PointD>? previewTranslation = null, Action<PointD, double>? previewRotation = null)
+    Action<PointD>? previewTranslation = null, Action<PointD, double>? previewRotation = null, Action<BoundsD, bool>? selectRegion = null) : IViewportInput
 {
     private IGesture? _gesture;
     private EditorTool _tool;
@@ -51,7 +51,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     public void StartMask(MaskShape shape)
     {
-        if (NavigationOnly || editor.IsPreviewing || editor.State.Selection.Count != 1)
+        if (NavigationOnly || editor.IsPreviewing || editor.State.SelectionCount != 1 || editor.State.Selection.Count != 1)
         {
             return;
         }
@@ -207,6 +207,24 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         Changed?.Invoke();
     }
 
+    internal void SelectRegion(DocumentState baseline, BoundsD bounds, bool additive)
+    {
+        if (selectRegion is not null)
+        {
+            selectRegion(bounds, additive);
+        }
+        else if (!baseline.RepeatedRois.IsEmpty)
+        {
+            editor.SelectRegion(bounds, additive);
+        }
+        else
+        {
+            var ids = baseline.Snapshot.Spatial.Intersecting(bounds).Where(roi => roi.Geometry.Bounds is var box &&
+                bounds.Contains(new(box.Left, box.Top)) && bounds.Contains(new(box.Right, box.Bottom))).Select(roi => roi.Id);
+            Select(additive ? baseline.Selection.Union(ids) : ids);
+        }
+    }
+
     public void Down(PointD screen, InputModifiers modifiers = InputModifiers.None, bool middle = false)
     {
         ValidateDraftImage();
@@ -270,10 +288,52 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         Changed?.Invoke();
     }
 
+    public void DoubleClick(PointD screen, InputModifiers modifiers = InputModifiers.None)
+    {
+        if (Tool != EditorTool.Select || NavigationOnly ||
+            (Minimap is { } map && map.Panel.Contains(screen)))
+        {
+            Down(screen, modifiers);
+            return;
+        }
+
+        Cancel();
+        // 더블클릭은 기존 선택 핸들보다 실제 ROI hit를 우선하고 선택만 교체한다.
+        var hit = SelectionHit(screen, modifiers.HasFlag(InputModifiers.Alt));
+        if (hit.Repeated is { } repeated)
+        {
+            editor.SelectRepeated(repeated);
+        }
+        else if (hit.Ordinary is { } id)
+        {
+            Select([id]);
+        }
+        _gesture = new NoGesture();
+        Changed?.Invoke();
+    }
+
     private IGesture StartSelection(PointD screen, InputModifiers modifiers)
     {
         var state = editor.State;
-        if (state.Selection.Count == 1)
+        var cycle = modifiers.HasFlag(InputModifiers.Alt);
+        if (!cycle && state.SingleRepeatedCell is { } cell)
+        {
+            var geometry = state.RepeatedRois[cell.BatchId].Geometry(cell.Index);
+            if ((HandleGeometry.RotationHandle(geometry, state.Viewport) - screen).Length < 10)
+            {
+                return new RotateGesture(this, screen, geometry.Center);
+            }
+
+            var handles = HandleGeometry.ResizeHandles(geometry, state.Viewport);
+            for (var i = 0; i < handles.Count; i++)
+            {
+                if ((handles[i] - screen).Length < 9)
+                {
+                    return new RepeatedResizeGesture(this, cell, geometry, i, screen);
+                }
+            }
+        }
+        else if (!cycle && state.SelectionCount == 1)
         {
             var selected = state.Rois[state.Selection.Single()];
             if ((HandleGeometry.RotationHandle(selected.Geometry, state.Viewport) - screen).Length < 10)
@@ -286,11 +346,11 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             {
                 if ((handles[i] - screen).Length < 9)
                 {
-                    return new ResizeGesture(this, selected, i);
+                    return new ResizeGesture(this, selected, i, screen);
                 }
             }
         }
-        else if (state.Selection.Count > 1)
+        else if (!cycle && state.SelectionCount > 1)
         {
             var bounds = SelectionBounds(state);
             if ((state.Viewport.ImageToScreen(new(bounds.Center.X, bounds.Top)) + new PointD(0, -28) - screen).Length < 10)
@@ -298,17 +358,31 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
                 return new RotateGesture(this, screen, bounds.Center);
             }
         }
-        var hit = Hit(screen, modifiers.HasFlag(InputModifiers.Alt));
-        if (hit is { } id)
+        var hit = SelectionHit(screen, cycle);
+        if (hit.Repeated is { } repeatedHit)
         {
             if (modifiers.HasFlag(InputModifiers.Control))
             {
-                editor.Select(state.Selection.Contains(id) ? state.Selection.Remove(id) : state.Selection.Add(id));
+                editor.SelectRepeated(repeatedHit, additive: true, toggle: true);
+                return new NoGesture();
+            }
+            if (!state.RepeatedSelection.TryGetValue(repeatedHit.BatchId, out var cells) || !cells.Contains(repeatedHit.Index))
+            {
+                editor.SelectRepeated(repeatedHit, additive: modifiers.HasFlag(InputModifiers.Shift));
+            }
+
+            return new MoveGesture(this, screen);
+        }
+        if (hit.Ordinary is { } id)
+        {
+            if (modifiers.HasFlag(InputModifiers.Control))
+            {
+                editor.Select(state.Selection.Contains(id) ? state.Selection.Remove(id) : state.Selection.Add(id), preserveRepeated: true);
                 return new NoGesture();
             }
             if (!state.Selection.Contains(id))
             {
-                editor.Select(modifiers.HasFlag(InputModifiers.Shift) ? state.Selection.Add(id) : [id]);
+                editor.Select(modifiers.HasFlag(InputModifiers.Shift) ? state.Selection.Add(id) : [id], preserveRepeated: modifiers.HasFlag(InputModifiers.Shift));
             }
 
             return new MoveGesture(this, screen);
@@ -380,7 +454,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     public void ValidateDraftImage()
     {
         if (Tool == EditorTool.Mask && (MaskTargetId is not { } id || !editor.State.Selection.Contains(id) ||
-            editor.State.Selection.Count != 1 || !editor.State.Rois.TryGetValue(id, out var owner) ||
+            editor.State.SelectionCount != 1 || !editor.State.Rois.TryGetValue(id, out var owner) ||
             editor.State.IsGroupingRoi(id) || owner.Masks.Length >= EditorSession.MaximumMasksPerRoi))
         {
             Tool = EditorTool.Select;
@@ -473,5 +547,62 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     }
 
     internal static BoundsD SelectionBounds(DocumentState state)
-        => state.SelectedSpatial.Bounds;
+        => state.RepeatedSelection.IsEmpty ? state.SelectedSpatial.Bounds : state.TransformSelection.Bounds;
+
+    private (Guid? Ordinary, RepeatedRoiCell? Repeated) SelectionHit(PointD screen, bool cycle)
+    {
+        var state = editor.State;
+        if (state.RepeatedRois.IsEmpty)
+        {
+            return (Hit(screen, cycle), null);
+        }
+
+        var point = state.Viewport.ScreenToImage(screen);
+        var tolerance = 3 / state.Viewport.Scale;
+        var margin = tolerance * Math.Sqrt(2);
+        var hits = new List<(Guid? Ordinary, RepeatedRoiCell? Repeated, double Area, long Order)>();
+        if (cycle)
+        {
+            foreach (var roi in state.Snapshot.Spatial.Intersecting(new(point.X - margin, point.Y - margin, point.X + margin, point.Y + margin)))
+            {
+                if (roi.Geometry.Contains(point, tolerance))
+                {
+                    hits.Add((roi.Id, null, roi.Geometry.Area, roi.Order));
+                }
+            }
+        }
+        else if (state.Snapshot.Spatial.HitTest(point, tolerance) is { } normal)
+        {
+            hits.Add((normal.Id, null, normal.Geometry.Area, normal.Order));
+        }
+        foreach (var batch in state.RepeatedRois.Values)
+        {
+            if (!cycle)
+            {
+                if (batch.HitTest(point, tolerance) is { } nearest)
+                {
+                    hits.Add((null, new(batch.Id, nearest), batch.Geometry(nearest).Area, batch.Order));
+                }
+                continue;
+            }
+            foreach (var part in batch.Parts)
+            {
+                foreach (var index in part.HitCandidates(point, tolerance))
+                {
+                    hits.Add((null, new(batch.Id, index), part.Grid.Geometry(index).Area, batch.Order));
+                }
+            }
+        }
+        if (hits.Count == 0)
+        {
+            return default;
+        }
+        hits = hits.Distinct().OrderBy(hit => hit.Area).ThenByDescending(hit => hit.Order)
+            .ThenByDescending(hit => hit.Repeated?.Index).ToList();
+        var selected = cycle && state.SelectionCount == 1
+            ? hits.FindIndex(hit => hit.Repeated is { } cell ? state.SingleRepeatedCell == cell
+                : hit.Ordinary is { } id && state.Selection.Contains(id)) : -1;
+        var result = hits[(selected + 1) % hits.Count];
+        return (result.Ordinary, result.Repeated);
+    }
 }

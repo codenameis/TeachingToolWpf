@@ -6,6 +6,24 @@ namespace TeachingToolWpf.Core.Tests;
 public class TransformSelectionSetTests
 {
     [Fact]
+    public void FlatPartialSelectionReusesMembershipAndKeepsUnselectedRoisUnchanged()
+    {
+        var editor = new EditorSession();
+        editor.AddRange(Enumerable.Range(0, 200).Select(index => new RoiGeometry(new(index * 30, 100), 10, 10, 0)));
+        editor.Select(editor.State.Rois.Values.Where(roi => roi.Order % 2 == 0).Select(roi => roi.Id));
+        var state = editor.State;
+        var selected = state.TransformSelection;
+        Assert.Same(state.Selection, selected.Affected);
+        Assert.Same(state.SelectedSpatial, selected.Moving);
+        var changed = selected.Apply(new(default, 0, new(3, 4)));
+        foreach (var roi in state.Rois.Values)
+        {
+            Assert.Equal(state.Selection.Contains(roi.Id) ? roi.Geometry.Center + new PointD(3, 4) : roi.Geometry.Center,
+                changed.Rois[roi.Id].Geometry.Center);
+        }
+    }
+
+    [Fact]
     public void ExpandedMembershipContainsEachDescendantOnceAndExcludesOtherRoots()
     {
         var editor = new EditorSession();

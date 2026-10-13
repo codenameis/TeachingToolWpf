@@ -10,6 +10,19 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiGpuLayoutTests
 {
     [Fact]
+    public void MixedRepeatedSelectionUsesMultipleColorForOrdinaryRoi()
+    {
+        var editor = new EditorSession();
+        editor.SetImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);
+        editor.Add(new(new(200, 200), 30, 30, 0));
+        editor.AddRepeatedGrid(new(1, 1, 100, new(400, 400)));
+        editor.SelectAll();
+        var scene = new RenderScene(editor.State, null, 0, 800, 600, 1, new());
+        var constants = new RoiDrawConstants(scene, default, default, true, RoiDrawPass.Stroke);
+        Assert.Equal(RoiStylePalette.Standard.Default.MultiSelectedColor, constants.DefaultColor);
+    }
+
+    [Fact]
     public void DrawPayloadMatchesEveryHlslConstantOffsetAndContainsNoManagedReferences()
     {
         Assert.False(RuntimeHelpers.IsReferenceOrContainsReferences<RoiDrawConstants>());

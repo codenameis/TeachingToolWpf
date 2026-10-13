@@ -40,6 +40,12 @@ internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind ki
         set;
     }
 
+    public bool IsOpaque
+    {
+        get;
+        set;
+    }
+
     public long Bytes => (long)Width * Height * (Kind == PixelKind.Gray8 ? 1 : Kind == PixelKind.Gray16 ? 2 : 4);
 
     public void Dispose()
@@ -146,6 +152,8 @@ internal sealed class SpritePipeline : IDisposable
         try
         {
             Update(texture, pixels, surface);
+            // 정적 업로드에서 한 번만 검사한다. 라이브 프레임마다 알파를 순회하지 않는다.
+            texture.IsOpaque = PixelsAreOpaque(pixels);
             return texture;
         }
         catch
@@ -187,6 +195,24 @@ internal sealed class SpritePipeline : IDisposable
         surface.Commands.CopyTextureRegion(new TextureCopyLocation(texture.Resource, 0), 0, 0, 0, new TextureCopyLocation(upload.Buffer, footprint));
         surface.Commands.ResourceBarrierTransition(texture.Resource, ResourceStates.CopyDest, ResourceStates.PixelShaderResource);
         texture.HasPixels = true;
+        texture.IsOpaque = pixels.Kind is PixelKind.Gray8 or PixelKind.Gray16;
+    }
+
+    internal static bool PixelsAreOpaque(PixelBuffer pixels)
+    {
+        if (pixels.Kind is PixelKind.Gray8 or PixelKind.Gray16)
+        {
+            return true;
+        }
+        var bytes = pixels.Span;
+        for (var alpha = 3; alpha < bytes.Length; alpha += 4)
+        {
+            if (bytes[alpha] != byte.MaxValue)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     public unsafe void Draw(SpriteMesh mesh, Dx12Surface surface, int middleBatch = -1, Action? middle = null)

@@ -41,7 +41,7 @@ public sealed partial class EditorViewModel
         Status = "ROI를 추가했습니다. 핸들로 크기와 회전을 조절하세요.";
     }
 
-    private bool CanAddChildRoi() => HasImage() && Session.State.Selection.Count == 1;
+    private bool CanAddChildRoi() => HasImage() && Session.State.SelectionCount == 1 && Session.State.Selection.Count == 1;
 
     private void AddChildRoiInView()
     {

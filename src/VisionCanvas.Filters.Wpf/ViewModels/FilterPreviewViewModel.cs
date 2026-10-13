@@ -245,10 +245,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         {
             IsPreviewEnabled = true;
             Register();
-        }, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && !editor.IsPreviewing);
-        Apply = new(Register, () => _document.Selection.Count > 0 && !editor.IsPreviewing);
+        }, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && _document.RepeatedSelection.IsEmpty && !editor.IsPreviewing);
+        Apply = new(Register, () => _document.Selection.Count > 0 && _document.RepeatedSelection.IsEmpty && !editor.IsPreviewing);
         BeginParameterEdit = new(StartParameterEdit, () => !_disposed && !_parameterEditing &&
-            !editor.IsPreviewing && _document.Selection.Count > 0 && SelectedFilter != RoiFilterKind.None);
+            !editor.IsPreviewing && _document.Selection.Count > 0 && _document.RepeatedSelection.IsEmpty && SelectedFilter != RoiFilterKind.None);
         EndParameterEdit = new(CompleteParameterEdit, () => _parameterEditing);
         CancelParameterEdit = new(CancelParameterChanges, () => _parameterEditing);
         Stop = new(StopPreview, () => IsActive);
@@ -257,7 +257,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
             editor.SetFilters(new(RoiFilterKind.None));
             Update(editor.State, _live);
         },
-            () => !editor.IsPreviewing && !_document.SelectionFacts.RegisteredFilters.IsEmpty);
+            () => !editor.IsPreviewing && _document.RepeatedSelection.IsEmpty && !_document.SelectionFacts.RegisteredFilters.IsEmpty);
     }
 
     public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null, PixelKind? pixelKind = null)
@@ -270,7 +270,8 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         }
         var editingChanged = _editing != _editor.IsPreviewing;
         _editing = _editor.IsPreviewing;
-        if (ReferenceEquals(_document.Rois, state.Rois) && ReferenceEquals(_document.Selection, state.Selection) && _document.Image == state.Image && _live == isLive && _transformPreview == preview)
+        if (ReferenceEquals(_document.Rois, state.Rois) && ReferenceEquals(_document.Selection, state.Selection) && ReferenceEquals(_document.RepeatedSelection, state.RepeatedSelection)
+            && _document.Image == state.Image && _live == isLive && _transformPreview == preview)
         {
             _document = state;
             if (editingChanged)
@@ -280,7 +281,8 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
             return;
         } // View-only navigation cannot change image-local filter pixels.
-        var selectionChanged = _document.Image != state.Image || !_document.Selection.SetEquals(state.Selection);
+        var selectionChanged = _document.Image != state.Image || !_document.Selection.SetEquals(state.Selection)
+            || !ReferenceEquals(_document.RepeatedSelection, state.RepeatedSelection);
         var settingsChanged = !selectionChanged && !ReferenceEquals(_document.Rois, state.Rois) &&
             state.Selection.Any(id => !_document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
         var sourceChanged = _live != isLive;
@@ -320,7 +322,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     private void Register()
     {
-        if (_disposed || _editor.IsPreviewing || _document.Selection.Count == 0)
+        if (_disposed || _editor.IsPreviewing || _document.Selection.Count == 0 || !_document.RepeatedSelection.IsEmpty)
         {
             return;
         }

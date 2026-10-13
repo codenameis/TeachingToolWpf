@@ -8,6 +8,27 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class SpatialSubsetTests
 {
+    [Fact]
+    public void FilteredIndexRefitThenEditKeepsOnlyItsOwnIds()
+    {
+        var originals = Grid();
+        var selected = originals.Where(roi => roi.Order % 3 != 0).Select(roi => roi.Id).ToImmutableHashSet();
+        var state = State(originals, selected);
+        _ = state.Snapshot.Spatial;
+        var subset = state.SelectedSpatial;
+        var values = originals.Where(roi => selected.Contains(roi.Id)).Select(roi => roi with
+        {
+            Geometry = roi.Geometry.Translate(new(5, 7))
+        }).ToImmutableDictionary(roi => roi.Id);
+        var refitted = subset.RefitGeometry(values);
+        var remove = values.Values.First();
+        var add = originals.First(roi => !selected.Contains(roi.Id));
+        var edited = refitted.WithChanges([(remove.Id, null), (add.Id, add)]);
+        AssertEquivalent(edited, values.Remove(remove.Id).Add(add.Id, add).Values.ToArray(), originals);
+        AssertEquivalent(subset, originals.Where(roi => selected.Contains(roi.Id)).ToArray(), originals);
+        Assert.Throws<ArgumentException>(() => subset.RefitGeometry(state.Rois));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

@@ -35,6 +35,14 @@ internal static class EditingSmokeScenario
         var screenPosition = (uint)(ushort)hitPoint.X | ((uint)(ushort)hitPoint.Y << 16);
         var hit = SendMessage(viewport.Handle, 0x84, 0, (nint)screenPosition);
         Require(hit == 1, $"viewport must receive physical pointer routing (WM_NCHITTEST = {hit}; expected HTCLIENT = 1)");
+        var beforePan = editor.State.Viewport;
+        Pointer(viewport, 0x207, new(400, 300));
+        Pointer(viewport, 0x208, new(400, 300));
+        Pointer(viewport, 0x209, new(400, 300));
+        Pointer(viewport, 0x200, new(450, 320));
+        Pointer(viewport, 0x208, new(450, 320));
+        Require(editor.State.Viewport == beforePan.Pan(new(50, 20)), "middle double-click retains pan gesture");
+        editor.SetViewport(beforePan);
         model.AddRoi.Execute(null);
         Require(editor.State.Rois.Count == 1 && editor.State.Selection.Count == 1, "one-click ROI creation");
         await model.Undo.ExecuteAsync();
@@ -59,6 +67,13 @@ internal static class EditingSmokeScenario
             Require(editor.State.Selection.SetEquals([roi.Id]), "click switches to another ROI immediately after drawing");
             Require(editor.State.Rois[roi.Id].Geometry == roi.Geometry, "selection click preserves ROI geometry");
         }
+        await model.SelectAll.ExecuteAsync();
+        var doubleClickTarget = editor.State.Rois.Values.MinBy(roi => roi.Order)!;
+        Pointer(viewport, 0x201, editor.State.Viewport.ImageToScreen(doubleClickTarget.Geometry.Center));
+        Pointer(viewport, 0x202, editor.State.Viewport.ImageToScreen(doubleClickTarget.Geometry.Center));
+        Pointer(viewport, 0x203, editor.State.Viewport.ImageToScreen(doubleClickTarget.Geometry.Center));
+        Pointer(viewport, 0x202, editor.State.Viewport.ImageToScreen(doubleClickTarget.Geometry.Center));
+        Require(editor.State.Selection.SetEquals([doubleClickTarget.Id]), "native double click replaces an existing multiple selection");
         await model.SelectAll.ExecuteAsync();
         Require(model.HandleKey(System.Windows.Input.Key.C, true, false), "Ctrl+C handles ROI copy");
         Require(model.Paste.CanExecute(null), "copied selection enables paste button");

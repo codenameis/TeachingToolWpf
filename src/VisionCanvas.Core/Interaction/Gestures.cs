@@ -92,12 +92,20 @@ internal sealed class MoveGesture(InteractionController controller, PointD start
         Controller.PreviewTranslation(delta);
     }
 }
-internal sealed class ResizeGesture(InteractionController controller, Roi original, int handle) : EditGesture(controller)
+internal sealed class ResizeGesture(InteractionController controller, Roi original, int handle, PointD start) : EditGesture(controller)
 {
     protected override string Name => "ROI 크기 조절";
 
     public override void Move(PointD screen, InputModifiers modifiers)
-        => Editor.PreviewResize(original.Id, HandleGeometry.Resize(original.Geometry, handle, View.ScreenToImage(screen)));
+        => Editor.PreviewResize(original.Id, (screen - start).Length < 2
+            ? original.Geometry : HandleGeometry.Resize(original.Geometry, handle, View.ScreenToImage(screen)));
+}
+internal sealed class RepeatedResizeGesture(InteractionController controller, RepeatedRoiCell cell, RoiGeometry original, int handle, PointD start) : EditGesture(controller)
+{
+    protected override string Name => "ROI 크기 조절";
+    public override void Move(PointD screen, InputModifiers modifiers)
+        => Editor.PreviewRepeatedGeometry(cell, (screen - start).Length < 2 ? original
+            : HandleGeometry.Resize(original, handle, View.ScreenToImage(screen)));
 }
 internal sealed class RotateGesture(InteractionController controller, PointD start, PointD pivot) : EditGesture(controller)
 {
@@ -176,9 +184,7 @@ internal sealed class MarqueeGesture(InteractionController controller, PointD st
     {
         var a = _baseline.Viewport.ScreenToImage(new(_bounds.Left, _bounds.Top));
         var b = _baseline.Viewport.ScreenToImage(new(_bounds.Right, _bounds.Bottom));
-        var ids = _baseline.Snapshot.Spatial.Intersecting(new(a.X, a.Y, b.X, b.Y))
-            .Where(r => r.Geometry.Bounds is var box && box.Left >= a.X && box.Top >= a.Y && box.Right <= b.X && box.Bottom <= b.Y).Select(r => r.Id);
-        controller.Select(additive ? _baseline.Selection.Union(ids) : ids);
+        controller.SelectRegion(_baseline, new(a.X, a.Y, b.X, b.Y), additive);
     }
 
     public void Cancel()

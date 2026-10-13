@@ -19,7 +19,7 @@ public sealed class RoiSpatialIndex
         }
     }
     private readonly Node _root;
-    private readonly ImmutableDictionary<Guid, ulong> _locations;
+    private readonly Lazy<ImmutableDictionary<Guid, ulong>> _locations;
     private readonly ImmutableDictionary<Guid, Roi>? _values;
 
     public BoundsD Bounds => _root.Bounds;
@@ -29,10 +29,16 @@ public sealed class RoiSpatialIndex
         var entries = rois.Select(r => new Entry(r, r.Geometry.Bounds)).ToArray();
         var paths = ImmutableDictionary.CreateBuilder<Guid, ulong>();
         _root = Build(entries, 0, entries.Length, 1, paths);
-        _locations = paths.ToImmutable();
+        var locations = paths.ToImmutable();
+        _locations = new(() => locations);
     }
 
     private RoiSpatialIndex(Node root, ImmutableDictionary<Guid, ulong> locations, ImmutableDictionary<Guid, Roi>? values = null)
+        : this(root, new Lazy<ImmutableDictionary<Guid, ulong>>(() => locations), values)
+    {
+    }
+
+    private RoiSpatialIndex(Node root, Lazy<ImmutableDictionary<Guid, ulong>> locations, ImmutableDictionary<Guid, Roi>? values = null)
     {
         _root = root;
         _locations = locations;
@@ -44,11 +50,22 @@ public sealed class RoiSpatialIndex
     // Preserve spatial partitions and unchanged block identities instead of sorting a large subset again.
     internal RoiSpatialIndex Filter(IReadOnlySet<Guid> ids, bool include)
     {
-        var paths = ImmutableDictionary.CreateBuilder<Guid, ulong>();
+        var membership = ids;
+        if (ids is ImmutableHashSet<Guid>)
+        {
+            var lookup = new HashSet<Guid>(ids.Count);
+            foreach (var id in ids)
+            {
+                lookup.Add(id);
+            }
+            membership = lookup;
+        }
         var empty = Leaf([]);
-        return new(FilterNode(_root, 1) ?? empty, paths.ToImmutable(), _values);
+        var root = FilterNode(_root) ?? empty;
+        // 선택용 부분 인덱스는 조회만 한다. 실제 수정 시에만 ID→경로 사전을 만든다.
+        return new(root, new Lazy<ImmutableDictionary<Guid, ulong>>(() => IndexLocations(root)), _values);
 
-        Node? FilterNode(Node node, ulong path)
+        Node? FilterNode(Node node)
         {
             if (node.Count == 0)
             {
@@ -60,9 +77,8 @@ public sealed class RoiSpatialIndex
                 var retainedCount = 0;
                 foreach (var entry in entries)
                 {
-                    if (ids.Contains(entry.Roi.Id) == include)
+                    if (membership.Contains(entry.Roi.Id) == include)
                     {
-                        paths.Add(entry.Roi.Id, path);
                         retainedCount++;
                     }
                 }
@@ -77,11 +93,11 @@ public sealed class RoiSpatialIndex
                     return node;
                 }
 
-                return Leaf(entries.Where(entry => ids.Contains(entry.Roi.Id) == include).ToArray());
+                return Leaf(entries.Where(entry => membership.Contains(entry.Roi.Id) == include).ToArray());
             }
 
-            var left = FilterNode(node.Left!, path << 1);
-            var right = FilterNode(node.Right!, (path << 1) | 1);
+            var left = FilterNode(node.Left!);
+            var right = FilterNode(node.Right!);
             if (left is null && right is null)
             {
                 return null;
@@ -90,6 +106,27 @@ public sealed class RoiSpatialIndex
             // Keep empty branches so retained IDs still use their original paths for later edits.
             return ReferenceEquals(left, node.Left) && ReferenceEquals(right, node.Right)
                 ? node : Branch(left ?? empty, right ?? empty);
+        }
+    }
+
+    private static ImmutableDictionary<Guid, ulong> IndexLocations(Node root)
+    {
+        var paths = ImmutableDictionary.CreateBuilder<Guid, ulong>();
+        Visit(root, 1);
+        return paths.ToImmutable();
+
+        void Visit(Node node, ulong path)
+        {
+            if (node.Entries is { } entries)
+            {
+                foreach (var entry in entries)
+                {
+                    paths.Add(entry.Roi.Id, path);
+                }
+                return;
+            }
+            Visit(node.Left!, path << 1);
+            Visit(node.Right!, (path << 1) | 1);
         }
     }
 
@@ -456,7 +493,7 @@ public sealed class RoiSpatialIndex
     {
         ArgumentNullException.ThrowIfNull(rois);
         cancellationToken.ThrowIfCancellationRequested();
-        if (rois.Count != _locations.Count)
+        if (rois.Count != _root.Count)
         {
             throw new ArgumentException("Refit requires exactly the indexed ROI IDs.", nameof(rois));
         }
@@ -489,7 +526,7 @@ public sealed class RoiSpatialIndex
     public RoiSpatialIndex WithChanges(IEnumerable<(Guid Id, Roi? Value)> changes)
     {
         var next = _root;
-        var paths = _locations.ToBuilder();
+        var paths = _locations.Value.ToBuilder();
         var currentValues = _values?.ToBuilder();
         foreach (var (id, value) in changes)
         {
@@ -509,7 +546,7 @@ public sealed class RoiSpatialIndex
             {
                 var balanced = new RoiSpatialIndex(Enumerate(next));
                 next = balanced._root;
-                paths = balanced._locations.ToBuilder();
+                paths = balanced._locations.Value.ToBuilder();
             }
             if (paths.TryGetValue(id, out var path))
             {

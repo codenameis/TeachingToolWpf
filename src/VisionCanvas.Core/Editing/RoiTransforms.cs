@@ -7,6 +7,11 @@ public static class RoiTransforms
 {
     public static DocumentState ResetAngles(DocumentState state)
     {
+        if (!state.RepeatedSelection.IsEmpty)
+        {
+            throw new InvalidOperationException("각도 초기화는 일반 ROI 선택에서 사용할 수 있습니다. 반복 ROI는 회전 도구를 사용하세요.");
+        }
+
         var roots = RoiHierarchy.EffectiveRoots(state).ToArray();
         if (roots.Length == 0)
         {

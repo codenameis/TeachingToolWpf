@@ -7,6 +7,7 @@ namespace VisionCanvas.Controls;
 internal static class ViewportWindow
 {
     private const string ClassName = "VisionCanvas.Dx12Viewport";
+    private const uint DoubleClicks = 0x0008;
     private const NativeWindowStyle Style = NativeWindowStyle.Child | NativeWindowStyle.Visible |
         NativeWindowStyle.ClipSiblings | NativeWindowStyle.ClipChildren | NativeWindowStyle.TabStop;
     // Keep the managed delegate alive for every window registered with this class.
@@ -31,6 +32,7 @@ internal static class ViewportWindow
         var definition = new WindowClass
         {
             Size = (uint)Marshal.SizeOf<WindowClass>(),
+            Style = DoubleClicks,
             Procedure = Marshal.GetFunctionPointerForDelegate(s_procedure),
             Instance = GetModuleHandle(null),
             Cursor = LoadCursor(0, (nint)NativeCursor.Arrow),

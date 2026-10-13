@@ -15,9 +15,13 @@ internal static class RoiPaste
         var placement = content.GetPlacement(image, step);
         var ids = templates.ToDictionary(r => r.Id, _ => Guid.NewGuid());
         var rois = before.Rois.ToBuilder();
-        var roots = ImmutableHashSet.CreateBuilder<Guid>();
+        var roots = new HashSet<Guid>();
+        var batches = before.RepeatedRois;
+        var selected = ImmutableDictionary.CreateBuilder<Guid, RoiCellSet>();
+        var repeatedIndex = 0;
         foreach (var template in templates)
         {
+            AddRepeatedBefore(template.Order);
             token.ThrowIfCancellationRequested();
             var id = ids[template.Id];
             if (template.ParentId is not { } parent || !ids.ContainsKey(parent))
@@ -34,11 +38,25 @@ internal static class RoiPaste
                 Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사"
             });
         }
+        AddRepeatedBefore(long.MaxValue);
         var result = before.WithRois(rois.ToImmutable(), ids.Values) with
         {
-            Selection = roots.ToImmutable()
+            Selection = RoiIdSet.CreateRange(roots),
+            RepeatedRois = batches,
+            RepeatedSelection = selected.ToImmutable()
         };
         token.ThrowIfCancellationRequested();
         return result;
+
+        void AddRepeatedBefore(long nextOrder)
+        {
+            while (repeatedIndex < content.Repeated.Length && content.Repeated[repeatedIndex].Order <= nextOrder)
+            {
+                token.ThrowIfCancellationRequested();
+                var batch = content.Repeated[repeatedIndex++].Place(Guid.NewGuid(), ++order, placement);
+                batches = batches.Add(batch.Id, batch);
+                selected.Add(batch.Id, batch.Cells);
+            }
+        }
     }
 }

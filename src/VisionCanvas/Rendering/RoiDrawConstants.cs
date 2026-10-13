@@ -51,7 +51,7 @@ internal readonly struct RoiDrawConstants
         ShadowColor = new(0, 0, 0, .22f);
         Rotation = new((float)transform.Cosine, (float)transform.Sine);
         ReservedRotation = default;
-        var multiple = scene.Document.Selection.Count > 1;
+        var multiple = scene.Document.SelectionCount > 1;
         DefaultColor = palette.Default.StrokeColor(selected, multiple);
         ChildColor = palette.Child.StrokeColor(selected, multiple);
         ParentColor = palette.Parent.StrokeColor(selected, multiple);

@@ -43,7 +43,7 @@ public sealed partial class EditorSession
     public long PreviewEpoch => _previewEpoch;
 
     public bool HasPreviewChanges => _previewStart is { } before &&
-        (TransformPreview is { Transform.IsIdentity: false } || !ReferenceEquals(State.Rois, before.Rois));
+        (TransformPreview is { Transform.IsIdentity: false } || !State.SameContent(before));
 
     public Guid Add(RoiGeometry geometry) => AddRoi(geometry, null);
 
@@ -64,7 +64,8 @@ public sealed partial class EditorSession
         var roi = new Roi(Guid.NewGuid(), $"ROI {order:000}", geometry, parentId, false, order);
         Commit(parentId is null ? "부모 ROI 추가" : "자식 ROI 추가", State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
         {
-            Selection = [roi.Id]
+            Selection = [roi.Id],
+            RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
         });
         _nextOrder = order;
         return roi.Id;
@@ -99,14 +100,15 @@ public sealed partial class EditorSession
         _nextOrder = order;
     }
 
-    public void Select(IEnumerable<Guid> ids)
+    public void Select(IEnumerable<Guid> ids, bool preserveRepeated = false)
     {
-        var selected = ids.Where(State.Rois.ContainsKey).ToImmutableHashSet();
-        if (!State.Selection.SetEquals(selected))
+        var selected = RoiIdSet.CreateRange(ids.Where(State.Rois.ContainsKey));
+        if (!State.Selection.SetEquals(selected) || (!preserveRepeated && !State.RepeatedSelection.IsEmpty))
         {
             Publish(State with
             {
-                Selection = selected
+                Selection = selected,
+                RepeatedSelection = preserveRepeated ? State.RepeatedSelection : ImmutableDictionary<Guid, RoiCellSet>.Empty
             });
         }
     }
@@ -121,7 +123,7 @@ public sealed partial class EditorSession
         var content = clipboard.Capture();
         var step = new PointD(20 / State.Viewport.Scale, 20 / State.Viewport.Scale);
         Commit("ROI 붙여넣기", RoiPaste.Prepare(State, content, State.Image, step, _nextOrder, CancellationToken.None));
-        _nextOrder += content.Entries.Length;
+        _nextOrder += content.OrderCount;
         clipboard.Pasted();
     }
 
@@ -146,12 +148,14 @@ public sealed partial class EditorSession
         Image = image,
         Viewport = view,
         Rois = ImmutableDictionary<Guid, Roi>.Empty,
-        Selection = []
+        Selection = [],
+        RepeatedRois = ImmutableDictionary<Guid, RepeatedRoiBatch>.Empty,
+        RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
     }, replacesImage: true);
 
     public void InitializeImage(ImageReference image, ViewportTransform view)
     {
-        if (State.Image is not null || State.Rois.Count != 0)
+        if (State.Image is not null || State.RoiCount != 0)
         {
             throw new InvalidOperationException("이미지 초기화는 빈 문서에서만 가능합니다.");
         }
@@ -206,7 +210,7 @@ public sealed partial class EditorSession
     {
         var ids = RoiHierarchy.Subtree(State, RoiHierarchy.EffectiveRoots(State));
         // 명시적으로 연결된 하위 트리만 삭제하며, 겹치는 독립 ROI는 보존한다.
-        Commit("선택 ROI 삭제", State.WithRois(State.Rois.RemoveRange(ids), ids) with
+        Commit("선택 ROI 삭제", DeleteRepeatedSelection(State.WithRois(State.Rois.RemoveRange(ids), ids)) with
         {
             Selection = State.Selection.Except(ids)
         });
@@ -215,6 +219,11 @@ public sealed partial class EditorSession
     public void SetFilters(FilterSettings settings)
     {
         settings.Validate();
+        if (!State.RepeatedSelection.IsEmpty)
+        {
+            throw new InvalidOperationException("필터는 일반 ROI 선택에서 사용할 수 있습니다.");
+        }
+
         var rois = State.Rois.ToBuilder();
         foreach (var id in State.Selection)
         {
@@ -431,7 +440,7 @@ public sealed partial class EditorSession
             throw new InvalidOperationException("진행 중인 편집을 먼저 완료하세요.");
         }
 
-        if (!replacesImage && ReferenceEquals(State.Rois, next.Rois) && State.Image == next.Image)
+        if (!replacesImage && State.SameContent(next) && State.Image == next.Image)
         {
             return;
         }
@@ -449,8 +458,8 @@ public sealed partial class EditorSession
 
     private void Publish(DocumentState next)
     {
-        var documentChanged = !ReferenceEquals(next.Rois, State.Rois)
-            || !ReferenceEquals(next.Selection, State.Selection)
+        var documentChanged = !next.SameContent(State)
+            || !next.SameSelection(State)
             || next.Image != State.Image;
         var viewportChanged = next.Viewport != State.Viewport;
         if (!documentChanged && !viewportChanged)

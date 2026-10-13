@@ -7,7 +7,7 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Rendering;
 
-internal sealed class ScenePainter
+internal sealed partial class ScenePainter
 {
     private readonly SpriteMesh _mesh = new();
     private readonly RoiLabelPainter _labels = new();
@@ -33,13 +33,14 @@ internal sealed class ScenePainter
         }
         else if (!scene.IsLive && scene.Image is { } image)
         {
-            if (tiles.TryGetValue(new(image.Levels - 1, 0, 0), out var overview))
+            var visible = TilePlanner.Visible(image, view, scene.Width, scene.Height, scene.Dpi);
+            if (tiles.TryGetValue(new(image.Levels - 1, 0, 0), out var overview) && !OpaqueTilesCover(image, visible, tiles))
             {
                 var topLeft = view.ImageToScreen(new(0, 0));
                 var bottomRight = view.ImageToScreen(new(image.Width, image.Height));
                 _mesh.Rectangle(overview, new(topLeft.X, topLeft.Y, bottomRight.X, bottomRight.Y), Vector4.One, scene.PointSampling);
             }
-            foreach (var key in TilePlanner.Visible(image, view, scene.Width, scene.Height, scene.Dpi))
+            foreach (var key in visible)
             {
                 if (!tiles.TryGetValue(key, out var texture))
                 {
@@ -58,14 +59,16 @@ internal sealed class ScenePainter
             _mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true, uv);
         }
         RoiBatchBoundary = _mesh.Split();
+        DrawRepeatedGrid(scene, white, label);
+        DrawRepeatedDocument(scene, white, label);
         DrawDragFill(_mesh, scene, white);
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
         {
             var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
             _mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Outline.Select(view.ImageToScreen).ToArray(),
-                style.StrokeThickness(true), style.StrokeColor(true, scene.Document.Selection.Count > 1 && scene.Document.Selection.Contains(hover)));
+                style.StrokeThickness(true), style.StrokeColor(true, scene.Document.SelectionCount > 1 && scene.Document.Selection.Contains(hover)));
         }
-        if (scene.Document.Selection.Count == 1 && !scene.MaskEditing)
+        if (scene.Document.SelectionCount == 1 && scene.Document.Selection.Count == 1 && !scene.MaskEditing)
         {
             var roi = scene.Document.Rois[scene.Document.Selection.Single()];
             var color = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, roi.Id)).SelectedColor;
@@ -81,10 +84,10 @@ internal sealed class ScenePainter
             _mesh.Line(white, top, rotation, 1, color);
             RotationHandle(white, rotation, color);
         }
-        if (scene.Document.Selection.Count > 1)
+        if (scene.Document.SelectionCount > 1)
         {
             var selectionColor = scene.RoiStyles.Default.MultiSelectedColor;
-            var bounds = scene.Document.SelectedSpatial.Bounds;
+            var bounds = scene.Document.RepeatedSelection.IsEmpty ? scene.Document.SelectedSpatial.Bounds : scene.Document.TransformSelection.Bounds;
             var transform = scene.Transform?.Transform ?? default;
             var corners = SelectionCorners(bounds, view, transform);
             _mesh.Outline(white, corners, 1, selectionColor);
@@ -133,6 +136,25 @@ internal sealed class ScenePainter
         return _mesh;
     }
 
+    private static bool OpaqueTilesCover(ImageInfo image, IReadOnlyList<TileKey> visible, IReadOnlyDictionary<TileKey, GpuTexture> tiles)
+    {
+        foreach (var key in visible)
+        {
+            if (!tiles.TryGetValue(key, out var texture) || !texture.HasPixels || !texture.IsOpaque)
+            {
+                return false;
+            }
+            var factor = 1 << key.Level;
+            var width = Math.Min(ImageInfo.TileSize, (int)Math.Ceiling(image.Width / (double)factor) - (key.X * ImageInfo.TileSize));
+            var height = Math.Min(ImageInfo.TileSize, (int)Math.Ceiling(image.Height / (double)factor) - (key.Y * ImageInfo.TileSize));
+            if (texture.Width < width || texture.Height < height)
+            {
+                return false;
+            }
+        }
+        return visible.Count > 0;
+    }
+
     internal static void DrawDragFill(SpriteMesh mesh, RenderScene scene, GpuTexture white)
     {
         if ((scene.Overlay.DragArea ?? scene.Overlay.Marquee) is { } area)
@@ -141,6 +163,34 @@ internal sealed class ScenePainter
             {
                 W = .08f
             });
+        }
+    }
+
+    private void DrawRepeatedGrid(RenderScene scene, GpuTexture white, Func<string, GpuTexture> label)
+    {
+        if (scene.RepeatedGrid is not { } grid)
+        {
+            return;
+        }
+        var view = scene.Document.Viewport;
+        foreach (var index in grid.Overrides.Keys)
+        {
+            var geometry = grid.Geometry(index);
+            _mesh.Outline(white, geometry.Outline.Select(view.ImageToScreen).ToArray(), 1,
+                scene.RoiStyles.Default.StrokeColor(scene.RepeatedSelection is null || scene.RepeatedSelection == index));
+        }
+        var selected = scene.RepeatedSelection is { } id ? grid.Geometry(id) : grid.Frame;
+        var color = scene.RoiStyles.Default.SelectedColor;
+        var corners = selected.FrameCorners.Select(view.ImageToScreen).ToArray();
+        _mesh.Outline(white, corners, 1.5, color);
+        var rotation = HandleGeometry.RotationHandle(selected, view);
+        _mesh.Line(white, (corners[0] + corners[1]) / 2, rotation, 1, color);
+        RotationHandle(white, rotation, color);
+        if (RepeatedRoiPipeline.SummaryStride(grid, view.Scale) > 1)
+        {
+            var text = label("반복 격자 요약 · 확대하면 개별 ROI 윤곽 표시");
+            _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), new(.13f, .16f, .22f, .94f));
+            _mesh.Rectangle(text, new(14, 12, 14 + (text.Width / scene.Dpi), 12 + (text.Height / scene.Dpi)), Vector4.One);
         }
     }
 

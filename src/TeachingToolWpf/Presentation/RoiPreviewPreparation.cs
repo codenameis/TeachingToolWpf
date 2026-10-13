@@ -60,7 +60,7 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
     }
 
     private bool CanApplyImmediately(DocumentState source)
-        => source.Rois.Count <= 4096 || source.IsTransformSelectionPrepared || session.TransformPreview is not null;
+        => source.RoiCount <= 4096 || source.IsTransformSelectionPrepared || session.TransformPreview is not null;
 
     private async Task RunAsync(Pending operation)
     {
@@ -119,6 +119,7 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         _ = selection.Moving;
         token.ThrowIfCancellationRequested();
         _ = selection.Stationary;
+        _ = selection.StationaryRepeated;
         token.ThrowIfCancellationRequested();
         _ = selection.MovingSearch;
         token.ThrowIfCancellationRequested();
@@ -165,6 +166,8 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         => !_disposed && session.IsPreviewing && session.PreviewEpoch == operation.Epoch
             && ReferenceEquals(session.State.Rois, operation.Source.Rois)
             && ReferenceEquals(session.State.Selection, operation.Source.Selection)
+            && ReferenceEquals(session.State.RepeatedRois, operation.Source.RepeatedRois)
+            && ReferenceEquals(session.State.RepeatedSelection, operation.Source.RepeatedSelection)
             && session.State.Image == operation.Source.Image;
 
     private void Apply(Request request)

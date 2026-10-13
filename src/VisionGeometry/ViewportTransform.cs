@@ -1,6 +1,6 @@
 namespace VisionGeometry;
 
-/// <summary>Maps image pixels to viewport DIPs. Physical pixel density belongs to the host.</summary>
+/// <summary>원본 이미지 좌표와 뷰포트 DIP 좌표를 변환한다. 물리 픽셀/DPI 변환은 호스트가 담당한다.</summary>
 public readonly record struct ViewportTransform(double Scale, PointD Offset)
 {
     public static ViewportTransform Identity => new(1, new(0, 0));
@@ -19,6 +19,7 @@ public readonly record struct ViewportTransform(double Scale, PointD Offset)
         }
 
         var scale = Math.Clamp(Scale * factor, 0.00001, 128);
+        // anchor 아래의 원본 좌표가 확대 후에도 같은 화면 위치에 오도록 Offset을 역산한다.
         return new(scale, anchor - (ScreenToImage(anchor) * scale));
     }
 
@@ -29,7 +30,10 @@ public readonly record struct ViewportTransform(double Scale, PointD Offset)
             return Identity;
         }
 
+        // 두 축 모두 들어가는 배율에 여백을 두고, 남은 공간의 절반만큼 이동해 중앙에 둔다.
         var scale = Math.Min(viewWidth / imageWidth, viewHeight / imageHeight) * 0.92;
-        return new(scale, new((viewWidth - (imageWidth * scale)) / 2, (viewHeight - (imageHeight * scale)) / 2));
+        return new(scale, new(
+            (viewWidth - (imageWidth * scale)) / 2,
+            (viewHeight - (imageHeight * scale)) / 2));
     }
 }

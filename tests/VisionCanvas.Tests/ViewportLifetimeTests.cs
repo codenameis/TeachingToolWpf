@@ -1,8 +1,13 @@
+using System.Diagnostics;
+using System.IO;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging;
 using VisionCanvas.Rendering;
 
@@ -10,6 +15,154 @@ namespace VisionCanvas.Tests;
 
 public sealed class ViewportLifetimeTests
 {
+    [Fact]
+    public Task RepeatedPartialSummaryRemainsVisibleAndUsesConfiguredThickness() => OnStaAsync(async () =>
+    {
+        using var viewport = new Dx12Viewport { DevicePreference = RenderDevicePreference.Software };
+        var window = CreateWindow(viewport);
+        window.Width = 128;
+        window.Height = 128;
+        var ready = NewCompletion();
+        viewport.RendererStatusChanged += status => CompleteStartup(ready, status);
+        try
+        {
+            window.Show();
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var batch = new RepeatedRoiBatch(Guid.NewGuid(), "partial", 1, new(100, 100, 1, new(100, 100)))
+                .Slice(RoiCellSet.Create([new(202, 204)]))!;
+            Assert.True(await RedPixels(batch, .5f) > 0, "A two-cell block inside a summary tile must not disappear.");
+            batch = new RepeatedRoiBatch(Guid.NewGuid(), "detail", 1, new(3, 3, 24, new(64, 64)));
+            batch = batch.WithGeometry(4, new(new(64, 64), 10, 12, 30));
+            var thin = await RedPixels(batch, .5f);
+            var thick = await RedPixels(batch, 4);
+            Assert.True(thick > thin * 2, $"Configured thickness must affect base cells and overrides: {thin} -> {thick}.");
+            batch = new RepeatedRoiBatch(Guid.NewGuid(), "outer stroke", 1, new(1, 1, 10, new(64, 64)));
+            await RedPixels(batch, 8, 70);
+        }
+        finally
+        {
+            window.Close();
+        }
+
+        async Task<int> RedPixels(RepeatedRoiBatch batch, float thickness, double minimumRightDip = 0)
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"repeated-render-{Guid.NewGuid():N}.png");
+            try
+            {
+                var state = DocumentState.Empty with
+                {
+                    RepeatedRois = DocumentState.Empty.RepeatedRois.Add(batch.Id, batch)
+                };
+                var style = new RoiStrokeStyle(new Vector4(1, 0, 0, 1), new Vector4(1, 0, 0, 1), thickness);
+                viewport.Submit(new(state, null, 0, viewport.ActualWidth, viewport.ActualHeight, viewport.Dpi, new(), Styles: new(style, style, style)));
+                viewport.Capture(path);
+                var deadline = Stopwatch.StartNew();
+                while (deadline.Elapsed < TimeSpan.FromSeconds(10))
+                {
+                    await Task.Delay(20);
+                    try
+                    {
+                        using var stream = File.OpenRead(path);
+                        var capture = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                        var pixels = new byte[capture.PixelWidth * capture.PixelHeight * 4];
+                        capture.CopyPixels(pixels, capture.PixelWidth * 4, 0);
+                        var red = 0;
+                        var right = 0;
+                        for (var i = 0; i < pixels.Length; i += 4)
+                        {
+                            if (pixels[i + 2] > 80 && pixels[i + 2] > pixels[i + 1] * 2 && pixels[i + 2] > pixels[i] * 2)
+                            {
+                                red++;
+                                right = Math.Max(right, i / 4 % capture.PixelWidth);
+                            }
+                        }
+                        Assert.True(right >= Math.Floor(minimumRightDip * viewport.Dpi), "Outer stroke must extend beyond the cell pitch quad.");
+                        return red;
+                    }
+                    catch (IOException) { /* Wait for the PNG writer to finish. */ }
+                }
+                throw new TimeoutException("Repeated ROI capture did not complete.");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+    });
+
+    [Fact]
+    public Task CaptureAfterResizeAndMinimizeUsesRestoredBufferSize() => OnStaAsync(async () =>
+    {
+        using var viewport = new Dx12Viewport { DevicePreference = RenderDevicePreference.Software };
+        var window = CreateWindow(viewport);
+        var ready = NewCompletion();
+        var errors = new List<string>();
+        var document = new EditorSession().State;
+        var path = Path.Combine(Path.GetTempPath(), $"viewport-resize-{Guid.NewGuid():N}.png");
+        viewport.RendererStatusChanged += status =>
+        {
+            CompleteStartup(ready, status);
+            if (status.StartsWith("렌더 오류:", StringComparison.Ordinal))
+            {
+                errors.Add(status);
+            }
+        };
+        viewport.LayoutChanged += Submit;
+        try
+        {
+            window.Show();
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            for (var i = 0; i < 12; i++)
+            {
+                window.Width = 80 + i;
+                window.Height = 70 + i;
+                window.UpdateLayout();
+                Submit();
+                await Task.Delay(2);
+            }
+            window.WindowState = WindowState.Minimized;
+            await Task.Delay(50);
+            window.WindowState = WindowState.Normal;
+            window.Width = 160;
+            window.Height = 120;
+            window.UpdateLayout();
+            Submit();
+            viewport.Capture(path);
+
+            BitmapFrame? capture = null;
+            var deadline = Stopwatch.StartNew();
+            while (capture is null && deadline.Elapsed < TimeSpan.FromSeconds(10))
+            {
+                await Task.Delay(20);
+                try
+                {
+                    using var stream = File.OpenRead(path);
+                    capture = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                }
+                catch (IOException)
+                {
+                    // 파일 생성과 PNG 저장 완료 사이에는 reader가 아직 열 수 없다.
+                }
+            }
+            Assert.Empty(errors);
+            Assert.NotNull(capture);
+            Assert.Equal((int)Math.Ceiling(viewport.ActualWidth * viewport.Dpi), capture.PixelWidth);
+            Assert.Equal((int)Math.Ceiling(viewport.ActualHeight * viewport.Dpi), capture.PixelHeight);
+            Submit();
+            viewport.Dispose();
+            Assert.Equal(nint.Zero, viewport.Handle);
+        }
+        finally
+        {
+            viewport.LayoutChanged -= Submit;
+            window.Close();
+            viewport.Dispose();
+            File.Delete(path);
+        }
+
+        void Submit() => viewport.Submit(new(document, null, 0, viewport.ActualWidth, viewport.ActualHeight, viewport.Dpi, new()));
+    });
+
     [Fact]
     public Task ConcurrentRestartsShareCompletionAndLaterRestartStillWorks() => OnStaAsync(async () =>
     {

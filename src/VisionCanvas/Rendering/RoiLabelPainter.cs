@@ -49,8 +49,8 @@ internal sealed class RoiLabelPainter
                 continue;
             }
 
-            var anchor = ClampAnchor(Anchor(geometry, scene.Document.Viewport, label.Selected && scene.Document.Selection.Count == 1), scene.Width, scene.Height);
-            var texture = label.Selected && scene.Document.Selection.Count == 1 ? immediate(label.Text) : rasterize(label.Text);
+            var anchor = ClampAnchor(Anchor(geometry, scene.Document.Viewport, label.Selected && scene.Document.SelectionCount == 1), scene.Width, scene.Height);
+            var texture = label.Selected && scene.Document.SelectionCount == 1 ? immediate(label.Text) : rasterize(label.Text);
             if (texture is null)
             {
                 continue;
@@ -63,7 +63,7 @@ internal sealed class RoiLabelPainter
             }
 
             Occupy(box);
-            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).StrokeColor(true, scene.Document.Selection.Count > 1) : new Vector4(.13f, .16f, .22f, .90f);
+            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).StrokeColor(true, scene.Document.SelectionCount > 1) : new Vector4(.13f, .16f, .22f, .90f);
             var foreground = ((background.X * .299f) + (background.Y * .587f) + (background.Z * .114f)) > .55f
                 ? new Vector4(.05f, .07f, .09f, 1) : Vector4.One;
             mesh.Rectangle(white, box, background);
@@ -122,7 +122,7 @@ internal sealed class RoiLabelPainter
                     continue;
                 }
 
-                var anchor = ClampAnchor(Anchor(geometry, view, selected && state.Selection.Count == 1), scene.Width, scene.Height);
+                var anchor = ClampAnchor(Anchor(geometry, view, selected && state.SelectionCount == 1), scene.Width, scene.Height);
                 var estimatedLength = roi.Name.Length + (children.ContainsKey(roi.Id) ? 12 : 0) + (selected ? 14 : 0);
                 var estimate = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + Math.Min(430, (estimatedLength * 12) + 12)), anchor.Y + 24);
                 if (Intersects(estimate))
