@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="빠르다는 느낌 대신 증거를 남기는 법"><title>10. 리뷰·디버깅·성능 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html" aria-current="page">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>10. 리뷰·디버깅·성능</h1>
+<p>빠르다는 느낌 대신 증거를 남기는 법</p>
+</div>
+<section>
+<h2>신입의 첫 코드 리뷰는 네 가지 질문</h2>
+<ol><li><strong>입력:</strong> 단위, 범위, null, 이미지 세대는 무엇인가?</li><li><strong>출력:</strong> 문서를 바꾸는가, 값을 계산하는가, 소유권을 넘기는가?</li><li><strong>실패:</strong> 취소·오류·오래된 결과에서 무엇을 보존하고 누가 버퍼를 반환하는가?</li><li><strong>비용:</strong> 이 코드가 프레임마다, 픽셀마다, 편집 한 번마다 몇 번 실행되는가?</li></ol>
+<p>모르는 함수가 나오면 호출자 하나와 피호출자 하나씩만 내려가 읽습니다. ‘전체 구조를 이해할 때까지 아무것도 리뷰 못 한다’고 생각하지 마세요. 반대로 의미를 모르는 최적화를 보기 좋다는 이유로 제거하지 않습니다.</p>
+</section>
+<section>
+<h2>실제 리팩터링 예: 이름으로 단위를 드러내기</h2>
+<pre><code>// 이전: x1이 픽셀인가, 타일인가, 포함 끝인가?
+var x1 = Math.Clamp((int)Math.Ceiling(last.X / tileSpan), 0, columns);
+
+// 이후: 원본 좌표에서 계산한 타일 열의 제외 끝
+var columnEnd = Math.Clamp(
+    (int)Math.Ceiling(imageBottomRight.X / tileSpanInImage), 0, columnCount);</code></pre><p>계산 순서·자료구조·반올림·메모리 할당은 같습니다. 새 추상화 없이 의도를 전달합니다. 이름만 바꿀 때는 IDE 심볼 Rename으로 참조를 함께 바꾸고 XAML·리플렉션·직렬화 문자열 영향도 확인합니다. 수식의 연산 순서를 바꾸면 부동소수점 반올림 결과가 달라질 수 있으므로 이름 정리와 수학적 변형을 구별합니다.</p>
+<p>작은 LINQ 식을 풀어 쓴다고 무조건 빨라지거나 쉬워지는 것은 아닙니다. 지연 열거를 배열로 바꾸면 메모리를 더 쓰며, 매 프레임 객체를 생성하는 래퍼는 GC를 늘릴 수 있습니다. 읽기 쉬운 코드의 기준은 줄 수가 아니라 독자가 확인해야 할 숨은 전제가 적은가입니다.</p>
+</section>
+<section>
+<h2>시간을 어떤 구간에서 쟀는가</h2>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="60 FPS의 프레임 예산 = 1000 ms / 60 ≈ 16.67 ms"><semantics><mrow><mrow><mtext>60 FPS의 프레임 예산</mtext><mo>=</mo><mfrac><mrow><mn>1000</mn><mtext> ms</mtext></mrow><mn>60</mn></mfrac><mo>≈</mo><mn>16.67</mn><mtext> ms</mtext></mrow></mrow><annotation encoding="text/plain">60 FPS의 프레임 예산 = 1000 ms / 60 ≈ 16.67 ms</annotation></semantics></math>
+</div><p>작업 전체가 200ms 걸려도 작업 스레드에서 진행하면서 화면은 60FPS일 수 있습니다. 반대로 총시간이 30ms로 짧아도 UI를 한 번에 30ms 막으면 프레임 예산을 넘습니다. 프레임 간격, CPU 작업 시간, GPU 시간, 입력 대기, 표시 완료는 따로 측정합니다.</p>
+<table><thead><tr><th>지표</th><th>읽는 방법</th></tr></thead><tbody><tr><td>평균</td><td>전반적 비용. 드문 긴 멈춤을 숨길 수 있음</td></tr><tr><td>p95</td><td>정렬된 측정값 중 약 95%가 이 값 이하. 최댓값은 아님</td></tr><tr><td>최대·예산 초과 개수</td><td>엄격한 모든 프레임 조건을 확인</td></tr><tr><td>할당량·GC pause</td><td>임시 객체와 수집 때문에 끊기는지 확인</td></tr><tr><td>입력 장면 경과</td><td>렌더 시작 시 장면이 얼마나 오래되었나. 물리 입력→픽셀 지연과 다름</td></tr><tr><td>드롭</td><td>최신 영상 표시 큐에서 버린 프레임. ROI 편집 누락과는 다름</td></tr></tbody></table>
+<p>정적 화면에서 렌더를 생략한 시간과 연속 입력 중 프레임이 빠진 시간도 분리합니다. 평균 60FPS 근처라는 이유로 모든 간격 ≤16.67ms를 통과했다고 기록하지 않습니다.</p>
+</section>
+<section>
+<h2>작은 변경의 검증 명령</h2>
+<pre><code># 관련 회귀를 빌드한 뒤 실행
+dotnet build TeachingToolWpf.slnx -c Release --no-restore -m:1
+dotnet test tests/TeachingToolWpf.Core.Tests -c Release --no-build
+dotnet test tests/VisionCanvas.Tests -c Release --no-build
+dotnet test tests/TeachingToolWpf.Imaging.Tests -c Release --no-build
+pwsh -File scripts/Format-Code.ps1 -Verify</code></pre><p>Core는 기하·선택·계층·이력, Canvas는 타일·소유권·GPU 전달, Imaging.Tests는 앱 입력·표시 연결을 봅니다. 테스트 이름에 Imaging이 있어도 순수 파일 디코드만 검사하는 것은 아닙니다. 해당 동작과 무관한 모든 테스트를 반복하는 대신 영향 범위를 설명합니다.</p>
+<p>성능은 Release, 같은 입력·장치·해상도·빌드, 워밍업과 반복을 구별해 비교합니다. 최초 JIT·장치 준비도 사용자가 기다린 시간에는 포함됩니다. 반복 성능에서 따로 보고하더라도 전체 지연에서 숨기지 않습니다. GPU/WARP를 섞어 비교하거나 합성 영상을 현장 정확도 근거로 쓰지 않습니다.</p>
+</section>
+<section>
+<h2>증상에서 원인까지 좁혀 가기</h2>
+<table><thead><tr><th>증상</th><th>먼저 확인</th><th>작은 재현</th></tr></thead><tbody><tr><td>확대할 때 선택 위치가 어긋남</td><td>DIP/물리 px, ScreenToImage</td><td>100%와 150% DPI에서 점 왕복</td></tr><tr><td>영상 행이 밀림·색이 바뀜</td><td>stride, 채널 순서, upload footprint</td><td>각 행이 다른 색인 작은 영상</td></tr><tr><td>빠른 이미지 교체 후 잔상</td><td>Generation 비교·늦은 타일 Dispose</td><td>지연 소스 A → 즉시 소스 B</td></tr><tr><td>Undo 후 화면이 이전 위치로 튐</td><td>ROI-only 뷰 유지, 이미지 이력 분기</td><td>ROI 이동 → pan → Undo</td></tr><tr><td>종료/resize에서 드문 오류</td><td>GPU fence, HWND보다 renderer 먼저 종료</td><td>준비 작업 중 최소화/복원/종료</td></tr><tr><td>GC와 함께 입력 멈춤</td><td>할당 호출, 전체 사전 복제, 반복 materialize</td><td>같은 대량 선택으로 할당량 비교</td></tr></tbody></table>
+</section>
+<section>
+<h2>제출 전에 직접 읽는 체크리스트</h2>
+<ul class="checklist"><li>입력·출력·오류·취소 계약을 설명했다.</li><li>변경 이유에 맞는 책임에 코드를 두었다. SOLID 5개·GRASP 9개를 검토했다.</li><li>공개 API·버퍼 레이아웃·평가 순서·이력 원자성이 보존된다.</li><li>기존 사용자 변경을 덮어쓰지 않았다.</li><li>정확성 검증과 성능 검증을 구별했다.</li><li>PASS / FAIL / NOT_RUN / BLOCKED를 증거와 함께 기록했다.</li></ul>
+<details><summary>직접 확인: 테스트가 모두 통과했으면 60FPS라고 적어도 될까?</summary><p>아닙니다. 정확성 테스트는 그 입력에서 기능이 맞다는 증거입니다. 프레임 간격·입력 부하·하드웨어·해상도를 포함한 측정이 없으면 성능은 NOT_RUN입니다. 측정해 미달이면 FAIL로 남깁니다.</p>
+</details>
+</section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="09-build.html">← 09. 작은 캔버스를 직접 구축하기</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

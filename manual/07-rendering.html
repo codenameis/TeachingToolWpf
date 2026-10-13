@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="CPU의 요청과 GPU의 완료를 구별하기"><title>07. WPF와 DX12로 그리기 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html" aria-current="page">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>07. WPF와 DX12로 그리기</h1>
+<p>CPU의 요청과 GPU의 완료를 구별하기</p>
+</div>
+<section>
+<h2>WPF는 도구, DX12는 영상 뷰포트</h2>
+<p>WPF는 버튼·목록·속성·바인딩을 담당합니다. <code>HwndHost</code>는 WPF 레이아웃 안에 별도 Windows 자식 창(HWND)을 넣습니다. DX12는 그 창의 swap chain에 이미지·ROI·선택 핸들·이름표를 함께 그립니다. ROI마다 WPF Shape를 만들면 많은 객체·레이아웃 비용이 생깁니다.</p>
+<p>이 구조의 자식 HWND에는 airspace 제약이 있습니다. WPF 반투명 Canvas나 Adorner를 위에 올려 같은 화면처럼 그릴 수 있다고 가정하지 않습니다. ROI overlay는 같은 GPU 경로에 둡니다. D3DImage를 DX12 texture에 바로 연결하는 설계도 사용하지 않습니다.</p>
+<p class="source"><a href="https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-and-win32-interoperation">Microsoft WPF/Win32 상호운용 설명</a></p>
+</section>
+<section>
+<h2>세 스레드의 일</h2>
+<table><thead><tr><th>소유자</th><th>하는 일</th><th>전달물</th></tr></thead><tbody><tr><td>UI 스레드</td><td>입력·문서 확정·WPF 바인딩</td><td>불변 RenderScene</td></tr><tr><td>영상/편집 worker</td><td>파일 읽기·타일 준비·대량 편집 준비</td><td>소유권 있는 버퍼 또는 불변 준비 결과</td></tr><tr><td>렌더 스레드</td><td>GPU 자원·명령 기록·Present·fence</td><td>표시 상태·진단</td></tr></tbody></table>
+<p>렌더가 UI 컬렉션을 동시에 읽으면 사용자가 수정하는 순간 열거가 깨질 수 있습니다. 그래서 완성된 불변 장면을 게시합니다. RenderScene의 불변 껍데기만으로 내부 버퍼의 수명이 자동 해결되는 것은 아니므로 별도 소유권 계약도 필요합니다. 정지 화면은 계속 그리지 않고 요청을 합쳐 기다립니다.</p>
+</section>
+<section>
+<h2>GPU 명령을 음식 주문서처럼 읽기</h2>
+<dl><dt>device</dt><dd>사용할 그래픽 장치. 자동 모드는 하드웨어를 우선하고 생성할 수 없으면 WARP CPU 표시를 사용합니다.</dd><dt>command list / queue</dt><dd>복사·그리기 명령을 적은 목록과 GPU에 제출하는 줄입니다. 제출은 완료가 아닙니다.</dd><dt>texture / buffer</dt><dd>영상처럼 2차원으로 읽는 저장소와 일반 데이터 저장소입니다.</dd><dt>descriptor</dt><dd>셰이더가 어떤 자원을 어떤 형태로 읽을지 알려 주는 설명입니다.</dd><dt>shader</dt><dd>GPU에서 정점·픽셀 등에 적용할 작은 프로그램입니다. HLSL로 작성합니다.</dd><dt>swap chain / back buffer</dt><dd>그릴 화면 버퍼와 표시 전환을 관리합니다. 현재 구현은 back buffer 두 개입니다.</dd><dt>fence</dt><dd>제출한 작업이 어느 번호까지 끝났는지 확인하는 완료 표식입니다.</dd></dl>
+</section>
+<section>
+<h2>한 프레임을 실제 순서로 읽기</h2>
+<ol><li>새 장면·영상·타일 요청을 기다립니다. DXGI 표시 준비 신호를 기다립니다.</li><li>유효한 창 크기를 확인하고 필요하면 resize합니다.</li><li><code>Dx12Surface.Begin</code>에서 사용할 슬롯의 이전 GPU 작업 완료를 확인합니다. 그 뒤에만 명령 메모리와 upload 공간을 재사용합니다.</li><li>대기 중 도착한 최신 장면을 가져옵니다. 타일·필터·라벨을 준비합니다.</li><li><code>ScenePainter</code>가 표시 요소를 만들고 각 Pipeline이 그리기 명령을 기록합니다.</li><li>현재 버퍼를 Present 가능한 상태로 바꾸고 제출·Present합니다. 완료 fence를 슬롯과 지연 해제 목록에 연결합니다.</li></ol>
+<p><a href="../src/VisionCanvas/Rendering/RenderWorker.cs">RenderWorker.Run</a> · <a href="../src/VisionCanvas/Rendering/Dx12Surface.cs">Dx12Surface</a> · <a href="../src/VisionCanvas/Rendering/ScenePainter.cs">ScenePainter</a></p>
+<aside class="note">DXGI의 표시 준비와 GPU fence 완료는 다른 조건입니다. 앞의 조건만 기다리고 GPU가 읽는 버퍼를 덮어쓰면 안 됩니다. Present(1)을 호출했다는 사실만으로 물리 모니터에 그 픽셀이 나타난 시각을 알 수 있는 것도 아닙니다.</aside>
+</section>
+<section>
+<h2>resource barrier와 fence</h2>
+<p>barrier는 GPU 자원을 복사 대상으로 쓰던 상태에서 셰이더 입력으로 쓰는 상태 등으로 전환합니다. fence는 CPU나 다른 작업이 완료를 관찰할 수 있게 합니다. ‘상태 전환’과 ‘완료 기다리기’를 바꿔 쓰지 않습니다.</p>
+<pre><code>GPU texture: COPY_DEST → PIXEL_SHADER_RESOURCE
+back buffer: PRESENT → RENDER_TARGET → PRESENT
+
+CPU: 명령 제출 → fence 번호 기록 → 다음 슬롯 작업
+GPU: 명령 실행 → 완료 번호 갱신
+CPU: 그 슬롯 재사용 시 완료 번호 확인</code></pre><p>이 순서를 생략하면 드물게 깜빡임·이전 픽셀·장치 오류가 생길 수 있습니다. C#의 GC는 GPU가 언제 읽기를 끝냈는지 알지 못합니다. <code>Retire</code>가 즉시 해제가 아니라 fence 후 해제 예약인 이유입니다.</p>
+<p class="source"><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/using-resource-barriers-to-synchronize-resource-states-in-direct3d-12">Microsoft resource barrier</a> · <a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/fence-based-resource-management">fence 기반 자원 관리</a></p>
+</section>
+<section>
+<h2>화면 좌표에서 셰이더 좌표까지</h2>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="x_ndc = 2x_physical/W_physical − 1; y_ndc = 1 − 2y_physical/H_physical"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msub><mi>x</mi><mi mathvariant="normal">ndc</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mfrac><mrow><mn>2</mn><msub><mi>x</mi><mi mathvariant="normal">physical</mi></msub></mrow><msub><mi>W</mi><mi mathvariant="normal">physical</mi></msub></mfrac><mo>−</mo><mn>1</mn></mrow></mtd></mtr><mtr><mtd><msub><mi>y</mi><mi mathvariant="normal">ndc</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>1</mn><mo>−</mo><mfrac><mrow><mn>2</mn><msub><mi>y</mi><mi mathvariant="normal">physical</mi></msub></mrow><msub><mi>H</mi><mi mathvariant="normal">physical</mi></msub></mfrac></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">x_ndc = 2x_physical/W_physical − 1; y_ndc = 1 − 2y_physical/H_physical</annotation></semantics></math>
+</div><p>NDC는 정규화 장치 좌표입니다. 왼쪽은 −1, 오른쪽은 +1, 위쪽은 +1, 아래쪽은 −1입니다. 화면 y가 아래로 증가하므로 두 번째 식의 부호가 반대입니다. DIP와 물리 px를 분자·분모에 섞으면 DPI별로 틀어집니다.</p>
+<p>많은 ROI는 인스턴스 데이터로 보관하고 공통 이동·회전 상수만 갱신합니다. 화면 밖 후보는 BVH 공간 트리로 건너뜁니다. 작은 묶음을 LOD로 요약하더라도 문서의 실제 ROI는 그대로 남습니다. C# 구조체와 HLSL 상수의 크기·오프셋은 계약이므로 필드 순서를 ‘보기 좋게’ 바꾸면 안 됩니다.</p>
+<p><a href="../src/VisionCanvas/Rendering/RoiDrawConstants.cs">RoiDrawConstants</a> · <a href="../src/VisionCanvas/Shaders/Roi.hlsl">Roi.hlsl</a> · <a href="../tests/VisionCanvas.Tests/RoiGpuLayoutTests.cs">GPU 배치 테스트</a></p>
+<details><summary>직접 확인: 명령 제출 직후 texture.Dispose()가 위험한 이유는?</summary><p>CPU가 제출을 끝내도 GPU는 아직 그 texture를 읽을 수 있습니다. 마지막 사용의 fence가 완료된 뒤 소유자가 해제해야 합니다. UI 스레드에서 기다리는 방식으로 해결하면 입력이 멈출 수 있어 렌더 소유 경계에서 처리합니다.</p>
+</details>
+</section>
+<section><h2>호스트가 장면을 보내는 실제 코드</h2>
+<p>렌더 스레드가 UI 컨트롤을 직접 읽게 하지 않고 화면 크기·영상 세대·문서·편집 미리보기를 한 장면으로 보냅니다. 아래 메서드는 9장의 LessonWindow 안에 있으며, 전체 창 코드는 같은 9장에서 펼칠 수 있습니다.</p>
+<details class="code-example" open><summary>Publish: 현재 상태를 RenderScene으로 게시</summary>
+<p class="source">현재 저장소 코드 · 발췌 · <a href="labs/CanvasHost/LessonWindow.cs">manual/labs/CanvasHost/LessonWindow.cs</a></p>
+<pre tabindex="0" aria-label="Publish: 현재 상태를 RenderScene으로 게시"><code data-source="labs/CanvasHost/LessonWindow.cs" data-kind="excerpt">private void Publish()
+{
+    if (_image is null || _closing)
+    {
+        return;
+    }
+    _input.SetViewportSize(_viewport.ViewWidth, _viewport.ViewHeight);
+    _viewport.Submit(new RenderScene(_session.State, _image, _generation,
+        _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi,
+        _input.Overlay, Transform: _session.TransformPreview));
+}</code></pre>
+</details>
+<p>Submit 호출은 “장면을 전달했다”는 뜻입니다. GPU 제출, GPU 완료, 실제 모니터 표시는 각각 다른 시점입니다.</p></section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="06-streaming.html">← 06. 큰 영상과 버퍼의 수명</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

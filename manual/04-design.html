@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="SOLID와 GRASP를 실제 파일에 연결하기"><title>04. 책임을 나누는 설계 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html" aria-current="page">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>04. 책임을 나누는 설계</h1>
+<p>SOLID와 GRASP를 실제 파일에 연결하기</p>
+</div>
+<section>
+<h2>왜 프로젝트를 여러 개로 나눌까</h2>
+<p>어떤 코드를 바꿀 때 함께 고쳐야 하는 부분이 많으면 실수를 찾기 어렵습니다. 좌표 수식은 파일 디코더와 무관하고, PNG 읽기는 ROI Undo와 무관합니다. 그래서 <strong>서로 다른 이유로 바뀌는 코드를 다른 책임에 둡니다.</strong> 클래스 수를 늘리는 것이 목적은 아닙니다.</p>
+<table><thead><tr><th>프로젝트</th><th>대답하는 질문</th><th>알면 안 되는 것</th></tr></thead><tbody><tr><td>VisionGeometry</td><td>이 점은 도형 안인가? 어떻게 회전하나?</td><td>WPF, DX12, 검사 판정</td></tr><tr><td>VisionImaging.Abstractions</td><td>영상 크기·형식·타일·프레임의 계약은?</td><td>NetVips 실제 디코더</td></tr><tr><td>VisionCanvas.Core</td><td>문서·선택·계층·입력·이력을 어떻게 바꾸나?</td><td>GPU 핸들, OpenCV Mat</td></tr><tr><td>VisionCanvas</td><td>입력을 전달하고 화면에 무엇을 어떻게 그리나?</td><td>검사 알고리즘, 제품 합불 기준</td></tr><tr><td>VisionImaging</td><td>파일의 원본 픽셀을 어떻게 읽나?</td><td>Canvas의 선택·이력</td></tr><tr><td>VisionAlgorithm</td><td>원본 픽셀에서 무엇을 검출하나?</td><td>WPF, Canvas, 앱</td></tr><tr><td>VisionInspection</td><td>원본 읽기와 검사 실행을 어떻게 연결하나?</td><td>WPF 표시</td></tr><tr><td>TeachingToolWpf</td><td>어떤 서비스와 화면을 연결하고 어떻게 판정하나?</td><td>다른 프로젝트가 앱을 역참조하면 안 됨</td></tr></tbody></table>
+<p>이 표는 책임 지도입니다. 실제 참조 목록은 각 <code>.csproj</code>가 기준입니다. 선택형 CUDA는 <code>VisionCompute.ILGPU</code>, 필터 UI는 <code>VisionCanvas.Filters.Wpf</code>, 필터 계산은 <code>IndustrialVision.Filters</code>에 있습니다. Canvas의 파일 입력을 쓰지 않는 호스트는 NetVips를 필수로 붙일 이유가 없습니다.</p>
+<div class="flow"><span>앱이 조립</span><b>→</b><span>Canvas / 파일 I/O / 검사 서비스</span><b>→</b><span>작은 계약과 순수 기하</span></div></section>
+<section>
+<h2>처음 보는 C# 표현 해설</h2>
+<dl><dt>record / with</dt><dd>데이터를 표현하고 비교하기 편한 문법입니다. <code>state with { Viewport = next }</code>는 나머지 값을 공유하는 새 값을 만듭니다. record라고 내부의 List까지 자동으로 불변이 되는 것은 아닙니다.</dd><dt>readonly record struct</dt><dd>작은 값을 표현합니다. PointD나 변환 값처럼 값 자체가 의미를 가집니다. 참조 타입처럼 모두 힙 객체를 새로 만드는 것으로 생각하지 않습니다.</dd><dt>ImmutableDictionary</dt><dd>이전 버전을 바꾸지 않고 새 버전을 만들며 내부 구조를 공유할 수 있는 사전입니다. ‘전체 데이터를 항상 깊은 복사한다’는 뜻이 아닙니다.</dd><dt>interface</dt><dd>소비자가 필요한 행동의 약속입니다. 이름 앞의 I는 프로젝트 관례입니다. 인터페이스 하나가 자동으로 SOLID를 보장하지 않습니다.</dd><dt>event</dt><dd>‘상태가 변했다’고 구독자에게 알립니다. 구독자가 어떤 순서로 어떤 스레드에서 실행되는지도 확인해야 합니다.</dd><dt>Task / CancellationToken</dt><dd>작업 완료를 표현하는 값과 협력적 취소 요청입니다. async라고 항상 새 스레드를 만들지 않고, 취소했다고 이미 시작한 계산이 즉시 사라지지도 않습니다.</dd><dt>Dispose / using</dt><dd>자원의 사용을 끝냈음을 명시합니다. using 블록 끝에서 Dispose를 호출합니다. 소유권을 넘긴 객체를 다시 Dispose하면 안 되는 경우를 6장에서 배웁니다.</dd></dl>
+</section>
+<section>
+<h2>SOLID 5개: 질문으로 읽기</h2>
+<table><thead><tr><th>원칙</th><th>쉬운 뜻과 저장소의 예</th><th>리뷰 질문</th></tr></thead><tbody><tr><td>SRP · 단일 책임</td><td>바뀌는 이유를 모은다. TilePlanner는 주소 계산, TileWorker는 읽기와 수명.</td><td>타일 좌표 계산 함수가 파일까지 열고 있나?</td></tr><tr><td>OCP · 개방/폐쇄</td><td>변형이 실제로 필요한 곳을 계약으로 확장. 다른 소스도 ITileSource 구현 가능.</td><td>새 형식 때문에 Core에 PNG/TIFF 분기가 필요한가?</td></tr><tr><td>LSP · 치환</td><td>같은 약속의 구현은 교체해도 호출자의 기대를 지킨다.</td><td>새 소스도 취소, 버퍼 형식, 해제 계약을 지키나?</td></tr><tr><td>ISP · 인터페이스 분리</td><td>쓰는 기능만 작게 요구한다. IFrameSource와 ITileSource의 소비 방식이 다르다.</td><td>파일 소스에 의미 없는 Play/Stop을 강요하나?</td></tr><tr><td>DIP · 의존성 역전</td><td>핵심 규칙은 플랫폼 구현 대신 계약에 의존. 파일 로더 선택은 호스트가 한다.</td><td>Core가 WPF 창이나 CUDA 장치를 직접 생성하나?</td></tr></tbody></table>
+<p>여기서 ‘닫혀 있다’는 기존 코드를 절대 수정하지 말라는 뜻이 아닙니다. 실제 변화의 경계에서 영향 범위를 줄이라는 뜻입니다. 한 번 쓰는 계산마다 인터페이스·팩터리·매니저를 만들면 읽기만 어려워질 수 있습니다.</p>
+</section>
+<section>
+<h2>GRASP 9개: 일을 누구에게 맡길까</h2>
+<table><thead><tr><th>원칙</th><th>이 프로젝트에서의 판단</th></tr></thead><tbody><tr><td>Information Expert · 정보 전문가</td><td>도형 좌표를 가진 RoiGeometry가 Contains를 계산한다. ViewModel이 삼각함수를 다시 구현하지 않는다.</td></tr><tr><td>Creator · 생성 책임</td><td>EditorSession이 문서 규칙을 지켜 ROI를 추가한다. GPU 소유자가 GPU 리소스를 생성·해제한다.</td></tr><tr><td>Controller · 요청 조정</td><td>UI의 편집 요청을 EditorSession이 받는다. 버튼 핸들러 안에서 문서 사전을 직접 고치지 않는다.</td></tr><tr><td>Low Coupling · 낮은 결합</td><td>검사 결과를 중립 표시 데이터로 변환해 Canvas에 전달한다. Canvas는 검사 공급자를 모른다.</td></tr><tr><td>High Cohesion · 높은 응집</td><td>DocumentEdit는 편집 차이, EditHistory는 순서와 커서에 집중한다.</td></tr><tr><td>Polymorphism · 다형성</td><td>파일·합성 소스의 실제 차이는 ITileSource 구현으로 처리한다.</td></tr><tr><td>Pure Fabrication · 기술 책임 분리</td><td>이력, 캐시, 업로드 버퍼는 실제 부품 객체와 별개인 기술 서비스다.</td></tr><tr><td>Indirection · 간접 연결</td><td>원본 reader와 중립 계약의 어댑터가 외부 API 세부를 가린다.</td></tr><tr><td>Protected Variations · 변화 보호</td><td>DX12 타입을 렌더 경계에 두어 GPU 구현 변화가 도메인 규칙으로 퍼지지 않게 한다.</td></tr></tbody></table>
+<p>SRP와 응집, DIP와 변화 보호 등은 서로 겹치는 관점입니다. 원칙 이름을 코드에 주석으로 붙이는 것보다 ‘이 변경 때문에 왜 이 파일도 고쳐야 했나’를 설명하는 편이 유용합니다.</p>
+</section>
+<section>
+<h2>패턴은 필요한 문제의 이름</h2>
+<p>MVVM은 View·ViewModel·상태를 나누어 바인딩과 규칙의 경계를 만듭니다. Command/Memento 관점은 요청과 변경 전후 값을 기록하여 Undo를 가능하게 합니다. State는 드래그 도구의 진행 상태, Strategy/Adapter는 소스·도형·외부 API 변형, Composite는 부모·자식 구조, Observer는 Changed 이벤트에서 읽을 수 있습니다. 구현이 교과서 클래스 모양과 똑같아야 하는 것은 아닙니다.</p>
+<details><summary>직접 확인: ‘파일 열기’ 버튼에서 무엇을 직접 하면 안 될까?</summary><p>픽셀 디코드 반복문, ROI 좌표 보정, GPU fence 대기를 한 버튼 핸들러에 넣지 않습니다. 버튼은 호스트의 이미지 교체 작업을 요청합니다. 디코더가 읽고, 성공한 입력으로 문서를 교체하고, 불변 장면을 게시합니다. 실패했을 때 기존 이미지·문서를 보존하는 경계도 필요합니다.</p>
+</details>
+<p><a href="../docs/decisions/0031-reusable-canvas-boundaries.md">Canvas 재사용 경계</a> · <a href="../docs/decisions/0032-optional-canvas-file-decoder.md">선택형 파일 디코더</a></p>
+</section>
+<section><h2>작은 계약을 코드로 읽기</h2>
+<p>Canvas는 파일 이름이나 NetVips 타입 대신 아래 계약을 사용합니다. Info는 영상 규격, Read는 한 타일 읽기, IDisposable은 해제 약속입니다. 렌더러가 디코더 종류를 몰라도 되므로 DIP·Protected Variations를 구체적으로 볼 수 있습니다. 구현은 취소와 버퍼 소유권까지 지켜야 하므로 메서드 이름만 맞추는 것으로 LSP가 성립하지 않습니다.</p>
+<details class="code-example" open><summary>ITileSource: 소비자가 필요한 계약</summary>
+<p class="source">현재 저장소 코드 · 발췌 · <a href="../src/VisionImaging.Abstractions/TileSource.cs">src/VisionImaging.Abstractions/TileSource.cs</a></p>
+<pre tabindex="0" aria-label="ITileSource: 소비자가 필요한 계약"><code data-source="../src/VisionImaging.Abstractions/TileSource.cs" data-kind="excerpt">public interface ITileSource : IDisposable
+{
+    ImageInfo Info
+    {
+        get;
+    }
+    PixelBuffer Read(TileKey key, CancellationToken cancellationToken);
+}</code></pre>
+</details>
+<p>9장에는 이 계약을 구현한 CheckerTileSource 전체와 창 연결 코드를 함께 넣었습니다.</p></section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="03-processing.html">← 03. 필터·윤곽·마스크</a><a href="05-editing.html">05. ROI·선택·Undo/Redo →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

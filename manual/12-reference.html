@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="막힐 때 돌아오는 작은 사전"><title>12. 용어·수식·다음 읽기 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html" aria-current="page">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>12. 용어·수식·다음 읽기</h1>
+<p>막힐 때 돌아오는 작은 사전</p>
+</div>
+<section>
+<h2>용어 사전</h2>
+<p>브라우저 찾기 <kbd>Ctrl</kbd>+<kbd>F</kbd> 또는 아래 필터로 찾으세요.</p>
+<label class="search-label">용어 찾기 <input type="search" id="glossary-search" placeholder="예: stride, 이력, fence" aria-controls="glossary"></label><p id="glossary-count" role="status"></p>
+<dl id="glossary">
+<dt>ROI</dt><dd>관심 영역. 표시 사각형만이 아니라 ID·실제 형상·선택·계층을 가진 편집 대상.</dd>
+<dt>pixel / channel</dt><dd>영상 한 칸 / 한 칸의 성분. Gray는 밝기 하나, RGBA는 네 성분.</dd>
+<dt>stride / padding</dt><dd>다음 행까지의 바이트 거리 / 정렬 등을 위한 행 끝 여유 공간.</dd>
+<dt>px / DIP / DPI</dt><dd>픽셀 / WPF 논리 단위 / 인치당 픽셀 수. 코드의 Dpi는 보통 96 기준 비율.</dd>
+<dt>bit depth / dynamic range</dt><dd>저장 가능한 값의 비트 수 / 구분 가능한 밝기의 범위. 저장 공간과 실제 센서 품질을 동일시하지 않음.</dd>
+<dt>crop / resize / resampling</dt><dd>일부 잘라 읽기 / 크기 변경 / 새로운 격자 위치의 값을 계산하기.</dd>
+<dt>kernel / convolution</dt><dd>이웃 가중치 표 / 그 표를 뒤집어 입력의 이웃과 곱해 합하는 연산.</dd>
+<dt>gradient / edge</dt><dd>밝기 변화의 크기·방향 / 밝기가 급하게 달라지는 경계.</dd>
+<dt>mask</dt><dd>계산 대상 포함/제외 영역. 1이 포함인지 제외인지는 해당 계약에서 확인.</dd>
+<dt>pose</dt><dd>검출/도형의 위치·각도·배율 등 배치 상태.</dd>
+<dt>AABB / BVH</dt><dd>축과 평행한 외접 상자 / 상자를 계층으로 묶어 공간 후보를 거르는 트리.</dd>
+<dt>tile / pyramid / LOD</dt><dd>영상 조각 / 여러 축소 단계 / 표시 자세함의 단계. 원본 검사를 대체하지 않음.</dd>
+<dt>immutable / snapshot</dt><dd>만든 뒤 바꾸지 않는 값 / 한 시점의 상태. 전체 깊은 복사와 동의어가 아님.</dd>
+<dt>identity / equality</dt><dd>같은 객체인가 / 같은 내용인가. 캐시 키와 문서 비교에서 구별.</dd>
+<dt>preview / commit</dt><dd>조작 중 임시 표현 / 유효성 확인 후 한 편집으로 확정.</dd>
+<dt>Undo / Redo / cursor</dt><dd>이전 편집 되돌리기 / 다시 적용 / 이력 목록에서 현재 위치.</dd>
+<dt>lease / retain / dispose</dt><dd>사용 권한 / 별도 사용 권한 유지 / 사용 종료. 픽셀 복사와 다른 개념.</dd>
+<dt>generation / epoch</dt><dd>이미지·작업 세대를 식별하는 값. 늦게 도착한 결과의 유효성을 판단.</dd>
+<dt>cancellation</dt><dd>협력적 중단 요청. 이미 계산된 결과가 현재 상태에 맞는지는 별도 검증.</dd>
+<dt>HWND / HwndHost</dt><dd>Windows 창 식별자 / WPF 안에 native 자식 창을 넣는 경계.</dd>
+<dt>swap chain / Present</dt><dd>화면 버퍼 전환 관리 / 그린 결과의 표시 제출. 물리 화면 시각과 다름.</dd>
+<dt>fence / barrier</dt><dd>GPU 작업 완료 표식 / GPU 자원의 사용 상태·순서 전환.</dd>
+<dt>WARP / CUDA</dt><dd>Windows의 CPU Direct3D 표시 / NVIDIA GPU 계산 플랫폼. 표시 장치 선택과 검사 계산 선택은 별도.</dd>
+<dt>NCC / NMS</dt><dd>정규화 상관 비교 / 겹치는 후보에서 대표 선택. 합격 확률·실제 도형 포함 판정과 다름.</dd>
+<dt>RMS / p95 / FPS</dt><dd>제곱 평균의 제곱근 / 약 95% 값이 이하인 지점 / 초당 프레임 수.</dd>
+<dt>SOLID / GRASP</dt><dd>변경 영향과 객체 책임 배치를 검토하는 설계 원칙 묶음. 클래스 개수 점수표가 아님.</dd>
+<dt>JIT / IL / GC</dt><dd>실행 시 기계어 컴파일 / .NET 중간 명령 / 관리 메모리 수집. 최초·반복 시간과 할당을 구별.</dd>
+</dl>
+</section>
+<section>
+<h2>수식 색인</h2>
+<div class="math-reference" tabindex="0" role="region" aria-label="수식 색인 표"><table><thead><tr><th>하고 싶은 계산</th><th>식 / 돌아갈 장</th></tr></thead><tbody><tr><td>픽셀 주소</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="y×stride+x×B"><semantics><mrow><mrow><mi>y</mi><mo>×</mo><mi mathvariant="normal">stride</mi><mo>+</mo><mi>x</mi><mo>×</mo><mi>B</mi></mrow></mrow><annotation encoding="text/plain">y×stride+x×B</annotation></semantics></math> · <a href="01-image.html">1장</a></td></tr><tr><td>원본→화면</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="s=z·p+o"><semantics><mrow><mrow><mi>s</mi><mo>=</mo><mrow><mi>z</mi><mo>·</mo><mi>p</mi><mo>+</mo><mi>o</mi></mrow></mrow></mrow><annotation encoding="text/plain">s=z·p+o</annotation></semantics></math> · <a href="02-coordinates.html">2장</a></td></tr><tr><td>마우스 고정 확대</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o′=a−z′·((a−o)/z)"><semantics><mrow><mrow><msup><mi>o</mi><mo>′</mo></msup><mo>=</mo><mi>a</mi><mo>−</mo><msup><mi>z</mi><mo>′</mo></msup><mrow><mo>(</mo><mfrac><mrow><mi>a</mi><mo>−</mo><mi>o</mi></mrow><mi>z</mi></mfrac><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">o′=a−z′·((a−o)/z)</annotation></semantics></math> · <a href="02-coordinates.html">2장</a></td></tr><tr><td>중심 주위 회전</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p′=c+R(θ)(p−c)+t"><semantics><mrow><mrow><msup><mi>p</mi><mo>′</mo></msup><mo>=</mo><mrow><mi>c</mi><mo>+</mo><mrow><mi mathvariant="normal">R</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>θ</mi></mrow><mo>)</mo></mrow></mrow><mrow><mo>(</mo><mrow><mi>p</mi><mo>−</mo><mi>c</mi></mrow><mo>)</mo></mrow><mo>+</mo><mi>t</mi></mrow></mrow></mrow><annotation encoding="text/plain">p′=c+R(θ)(p−c)+t</annotation></semantics></math> · <a href="02-coordinates.html">2장</a></td></tr><tr><td>필터·유효 평균</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="Σ(i=1..n)(Ki·Ii), Σ(i=1..n)(Mi·Ii)/Σ(i=1..n)Mi"><semantics><mrow><mrow><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><msub><mi>K</mi><mi>i</mi></msub><mo>·</mo><msub><mi>I</mi><mi>i</mi></msub></mrow></mrow><mo>,</mo><mfrac><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><msub><mi>M</mi><mi>i</mi></msub><mo>·</mo><msub><mi>I</mi><mi>i</mi></msub></mrow></mrow><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>M</mi><mi>i</mi></msub></mrow></mfrac></mrow></mrow><annotation encoding="text/plain">Σ(i=1..n)(Ki·Ii), Σ(i=1..n)(Mi·Ii)/Σ(i=1..n)Mi</annotation></semantics></math> · <a href="03-processing.html">3장</a></td></tr><tr><td>기울기 크기</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="√(Gx²+Gy²)"><semantics><mrow><msqrt><mrow><msup><msub><mi>G</mi><mi>x</mi></msub><mn>2</mn></msup><mo>+</mo><msup><msub><mi>G</mi><mi>y</mi></msub><mn>2</mn></msup></mrow></msqrt></mrow><annotation encoding="text/plain">√(Gx²+Gy²)</annotation></semantics></math> · <a href="03-processing.html">3장</a></td></tr><tr><td>표시 피라미드 단계</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="clamp(floor(log₂(1/(z·d))),0,Levels−1)"><semantics><mrow><mrow><mi mathvariant="normal">clamp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mo>⌊</mo><mrow><msub><mi mathvariant="normal">log</mi><mn>2</mn></msub><mo>⁡</mo><mrow><mo>(</mo><mfrac><mn>1</mn><mrow><mi>z</mi><mo>·</mo><mi>d</mi></mrow></mfrac><mo>)</mo></mrow></mrow><mo>⌋</mo></mrow><mo>,</mo><mn>0</mn><mo>,</mo><mrow><mi mathvariant="normal">Levels</mi><mo>−</mo><mn>1</mn></mrow></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">clamp(floor(log₂(1/(z·d))),0,Levels−1)</annotation></semantics></math> · <a href="06-streaming.html">6장</a></td></tr><tr><td>셰이더 화면 변환</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(2x/W−1, 1−2y/H)"><semantics><mrow><mrow><mo>(</mo><mrow><mrow><mfrac><mrow><mn>2</mn><mi>x</mi></mrow><mi>W</mi></mfrac><mo>−</mo><mn>1</mn></mrow><mo>,</mo><mrow><mn>1</mn><mo>−</mo><mfrac><mrow><mn>2</mn><mi>y</mi></mrow><mi>H</mi></mfrac></mrow></mrow><mo>)</mo></mrow></mrow><annotation encoding="text/plain">(2x/W−1, 1−2y/H)</annotation></semantics></math> · <a href="07-rendering.html">7장</a></td></tr><tr><td>정규화 상관·거리 RMS</td><td>평균 제거→곱의 합→크기로 나누기 / <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="√(Σ(i=1..n)di²/n)"><semantics><mrow><msqrt><mfrac><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msup><msub><mi>d</mi><mi>i</mi></msub><mn>2</mn></msup></mrow><mi>n</mi></mfrac></msqrt></mrow><annotation encoding="text/plain">√(Σ(i=1..n)di²/n)</annotation></semantics></math> · <a href="08-inspection.html">8장</a></td></tr><tr><td>프레임 예산</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(1000/FPS) ms"><semantics><mrow><mrow><mfrac><mn>1000</mn><mi mathvariant="normal">FPS</mi></mfrac><mtext> ms</mtext></mrow></mrow><annotation encoding="text/plain">(1000/FPS) ms</annotation></semantics></math> · <a href="10-review.html">10장</a></td></tr></tbody></table></div>
+<p>Σ는 합, √는 제곱근, |x|는 절댓값, floor는 내림, ceiling은 올림, clamp는 상하한 제한, ≈는 근삿값입니다. 단위를 식 옆에 적으면 잘못된 나눗셈과 DPI 혼합을 찾기 쉬워집니다.</p>
+</section>
+<section>
+<h2>실제 저장소를 읽는 다음 순서</h2>
+<ol><li><a href="../docs/code-guide.md">코드 읽기 안내</a>에서 수정할 기능의 시작점을 찾습니다.</li><li><a href="../tasks/plan.md">구현 계획</a>보다 먼저 <a href="../tasks/todo.md">최신 상태</a>의 후속 결정과 미달을 확인합니다.</li><li><a href="../docs/decisions/0001-quality-and-edit-history.md">품질·이력 원칙</a>과 <a href="../docs/decisions/0031-reusable-canvas-boundaries.md">Canvas 경계</a>를 읽습니다.</li><li><a href="../samples/VisionCanvas.Sample/README.md">기존 독립 샘플</a>의 파일 교체·계층·레이어·smoke를 따라갑니다.</li><li><a href="../docs/dx12-frame-pacing.md">DX12 표시 대기</a>, <a href="../docs/main-editor-repeated-roi-validation.md">반복 ROI 검증</a>으로 최적화와 한계를 확인합니다.</li></ol>
+</section>
+<section>
+<h2>공식 참고 문서</h2>
+<p>아래 문서는 API와 일반 개념의 참고 자료입니다. 이 저장소의 버전 고정·소유권·기능 범위는 소스와 ADR이 기준입니다. OpenCV의 Python 예제는 개념 참고이며 이 프로젝트에 Python 런타임을 추가하라는 뜻이 아닙니다.</p>
+<ul><li><a href="https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-and-win32-interoperation">Microsoft · WPF와 Win32 상호운용</a></li><li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/using-resource-barriers-to-synchronize-resource-states-in-direct3d-12">Microsoft · Direct3D 12 resource barrier</a></li><li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/fence-based-resource-management">Microsoft · fence 기반 자원 관리</a></li><li><a href="https://docs.opencv.org/4.13.0/d4/d13/tutorial_py_filtering.html">OpenCV · 필터</a></li><li><a href="https://docs.opencv.org/4.10.0/d2/d2c/tutorial_sobel_derivatives.html">OpenCV · Sobel</a></li><li><a href="https://docs.opencv.org/4.13.0/d4/dc6/tutorial_py_template_matching.html">OpenCV · 템플릿 매칭</a></li></ul>
+<p>개념 설명은 입문을 위해 단순화했으며 합성 숫자 예제를 독립적으로 작성했습니다. 특정 카메라·광학계·현장 검출 성능을 보장하지 않습니다.</p>
+</section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="11-refactoring.html">← 11. 이번 리팩터링과 검증</a><a href="index.html">처음으로 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

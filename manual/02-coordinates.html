@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="수식을 작은 단계로 나누어 읽기"><title>02. 좌표·확대·회전 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html" aria-current="page">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>02. 좌표·확대·회전</h1>
+<p>수식을 작은 단계로 나누어 읽기</p>
+</div>
+<section>
+<h2>같은 점에 세 가지 주소가 있다</h2>
+<p>이미지의 부품 위치는 <strong>원본 px</strong>, WPF 레이아웃은 <strong>DIP</strong>, 모니터에 실제로 찍는 위치는 <strong>물리 px</strong>로 셉니다. DIP는 96분의 1인치를 기준으로 하는 논리 단위입니다. 150% 배율에서 DPI 계수 d=1.5라면 100 DIP는 150 물리 px입니다. ROI 형상에는 원본 좌표를 저장하여 화면 확대와 무관하게 같은 부품을 가리킵니다.</p>
+<div class="flow"><span>원본 px</span><b>× Scale + Offset →</b><span>화면 DIP</span><b>× DPI 계수 →</b><span>물리 px</span></div><div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="s = z·p + o; p = (s − o)/z"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>s</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>z</mi><mo>·</mo><mi>p</mi><mo>+</mo><mi>o</mi></mrow></mtd></mtr><mtr><mtd><mi>p</mi></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>s</mi><mo>−</mo><mi>o</mi></mrow><mi>z</mi></mfrac></mtd></mtr></mtable></mrow><annotation encoding="text/plain">s = z·p + o; p = (s − o)/z</annotation></semantics></math>
+</div><p>p는 원본 점, s는 화면 점, z는 배율(DIP/px), o는 화면 이동량(DIP)입니다. x와 y에 같은 식을 각각 씁니다. p=(100,50), z=2, o=(20,10)이면 s=(220,110)입니다. 반대로 (220−20)/2=100, (110−10)/2=50입니다. Scale=0으로 나누는 입력은 허용하면 안 됩니다.</p>
+</section>
+<section>
+<h2>마우스 아래를 고정하고 확대하기</h2>
+<p>배율만 바꾸면 이미지가 원점 기준으로 커져 마우스 아래의 부품이 도망갑니다. 기존 화면 anchor a 아래의 원본 점 p를 먼저 구합니다. 새 배율 z′에서 그 점을 다시 a에 놓도록 이동량 o′를 구합니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="p = (a − o)/z; o′ = a − z′·p"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>p</mi></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>a</mi><mo>−</mo><mi>o</mi></mrow><mi>z</mi></mfrac></mtd></mtr><mtr><mtd><msup><mi>o</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>a</mi><mo>−</mo><msup><mi>z</mi><mo>′</mo></msup><mo>·</mo><mi>p</mi></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">p = (a − o)/z; o′ = a − z′·p</annotation></semantics></math>
+</div><p>기존 z=1, o=0, 마우스 a=100이면 p=100입니다. 2배 확대 후 o′=100−2×100=−100이어야 화면 위치가 100으로 유지됩니다. <a href="../src/VisionGeometry/ViewportTransform.cs">ViewportTransform.ZoomAt</a>은 이 식과 배율 상한·하한을 적용합니다. <code>Fit</code>의 0.92는 화면 여백을 위한 비율입니다.</p>
+</section>
+<section>
+<h2>회전은 두 성분을 섞는 계산</h2>
+<p>각도는 C# UI에서 도(degree), <code>Math.Sin</code>/<code>Math.Cos</code>에서 라디안(radian)을 씁니다. 한 바퀴 360°가 2π rad이므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="rad = degree × π/180"><semantics><mrow><mrow><mi mathvariant="normal">rad</mi><mo>=</mo><mi mathvariant="normal">degree</mi><mo>×</mo><mfrac><mi>π</mi><mn>180</mn></mfrac></mrow></mrow><annotation encoding="text/plain">rad = degree × π/180</annotation></semantics></math>입니다. cos는 가로 방향 몫, sin은 세로 방향 몫으로 생각하세요. 0°에서 cos=1, sin=0, 90°에서 cos≈0, sin=1입니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="x′ = x cos θ − y sin θ; y′ = x sin θ + y cos θ; R(θ) = [cos θ, −sin θ; sin θ, cos θ]; p′ = c + R(θ)(p − c) + t"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msup><mi>x</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>x</mi><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>−</mo><mi>y</mi><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow></mrow></mtd></mtr><mtr><mtd><msup><mi>y</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>x</mi><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>+</mo><mi>y</mi><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow></mrow></mtd></mtr><mtr><mtd><mrow><mi mathvariant="normal">R</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>θ</mi></mrow><mo>)</mo></mrow></mrow></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow></mtd><mtd><mrow><mo>−</mo><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow></mrow></mtd></mtr><mtr><mtd><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow></mtd><mtd><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mtd></mtr><mtr><mtd><msup><mi>p</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>c</mi><mo>+</mo><mrow><mi mathvariant="normal">R</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>θ</mi></mrow><mo>)</mo></mrow></mrow><mrow><mo>(</mo><mrow><mi>p</mi><mo>−</mo><mi>c</mi></mrow><mo>)</mo></mrow><mo>+</mo><mi>t</mi></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">x′ = x cos θ − y sin θ; y′ = x sin θ + y cos θ; R(θ) = [cos θ, −sin θ; sin θ, cos θ]; p′ = c + R(θ)(p − c) + t</annotation></semantics></math>
+</div><p>R(θ)는 위 두 줄을 묶어 부르는 회전 행렬입니다. c는 회전 중심, t는 회전 뒤 이동량입니다. 점에서 c를 빼고 → 회전하고 → c를 더하고 → t를 더합니다. 이 영상 좌표는 y가 아래로 증가하므로 양의 각도는 화면에서 시계 방향입니다. 수학책의 y가 위인 그림과 구별하세요.</p>
+<div class="lab" id="coordinate-lab"><h3>실험: 중심 (160,110) 주위의 점 (230,110)</h3>
+<div class="fields"><label>각도(도)<input id="angle" type="range" min="-180" max="180" value="30"></label><label>배율(DIP/px)<input id="zoom" type="range" min="0.5" max="1.5" step="0.05" value="1"></label></div><svg viewBox="0 0 400 270" role="img" aria-label="회전 중심, 원래 점, 회전한 점을 표시하는 좌표 그림"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#dce3e7"/></pattern></defs><rect width="400" height="270" fill="url(#grid)"/><g id="coordinate-scene"><circle cx="160" cy="110" r="70" fill="none" stroke="#81949d" stroke-dasharray="4 4"/><line id="rotation-arm" x1="160" y1="110" x2="220.62" y2="145" stroke="#c45125" stroke-width="3"/><circle cx="160" cy="110" r="5" fill="#1a4556"/><circle cx="230" cy="110" r="5" fill="#81949d"/><circle id="rotated-point" cx="220.62" cy="145" r="6" fill="#c45125"/><text x="90" y="95">중심 c</text><text x="238" y="107">원래 p</text></g></svg><output id="coordinate-output" aria-live="polite">30°: 원본 회전 결과 약 (220.62,145.00). 배율은 형상을 바꾸지 않습니다.</output></div><p>화면 확대는 도형을 편집하지 않습니다. 반면 ROI 자체를 회전하면 문서의 형상이 바뀌어 이력에 남습니다. 역변환은 먼저 t와 c를 빼고 −θ로 회전한 뒤 c를 더합니다. 코드에서는 sin의 부호를 바꾸어 계산합니다.</p>
+</section>
+<section>
+<h2>ROI 내부와 AABB는 다른 질문</h2>
+<p>ROI(Region of Interest)는 관심 영역입니다. 회전 사각형 안에 마우스가 있는지 보려면 마우스를 ROI의 로컬 좌표로 역회전합니다. 그 뒤 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="|x| ≤ W/2"><semantics><mrow><mrow><mrow><mo>|</mo><mi>x</mi><mo>|</mo></mrow><mo>≤</mo><mfrac><mi>W</mi><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">|x| ≤ W/2</annotation></semantics></math>와 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="|y| ≤ H/2"><semantics><mrow><mrow><mrow><mo>|</mo><mi>y</mi><mo>|</mo></mrow><mo>≤</mo><mfrac><mi>H</mi><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">|y| ≤ H/2</annotation></semantics></math>를 검사합니다. 원은 중심과의 거리 제곱이 r² 이하인지, 폴리곤은 실제 변과 내부를 검사합니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="AABB 반너비 = (W|cos θ| + H|sin θ|)/2; AABB 반높이 = (W|sin θ| + H|cos θ|)/2"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mtext>AABB 반너비</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>W</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow><mo>+</mo><mi>H</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow></mrow><mn>2</mn></mfrac></mtd></mtr><mtr><mtd><mtext>AABB 반높이</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>W</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow><mo>+</mo><mi>H</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow></mrow><mn>2</mn></mfrac></mtd></mtr></mtable></mrow><annotation encoding="text/plain">AABB 반너비 = (W|cos θ| + H|sin θ|)/2; AABB 반높이 = (W|sin θ| + H|cos θ|)/2</annotation></semantics></math>
+</div><p>AABB는 축과 평행한 바깥 상자입니다. 빠르게 후보를 거르는 데 쓰지만 실제 도형보다 넓습니다. AABB가 겹친다고 실제 도형이 겹치거나 포함되는 것은 아닙니다. <code>RoiGeometry.Bounds</code>와 <code>Contains</code>를 구별하여 읽으세요. width=100, height=20, angle=90°의 AABB 크기는 약 20×100입니다.</p>
+<p><a href="../src/VisionGeometry/RigidTransform2D.cs">RigidTransform2D</a> · <a href="../src/VisionGeometry/RoiGeometry.cs">RoiGeometry</a> · <a href="../tests/TeachingToolWpf.Core.Tests/GeometryTests.cs">GeometryTests</a></p>
+<details><summary>직접 확인: c=(10,10), p=(20,10), θ=90°, t=(3,0)의 결과는?</summary><p>p−c=(10,0), 회전하면 (0,10), c를 더하면 (10,20), t를 더하면 (13,20)입니다. sin/cos는 부동소수점이라 극히 작은 오차가 있을 수 있습니다. 정확히 ==로 비교하기보다 오차 허용 범위를 정해 테스트합니다.</p>
+</details>
+</section>
+<section><h2>수식이 실제 C#이 되는 자리</h2>
+<p>ImageToScreen은 곱한 뒤 더하고, ScreenToImage는 뺀 뒤 나눕니다. ZoomAt은 마우스 아래 원본 좌표를 먼저 구한 후 새 Offset을 역산합니다. <code>with</code>는 기존 값을 바꾸지 않고 일부 필드만 다른 새 값을 만듭니다.</p>
+<details class="code-example" open><summary>ViewportTransform 전체 구현</summary>
+<p class="source">현재 저장소 코드 · 파일 전체 · <a href="../src/VisionGeometry/ViewportTransform.cs">src/VisionGeometry/ViewportTransform.cs</a></p>
+<pre tabindex="0" aria-label="ViewportTransform 전체 구현"><code data-source="../src/VisionGeometry/ViewportTransform.cs" data-kind="full">namespace VisionGeometry;
+
+/// &lt;summary&gt;원본 이미지 좌표와 뷰포트 DIP 좌표를 변환한다. 물리 픽셀/DPI 변환은 호스트가 담당한다.&lt;/summary&gt;
+public readonly record struct ViewportTransform(double Scale, PointD Offset)
+{
+    public static ViewportTransform Identity =&gt; new(1, new(0, 0));
+
+    public PointD ImageToScreen(PointD point) =&gt; (point * Scale) + Offset;
+
+    public PointD ScreenToImage(PointD point) =&gt; (point - Offset) / Scale;
+
+    public ViewportTransform Pan(PointD delta) =&gt; this with { Offset = Offset + delta };
+
+    public ViewportTransform ZoomAt(PointD anchor, double factor)
+    {
+        if (!double.IsFinite(factor) || factor &lt;= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(factor));
+        }
+
+        var scale = Math.Clamp(Scale * factor, 0.00001, 128);
+        // anchor 아래의 원본 좌표가 확대 후에도 같은 화면 위치에 오도록 Offset을 역산한다.
+        return new(scale, anchor - (ScreenToImage(anchor) * scale));
+    }
+
+    public static ViewportTransform Fit(double imageWidth, double imageHeight, double viewWidth, double viewHeight)
+    {
+        if (imageWidth &lt;= 0 || imageHeight &lt;= 0 || viewWidth &lt;= 0 || viewHeight &lt;= 0)
+        {
+            return Identity;
+        }
+
+        // 두 축 모두 들어가는 배율에 여백을 두고, 남은 공간의 절반만큼 이동해 중앙에 둔다.
+        var scale = Math.Min(viewWidth / imageWidth, viewHeight / imageHeight) * 0.92;
+        return new(scale, new(
+            (viewWidth - (imageWidth * scale)) / 2,
+            (viewHeight - (imageHeight * scale)) / 2));
+    }
+}</code></pre>
+</details>
+</section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="01-image.html">← 01. 이미지는 숫자다</a><a href="03-processing.html">03. 필터·윤곽·마스크 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

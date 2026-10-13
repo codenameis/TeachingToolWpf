@@ -1,5 +1,7 @@
 # 코드를 읽기 시작하는 순서
 
+C# 문법을 막 배웠다면 [신입용 HTML 실습서](../manual/index.html)의 픽셀 → 좌표 → 필터 → 설계 → 편집 → 표시 순서로 시작한다. [직접 구축 실습](../manual/09-build.html)은 실행 가능한 작은 호스트를 제공한다. 이력은 [DocumentEdit](../src/VisionCanvas.Core/Editing/DocumentEdit.cs)(편집 차이), [HistoryStep](../src/VisionCanvas.Core/Editing/HistoryStep.cs)(준비 요청), [PreparedHistoryStep](../src/VisionCanvas.Core/Editing/PreparedHistoryStep.cs)(준비 결과), [EditHistory](../src/VisionCanvas.Core/Editing/EditHistory.cs)(목록·커서·예산)의 순서로 나누어 읽는다. [정리 범위와 실행 명령 비교](beginner-manual-validation.md).
+
 이 앱은 **입력 → 편집 상태 → 화면 그리기**로 읽으면 된다. ROI 규칙을 바꾸기 위해 DX12 포인터나 셰이더부터 이해할 필요는 없다. 순수 기하는 `VisionGeometry`, 편집 상태는 `VisionCanvas.Core`, 영상 수명 계약은 `VisionImaging.Abstractions`가 소유한다. WPF 연결은 앱의 Presentation이, GPU 자원은 `VisionCanvas`의 Rendering이 소유한다.
 
 식별자와 괄호는 [Microsoft 기준 C# 컨벤션](csharp-code-conventions.md)을 따른다. `_viewport`는 인스턴스 필드, `s_procedure`는 정적 필드, `SizeInBytes`는 상수 또는 속성처럼 이름으로 역할을 구분한다. 지속 지침은 [AGENTS.md](../AGENTS.md), 검사 설정은 [`.editorconfig`](../.editorconfig)에 있다.
@@ -15,6 +17,7 @@
 | 사각형·원·삼각형·폴리곤 | [RoiGeometry](../src/VisionGeometry/RoiGeometry.cs), [RoiShape](../src/VisionGeometry/RoiShape.cs) | 공통 프레임과 불변 윤곽 전략. FrameCorners는 실제 도형이 아닌 편집 프레임 |
 | 폴리곤 점 입력·교차점 닫힘 | [RoiCreation](../src/TeachingToolWpf/Presentation/EditorViewModel.RoiCreation.cs), [PolygonClosure](../src/VisionCanvas.Core/Geometry/PolygonClosure.cs) | 추가 버튼은 빈 초안 시작. 첫 교차점의 닫힌 경로만 한 번 확정 |
 | 드래그 중 이동·회전·취소 | [InteractionController](../src/VisionCanvas.Core/Interaction/InteractionController.cs), [Gestures](../src/VisionCanvas.Core/Interaction/Gestures.cs) | 이미지 좌표와 도구 상태 |
+| 메인 편집기의 1억 ROI | [RepeatedRoiBatch](../src/VisionCanvas.Core/Editing/RepeatedRoiBatch.cs), [RoiCellSet](../src/VisionCanvas.Core/Editing/RoiCellSet.cs), [EditorSession.Repeated](../src/VisionCanvas.Core/Editing/EditorSession.Repeated.cs), [RepeatedRoiPipeline](../src/VisionCanvas/Rendering/RepeatedRoiPipeline.cs) | 배치/셀 ID, 부분 선택·복붙·변환, 개별 수정값, 공통 문서 이력. [사용법·실측·한계](main-editor-repeated-roi-validation.md) |
 | 큰 선택 집합의 준비·최신 포인터 | [RoiPreviewPreparation](../src/TeachingToolWpf/Presentation/RoiPreviewPreparation.cs) | 작업 하나만 실행, 이전 드래그 결과는 폐기 |
 | 무거운 편집의 준비·확정 | [EditorViewModel.Editing](../src/TeachingToolWpf/Presentation/EditorViewModel.Editing.cs) | 작업 스레드 준비 후 UI에서 유효성 확인·확정 |
 | 명시적 부모·자식 연결 | [RoiHierarchy](../src/VisionCanvas.Core/Editing/RoiHierarchy.cs) | ParentId와 하위 트리 순회. 겹침으로 연결하지 않으며 부모 밖에서도 관계 유지 |

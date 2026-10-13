@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="처음 만나는 픽셀부터 직접 만드는 편집기까지"><title>C# 다음, 비전 캔버스 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html" aria-current="page">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main">
+<div class="hero"><span class="eyebrow">VISIONCANVAS · 신입 개발자 실습서</span><h1>C# 문법을 알면,<br>여기서 시작하세요.</h1>
+<p>영상처리 용어를 외우기 전에 작은 숫자를 손으로 계산합니다. 그 숫자가 좌표가 되고, ROI가 되고, 스레드 사이를 건너 화면에 도착하는 과정을 따라갑니다.</p>
+<a class="button" href="01-image.html">01. 이미지는 숫자다 →</a></div>
+<section>
+<h2>이 책의 출발점과 도착점</h2>
+<p>변수, 조건문, 반복문, 메서드, 클래스, 배열을 배운 독자를 가정합니다. 삼각함수·행렬·GPU·WPF·불변 자료구조는 처음이어도 됩니다. 목표는 모든 GPU 코드를 외우는 것이 아니라, <strong>입력과 결과를 설명하고, 올바른 책임에 코드를 놓고, 테스트로 안전을 확인하며 작은 VisionCanvas 호스트를 만드는 것</strong>입니다.</p>
+<p>예제는 이 저장소의 실제 C# API를 사용합니다. <strong>코드는 본문에서 바로 읽거나 제목을 눌러 펼칠 수 있습니다.</strong> 9장에는 실습 두 프로젝트의 전체 파일을 넣었습니다. 수식 옆의 숫자는 교육용 예제이며 벤치마크가 아닙니다. 각 장의 ‘직접 확인’에는 예상 결과와 풀이가 있습니다. 모르는 단어는 <a href="12-reference.html">용어 사전</a>에서 찾으세요.</p>
+</section>
+<section>
+<h2>차례와 학습 경로</h2>
+<div class="chapter-grid" id="chapter-list"></div><noscript><ol>
+<li><a href="01-image.html">이미지·카메라·메모리</a></li><li><a href="02-coordinates.html">좌표·확대·회전</a></li><li><a href="03-processing.html">필터·윤곽·마스크</a></li><li><a href="04-design.html">프로젝트 경계·SOLID·GRASP</a></li><li><a href="05-editing.html">ROI·선택·이력</a></li><li><a href="06-streaming.html">타일·영상·소유권</a></li><li><a href="07-rendering.html">WPF·DX12 렌더링</a></li><li><a href="08-inspection.html">패턴 학습·검사</a></li><li><a href="09-build.html">직접 구축하는 순서</a></li><li><a href="10-review.html">리뷰·디버깅·성능 측정</a></li><li><a href="11-refactoring.html">이번 리팩터링과 검증</a></li><li><a href="12-reference.html">용어·수식·출처</a></li></ol>
+</noscript></section>
+<section>
+<h2>읽는 방법</h2>
+<ol><li><strong>1~3장:</strong> 계산기를 움직이고 종이에 같은 값을 계산합니다. 픽셀과 화면 좌표를 구분할 수 있으면 다음으로 갑니다.</li><li><strong>4~6장:</strong> 본문의 실제 코드에서 누가 데이터를 소유하는지 따라갑니다. 생성한 객체의 마지막 사용과 해제까지 설명해 봅니다. 6장의 창 이동 실험으로 필요한 타일 주소를 직접 계산합니다.</li><li><strong>7~9장:</strong> 준비된 작은 호스트를 실행한 뒤 새 프로젝트에 필요한 연결을 순서대로 옮겨 봅니다.</li><li><strong>10~12장:</strong> 리뷰 체크리스트로 자신의 변경을 검토하고 실패도 기록합니다.</li></ol>
+<p>장마다 권장 시간은 정하지 않았습니다. ‘직접 확인’을 스스로 설명할 수 있을 때 넘어가세요. 한 번에 전체 렌더러를 바꾸는 연습은 하지 않습니다.</p>
+</section>
+<aside class="note"><h2>현재 구현을 읽을 때의 약속</h2>
+<p>기준일은 2026-10-13입니다. 실시간 입력 요구는 최소 8K, 파일 입력은 별도의 24K급 완성 이미지입니다. 라인 스캔 수집·조립, 딥러닝은 현재 범위가 아닙니다. 반복 격자 100,020,001개와 일반 ROI 문서는 표현 방법이 다릅니다. 엄격한 60FPS 및 논문 형상 검사 CPU 125ms/CUDA 80ms 목표는 기존 검증에서 미달입니다. 매뉴얼 작성이 그 목표를 통과시킨 것은 아닙니다.</p>
+<p><a href="../tasks/todo.md">최신 상태</a> · <a href="../docs/main-editor-repeated-roi-validation.md">대량 ROI 실측</a> · <a href="../docs/paper-shape-125ms-validation.md">검사 실측</a></p>
+</aside>
+<section>
+<h2>준비물과 첫 실행</h2>
+<p>Windows x64, .NET 10 SDK와 이 저장소가 필요합니다. 관리자 권한은 일반적인 빌드에 필요하지 않습니다. 명령은 저장소 최상위 폴더의 PowerShell에서 실행합니다.</p>
+<pre><code>dotnet restore TeachingToolWpf.slnx
+dotnet build TeachingToolWpf.slnx -c Release --no-restore -m:1
+dotnet run --project samples/VisionCanvas.Sample -c Release</code></pre><p>처음 복원은 패키지 다운로드가 필요합니다. 매뉴얼 자체는 <code>manual/index.html</code>을 브라우저로 열면 됩니다. 서버·CDN·인터넷 없이 본문·수식·실험이 작동합니다. 외부 참고 문서만 인터넷이 필요합니다. <code>.cs</code> 링크는 브라우저에 따라 다운로드될 수 있으므로 같은 경로를 IDE에서 열어도 됩니다.</p>
+</section>
+<nav class="pager" aria-label="이전과 다음 장"><span>여기서 시작</span><a href="01-image.html">01. 이미지는 숫자다 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

@@ -1,5 +1,16 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-13 원격 반영 후속 승인:** 사용자가 현재 프로젝트 변경 전체의 검증 후 커밋·푸시와 main 반영을 요청했다. 이미 main에서 작업 중이며 별도 미병합 브랜치는 없으므로 main의 일반 커밋·푸시로 반영한다. 아래 로컬 작업 선택은 구현 당시 기록이다. [반영 전 검증](todo.md)을 따른다.
+
+- **2026-10-13 신입 학습 후속:** 기존 성능·동작·구조를 보존하며 기하·타일 변수/수식의 의미와 이력 타입별 읽기 경계를 정리한다. [한국어 HTML 실습서](../manual/index.html)는 픽셀·수식·SOLID/GRASP부터 실제 Canvas 호스트 구축까지 설명한다. [검증 범위](../docs/beginner-manual-validation.md)는 IL 동등성·기능 회귀와 프레임 성능 실측을 구별한다. 사용자 선택에 따라 로컬 수정·검증만 진행한다.
+
+- **2026-10-13 범용 개선:** 기존 Painter/Pipeline 두 파일에서 불투명 상세 타일에 완전히 가려지는 개요 그리기를 생략한다. CPU 모델별 상수 없이 GPU/WARP 공통 작업량을 줄이며, 투명도·누락 타일·미니맵을 보존한다. [실측·검증](../docs/opaque-tile-overdraw.md)의 WARP 약36→59~60FPS와 엄격한60FPS 미달을 구별한다.
+- **2026-10-13 CPU 챌린지:** 기존 Pipeline/HLSL 두 파일 안에서 WARP의 빈 픽셀 처리 순서만 개선하고 GPU 순서는 보존한다. 실제 프로세스 CPU 시간·프레임 간격·실행물 해시를 비교하며,60FPS 미달과 제외한 후보는 [CPU 실측](../docs/repeated-roi-cpu-challenge.md)에 기록한다. 큰 범위 변경은 먼저 질문한다.
+
+- **2026-10-13 DX12 국소 최적화:** 전체 구조 변경 전에 사용자에게 질문하며, 현재는 Surface/Worker/Metrics 안에서 표시 대기 순서·최신 입력 소비·진단만 개선한다. DXGI waitable swap chain과 안전 fence를 함께 유지하고 입력 경과, 제출 간격, 표시 카운터를 별도로 비교한다. [실측과 검증](../docs/dx12-frame-pacing.md).
+
+- **2026-10-13 메인 편집기 1억 ROI 후속:** 사용자 정정과 **공통 문서 확장까지 진행** 승인에 따라 [ADR-042](../docs/decisions/0042-main-editor-repeated-rois.md)의 압축 배치/셀 범위를 기존 문서·입력·목록/속성·클립보드·이력에 연결한다. **1억 ROI 테스트** 버튼은 현재 이미지 중심에100,020,001개를 추가한다. 일반30만 개의15만/20만 선택을 따로 개선·측정하고, 반복 배치의 부분/전체 복붙·이동/회전·개별 편집을 메인 앱에서 검증한다. 이전 ADR-041 별도 창 시험과 구분하며 엄격한60FPS 미달은 [새 실측](../docs/main-editor-repeated-roi-validation.md)에 기록한다. 커밋/푸시·원칙 예외 없음.
+
 - **2026-10-06 ROI 마스킹:** [ADR-040](../docs/decisions/0040-roi-masking.md). 정규화 사각형/타원 제외 영역, GPU 사선 음영, 통합 편집 이력과 복사, 원본 학습 마스크와 선택 검사 대상 제외. 표시 토글과 검사 적용을 분리한다. [사용법·검증](../docs/roi-masking.md).
 
 - **2026-10-06 MVVM 필터 컨트롤:** [ADR-039](../docs/decisions/0039-filter-controls-and-continuous-preview.md). 별도 VisionCanvas.Filters.Wpf가 패널·파라미터·토글을 소유한다. 슬라이더 임시 결과와 한 번의 이력 확정을 분리하고, 연속 이동 중 단일 worker/최신 대기 요청으로 갱신한다. [검증](../docs/filter-controls.md).

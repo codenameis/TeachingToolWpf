@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-13",
+  "branch": "main",
+  "delivery": "local-only; no commit or push",
+  "normalizedIl": {
+    "status": "PASS",
+    "methodBodies": 151,
+    "beforeSha256": "74560E26D97CC003471B9B3B017215CB4CC90BFE3A69CCFE85DDFA3669311263",
+    "afterSha256": "74560E26D97CC003471B9B3B017215CB4CC90BFE3A69CCFE85DDFA3669311263",
+    "scope": "Changed production types and generated nested types; normalized operands, locals, exception clauses and stack metadata"
+  },
+  "regressions": {
+    "core": 296,
+    "canvas": 222,
+    "imaging": 274,
+    "failed": 0,
+    "skipped": 0
+  },
+  "foundationsChecks": 11,
+  "htmlStatic": {
+    "pages": 13,
+    "localLinksAndAssets": 322,
+    "failures": 0
+  },
+  "javascriptContractChecks": 15,
+  "canvasHostRuntime": {
+    "renderer": "DX12 · GPU · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False",
+    "capture": {
+      "PixelWidth": 1628,
+      "PixelHeight": 986
+    },
+    "status": "PASS",
+    "scope": "Actual LessonWindow startup, 8192 tile display, session delete/undo/redo, decoded GPU capture. No physical pointer or frame-budget test."
+  },
+  "limitations": [
+    "Browser file:// navigation blocked; actual HTML layout/print/browser events not verified",
+    "Existing full-format check fails in 4 unrelated files at 14 line endings",
+    "No new frame-budget benchmark; existing 60FPS and inspection targets remain unmet",
+    "Temporary host smoke harness retains a cached NU1900 restore warning; delivered projects build without warnings"
+  ],
+  "inlineCodeAndTilingFollowup": {
+    "date": "2026-10-13",
+    "delivery": "local-only; no commit or push",
+    "productionSourceChanges": false,
+    "htmlStatic": {
+      "pages": 13,
+      "localLinksAndAssets": 335,
+      "failures": 0
+    },
+    "inlineSourceMatches": 16,
+    "completeLabFiles": 6,
+    "interactiveLabsTotal": 5,
+    "actualTilePlannerCases": 10,
+    "javascriptContractChecks": 25,
+    "thresholdCsharpExample": {
+      "status": "PASS",
+      "result": "0, 0, 255, 255"
+    },
+    "temporaryVerifierBuild": {
+      "status": "PASS",
+      "warnings": 0,
+      "errors": 0
+    },
+    "browserValidation": "BLOCKED: earlier file:// tool policy; no workaround attempted",
+    "scope": "Static source/HTML checks and minimal DOM contract tests, not browser rendering or FPS measurement"
+  },
+  "mathTypesettingFollowup": {
+    "date": "2026-10-13",
+    "delivery": "local-only; no commit or push",
+    "format": "Native MathML; no external runtime dependencies",
+    "expressions": 47,
+    "displayExpressions": 20,
+    "inlineExpressions": 27,
+    "structuralValidation": "PASS",
+    "transcriptionChecks": 6,
+    "htmlPages": 13,
+    "localReferences": 335,
+    "inlineSourceMatches": 16,
+    "productionSourceChanges": false,
+    "browserValidation": "BLOCKED: existing file:// tool policy; actual rendering, accessibility and print not verified"
+  }
+}

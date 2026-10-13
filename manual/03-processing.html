@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="주변 픽셀을 계산하면 무엇이 달라질까"><title>03. 필터·윤곽·마스크 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html" aria-current="page">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>03. 필터·윤곽·마스크</h1>
+<p>주변 픽셀을 계산하면 무엇이 달라질까</p>
+</div>
+<section>
+<h2>이진화: 밝기에서 두 가지 상태로</h2>
+<p>임계값 T를 정해 픽셀이 T보다 밝으면 255, 아니면 0으로 바꿉니다. 픽셀값을 외운 것이 아니라 조건문 한 줄을 적용한 것입니다. 아래 실험은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="I &gt; T"><semantics><mrow><mrow><mi>I</mi><mo>&gt;</mo><mi>T</mi></mrow></mrow><annotation encoding="text/plain">I &gt; T</annotation></semantics></math> 규칙을 사용합니다. ≥와 &gt;는 경계값에서 결과가 다르므로 API 규칙을 확인해야 합니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="B(x,y) = 255 if I(x,y) &gt; T; 0 if I(x,y) ≤ T"><semantics><mrow><mrow><mrow><mi mathvariant="normal">B</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><mo>)</mo></mrow></mrow><mo>=</mo><mo>{</mo><mtable class="math-cases"><mtr><mtd><mn>255</mn></mtd><mtd><mrow><mrow><mi mathvariant="normal">I</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><mo>)</mo></mrow></mrow><mo>&gt;</mo><mi>T</mi></mrow></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mrow><mrow><mi mathvariant="normal">I</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><mo>)</mo></mrow></mrow><mo>≤</mo><mi>T</mi></mrow></mtd></mtr></mtable></mrow></mrow><annotation encoding="text/plain">B(x,y) = 255 if I(x,y) &gt; T; 0 if I(x,y) ≤ T</annotation></semantics></math>
+</div><div class="lab" id="threshold-lab"><h3>실험: 임계값과 흰 픽셀 개수</h3>
+<label>임계값 T <input id="threshold" type="range" min="0" max="255" value="100"></label><div class="pixel-pair"><div><h4>원본 Gray8</h4>
+<div class="pixel-grid" id="original-pixels"></div></div><div><h4>이진화 결과</h4>
+<div class="pixel-grid" id="binary-pixels"></div></div></div><output id="threshold-output" aria-live="polite">T=100. 값을 바꾸면 밝은 영역의 크기가 변합니다.</output></div><p>조명이 바뀌면 같은 부품의 픽셀도 달라집니다. 특정 이미지에서 잘 되는 T가 다른 현장에서도 정답이라고 할 수 없습니다. 히스토그램은 각 밝기의 개수를 세어 분포를 보여줍니다. 평균 밝기만 보지 말고 포화(최댓값에 몰림)와 어두운 영역의 잡음도 확인하세요.</p>
+</section>
+<section><h2>조건문으로 읽는 이진화 예제</h2>
+<p>다음은 위 실험의 규칙을 C#으로 옮긴 독립 학습 코드입니다. 제품의 필터 구현을 대체하는 코드는 아닙니다. 입력과 출력 배열을 나누어 원본을 보존합니다. T=100일 때 결과는 <code>0, 0, 255, 255</code>입니다.</p>
+<pre tabindex="0" aria-label="C# 이진화 학습 예제"><code>byte[] original = [20, 100, 160, 220];
+byte threshold = 100;
+byte[] binary = new byte[original.Length];
+
+for (int index = 0; index &lt; original.Length; index++)
+{
+    binary[index] = original[index] &gt; threshold ? (byte)255 : (byte)0;
+}
+
+System.Console.WriteLine(string.Join(", ", binary));</code></pre>
+<p><code>?</code> 앞 조건이 참이면 255, 거짓이면 0입니다. 실제 OpenCV 호출은 <code>Cv2.Threshold(gray, output, settings.Threshold, 255, ThresholdTypes.Binary)</code>이며, 그 앞뒤의 Gray8 변환·마스크·수명 처리는 별도 책임입니다.</p>
+</section>
+<section>
+<h2>커널: 작은 계산표를 옮겨 가며 적용하기</h2>
+<p>커널은 픽셀 주변에 곱할 가중치의 작은 표입니다. 3×3 평균 필터는 9개 픽셀을 더해 9로 나눕니다. <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="시그마: 합"><semantics><mrow><mo>∑</mo></mrow><annotation encoding="text/plain">시그마: 합</annotation></semantics></math>(시그마)는 ‘해당 항들을 모두 더한다’는 기호입니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="J(x,y) = Σ(v=−1..1) Σ(u=−1..1) K(u,v)·I(x+u,y+v)"><semantics><mrow><mrow><mrow><mi mathvariant="normal">J</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>x</mi><mo>,</mo><mi>y</mi></mrow><mo>)</mo></mrow></mrow><mo>=</mo><mrow><munderover><mo>∑</mo><mrow><mi>v</mi><mo>=</mo><mrow><mo>−</mo><mn>1</mn></mrow></mrow><mn>1</mn></munderover><mrow><munderover><mo>∑</mo><mrow><mi>u</mi><mo>=</mo><mrow><mo>−</mo><mn>1</mn></mrow></mrow><mn>1</mn></munderover><mrow><mrow><mi mathvariant="normal">K</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>u</mi><mo>,</mo><mi>v</mi></mrow><mo>)</mo></mrow></mrow><mo>·</mo><mrow><mi mathvariant="normal">I</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mi>x</mi><mo>+</mo><mi>u</mi></mrow><mo>,</mo><mrow><mi>y</mi><mo>+</mo><mi>v</mi></mrow></mrow><mo>)</mo></mrow></mrow></mrow></mrow></mrow></mrow></mrow><annotation encoding="text/plain">J(x,y) = Σ(v=−1..1) Σ(u=−1..1) K(u,v)·I(x+u,y+v)</annotation></semantics></math>
+</div><p>I는 입력, J는 출력, K는 가중치입니다. 이 표기는 커널을 뒤집지 않는 상관(correlation) 형태입니다. 엄밀한 convolution은 K 또는 입력의 이동 방향을 뒤집습니다. 대칭 평균·Gaussian 커널은 뒤집어도 같지만 비대칭 커널은 부호·방향에 차이가 생깁니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="K = (1/9)[1,1,1;1,1,1;1,1,1]; I = [10,10,10;10,100,10;10,10,10]; 가운데 출력 = (8×10+100)/9 = 20"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>K</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mfrac><mn>1</mn><mn>9</mn></mfrac><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mtd></mtr><mtr><mtd><mi>I</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mn>10</mn></mtd><mtd><mn>10</mn></mtd><mtd><mn>10</mn></mtd></mtr><mtr><mtd><mn>10</mn></mtd><mtd><mn>100</mn></mtd><mtd><mn>10</mn></mtd></mtr><mtr><mtd><mn>10</mn></mtd><mtd><mn>10</mn></mtd><mtd><mn>10</mn></mtd></mtr></mtable><mo>]</mo></mrow></mtd></mtr><mtr><mtd><mtext>가운데 출력</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mfrac><mrow><mn>8</mn><mo>×</mo><mn>10</mn><mo>+</mo><mn>100</mn></mrow><mn>9</mn></mfrac><mo>=</mo><mn>20</mn></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">K = (1/9)[1,1,1;1,1,1;1,1,1]; I = [10,10,10;10,100,10;10,10,10]; 가운데 출력 = (8×10+100)/9 = 20</annotation></semantics></math>
+</div><p>잡음 한 점은 약해지지만 작은 결함도 함께 흐려집니다. 입력 배열에 바로 결과를 덮어쓰면 다음 픽셀이 이미 변경된 이웃을 읽게 됩니다. 일반적으로 입력과 출력 저장소를 분리하거나 연산에 맞는 행 버퍼를 사용합니다. 이미지 가장자리 바깥은 0, 반복, 반사 등 규칙을 정해야 하며 서로 다른 규칙의 결과를 같은 것으로 비교하면 안 됩니다.</p>
+<p>Gaussian(가우시안) 필터는 가까운 픽셀에 더 큰 가중치를 줍니다. 1차원에서 가중치는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="exp(−x²/(2σ²))"><semantics><mrow><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mfrac><mrow><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">exp(−x²/(2σ²))</annotation></semantics></math>에 비례하며 합이 1이 되도록 나눕니다. σ는 퍼지는 폭입니다. 큰 σ가 더 넓게 흐리지만 더 정확하다는 뜻은 아닙니다. 분리 가능한 커널은 가로·세로 두 번으로 계산량을 줄일 수 있습니다.</p>
+<p class="source">개념 참고: <a href="https://docs.opencv.org/4.13.0/d4/d13/tutorial_py_filtering.html">OpenCV 필터 공식 튜토리얼</a>. 위 숫자 예와 실험은 이 매뉴얼의 독립 예제입니다.</p>
+</section>
+<section>
+<h2>Sobel: 밝기가 변하는 방향 찾기</h2>
+<p>gradient(기울기)는 ‘어느 방향으로 얼마나 밝기가 변하는가’입니다. Sobel은 왼쪽과 오른쪽, 위와 아래의 차이를 이웃 가중치와 함께 계산합니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Sobel 가로 커널 Kx = [−1,0,1;−2,0,2;−1,0,1]; 세로 커널 Ky = [−1,−2,−1;0,0,0;1,2,1]"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msub><mi>K</mi><mi>x</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mrow><mo>−</mo><mn>2</mn></mrow></mtd><mtd><mn>0</mn></mtd><mtd><mn>2</mn></mtd></mtr><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mtd></mtr><mtr><mtd><msub><mi>K</mi><mi>y</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mrow><mo>−</mo><mn>2</mn></mrow></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">Sobel 가로 커널 Kx = [−1,0,1;−2,0,2;−1,0,1]; 세로 커널 Ky = [−1,−2,−1;0,0,0;1,2,1]</annotation></semantics></math>
+</div><div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="m = √(Gx² + Gy²); φ = atan2(Gy,Gx)"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>m</mi></mtd><mtd><mo>=</mo></mtd><mtd><msqrt><mrow><msup><msub><mi>G</mi><mi>x</mi></msub><mn>2</mn></msup><mo>+</mo><msup><msub><mi>G</mi><mi>y</mi></msub><mn>2</mn></msup></mrow></msqrt></mtd></mtr><mtr><mtd><mi>φ</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi mathvariant="normal">atan2</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><msub><mi>G</mi><mi>y</mi></msub><mo>,</mo><msub><mi>G</mi><mi>x</mi></msub></mrow><mo>)</mo></mrow></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">m = √(Gx² + Gy²); φ = atan2(Gy,Gx)</annotation></semantics></math>
+</div><p>K<sub>x</sub>와 K<sub>y</sub>는 커널, G<sub>x</sub>와 G<sub>y</sub>는 각 커널로 계산한 기울기 성분입니다. √는 제곱근입니다. atan2는 x·y 성분으로부터 사분면을 포함한 각도를 구합니다. 왼쪽이 0, 오른쪽이 100인 수직 경계 예에서는 Gx가 크고 Gy≈0입니다. <strong>기울기 방향은 경계선을 따라가는 방향과 직각</strong>입니다. Canny는 평활화 → 기울기 → 국소 최대만 남기기 → 두 임계값으로 약한 경계 연결의 순서로 얇은 윤곽을 만듭니다. Sobel과 Canny를 같은 연산이라고 부르지 않습니다.</p>
+<p class="source"><a href="https://docs.opencv.org/4.10.0/d2/d2c/tutorial_sobel_derivatives.html">OpenCV Sobel 설명</a></p>
+</section>
+<section>
+<h2>축소와 보간</h2>
+<p>2×2 픽셀 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2행 2열 행렬 [0,100;100,200]"><semantics><mrow><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mn>0</mn></mtd><mtd><mn>100</mn></mtd></mtr><mtr><mtd><mn>100</mn></mtd><mtd><mn>200</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><annotation encoding="text/plain">2행 2열 행렬 [0,100;100,200]</annotation></semantics></math>을 하나로 줄이는 면적 평균은 100입니다. 왼쪽 위만 가져오면 0이 되어 전혀 다른 밝기가 됩니다. nearest는 가장 가까운 값 하나, bilinear는 인접 네 값을 거리에 따라 섞습니다. 화면 보간과 원본 검사 리샘플링 규칙은 별도입니다.</p>
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="bilinear = (1−a)(1−b)P₀₀ + a(1−b)P₁₀ + (1−a)bP₀₁ + abP₁₁"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi mathvariant="normal">bilinear</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>a</mi></mrow><mo>)</mo></mrow><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>b</mi></mrow><mo>)</mo></mrow><msub><mi>P</mi><mn>00</mn></msub><mo>+</mo><mi>a</mi><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>b</mi></mrow><mo>)</mo></mrow><msub><mi>P</mi><mn>10</mn></msub></mrow></mtd></mtr><mtr><mtd></mtd><mtd></mtd><mtd><mrow><mo>+</mo><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>a</mi></mrow><mo>)</mo></mrow><mi>b</mi><msub><mi>P</mi><mn>01</mn></msub><mo>+</mo><mi>a</mi><mi>b</mi><msub><mi>P</mi><mn>11</mn></msub></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">bilinear = (1−a)(1−b)P₀₀ + a(1−b)P₁₀ + (1−a)bP₀₁ + abP₁₁</annotation></semantics></math>
+</div><p>a,b는 가로·세로 소수 부분(0~1)입니다. 가운데 a=b=0.5에서는 네 값 평균입니다. 4×나 8× 축소를 단순 bilinear만으로 처리하면 모든 원본 픽셀을 반영하지 못할 수 있습니다. 이 저장소의 검사 축소는 원본 level-0에서 면적 평균하는 계약을 유지합니다.</p>
+</section>
+<section>
+<h2>마스크: 계산 대상의 경계</h2>
+<p>마스크는 유효 영역인지 알려 주는 값입니다. 이진 유효 마스크 M이 1인 픽셀만 평균한다면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="평균 = Σ(i=1..n)(Mi·Ii) / Σ(i=1..n)Mi"><semantics><mrow><mrow><mtext>평균</mtext><mo>=</mo><mfrac><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><msub><mi>M</mi><mi>i</mi></msub><mo>·</mo><msub><mi>I</mi><mi>i</mi></msub></mrow></mrow><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>M</mi><mi>i</mi></msub></mrow></mfrac></mrow></mrow><annotation encoding="text/plain">평균 = Σ(i=1..n)(Mi·Ii) / Σ(i=1..n)Mi</annotation></semantics></math>입니다. ΣM=0이면 대상이 없다는 오류 또는 빈 결과를 명시해야 합니다. 마스크 밖의 0과 실제 검은 픽셀 0은 같지 않습니다.</p>
+<p>이 프로젝트의 ROI 제외 영역은 정규화 로컬 좌표에 저장되어 ROI 이동·회전·resize를 따라갑니다. ‘제외 마스크=1’은 앞 수식의 ‘유효 마스크=1’과 반대 의미일 수 있으므로 이름과 계약을 봅니다. 표시 음영을 껐다고 검사 제외 설정이 사라지는 것은 아닙니다.</p>
+<p><a href="../src/VisionGeometry/MaskRegion.cs">MaskRegion</a> · <a href="../docs/roi-masking.md">실제 마스크 정책</a> · <a href="../docs/industrial-roi-filters.md">필터 미리보기의 범위</a></p>
+<aside class="note">ROI 필터 미리보기는 긴 축 최대 1024px, 라이브 최대 5Hz입니다. 8K 원본 검사나 60FPS 필터 계산으로 해석하지 않습니다. Gray16 원본 보존과 최종 표시용 변환도 구별합니다.</aside>
+<details><summary>직접 확인: [20,40,200]에서 마지막 픽셀을 제외한 평균은?</summary><p>(20+40)/2=30입니다. 제외 픽셀을 0으로 바꾸고 세 개로 나누면 20이 되어 틀립니다. 분모에서도 제외해야 합니다.</p>
+</details>
+</section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="02-coordinates.html">← 02. 좌표·확대·회전</a><a href="04-design.html">04. 책임을 나누는 설계 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>

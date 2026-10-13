@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="범위와 증거를 읽는 예시"><title>11. 이번 리팩터링과 검증 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html" aria-current="page">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
+</aside>
+<main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>11. 이번 리팩터링과 검증</h1>
+<p>범위와 증거를 읽는 예시</p>
+</div>
+<section>
+<h2>가정과 변경 범위</h2>
+<p>요청은 C# 문법을 막 배운 개발자가 리뷰할 수 있는 가독성, SOLID·GRASP 유지, 성능 보존입니다. 기존 main 작업 트리의 대량 ROI·DX12 변경을 기준으로 삼았습니다. 기존 클래스의 역할·공개 API·알고리즘·GPU 수명 구조를 바꾸지 않고 학습의 출발 경로를 정리했습니다. 저장소 전체의 모든 복잡한 코드를 재작성한 것은 아닙니다.</p>
+<table><thead><tr><th>대상</th><th>바꾼 표현</th><th>보존한 계약</th></tr></thead><tbody><tr><td>EditHistory.cs</td><td>이미 별개였던 DocumentEdit, HistoryStep, PreparedHistoryStep을 별도 파일로 이동. 책임 주석</td><td>namespace·타입·서명·전후 차이·예산·검증·캐시·이력 순서</td></tr><tr><td>TilePlanner</td><td>원본 좌표/타일 범위/제외 끝이 드러나는 지역 이름과 설명</td><td>LOD 선택·계산 순서·타일 순서·할당 방식</td></tr><tr><td>ViewportTransform / RigidTransform2D</td><td>단위·확대 anchor·회전/역변환 수식과 단계 주석</td><td>연산 순서·오차·배율 제한·구조체 값</td></tr><tr><td>RoiGeometry</td><td>도형명 switch 읽기 순서와 회전 경계의 반너비/반높이 명칭</td><td>실제 포함 판정·AABB 식·불변 형상</td></tr><tr><td>manual</td><td>오프라인 HTML, 실험 5개, 본문 실제 코드16곳, C# 실습 2개 전체 코드</td><td>제품 실행에 문서/예제 의존성을 추가하지 않음</td></tr></tbody></table>
+</section>
+<section>
+<h2>실행 명령 비교가 말해 주는 것</h2>
+<p>Release 빌드의 관련 타입과 생성된 하위 타입에서 151개 메서드 본문을 추출했습니다. 파일 이동으로 바뀔 수 있는 메타데이터 토큰은 대상 타입·멤버 이름으로 해석한 뒤, IL 명령·피연산자·지역 변수 형식·예외 구성·스택 정보를 비교했습니다. 모두 일치했습니다. 이는 이번 변경에서 추가 실행 연산·복사·할당이 생기지 않았다는 근거입니다.</p>
+<p>소스 이름·파일 위치·PDB·메타데이터 배치가 달라지므로 DLL 전체 해시가 같아야 한다는 뜻은 아닙니다. 동일 IL 비교를 GPU 실측이나 모든 하드웨어에서의 절대 시간 동일성 보장으로 확대하지 않습니다. 이 작업에서는 새 8K/24K 장시간 프레임 벤치마크를 수행하지 않았으며 기존 성능 미달을 유지합니다.</p>
+<p>최종 명령·건수·HTML/실습 확인 범위는 <a href="../docs/beginner-manual-validation.md">검증 기록</a>에 정리합니다. 작업 도중 발생한 도구 연결 실패와 최종 재실행 결과도 구별합니다.</p>
+</section>
+<section>
+<h2>SOLID 검토 기록</h2>
+<table><thead><tr><th>원칙</th><th>이번 변경의 검토 결과</th></tr></thead><tbody><tr><td>SRP</td><td>이력 순서와 차이/준비 결과를 파일 단위로 읽게 함. 기존 타입 책임은 유지.</td></tr><tr><td>OCP</td><td>새 공급자나 확장 지점은 추가하지 않음. 기존 소스·편집 계약 유지.</td></tr><tr><td>LSP</td><td>생산 코드의 대체 구현 변경 없음. 기존 동작/오류와 IL 확인. 학습 ITileSource는 key·취소·해제 계약 구현.</td></tr><tr><td>ISP</td><td>인터페이스 서명/요구 메서드 변경 없음. 학습 호스트는 필요한 Canvas API만 사용.</td></tr><tr><td>DIP</td><td>Core에 플랫폼/알고리즘 참조 추가 없음. 파일 소스·렌더 연결은 호스트에 유지.</td></tr></tbody></table>
+</section>
+<section>
+<h2>GRASP 검토 기록</h2>
+<table><thead><tr><th>원칙</th><th>이번 변경의 검토 결과</th></tr></thead><tbody><tr><td>Information Expert</td><td>기하 수식은 VisionGeometry, 타일 주소는 TilePlanner에 유지.</td></tr><tr><td>Creator</td><td>생산 자원 생성 위치 변화 없음. 학습 소스가 자신의 PixelBuffer를 생성하고 실패 시 반환.</td></tr><tr><td>Controller</td><td>학습 버튼도 EditorSession에 명령 전달. 문서 사전 직접 수정 없음.</td></tr><tr><td>Low Coupling</td><td>기존 프로젝트 참조 경계를 유지. 제품은 manual을 참조하지 않음.</td></tr><tr><td>High Cohesion</td><td>이력 차이/준비 요청/준비 결과/커서 관리의 읽기 경계를 명확히 함.</td></tr><tr><td>Polymorphism</td><td>새 생산 변형은 없음. 교육용 소스는 기존 ITileSource에 맞춤.</td></tr><tr><td>Pure Fabrication</td><td>기존 이력 서비스의 기술 책임 유지. 일회용 매니저 계층 추가 없음.</td></tr><tr><td>Indirection</td><td>호스트와 계약의 기존 연결 유지. 별도 중계·픽셀 복사 없음.</td></tr><tr><td>Protected Variations</td><td>DX12·디코더·검사 세부가 Core에 유입되지 않음.</td></tr></tbody></table>
+<p>원칙을 완화하는 예외는 적용하지 않았습니다. 이는 저장소의 모든 과거 구현을 전면 감사했다는 주장이 아니라 이번 변경에 대한 검토입니다.</p>
+</section>
+<nav class="pager" aria-label="이전과 다음 장"><a href="10-review.html">← 10. 리뷰·디버깅·성능</a><a href="12-reference.html">12. 용어·수식·다음 읽기 →</a></nav>
+<footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
+</main></div></body></html>
