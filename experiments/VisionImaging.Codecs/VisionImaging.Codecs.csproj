@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CodecNativeRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</CodecNativeRid>
+    <CodecNativeRid Condition="'$(CodecNativeRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</CodecNativeRid>
+    <CodecNativeRid Condition="'$(CodecNativeRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</CodecNativeRid>
+    <CodecNativeName Condition="'$(CodecNativeRid)' == 'win-x64'">VisionImageCodecs.dll</CodecNativeName>
+    <CodecNativeName Condition="'$(CodecNativeRid)' == 'linux-x64'">libVisionImageCodecs.so</CodecNativeName>
+    <CodecNativePath>$(MSBuildThisFileDirectory)../../artifacts/streaming-codecs/$(CodecNativeRid)/runtime/$(CodecNativeName)</CodecNativePath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
+    <None Include="$(CodecNativePath)" Link="$(CodecNativeName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(CodecNativePath)')" />
+    <None Include="../../licenses/streaming-codecs/*" Link="licenses/streaming-codecs/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CheckCodecNative" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(CodecNativeName)' == ''" Text="코덱 배포 대상은 Windows/Linux x64입니다." />
+    <Error Condition="!Exists('$(CodecNativePath)')" Text="Build-Native.ps1을 해당 OS에서 실행하세요. native 파일이 없습니다: $(CodecNativePath)" />
+  </Target>
+</Project>

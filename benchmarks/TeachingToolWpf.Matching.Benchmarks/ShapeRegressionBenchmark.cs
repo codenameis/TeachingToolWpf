@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using NetVips;
+using VisionImaging.Fixtures;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionCanvas.Core.Editing;
@@ -369,8 +369,7 @@ internal static class ShapeRegressionBenchmark
                 }
             }
         }
-        using var image = Image.NewFromMemory(output, Dimension, Dimension, channels, Enums.BandFormat.Uchar);
-        image.WriteToFile(path);
+        ImageFixtureWriter.Write(path, Dimension, Dimension, channels, 8, output);
     }
 
     private sealed class RotatedNoiseSource : ITileSource

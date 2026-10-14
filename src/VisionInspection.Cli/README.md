@@ -59,9 +59,11 @@ dotnet run --project src/VisionInspection.Cli -c Release -- --recipe samples/ins
 
 ## 실행 장치와 배포
 
+기본 자체 파일 로더는 [코덱 빌드](../../experiments/VisionImaging.Codecs/README.md) 후 이 프로젝트를 빌드/게시한다. [NetVips 제거](../../docs/netvips-removal.md). native 파일 준비와 검사 CPU/CUDA 선택은 별개다. Windows의4개 예제는 두 로더의 검출 결과가 일치했다. Linux 실행은 환경 준비 후 검증한다.
+
 기본은 CPU다. `paper`/`geometric`의 `searchOptions.computeMode="gpuPreprocessing"` 문자열은 기존 레시피 호환성을 위해 유지한다. 현재 CLI는 `CudaInspectionSession`의 lease를 주입하며 CUDA가 방향 응답·템플릿 후보 점수를, CPU가 전처리·연속 검증·원본 최종 판정을 수행한다. `diagnostics.candidateScoring`에서 실제 adapter·호출 수·전송 포함 시간을 확인한다. CLI는 한 번의 실행이므로 최초 장치 준비도 전체 검사 시간에 포함한다. NVIDIA CUDA GPU/드라이버가 필요하고 사용 불가 시 자동 폴백하지 않는다. `template`/`primitives`의 GPU 선택은 현재 오류로 보고한다.
 
-`build/InspectionNativeRuntime.props`가 호스트 또는 명시한 RID에 맞춰 OpenCV/libvips native 패키지를 선택한다. 지원 배포 RID는 현재 `win-x64`, `linux-x64`다.
+`build/InspectionNativeRuntime.props`가 호스트 또는 명시한 RID에 맞춰 OpenCV native 패키지를 선택한다. 지원 배포 RID는 현재 `win-x64`, `linux-x64`다.
 
 ```text
 dotnet publish src/VisionInspection.Cli -c Release -r linux-x64 --self-contained false -o artifacts/publish-inspection-linux

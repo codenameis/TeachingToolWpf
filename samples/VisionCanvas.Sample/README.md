@@ -2,7 +2,7 @@
 
 `VisionCanvas`로 표시·ROI 편집·외부 overlay를 조립하고, 파일 열기를 위해 `VisionImaging`을 명시적으로 참조하는 실행 예제다. 공통 기하·영상 계약과 편집 코어는 전이 참조로 사용한다. `TeachingToolWpf`, 검사 서비스, 알고리즘, CUDA, friend/internal API는 사용하지 않는다.
 
-Windows x64와 .NET 10이 필요하다. 화면은 DX12 하드웨어를 우선 사용하고, 사용할 수 없으면 Windows WARP를 통해 CPU로 표시한다. 파일 열기는 기존 `VisionImaging.ImageLoader`를 사용하며 실행 호스트에 고정 버전 `NetVips.Native.win-x64`를 배포한다. NetVips의 고지는 저장소 `THIRD-PARTY-NOTICES.md`를 따른다. 필터를 실행하지 않으므로 OpenCV native runtime은 추가하지 않는다.
+Windows x64와 .NET 10이 필요하다. 화면은 DX12 하드웨어를 우선 사용하고, 사용할 수 없으면 Windows WARP를 통해 CPU로 표시한다. 파일 열기는 기존 `VisionImaging.ImageLoader`를 사용하며 실행 호스트에 `VisionImageCodecs.dll`을 배포한다. 코덱의 고지는 저장소 `THIRD-PARTY-NOTICES.md`를 따른다. 필터를 실행하지 않으므로 OpenCV native runtime은 추가하지 않는다.
 
 GPU가 있는 PC에서도 `--software-rendering`으로 Canvas의 CPU 표시를 강제할 수 있다. 재사용 호스트에서는 native window 생성 전에 `viewport.DevicePreference = RenderDevicePreference.Software`를 설정한다. 기본값 `Automatic`에는 추가 설정이 필요 없다. CPU/GPU 모두 기존 ROI·이미지·이력 계약을 유지하며, 측정값과 한계는 [검증 기록](../../docs/software-rendering-validation.md)을 따른다.
 
@@ -11,6 +11,8 @@ GPU가 있는 PC에서도 `--software-rendering`으로 Canvas의 CPU 표시를 �
 ```powershell
 dotnet run --project samples/VisionCanvas.Sample -c Release
 ```
+
+기본 파일 경로는 [코덱을 빌드](../../experiments/VisionImaging.Codecs/README.md)한 뒤 `dotnet run --project samples/VisionCanvas.Sample -c Release`로 실행한다. `-- --software-rendering`을 붙이면 CPU(WARP) 표시를 시험한다. NetVips 참조는 제거되었다. [전환 기록](../../docs/netvips-removal.md).
 
 - 파일 열기, 8192×8192 / 24576×8192 절차적 샘플, 확대·축소·화면 맞춤
 - 사각형·원 추가, 클릭으로 폴리곤 그리기, 선택한 ROI의 자식 추가

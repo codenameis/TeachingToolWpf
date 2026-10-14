@@ -8,6 +8,7 @@
   <Folder Name="/src/">
     <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
+    <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
     <Project Path="src/TeachingToolWpf/TeachingToolWpf.csproj" />
     <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
     <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
@@ -33,5 +34,10 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/VisionCanvas.Sample/VisionCanvas.Sample.csproj" />
+  </Folder>
+  <Folder Name="/file-engine/">
+    <Project Path="experiments/VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
+    <Project Path="experiments/VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
+    <Project Path="tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
   </Folder>
 </Solution>

@@ -9,6 +9,8 @@ using TeachingToolWpf.Presentation;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
+using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Diagnostics;
 
@@ -27,6 +29,7 @@ internal static class FrameCadenceRun
             return index < 0 ? fallback : args[index + 1];
         }
         var report = Option("--cadence-report", "artifacts/frame-cadence.json");
+        var imagePath = Option("--cadence-image", "");
         var grouping = args.Contains("--cadence-group");
         var operations = new List<object>();
         var phases = new List<object>();
@@ -50,6 +53,8 @@ internal static class FrameCadenceRun
         void Save(string? error = null) => File.WriteAllText(report, JsonSerializer.Serialize(new
         {
             stage,
+            fileBackend = ImageLoaderHost.Backend,
+            imagePath,
             count,
             grouping,
             navigationMilliseconds,
@@ -94,6 +99,16 @@ internal static class FrameCadenceRun
                     gcEvents = new();
                 }
                 await model.InitializeAsync();
+                if (imagePath.Length != 0)
+                {
+                    var path = Path.GetFullPath(imagePath);
+                    await Navigate("file-import", () => model.Images.ReplaceAsync(new(path, "파일 준비 중 탐색", 0, 0, ImageFileVersion.Read(path))),
+                        timeout: TimeSpan.FromMinutes(2));
+                    if (model.Session.State.Image?.Key != path)
+                    {
+                        throw new InvalidOperationException("Cadence file import did not complete.");
+                    }
+                }
                 var fixture = RoiInteractionRun.Fixture(count, !grouping);
                 if (grouping)
                 {

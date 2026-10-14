@@ -1,0 +1,1359 @@
+{
+  "MeasuredAt": "2026-10-14T07:55:41.841359+09:00",
+  "Package": "SkiaSharp 4.153.1",
+  "Mode": "SKCodec.GetPixels full unpremultiplied bitmap; shared RawPyramidSource",
+  "Summary": [
+    {
+      "Input": "8k-adam7",
+      "Backend": "Skia",
+      "Runs": 5,
+      "ImportMs": 1115.9898,
+      "ReopenMs": 9.3911,
+      "PeakPrivateMiB": 457.515625,
+      "PeakWorkingMiB": 468.32421875,
+      "ManagedAllocatedMiB": 20.64501953125,
+      "TileP95Ms": 1.3414,
+      "CpuMs": 3156.25,
+      "ImportMinMs": 1055.8247,
+      "ImportMaxMs": 1155.2294
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Streaming",
+      "Runs": 5,
+      "ImportMs": 1645.0561,
+      "ReopenMs": 8.7402,
+      "PeakPrivateMiB": 32.109375,
+      "PeakWorkingMiB": 63.14453125,
+      "ManagedAllocatedMiB": 20.68347930908203,
+      "TileP95Ms": 1.0128,
+      "CpuMs": 3500,
+      "ImportMinMs": 1623.9775,
+      "ImportMaxMs": 1653.8386
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Skia",
+      "Runs": 5,
+      "ImportMs": 1287.3486,
+      "ReopenMs": 9.0285,
+      "PeakPrivateMiB": 274.0703125,
+      "PeakWorkingMiB": 296.86328125,
+      "ManagedAllocatedMiB": 20.6685791015625,
+      "TileP95Ms": 0.9446,
+      "CpuMs": 3218.75,
+      "ImportMinMs": 1276.3352,
+      "ImportMaxMs": 1352.7745
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Streaming",
+      "Runs": 5,
+      "ImportMs": 791.2122,
+      "ReopenMs": 8.8483,
+      "PeakPrivateMiB": 31.73046875,
+      "PeakWorkingMiB": 63.0625,
+      "ManagedAllocatedMiB": 20.581039428710938,
+      "TileP95Ms": 1.0616,
+      "CpuMs": 2765.625,
+      "ImportMinMs": 783.1108,
+      "ImportMaxMs": 819.2913
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Skia",
+      "Runs": 5,
+      "ImportMs": 244.1591,
+      "ReopenMs": 9.0902,
+      "PeakPrivateMiB": 74.7578125,
+      "PeakWorkingMiB": 97.14453125,
+      "ManagedAllocatedMiB": 9.049667358398438,
+      "TileP95Ms": 1.0745,
+      "CpuMs": 1187.5,
+      "ImportMinMs": 231.9116,
+      "ImportMaxMs": 253.2077
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Streaming",
+      "Runs": 5,
+      "ImportMs": 234.3917,
+      "ReopenMs": 9.0075,
+      "PeakPrivateMiB": 18.37109375,
+      "PeakWorkingMiB": 50.69921875,
+      "ManagedAllocatedMiB": 9.0289306640625,
+      "TileP95Ms": 0.7812,
+      "CpuMs": 1062.5,
+      "ImportMinMs": 231.6401,
+      "ImportMaxMs": 239.7011
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Skia",
+      "Runs": 5,
+      "ImportMs": 1161.1171,
+      "ReopenMs": 8.7214,
+      "PeakPrivateMiB": 649.9296875,
+      "PeakWorkingMiB": 663.89453125,
+      "ManagedAllocatedMiB": 20.627456665039062,
+      "TileP95Ms": 0.9929,
+      "CpuMs": 3156.25,
+      "ImportMinMs": 1130.8896,
+      "ImportMaxMs": 1188.409
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Streaming",
+      "Runs": 5,
+      "ImportMs": 858.1687,
+      "ReopenMs": 8.4709,
+      "PeakPrivateMiB": 401.6953125,
+      "PeakWorkingMiB": 422.5859375,
+      "ManagedAllocatedMiB": 20.576011657714844,
+      "TileP95Ms": 1.3067,
+      "CpuMs": 2921.875,
+      "ImportMinMs": 817.5901,
+      "ImportMaxMs": 891.1794
+    }
+  ],
+  "Runs": [
+    {
+      "Input": "8k-gray8",
+      "Backend": "Streaming",
+      "Run": 1,
+      "ImportMs": 231.6401,
+      "ReopenMs": 9.0957,
+      "PeakPrivateMiB": 18.86328125,
+      "PeakWorkingMiB": 49.76171875,
+      "ManagedAllocatedMiB": 9.021049499511719,
+      "TileP95Ms": 0.7792,
+      "CpuMs": 1062.5,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Streaming-1.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Skia",
+      "Run": 1,
+      "ImportMs": 244.1591,
+      "ReopenMs": 9.1504,
+      "PeakPrivateMiB": 75.41015625,
+      "PeakWorkingMiB": 97.33203125,
+      "ManagedAllocatedMiB": 9.047393798828125,
+      "TileP95Ms": 1.1739,
+      "CpuMs": 1140.625,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Skia-1.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Skia",
+      "Run": 2,
+      "ImportMs": 253.2077,
+      "ReopenMs": 9.5151,
+      "PeakPrivateMiB": 74.734375,
+      "PeakWorkingMiB": 97.14453125,
+      "ManagedAllocatedMiB": 9.049667358398438,
+      "TileP95Ms": 0.8512,
+      "CpuMs": 1343.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Skia-2.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Streaming",
+      "Run": 2,
+      "ImportMs": 239.7011,
+      "ReopenMs": 8.9737,
+      "PeakPrivateMiB": 18.0078125,
+      "PeakWorkingMiB": 50.69921875,
+      "ManagedAllocatedMiB": 9.029518127441406,
+      "TileP95Ms": 0.79,
+      "CpuMs": 1296.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Streaming-2.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Streaming",
+      "Run": 3,
+      "ImportMs": 235.7106,
+      "ReopenMs": 9.3164,
+      "PeakPrivateMiB": 18.37109375,
+      "PeakWorkingMiB": 49.34375,
+      "ManagedAllocatedMiB": 9.030647277832031,
+      "TileP95Ms": 0.7812,
+      "CpuMs": 906.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Streaming-3.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Skia",
+      "Run": 3,
+      "ImportMs": 242.9385,
+      "ReopenMs": 8.5905,
+      "PeakPrivateMiB": 74.69921875,
+      "PeakWorkingMiB": 97.109375,
+      "ManagedAllocatedMiB": 9.055908203125,
+      "TileP95Ms": 1.3338,
+      "CpuMs": 1250,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Skia-3.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Skia",
+      "Run": 4,
+      "ImportMs": 247.8646,
+      "ReopenMs": 8.5458,
+      "PeakPrivateMiB": 74.7578125,
+      "PeakWorkingMiB": 97.125,
+      "ManagedAllocatedMiB": 9.045623779296875,
+      "TileP95Ms": 1.0745,
+      "CpuMs": 1187.5,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Skia-4.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Streaming",
+      "Run": 4,
+      "ImportMs": 231.9019,
+      "ReopenMs": 9.0075,
+      "PeakPrivateMiB": 18.55078125,
+      "PeakWorkingMiB": 51.046875,
+      "ManagedAllocatedMiB": 9.022010803222656,
+      "TileP95Ms": 0.9654,
+      "CpuMs": 796.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Streaming-4.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Streaming",
+      "Run": 5,
+      "ImportMs": 234.3917,
+      "ReopenMs": 8.7568,
+      "PeakPrivateMiB": 17.953125,
+      "PeakWorkingMiB": 51.96875,
+      "ManagedAllocatedMiB": 9.0289306640625,
+      "TileP95Ms": 0.7681,
+      "CpuMs": 1187.5,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Streaming-5.json"
+    },
+    {
+      "Input": "8k-gray8",
+      "Backend": "Skia",
+      "Run": 5,
+      "ImportMs": 231.9116,
+      "ReopenMs": 9.0902,
+      "PeakPrivateMiB": 74.76171875,
+      "PeakWorkingMiB": 97.1640625,
+      "ManagedAllocatedMiB": 9.052688598632812,
+      "TileP95Ms": 0.7702,
+      "CpuMs": 1031.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-gray8-Skia-5.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Streaming",
+      "Run": 1,
+      "ImportMs": 797.1607,
+      "ReopenMs": 9.3382,
+      "PeakPrivateMiB": 31.73046875,
+      "PeakWorkingMiB": 63.0625,
+      "ManagedAllocatedMiB": 20.525840759277344,
+      "TileP95Ms": 0.9317,
+      "CpuMs": 2578.125,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Streaming-1.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Skia",
+      "Run": 1,
+      "ImportMs": 1276.3352,
+      "ReopenMs": 8.598,
+      "PeakPrivateMiB": 274.328125,
+      "PeakWorkingMiB": 296.86328125,
+      "ManagedAllocatedMiB": 20.6685791015625,
+      "TileP95Ms": 0.9193,
+      "CpuMs": 3343.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Skia-1.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Skia",
+      "Run": 2,
+      "ImportMs": 1287.3486,
+      "ReopenMs": 8.2808,
+      "PeakPrivateMiB": 273.8046875,
+      "PeakWorkingMiB": 296.703125,
+      "ManagedAllocatedMiB": 20.672607421875,
+      "TileP95Ms": 0.9165,
+      "CpuMs": 3218.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Skia-2.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Streaming",
+      "Run": 2,
+      "ImportMs": 819.2913,
+      "ReopenMs": 8.6685,
+      "PeakPrivateMiB": 31.82421875,
+      "PeakWorkingMiB": 63.421875,
+      "ManagedAllocatedMiB": 20.581039428710938,
+      "TileP95Ms": 0.9673,
+      "CpuMs": 3031.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Streaming-2.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Streaming",
+      "Run": 3,
+      "ImportMs": 791.2122,
+      "ReopenMs": 8.4054,
+      "PeakPrivateMiB": 31.66015625,
+      "PeakWorkingMiB": 63.44921875,
+      "ManagedAllocatedMiB": 20.53375244140625,
+      "TileP95Ms": 1.1094,
+      "CpuMs": 2843.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Streaming-3.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Skia",
+      "Run": 3,
+      "ImportMs": 1287.8002,
+      "ReopenMs": 9.063,
+      "PeakPrivateMiB": 273.921875,
+      "PeakWorkingMiB": 296.78125,
+      "ManagedAllocatedMiB": 20.686325073242188,
+      "TileP95Ms": 1.3123,
+      "CpuMs": 3218.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Skia-3.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Skia",
+      "Run": 4,
+      "ImportMs": 1281.8535,
+      "ReopenMs": 9.1045,
+      "PeakPrivateMiB": 274.125,
+      "PeakWorkingMiB": 297.00390625,
+      "ManagedAllocatedMiB": 20.637161254882812,
+      "TileP95Ms": 0.9651,
+      "CpuMs": 2953.125,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Skia-4.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Streaming",
+      "Run": 4,
+      "ImportMs": 783.1108,
+      "ReopenMs": 9.2233,
+      "PeakPrivateMiB": 31.953125,
+      "PeakWorkingMiB": 62.25390625,
+      "ManagedAllocatedMiB": 20.581085205078125,
+      "TileP95Ms": 1.2197,
+      "CpuMs": 2765.625,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Streaming-4.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Streaming",
+      "Run": 5,
+      "ImportMs": 787.7928,
+      "ReopenMs": 8.8483,
+      "PeakPrivateMiB": 31.3203125,
+      "PeakWorkingMiB": 62.49609375,
+      "ManagedAllocatedMiB": 20.585006713867188,
+      "TileP95Ms": 1.0616,
+      "CpuMs": 2578.125,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Streaming-5.json"
+    },
+    {
+      "Input": "8k-color",
+      "Backend": "Skia",
+      "Run": 5,
+      "ImportMs": 1352.7745,
+      "ReopenMs": 9.0285,
+      "PeakPrivateMiB": 274.0703125,
+      "PeakWorkingMiB": 297.01953125,
+      "ManagedAllocatedMiB": 20.645416259765625,
+      "TileP95Ms": 0.9446,
+      "CpuMs": 3234.375,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-color-Skia-5.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Streaming",
+      "Run": 1,
+      "ImportMs": 1653.8386,
+      "ReopenMs": 8.7402,
+      "PeakPrivateMiB": 32.51953125,
+      "PeakWorkingMiB": 63.00390625,
+      "ManagedAllocatedMiB": 20.67974853515625,
+      "TileP95Ms": 1.0513,
+      "CpuMs": 3500,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Streaming-1.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Skia",
+      "Run": 1,
+      "ImportMs": 1066.3254,
+      "ReopenMs": 9.3911,
+      "PeakPrivateMiB": 457.515625,
+      "PeakWorkingMiB": 468.32421875,
+      "ManagedAllocatedMiB": 20.645164489746094,
+      "TileP95Ms": 1.3986,
+      "CpuMs": 2875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Skia-1.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Skia",
+      "Run": 2,
+      "ImportMs": 1155.2294,
+      "ReopenMs": 11.3313,
+      "PeakPrivateMiB": 457.5859375,
+      "PeakWorkingMiB": 449.91015625,
+      "ManagedAllocatedMiB": 20.655853271484375,
+      "TileP95Ms": 1.2632,
+      "CpuMs": 3156.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Skia-2.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Streaming",
+      "Run": 2,
+      "ImportMs": 1624.8018,
+      "ReopenMs": 8.6557,
+      "PeakPrivateMiB": 31.73046875,
+      "PeakWorkingMiB": 63.3203125,
+      "ManagedAllocatedMiB": 20.684486389160156,
+      "TileP95Ms": 0.9358,
+      "CpuMs": 3421.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Streaming-2.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Streaming",
+      "Run": 3,
+      "ImportMs": 1645.6944,
+      "ReopenMs": 8.4296,
+      "PeakPrivateMiB": 32.109375,
+      "PeakWorkingMiB": 62.82421875,
+      "ManagedAllocatedMiB": 20.686241149902344,
+      "TileP95Ms": 0.9125,
+      "CpuMs": 3593.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Streaming-3.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Skia",
+      "Run": 3,
+      "ImportMs": 1129.02,
+      "ReopenMs": 8.9479,
+      "PeakPrivateMiB": 457.453125,
+      "PeakWorkingMiB": 476.9140625,
+      "ManagedAllocatedMiB": 20.64501953125,
+      "TileP95Ms": 1.3414,
+      "CpuMs": 3062.5,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Skia-3.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Skia",
+      "Run": 4,
+      "ImportMs": 1115.9898,
+      "ReopenMs": 8.2512,
+      "PeakPrivateMiB": 458,
+      "PeakWorkingMiB": 477.0234375,
+      "ManagedAllocatedMiB": 20.628326416015625,
+      "TileP95Ms": 1.1964,
+      "CpuMs": 3171.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Skia-4.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Streaming",
+      "Run": 4,
+      "ImportMs": 1645.0561,
+      "ReopenMs": 8.811,
+      "PeakPrivateMiB": 31.7890625,
+      "PeakWorkingMiB": 63.14453125,
+      "ManagedAllocatedMiB": 20.68347930908203,
+      "TileP95Ms": 1.0128,
+      "CpuMs": 4093.75,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Streaming-4.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Streaming",
+      "Run": 5,
+      "ImportMs": 1623.9775,
+      "ReopenMs": 9.0546,
+      "PeakPrivateMiB": 32.1640625,
+      "PeakWorkingMiB": 63.8984375,
+      "ManagedAllocatedMiB": 20.679527282714844,
+      "TileP95Ms": 1.2669,
+      "CpuMs": 3359.375,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Streaming-5.json"
+    },
+    {
+      "Input": "8k-adam7",
+      "Backend": "Skia",
+      "Run": 5,
+      "ImportMs": 1055.8247,
+      "ReopenMs": 9.9167,
+      "PeakPrivateMiB": 457.3203125,
+      "PeakWorkingMiB": 428.0234375,
+      "ManagedAllocatedMiB": 20.632568359375,
+      "TileP95Ms": 1.3584,
+      "CpuMs": 3281.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-adam7-Skia-5.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Streaming",
+      "Run": 1,
+      "ImportMs": 858.1687,
+      "ReopenMs": 8.7063,
+      "PeakPrivateMiB": 402.08203125,
+      "PeakWorkingMiB": 422.73828125,
+      "ManagedAllocatedMiB": 20.56407928466797,
+      "TileP95Ms": 1.0503,
+      "CpuMs": 2890.625,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Streaming-1.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Skia",
+      "Run": 1,
+      "ImportMs": 1130.8896,
+      "ReopenMs": 9.1411,
+      "PeakPrivateMiB": 650.01171875,
+      "PeakWorkingMiB": 663.89453125,
+      "ManagedAllocatedMiB": 20.653419494628906,
+      "TileP95Ms": 0.9643,
+      "CpuMs": 3296.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Skia-1.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Skia",
+      "Run": 2,
+      "ImportMs": 1141.4308,
+      "ReopenMs": 8.4711,
+      "PeakPrivateMiB": 649.8828125,
+      "PeakWorkingMiB": 664.3046875,
+      "ManagedAllocatedMiB": 20.61170196533203,
+      "TileP95Ms": 0.9168,
+      "CpuMs": 2796.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Skia-2.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Streaming",
+      "Run": 2,
+      "ImportMs": 840.5611,
+      "ReopenMs": 8.4709,
+      "PeakPrivateMiB": 401.6015625,
+      "PeakWorkingMiB": 422.53515625,
+      "ManagedAllocatedMiB": 20.61693572998047,
+      "TileP95Ms": 0.9804,
+      "CpuMs": 2921.875,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Streaming-2.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Streaming",
+      "Run": 3,
+      "ImportMs": 881.7311,
+      "ReopenMs": 8.2077,
+      "PeakPrivateMiB": 401.6953125,
+      "PeakWorkingMiB": 422.5859375,
+      "ManagedAllocatedMiB": 20.576011657714844,
+      "TileP95Ms": 1.3067,
+      "CpuMs": 2984.375,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Streaming-3.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Skia",
+      "Run": 3,
+      "ImportMs": 1161.1171,
+      "ReopenMs": 10.8371,
+      "PeakPrivateMiB": 649.859375,
+      "PeakWorkingMiB": 662.69140625,
+      "ManagedAllocatedMiB": 20.68628692626953,
+      "TileP95Ms": 1.0283,
+      "CpuMs": 3156.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Skia-3.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Skia",
+      "Run": 4,
+      "ImportMs": 1188.409,
+      "ReopenMs": 8.7214,
+      "PeakPrivateMiB": 649.9296875,
+      "PeakWorkingMiB": 668.94921875,
+      "ManagedAllocatedMiB": 20.627456665039062,
+      "TileP95Ms": 0.9929,
+      "CpuMs": 3203.125,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Skia-4.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Streaming",
+      "Run": 4,
+      "ImportMs": 891.1794,
+      "ReopenMs": 10.3171,
+      "PeakPrivateMiB": 401.9765625,
+      "PeakWorkingMiB": 422.8203125,
+      "ManagedAllocatedMiB": 20.59754180908203,
+      "TileP95Ms": 1.4102,
+      "CpuMs": 3015.625,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Streaming-4.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Streaming",
+      "Run": 5,
+      "ImportMs": 817.5901,
+      "ReopenMs": 8.3328,
+      "PeakPrivateMiB": 401.5078125,
+      "PeakWorkingMiB": 422.4609375,
+      "ManagedAllocatedMiB": 20.547317504882812,
+      "TileP95Ms": 1.484,
+      "CpuMs": 2781.25,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Streaming-5.json"
+    },
+    {
+      "Input": "8k-progressive",
+      "Backend": "Skia",
+      "Run": 5,
+      "ImportMs": 1163.8035,
+      "ReopenMs": 8.7102,
+      "PeakPrivateMiB": 650.04296875,
+      "PeakWorkingMiB": 658.09375,
+      "ManagedAllocatedMiB": 20.61180877685547,
+      "TileP95Ms": 1.0545,
+      "CpuMs": 3062.5,
+      "Report": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\skia-comparison\\paired-20261014-075437\\8k-progressive-Skia-5.json"
+    }
+  ],
+  "Quality": [
+    {
+      "File": "artifacts/streaming-codecs/large-codec-inputs/8k-adam7.png",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\streaming-codecs\\large-codec-inputs\\8k-adam7.png",
+        "Name": "8k-adam7.png",
+        "Width": 8192,
+        "Height": 8192,
+        "Pixels": 2,
+        "Levels": 5,
+        "BytesPerPixel": 4
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 112197632,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 45088768,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 12582912,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 2097152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 1048576,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/pyramid-comparison/inputs/8k-color.jpg",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\pyramid-comparison\\inputs\\8k-color.jpg",
+        "Name": "8k-color.jpg",
+        "Width": 8192,
+        "Height": 8192,
+        "Pixels": 2,
+        "Levels": 5,
+        "BytesPerPixel": 4
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 112197632,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 45088768,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 12582912,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 2097152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 1048576,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/pyramid-comparison/inputs/8k-gray8.png",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\pyramid-comparison\\inputs\\8k-gray8.png",
+        "Name": "8k-gray8.png",
+        "Width": 8192,
+        "Height": 8192,
+        "Pixels": 0,
+        "Levels": 5,
+        "BytesPerPixel": 1
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 28049408,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 11272192,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 3145728,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 524288,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 262144,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/streaming-codecs/large-codec-inputs/8k-progressive.jpg",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\streaming-codecs\\large-codec-inputs\\8k-progressive.jpg",
+        "Name": "8k-progressive.jpg",
+        "Width": 8192,
+        "Height": 8192,
+        "Pixels": 2,
+        "Levels": 5,
+        "BytesPerPixel": 4
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 112197632,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 45088768,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 12582912,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 2097152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 1048576,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/streaming-codecs/fixtures/gray.jpg",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\streaming-codecs\\fixtures\\gray.jpg",
+        "Name": "gray.jpg",
+        "Width": 1031,
+        "Height": 519,
+        "Pixels": 0,
+        "Levels": 3,
+        "BytesPerPixel": 1
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 535089,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 134160,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 33540,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/streaming-codecs/fixtures/gray16-strip-Lzw.tif",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\streaming-codecs\\fixtures\\gray16-strip-Lzw.tif",
+        "Name": "gray16-strip-Lzw.tif",
+        "Width": 1031,
+        "Height": 519,
+        "Pixels": 1,
+        "Levels": 3,
+        "BytesPerPixel": 2
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 535089,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 134160,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 33540,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/streaming-codecs/fixtures/rgba-tile.tif",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\streaming-codecs\\fixtures\\rgba-tile.tif",
+        "Name": "rgba-tile.tif",
+        "Width": 1031,
+        "Height": 519,
+        "Pixels": 2,
+        "Levels": 3,
+        "BytesPerPixel": 4
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 2140356,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 536640,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 134160,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "artifacts/pyramid-comparison/inputs/odd-rgba.png",
+      "Status": "EXACT_SAMPLED",
+      "Info": {
+        "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\pyramid-comparison\\inputs\\odd-rgba.png",
+        "Name": "odd-rgba.png",
+        "Width": 1031,
+        "Height": 519,
+        "Pixels": 2,
+        "Levels": 3,
+        "BytesPerPixel": 4
+      },
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 2140356,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 536640,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 134160,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    }
+  ],
+  "SharedPyramidHashes": [
+    "1FECAA6BC6D2D8A5500E2394B78AA5455DFA5DB9BEC10A058FBEF85CCB77787D"
+  ],
+  "SkiaDecoderHashes": [
+    "AEBEB0BCDBAC6F698874B773C467A4F3E75265059DFB4EB835ECB6DDFABDE1B9"
+  ],
+  "NativeHashes": [
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "VisionImageCodecs.DLL": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+    },
+    {
+      "SkiaSharp.dll": "2C9BBBE1A3D0E9407894C319821B5CDCADE1F302466A950A2E5D6024AEE32422",
+      "libSkiaSharp.DLL": "935EF4A00462E6B0C4DADB870F734FA43679B4F561287FE0D28CBE2BA147E832"
+    }
+  ],
+  "Optimization": [
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Codecs": true
+    },
+    {
+      "VisionImaging.Abstractions": true,
+      "VisionImaging.Pyramid": true,
+      "VisionImaging.Skia": true,
+      "VisionImaging.Codecs": true
+    }
+  ],
+  "Framework": ".NET 10.0.12",
+  "OS": "Microsoft Windows 10.0.26200"
+}

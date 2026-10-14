@@ -1,33 +1,34 @@
 # Third-party dependencies
 
-이 샘플은 아래 패키지와 네이티브 라이브러리를 사용합니다. 패키지 nuspec 및 배포자가 제공한 고지를 기준으로 기록했습니다. `licenses/`와 네이티브 라이브러리를 배포 폴더에 함께 유지합니다. WPF 앱은 .NET 10 Desktop Runtime, CLI는 .NET 10 Runtime을 별도 설치하며 framework-dependent 배포에 번들하지 않습니다.
+이 샘플은 아래 패키지와 네이티브 라이브러리를 사용합니다. 패키지 nuspec 및 배포자가 제공한 고지를 기준으로 기록했습니다. `licenses/`와 네이티브 라이브러리를 배포 폴더에 함께 유지합니다. framework-dependent 배포는 .NET 10 Runtime을 별도 설치합니다. Publish-LoaderComparison.ps1의 self-contained 배포는 .NET runtime을 포함하며 라이선스와 제공되는 제3자 고지를 licenses/Microsoft.NETCore.App 및 licenses/Microsoft.WindowsDesktop.App에 복사합니다.
 
 | Runtime component | Version | License / source |
 |---|---|---|
 | Vortice.Direct3D12, DXGI, D3DCompiler, DirectX | 3.8.3 | MIT · [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) |
 | Vortice.Mathematics | 2.1.0 | MIT · [Vortice.Mathematics](https://github.com/amerkoleci/Vortice.Mathematics) |
 | SharpGen.Runtime, SharpGen.Runtime.COM | 2.4.2-beta | MIT · [SharpGenTools](https://github.com/SharpGenTools/SharpGenTools) |
-| NetVips | 3.2.0 | MIT · [net-vips](https://github.com/kleisauke/net-vips) |
-| NetVips.Native.win-x64 | 8.18.6 | LGPL-3.0-or-later plus bundled dependencies · [packaging/source recipes](https://github.com/kleisauke/libvips-packaging), [libvips source](https://github.com/libvips/libvips) |
 | OpenCvSharp4 / OpenCvSharp4.runtime.win.slim | 4.13.0.20260627 | Apache-2.0 · Copyright 2008–2026 shimat and contributors · [source at packaged commit](https://github.com/shimat/opencvsharp/tree/b161e7e012f5101f6d5dc68a835c59db6cc88b18) |
 | OpenCV (OpenCvSharp native runtime) | 4.13.0 | Apache-2.0 · [OpenCV source](https://github.com/opencv/opencv/tree/4.13.0) |
 | ILGPU / ILGPU.Algorithms | 1.5.3 | University of Illinois/NCSA Open Source · Copyright (c) 2016–2025 ILGPU Project · [source](https://github.com/m4rs-mt/ILGPU/tree/v1.5.3) |
-| NetVips.Native.linux-x64 | 8.18.6 | LGPL-3.0-or-later plus bundled dependencies · [packaging/source recipes](https://github.com/kleisauke/libvips-packaging) |
 | OpenCvSharp4.official.runtime.linux-x64.slim | 4.13.0.20260627 | Apache-2.0 · [fixed source version](https://github.com/shimat/opencvsharp/tree/4.13.0.20260627) |
+| LibTIFF (기본 파일 코덱) | 4.7.2 | LibTIFF 및 구성 파일 고지 · [원문](licenses/streaming-codecs/libtiff-LICENSE.md) |
+| libpng (기본 파일 코덱) | 1.6.59 | PNG Reference Library License · [원문](licenses/streaming-codecs/libpng-LICENSE.txt) |
+| libjpeg-turbo (기본 파일 코덱) | 3.2.0 | IJG / BSD 및 구성 파일 고지 · [라이선스](licenses/streaming-codecs/libjpeg-turbo-LICENSE.md), [IJG 원문](licenses/streaming-codecs/libjpeg-turbo-README.ijg) |
+| libwebp (기본 WebP 코덱) | 1.6.0 | BSD-3-Clause · [COPYING](licenses/streaming-codecs/libwebp-COPYING.txt), [PATENTS](licenses/streaming-codecs/libwebp-PATENTS.txt) |
+| zlib (기본 파일 코덱) | 1.3.2 | zlib License · [원문](licenses/streaming-codecs/zlib-LICENSE.txt) |
+
+기본 파일 로더는 `VisionImageCodecs.dll` 안에 위 다섯 코덱 의존성을 정적으로 연결합니다. 외부 코덱 소스는 수정하지 않았으며 버전·원본 URL·SHA256과 빌드 옵션은 [고정 목록](experiments/VisionImaging.Codecs/native/dependencies.json), [빌드 스크립트](experiments/VisionImaging.Codecs/Build-Native.ps1)에 있습니다. 이 파일과 `licenses/streaming-codecs`의 전체 원문을 배포물에 유지합니다. This software is based in part on the work of the Independent JPEG Group. LibTIFF의 LZW 구현에는 University of California, Berkeley가 개발한 소프트웨어가 포함됩니다. Windows 빌드 도구 NASM 2.16.03은 빌드에만 사용하고 실행물에 포함하지 않습니다([NASM 고지](licenses/streaming-codecs/nasm-LICENSE.txt)). Windows native DLL은 MSVC/UCRT 런타임을 사용하며 .NET에 그 런타임이 포함된 것으로 가정하지 않습니다. Linux용 빌드 정의와 실제 Linux 실행 검증은 별개입니다.
+
+2026-10-14부터 기본 앱·샘플·검사 CLI·테스트·비교 도구의 NetVips/libvips 패키지 참조를 제거했습니다. 과거 배포 ZIP과 저장소의 NetVips 관련 고지는 당시 배포 이력이며 새 배포에는 포함하지 않습니다. OpenCV를 사용하는 필터·템플릿 검사 의존성은 파일 코덱 선택과 별개입니다.
 
 검사의 CUDA 후보 점수 계산과 별도 전처리 전용 API는 ILGPU를 사용합니다. 현재 앱/CLI는 방향 응답·정수 후보 점수를 CUDA에서 계산하고 전처리·연속 검증·원본 판정은 CPU에서 수행합니다. 원문 [ILGPU](licenses/ILGPU-LICENSE.txt), [ILGPU.Algorithms](licenses/ILGPU.Algorithms-LICENSE.txt), 각각의 [전이 고지](licenses/ILGPU-THIRD-PARTY.txt)와 [Algorithms 전이 고지](licenses/ILGPU.Algorithms-THIRD-PARTY.txt)를 함께 배포합니다. NVIDIA 드라이버는 별도 설치합니다. WPF 렌더링의 DirectX 의존성은 CLI 배포에 포함하지 않습니다. Linux x64 native 패키지는 CLI의 `RuntimeIdentifier` 또는 Linux 호스트에서 선택하며 Windows DLL과 함께 섞어서 배포하지 않습니다. Linux 실제 실행 여부는 [휴대 가능한 검사 검증](docs/portable-inspection-validation.md)을 따릅니다.
 
 OpenCV/OpenCvSharp는 제공된 바이너리를 변경하지 않고 동적으로 로드합니다. 원문은 [OpenCvSharp license](licenses/OpenCvSharp-LICENSE.txt), [OpenCV license](licenses/OpenCV-LICENSE.txt)입니다. Windows x64 `OpenCvSharpExtern.dll`을 포함하며 Visual C++ 2022 x64 runtime이 필요합니다. 이 장비에서는 네이티브 필터 실행을 검증했습니다. slim 배포자의 빌드/모듈 구성은 [runtime README](https://github.com/shimat/opencvsharp)와 고정된 소스 commit을 따릅니다.
 
-네이티브 패키지는 `libvips-42.dll`을 동적으로 로드하며 라이브러리를 샘플 실행 파일 안에 정적으로 결합하지 않습니다. 바이너리는 변경하지 않았습니다. 정확한 내장 라이브러리 버전은 [versions](licenses/NetVips.Native-versions.json), 원래 배포자의 구성별 고지는 [native notices](licenses/NetVips.Native-THIRD-PARTY-NOTICES.md)에 있습니다. LGPL/GPL 원문도 포함합니다. 네이티브 패키지의 소스/빌드 자료는 위 packaging 프로젝트와 각 구성 라이브러리의 버전을 따릅니다.
-
-Linux는 `libvips.so.42`를 동적으로 로드합니다. 플랫폼별 내장 구성이 다를 수 있으므로 Linux 패키지의 [구성 버전](licenses/NetVips.Native.linux-x64-versions.json)과 [배포자 고지](licenses/NetVips.Native.linux-x64-THIRD-PARTY-NOTICES.md)를 별도로 포함합니다.
-
 MIT 구성의 저작권 고지:
 
 - Vortice: Copyright (c) Amer Koleci and Contributors.
 - SharpGen: (c) 2010–2017 Alexandre Mutel, 2017–2023 Jeremy Koritzinsky, 2023–2024 Amer Koleci.
-- NetVips: Copyright (c) Kleis Auke Wolthuizen.
 
 MIT License:
 
@@ -52,6 +53,10 @@ THE SOFTWARE.
 테스트 도구(xUnit, Microsoft.NET.Test.Sdk 및 전이 의존성)는 앱 publish에 포함하지 않습니다. 이 문서는 앱 자체의 별도 오픈소스 라이선스를 지정하지 않습니다.
 
 2026-10-04 사용 범위 추가: 동일 OpenCV/OpenCvSharp 패키지를 ROI 필터와 `VisionAlgorithm`의 CCOEFF_NORMED 템플릿 매칭에 사용합니다. Mat은 각 영상 처리 경계 안에 유지합니다. 논문 기반 C# 형상 매칭은 외부 소스의 복사/포팅이 아닌 독립 결합 구현이며 [논문 대조 기록](docs/decisions/0016-template-matching-and-pyramid-search.md)에 차이를 명시합니다.
+
+## SkiaSharp 비교 실험 (2026-10-14)
+
+`experiments/VisionImaging.Skia`가 SkiaSharp 및 NativeAssets 4.153.1을 참조한다. 선택형 UseSkiaImageLoader=true 앱 비교 빌드에도 연결하며 생산 앱의 기본 로더에는 연결하지 않는다. 패키지의 MIT 전문은 [SkiaSharp-LICENSE.txt](licenses/skia/SkiaSharp-LICENSE.txt), 네이티브 포함 구성요소 고지는 [Windows](licenses/skia/Win32-THIRD-PARTY-NOTICES.txt)와 [Linux](licenses/skia/Linux-THIRD-PARTY-NOTICES.txt)에 보관하고 실험 빌드/배포에 복사한다. Linux 패키지 포함과 실제 Linux 실행 검증은 구별한다. TIFF 경로의 기존 `licenses/streaming-codecs` 고지도 유지한다.
 
 ## dotnet-anti-slop (빌드 전용)
 

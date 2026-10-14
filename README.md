@@ -150,7 +150,7 @@ pwsh -File scripts/Publish-Sample.ps1 -InspectionLatency -OutputDirectory artifa
 
 전체 원본 프레임은 유지하고, 화면에 필요한 영역과 해상도만 area average로 준비해 DX12로 업로드합니다. 작은 화면에서 전체 8K RGBA를 매번 복사하는 비용을 줄였으며, 1:1에서는 해당 영역의 원본 픽셀을 사용합니다. 표시가 늦으면 대기 중인 예전 프레임을 버리고 드롭 수를 표시합니다. 이 정책은 카메라 수집/검사 데이터의 무손실 보장을 뜻하지 않습니다.
 
-정적 대용량 파일은 libvips로 디스크 피라미드를 만든 후 512px 타일로 읽습니다. Gray8/Gray16은 단일 채널을 유지합니다. Gray16 표시 범위는 0–65535이며 별도 window/level 조절은 아직 없습니다. 컬러는 RGBA8로 정규화합니다. **24576×131072 Gray8/Gray16 BigTIFF(디코드 후 3/6 GiB)**를 실제 생성·열기·마지막 타일 검증했습니다. 초기 로드는 파일 압축과 저장장치에 따라 달라집니다.
+정적 대용량 파일은 자체 스트리밍 코덱과 C# 엔진으로 디스크 피라미드를 만든 후 512px 타일로 읽습니다. Gray8/Gray16은 단일 채널을 유지합니다. Gray16 표시 범위는 0–65535이며 별도 window/level 조절은 아직 없습니다. 컬러는 RGBA8로 정규화합니다. **24576×131072 Gray8/Gray16 BigTIFF(디코드 후 3/6 GiB)**를 실제 생성·열기·마지막 타일 검증했습니다. 초기 로드는 파일 압축과 저장장치에 따라 달라집니다.
 
 캐시 위치는 `%LOCALAPPDATA%\TeachingToolWpf\ImageCache`입니다. 디코드 크기의 약 1.5배 이상 여유를 확인합니다. 캐시의 자동 디스크 용량 정리는 아직 없으므로 앱을 닫은 뒤 이 전용 캐시 폴더를 비워 재생성할 수 있습니다. OS 파일 매핑 때문에 프로세스 working set은 관리 버퍼 크기보다 커질 수 있습니다.
 
@@ -163,14 +163,14 @@ pwsh -File scripts/Publish-Sample.ps1 -InspectionLatency -OutputDirectory artifa
 | `src/VisionGeometry` | double 좌표, 실제 ROI 도형·포함 판정, 강체·뷰 변환 |
 | `src/VisionImaging.Abstractions` | 이미지 식별·규격, 프레임·타일·픽셀 버퍼의 소유권 계약 |
 | `src/VisionCanvas.Core` | 불변 ROI 문서, BVH, 계층·선택·편집·이력·제스처 |
-| `src/VisionImaging` | 선택형 NetVips 파일 로더·디스크 피라미드, 파일·합성 소스 |
+| `src/VisionImaging` | 기본 스트리밍 파일 로더 진입점, 코덱·디스크 피라미드 연결 |
 | `src/VisionCanvas` | WPF/Win32 입력·DPI, DX12 장치·표시·캐시, ROI·필터·오버레이 |
 | `src/VisionInspection`, `src/VisionAlgorithm` | 편집 코어와 화면에 의존하지 않는 원본 검사 실행·알고리즘 |
 | `src/TeachingToolWpf` | 패널·MVVM, 이미지 교체·레시피의 통합 이력, 검사 조립·제품 판정 |
 | `samples/VisionCanvas.Sample` | TeachingToolWpf·검사 참조 없이 공개 Canvas API만 사용하는 WPF 호스트 |
 | `benchmarks` | GPU/CPU CSV, 대용량 파일 시험, 편집·검사 측정 |
 
-Canvas를 다른 앱에서 사용하려면 [독립 샘플](samples/VisionCanvas.Sample/README.md)을 참고하세요. `VisionCanvas`만 참조하면 NetVips 없이 호스트가 공급한 프레임·타일을 표시할 수 있습니다. 파일을 여는 샘플은 `VisionImaging`과 OS별 NetVips native 패키지를 명시적으로 추가합니다. ROI 문서·입력·이력은 `VisionCanvas.Core`, 순수 형상은 `VisionGeometry`, 이미지 수명과 `IImageLoader` 계약은 `VisionImaging.Abstractions`에 있습니다. 기존 namespace의 변경과 소스 재빌드 범위는 [분리 결정](docs/decisions/0031-reusable-canvas-boundaries.md), [선택형 디코더 결정](docs/decisions/0032-optional-canvas-file-decoder.md), [검증 기록](docs/canvas-reuse-validation.md)을 참고하세요.
+Canvas를 다른 앱에서 사용하려면 [독립 샘플](samples/VisionCanvas.Sample/README.md)을 참고하세요. `VisionCanvas`만 참조하면 NetVips 없이 호스트가 공급한 프레임·타일을 표시할 수 있습니다. 파일을 여는 샘플은 `VisionImaging`과 자체 `VisionImageCodecs` native 파일을 사용합니다. NetVips 제거와 코덱 라이선스는 [전환 기록](docs/netvips-removal.md)을 따릅니다. ROI 문서·입력·이력은 `VisionCanvas.Core`, 순수 형상은 `VisionGeometry`, 이미지 수명과 `IImageLoader` 계약은 `VisionImaging.Abstractions`에 있습니다. 기존 namespace의 변경과 소스 재빌드 범위는 [분리 결정](docs/decisions/0031-reusable-canvas-boundaries.md), [선택형 디코더 결정](docs/decisions/0032-optional-canvas-file-decoder.md), [검증 기록](docs/canvas-reuse-validation.md)을 참고하세요.
 
 ```powershell
 dotnet run --project .\samples\VisionCanvas.Sample -c Release
@@ -207,7 +207,7 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks -c Release -- artif
 ## 프로젝트 구조와 명시적 ROI 계층 (2026-10-05)
 
 - `src/TeachingToolWpf`: 실행 앱, 패널·ViewModel, 검사 연결, 진단 시나리오.
-- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core, VisionImaging.Abstractions와 IndustrialVision.Filters.Pipeline을 참조한다. NetVips 파일 구현과 필터 CUDA 구현은 호스트가 선택한다.
+- `src/VisionCanvas`: 재사용 가능한 WPF DX12 캔버스, HWND 입력, 렌더링·셰이더, 타일·영상·필터 표시. VisionCanvas.Core, VisionImaging.Abstractions와 IndustrialVision.Filters.Pipeline을 참조한다. 파일 로더와 필터 CUDA 구현은 호스트가 연결한다.
 - `src/VisionCanvas.Core`: GPU 없는 ROI·계층·입력·이력. 순수 기하와 이미지 계약은 VisionGeometry/VisionImaging.Abstractions로 분리한다.
 - `src/VisionAlgorithm`: 독립 알고리즘. 캔버스와 상호 참조하지 않는다.
 - `tests`, `benchmarks`, `samples`: 각각 프로젝트 이름별 폴더. 독립 사용 예제는 VisionCanvas.Sample이다.

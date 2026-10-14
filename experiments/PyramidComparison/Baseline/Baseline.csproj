@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
+    <ProjectReference Include="../../../src/VisionImaging/VisionImaging.csproj" />
+    <ProjectReference Include="../../VisionImaging.OpenCv/VisionImaging.OpenCv.csproj" />
+    <ProjectReference Include="../../VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
+    <Compile Include="../Shared/Measurement.cs" Link="Measurement.cs" />
+    <Compile Include="../Shared/MemoryInspection.cs" Link="MemoryInspection.cs" />
+    <Compile Include="../../../build/DiagnosticImageFixtures.cs" Link="DiagnosticImageFixtures.cs" />
+  </ItemGroup>
+  <Import Project="../../../build/InspectionNativeRuntime.props" />
+</Project>

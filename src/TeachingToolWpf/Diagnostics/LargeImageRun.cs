@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
-using NetVips;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Presentation;
 using VisionCanvas.Controls;
@@ -43,7 +42,9 @@ internal static class LargeImageRun
                     }, null, 0, 100);
                     var watch = Stopwatch.StartNew();
                     var progress = new Progress<string>(text => model.Status = text);
-                    using (var source = await Task.Run(() => DiskPyramidSource.Open(path, Path.GetFullPath("artifacts/image-cache"), progress, CancellationToken.None)))
+                    var loader = ImageLoaderHost.Create(Path.GetFullPath("artifacts/image-cache"));
+                    var reference = new ImageReference(path, "", 24576, 131072, ImageFileVersion.Read(path));
+                    using (var source = await loader.LoadAsync(reference, progress, CancellationToken.None))
                     {
                         var cold = watch.Elapsed.TotalSeconds;
                         using var last = await Task.Run(() => source.Read(new(0, 47, 255), CancellationToken.None));
@@ -55,9 +56,10 @@ internal static class LargeImageRun
                         }
 
                         watch.Restart();
-                        using var warm = await Task.Run(() => DiskPyramidSource.Open(path, Path.GetFullPath("artifacts/image-cache"), new Progress<string>(), CancellationToken.None));
+                        using var warm = await loader.LoadAsync(reference, new Progress<string>(), CancellationToken.None);
                         results.Add(new
                         {
+                            FileBackend = ImageLoaderHost.Backend,
                             Width = 24576,
                             Height = 131072,
                             Bits = bits,
@@ -71,7 +73,7 @@ internal static class LargeImageRun
                             LastTilePixel = actual
                         });
                     }
-                    await model.Images.ReplaceAsync(new(path, "", 24576, 131072, DiskPyramidSource.Version(path)));
+                    await model.Images.ReplaceAsync(new(path, "", 24576, 131072, ImageFileVersion.Read(path)));
                     var roi = model.Session.Add(new(new(12000, 65000), 18000, 25000, 8));
                     model.Session.Rename(roi, $"24K / {bits}비트 검사");
                     await Task.Delay(1500);
@@ -99,11 +101,10 @@ internal static class LargeImageRun
             return;
         }
 
-        VipsRuntime.Configure();
-        var row = Enumerable.Range(0, 24576).Select(x => (ushort)(x / 16 % 256 * (bits == 8 ? 1 : 257))).ToArray();
-        using var line = Image.NewFromMemory(row, 24576, 1, 1, Enums.BandFormat.Ushort);
-        using var typed = line.Cast(bits == 8 ? Enums.BandFormat.Uchar : Enums.BandFormat.Ushort);
-        using var image = typed.Replicate(1, 131072);
-        image.WriteToFile(path, new VOption { { "bigtiff", true }, { "tile", true }, { "tile_width", 512 }, { "tile_height", 512 }, { "compression", Enums.ForeignTiffCompression.Deflate } });
+#if STREAMING_IMAGE_LOADER
+        throw new FileNotFoundException("먼저 Baseline diagnostic-fixtures 명령으로 진단 입력을 준비하세요.", path);
+#else
+        DiagnosticImageFixtures.CreateLarge(path, bits);
+#endif
     }
 }

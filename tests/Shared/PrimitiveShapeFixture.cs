@@ -1,5 +1,5 @@
 using System.IO;
-using NetVips;
+using VisionImaging.Fixtures;
 using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
 
@@ -57,7 +57,6 @@ internal static class PrimitiveShapeFixture
         {
             image.Pixels.Span.Slice(y * image.Stride, image.Width).CopyTo(pixels.AsSpan(y * image.Width));
         }
-        using var bitmap = Image.NewFromMemory(pixels, image.Width, image.Height, 1, Enums.BandFormat.Uchar);
-        bitmap.WriteToFile(path);
+        ImageFixtureWriter.Write(path, image.Width, image.Height, 1, 8, pixels);
     }
 }

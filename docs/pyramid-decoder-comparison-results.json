@@ -1,0 +1,1757 @@
+{
+  "Date": "2026-10-13",
+  "Cpu": "AMD Ryzen 5 5600H, 6 cores / 12 logical processors",
+  "Framework": ".NET 10.0.12",
+  "OS": "Microsoft Windows 10.0.26200",
+  "RawReports": "artifacts/pyramid-comparison/run-20261013-202036-c1175fa4/reports.json",
+  "LinuxExecution": "NOT_RUN",
+  "LinuxX64Publish": "PASS",
+  "UnitTests": "14 PASS",
+  "SourceFixtures": "Random(7421) 512x512 tile repeated; high entropy periodic synthetic input",
+  "Runs": [
+    {
+      "Image": "8k-gray8.png",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 392.7086,
+      "ReopenMilliseconds": 20.3233,
+      "InitialPrivateBytes": 7917568,
+      "PeakPrivateBytes": 31883264,
+      "PeakWorkingSetBytes": 74170368,
+      "ManagedAllocatedBytes": 1317944,
+      "CpuMilliseconds": 1937.5,
+      "CacheBytes": 89402329,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 239.0835,
+          "P50Milliseconds": 0.9729,
+          "P95Milliseconds": 1.7355,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 226.8261,
+          "P50Milliseconds": 0.9102,
+          "P95Milliseconds": 1.6407,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 215.8111,
+          "P50Milliseconds": 0.8846,
+          "P95Milliseconds": 1.5496,
+          "Checksum": 57620
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "8k-gray8.png",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 282.9977,
+      "ReopenMilliseconds": 7.9762,
+      "InitialPrivateBytes": 7741440,
+      "PeakPrivateBytes": 80773120,
+      "PeakWorkingSetBytes": 134979584,
+      "ManagedAllocatedBytes": 7678328,
+      "CpuMilliseconds": 968.75,
+      "CacheBytes": 89391313,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 44.7679,
+          "P50Milliseconds": 0.0868,
+          "P95Milliseconds": 0.7027,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 18.5142,
+          "P50Milliseconds": 0.0884,
+          "P95Milliseconds": 0.1105,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 17.7602,
+          "P50Milliseconds": 0.0854,
+          "P95Milliseconds": 0.0948,
+          "Checksum": 57620
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "8k-gray8.png",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 254.0464,
+      "ReopenMilliseconds": 8.5368,
+      "InitialPrivateBytes": 7725056,
+      "PeakPrivateBytes": 80748544,
+      "PeakWorkingSetBytes": 135196672,
+      "ManagedAllocatedBytes": 7660400,
+      "CpuMilliseconds": 781.25,
+      "CacheBytes": 89391313,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 42.6907,
+          "P50Milliseconds": 0.0891,
+          "P95Milliseconds": 0.6741,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 18.3606,
+          "P50Milliseconds": 0.0901,
+          "P95Milliseconds": 0.0977,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 18.7922,
+          "P50Milliseconds": 0.0914,
+          "P95Milliseconds": 0.1073,
+          "Checksum": 57620
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "8k-gray8.png",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 253.6458,
+      "ReopenMilliseconds": 13.5395,
+      "InitialPrivateBytes": 7868416,
+      "PeakPrivateBytes": 34152448,
+      "PeakWorkingSetBytes": 85618688,
+      "ManagedAllocatedBytes": 1247056,
+      "CpuMilliseconds": 1203.125,
+      "CacheBytes": 89402329,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 164.4119,
+          "P50Milliseconds": 0.7019,
+          "P95Milliseconds": 1.2808,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 156.4571,
+          "P50Milliseconds": 0.6874,
+          "P95Milliseconds": 1.2294,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 162.2279,
+          "P50Milliseconds": 0.7045,
+          "P95Milliseconds": 1.264,
+          "Checksum": 57620
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "8k-gray8.png",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 263.8791,
+      "ReopenMilliseconds": 14.08,
+      "InitialPrivateBytes": 7770112,
+      "PeakPrivateBytes": 33505280,
+      "PeakWorkingSetBytes": 109002752,
+      "ManagedAllocatedBytes": 1257720,
+      "CpuMilliseconds": 1250,
+      "CacheBytes": 89402329,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 170.402,
+          "P50Milliseconds": 0.7322,
+          "P95Milliseconds": 1.3865,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 167.8551,
+          "P50Milliseconds": 0.7331,
+          "P95Milliseconds": 1.3816,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 176.6391,
+          "P50Milliseconds": 0.7585,
+          "P95Milliseconds": 1.3956,
+          "Checksum": 57620
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "8k-gray8.png",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 251.3943,
+      "ReopenMilliseconds": 8.4201,
+      "InitialPrivateBytes": 7901184,
+      "PeakPrivateBytes": 80805888,
+      "PeakWorkingSetBytes": 135708672,
+      "ManagedAllocatedBytes": 7658048,
+      "CpuMilliseconds": 828.125,
+      "CacheBytes": 89391313,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 43.4114,
+          "P50Milliseconds": 0.0873,
+          "P95Milliseconds": 0.6748,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 18.6812,
+          "P50Milliseconds": 0.0861,
+          "P95Milliseconds": 0.1268,
+          "Checksum": 57620
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 58458112,
+          "Milliseconds": 18.4757,
+          "P50Milliseconds": 0.0858,
+          "P95Milliseconds": 0.0946,
+          "Checksum": 57620
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "8k-color.jpg",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 932.2581,
+      "ReopenMilliseconds": 13.1518,
+      "InitialPrivateBytes": 7835648,
+      "PeakPrivateBytes": 81985536,
+      "PeakWorkingSetBytes": 368500736,
+      "ManagedAllocatedBytes": 2272880,
+      "CpuMilliseconds": 3171.875,
+      "CacheBytes": 357576016,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 397.5157,
+          "P50Milliseconds": 1.7649,
+          "P95Milliseconds": 2.365,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 381.16,
+          "P50Milliseconds": 1.6363,
+          "P95Milliseconds": 2.2329,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 383.0642,
+          "P50Milliseconds": 1.6362,
+          "P95Milliseconds": 2.2596,
+          "Checksum": 82906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "8k-color.jpg",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 1383.3319,
+      "ReopenMilliseconds": 8.1584,
+      "InitialPrivateBytes": 7733248,
+      "PeakPrivateBytes": 222232576,
+      "PeakWorkingSetBytes": 311934976,
+      "ManagedAllocatedBytes": 14980888,
+      "CpuMilliseconds": 3015.625,
+      "CacheBytes": 357564625,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 112.7731,
+          "P50Milliseconds": 0.7082,
+          "P95Milliseconds": 0.9035,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 35.9316,
+          "P50Milliseconds": 0.1619,
+          "P95Milliseconds": 0.2041,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 35.9701,
+          "P50Milliseconds": 0.1621,
+          "P95Milliseconds": 0.2027,
+          "Checksum": 82906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "8k-color.jpg",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 1354.2697,
+      "ReopenMilliseconds": 7.7527,
+      "InitialPrivateBytes": 7884800,
+      "PeakPrivateBytes": 222609408,
+      "PeakWorkingSetBytes": 312066048,
+      "ManagedAllocatedBytes": 15022048,
+      "CpuMilliseconds": 2640.625,
+      "CacheBytes": 357564625,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 110.122,
+          "P50Milliseconds": 0.6833,
+          "P95Milliseconds": 0.8517,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 35.7892,
+          "P50Milliseconds": 0.1598,
+          "P95Milliseconds": 0.205,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 34.7902,
+          "P50Milliseconds": 0.1577,
+          "P95Milliseconds": 0.1879,
+          "Checksum": 82906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "8k-color.jpg",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 880.5178,
+      "ReopenMilliseconds": 13.5787,
+      "InitialPrivateBytes": 7798784,
+      "PeakPrivateBytes": 80351232,
+      "PeakWorkingSetBytes": 383512576,
+      "ManagedAllocatedBytes": 2255736,
+      "CpuMilliseconds": 3046.875,
+      "CacheBytes": 357576016,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 384.531,
+          "P50Milliseconds": 1.723,
+          "P95Milliseconds": 2.3286,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 364.8247,
+          "P50Milliseconds": 1.5561,
+          "P95Milliseconds": 2.1914,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 395.7458,
+          "P50Milliseconds": 1.7683,
+          "P95Milliseconds": 2.502,
+          "Checksum": 82906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "8k-color.jpg",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 900.539,
+      "ReopenMilliseconds": 13.5421,
+      "InitialPrivateBytes": 7806976,
+      "PeakPrivateBytes": 81477632,
+      "PeakWorkingSetBytes": 402817024,
+      "ManagedAllocatedBytes": 2272784,
+      "CpuMilliseconds": 3093.75,
+      "CacheBytes": 357576016,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 412.7185,
+          "P50Milliseconds": 1.8002,
+          "P95Milliseconds": 2.5726,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 406.2681,
+          "P50Milliseconds": 1.7712,
+          "P95Milliseconds": 2.4403,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 390.5999,
+          "P50Milliseconds": 1.6149,
+          "P95Milliseconds": 2.4201,
+          "Checksum": 82906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "8k-color.jpg",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 8192,
+      "Height": 8192,
+      "ImportMilliseconds": 1398.0677,
+      "ReopenMilliseconds": 8.4982,
+      "InitialPrivateBytes": 7835648,
+      "PeakPrivateBytes": 222257152,
+      "PeakWorkingSetBytes": 312266752,
+      "ManagedAllocatedBytes": 15017224,
+      "CpuMilliseconds": 3296.875,
+      "CacheBytes": 357564625,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 113.6011,
+          "P50Milliseconds": 0.688,
+          "P95Milliseconds": 0.8836,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 1,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 21.9701,
+          "P50Milliseconds": 0.1001,
+          "P95Milliseconds": 0.1149,
+          "Checksum": 82906
+        },
+        {
+          "Pass": 2,
+          "Count": 223,
+          "Bytes": 233832448,
+          "Milliseconds": 24.168,
+          "P50Milliseconds": 0.1018,
+          "P95Milliseconds": 0.1406,
+          "Checksum": 82906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-gray8.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 722.9893,
+      "ReopenMilliseconds": 16.2724,
+      "InitialPrivateBytes": 7733248,
+      "PeakPrivateBytes": 82022400,
+      "PeakWorkingSetBytes": 193241088,
+      "ManagedAllocatedBytes": 3234008,
+      "CpuMilliseconds": 3484.375,
+      "CacheBytes": 268435049,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 322.853,
+          "P50Milliseconds": 0.8607,
+          "P95Milliseconds": 1.5615,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 288.9964,
+          "P50Milliseconds": 0.8162,
+          "P95Milliseconds": 1.4601,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 312.2027,
+          "P50Milliseconds": 0.8243,
+          "P95Milliseconds": 1.6998,
+          "Checksum": 85895
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-gray8.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 832.4603,
+      "ReopenMilliseconds": 8.3195,
+      "InitialPrivateBytes": 7819264,
+      "PeakPrivateBytes": 229326848,
+      "PeakWorkingSetBytes": 429920256,
+      "ManagedAllocatedBytes": 18180680,
+      "CpuMilliseconds": 2203.125,
+      "CacheBytes": 268419284,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 90.3355,
+          "P50Milliseconds": 0.095,
+          "P95Milliseconds": 0.7074,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 28.1786,
+          "P50Milliseconds": 0.0866,
+          "P95Milliseconds": 0.1141,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 28.1857,
+          "P50Milliseconds": 0.0871,
+          "P95Milliseconds": 0.1162,
+          "Checksum": 85895
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-gray8.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 802.4506,
+      "ReopenMilliseconds": 9.2992,
+      "InitialPrivateBytes": 7909376,
+      "PeakPrivateBytes": 229875712,
+      "PeakWorkingSetBytes": 427388928,
+      "ManagedAllocatedBytes": 18206336,
+      "CpuMilliseconds": 1937.5,
+      "CacheBytes": 268419284,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 87.3831,
+          "P50Milliseconds": 0.0901,
+          "P95Milliseconds": 0.6968,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 25.2728,
+          "P50Milliseconds": 0.0807,
+          "P95Milliseconds": 0.0979,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 25.9412,
+          "P50Milliseconds": 0.0806,
+          "P95Milliseconds": 0.0958,
+          "Checksum": 85895
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-gray8.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 728.856,
+      "ReopenMilliseconds": 15.8905,
+      "InitialPrivateBytes": 7933952,
+      "PeakPrivateBytes": 83542016,
+      "PeakWorkingSetBytes": 239816704,
+      "ManagedAllocatedBytes": 3240992,
+      "CpuMilliseconds": 3296.875,
+      "CacheBytes": 268435049,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 292.8442,
+          "P50Milliseconds": 0.8182,
+          "P95Milliseconds": 1.4284,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 282.3726,
+          "P50Milliseconds": 0.8064,
+          "P95Milliseconds": 1.409,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 290.2449,
+          "P50Milliseconds": 0.8024,
+          "P95Milliseconds": 1.5122,
+          "Checksum": 85895
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-gray8.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 708.5517,
+      "ReopenMilliseconds": 16.8523,
+      "InitialPrivateBytes": 7770112,
+      "PeakPrivateBytes": 80011264,
+      "PeakWorkingSetBytes": 278433792,
+      "ManagedAllocatedBytes": 3222056,
+      "CpuMilliseconds": 3187.5,
+      "CacheBytes": 268435049,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 319.2317,
+          "P50Milliseconds": 0.8739,
+          "P95Milliseconds": 1.4875,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 281.7444,
+          "P50Milliseconds": 0.7772,
+          "P95Milliseconds": 1.414,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 277.3367,
+          "P50Milliseconds": 0.7924,
+          "P95Milliseconds": 1.416,
+          "Checksum": 85895
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-gray8.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 855.7576,
+      "ReopenMilliseconds": 8.3261,
+      "InitialPrivateBytes": 7806976,
+      "PeakPrivateBytes": 229322752,
+      "PeakWorkingSetBytes": 446656512,
+      "ManagedAllocatedBytes": 18211680,
+      "CpuMilliseconds": 2281.25,
+      "CacheBytes": 268419284,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 87.3563,
+          "P50Milliseconds": 0.0937,
+          "P95Milliseconds": 0.6961,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 27.4739,
+          "P50Milliseconds": 0.0903,
+          "P95Milliseconds": 0.1035,
+          "Checksum": 85895
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 86720512,
+          "Milliseconds": 27.2515,
+          "P50Milliseconds": 0.0906,
+          "P95Milliseconds": 0.099,
+          "Checksum": 85895
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-gray16.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 1379.5538,
+      "ReopenMilliseconds": 16.8229,
+      "InitialPrivateBytes": 7872512,
+      "PeakPrivateBytes": 134434816,
+      "PeakWorkingSetBytes": 542314496,
+      "ManagedAllocatedBytes": 3875520,
+      "CpuMilliseconds": 4703.125,
+      "CacheBytes": 536854130,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 363.0112,
+          "P50Milliseconds": 1.0069,
+          "P95Milliseconds": 1.6806,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 363.6958,
+          "P50Milliseconds": 0.9772,
+          "P95Milliseconds": 1.7224,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 339.7338,
+          "P50Milliseconds": 0.9355,
+          "P95Milliseconds": 1.5841,
+          "Checksum": 93976
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-gray16.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 746.7105,
+      "ReopenMilliseconds": 8.9263,
+      "InitialPrivateBytes": 7749632,
+      "PeakPrivateBytes": 423354368,
+      "PeakWorkingSetBytes": 836538368,
+      "ManagedAllocatedBytes": 19756568,
+      "CpuMilliseconds": 2343.75,
+      "CacheBytes": 536838358,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 125.8243,
+          "P50Milliseconds": 0.1311,
+          "P95Milliseconds": 0.7648,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 33.5536,
+          "P50Milliseconds": 0.0911,
+          "P95Milliseconds": 0.1567,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 32.1614,
+          "P50Milliseconds": 0.0919,
+          "P95Milliseconds": 0.1324,
+          "Checksum": 93976
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-gray16.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 795.6833,
+      "ReopenMilliseconds": 8.6026,
+      "InitialPrivateBytes": 7753728,
+      "PeakPrivateBytes": 423120896,
+      "PeakWorkingSetBytes": 833007616,
+      "ManagedAllocatedBytes": 19806368,
+      "CpuMilliseconds": 1968.75,
+      "CacheBytes": 536838358,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 137.0511,
+          "P50Milliseconds": 0.1629,
+          "P95Milliseconds": 0.8519,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 33.1052,
+          "P50Milliseconds": 0.0955,
+          "P95Milliseconds": 0.1324,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 31.3865,
+          "P50Milliseconds": 0.0921,
+          "P95Milliseconds": 0.1212,
+          "Checksum": 93976
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-gray16.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 1311.1151,
+      "ReopenMilliseconds": 15.3437,
+      "InitialPrivateBytes": 7741440,
+      "PeakPrivateBytes": 131911680,
+      "PeakWorkingSetBytes": 546025472,
+      "ManagedAllocatedBytes": 3825064,
+      "CpuMilliseconds": 4765.625,
+      "CacheBytes": 536854130,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 362.5575,
+          "P50Milliseconds": 0.9885,
+          "P95Milliseconds": 1.6687,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 356.6178,
+          "P50Milliseconds": 0.9625,
+          "P95Milliseconds": 1.6287,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 349.8603,
+          "P50Milliseconds": 0.986,
+          "P95Milliseconds": 1.7064,
+          "Checksum": 93976
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-gray16.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 1330.4286,
+      "ReopenMilliseconds": 16.3487,
+      "InitialPrivateBytes": 7823360,
+      "PeakPrivateBytes": 130281472,
+      "PeakWorkingSetBytes": 535392256,
+      "ManagedAllocatedBytes": 3814632,
+      "CpuMilliseconds": 4421.875,
+      "CacheBytes": 536854130,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 365.1161,
+          "P50Milliseconds": 0.9897,
+          "P95Milliseconds": 1.7094,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 363.4703,
+          "P50Milliseconds": 0.9634,
+          "P95Milliseconds": 1.7129,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 343.8343,
+          "P50Milliseconds": 0.934,
+          "P95Milliseconds": 1.5901,
+          "Checksum": 93976
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-gray16.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 8192,
+      "ImportMilliseconds": 783.5224,
+      "ReopenMilliseconds": 8.6814,
+      "InitialPrivateBytes": 7864320,
+      "PeakPrivateBytes": 423292928,
+      "PeakWorkingSetBytes": 821903360,
+      "ManagedAllocatedBytes": 19703384,
+      "CpuMilliseconds": 2062.5,
+      "CacheBytes": 536838358,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 124.5259,
+          "P50Milliseconds": 0.1079,
+          "P95Milliseconds": 0.7684,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 1,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 30.2132,
+          "P50Milliseconds": 0.0874,
+          "P95Milliseconds": 0.1103,
+          "Checksum": 93976
+        },
+        {
+          "Pass": 2,
+          "Count": 336,
+          "Bytes": 173441024,
+          "Milliseconds": 30.0766,
+          "P50Milliseconds": 0.0879,
+          "P95Milliseconds": 0.1103,
+          "Checksum": 93976
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-8bit.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 131072,
+      "ImportMilliseconds": 8113.5507,
+      "ReopenMilliseconds": 19.2348,
+      "InitialPrivateBytes": 7725056,
+      "PeakPrivateBytes": 96743424,
+      "PeakWorkingSetBytes": 1024008192,
+      "ManagedAllocatedBytes": 36543128,
+      "CpuMilliseconds": 27640.625,
+      "CacheBytes": 4294972395,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 601,
+          "Bytes": 154681344,
+          "Milliseconds": 520.9132,
+          "P50Milliseconds": 0.8275,
+          "P95Milliseconds": 1.746,
+          "Checksum": 152906
+        },
+        {
+          "Pass": 1,
+          "Count": 601,
+          "Bytes": 154681344,
+          "Milliseconds": 513.0317,
+          "P50Milliseconds": 0.7765,
+          "P95Milliseconds": 1.7271,
+          "Checksum": 152906
+        },
+        {
+          "Pass": 2,
+          "Count": 601,
+          "Bytes": 154681344,
+          "Milliseconds": 525.6812,
+          "P50Milliseconds": 0.8658,
+          "P95Milliseconds": 1.6863,
+          "Checksum": 152906
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-8bit.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "FAIL",
+      "Width": null,
+      "Height": null,
+      "ImportMilliseconds": null,
+      "ReopenMilliseconds": null,
+      "InitialPrivateBytes": 7835648,
+      "PeakPrivateBytes": 12275712,
+      "PeakWorkingSetBytes": 35475456,
+      "ManagedAllocatedBytes": 116792,
+      "CpuMilliseconds": 109.375,
+      "CacheBytes": null,
+      "TilePasses": null,
+      "Error": "OpenCvSharp.OpenCVException: pixels <= CV_IO_MAX_IMAGE_PIXELS",
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    },
+    {
+      "Image": "24k-16bit.tif",
+      "Backend": "NetVips",
+      "Status": "PASS",
+      "Width": 24576,
+      "Height": 131072,
+      "ImportMilliseconds": 22393.024,
+      "ReopenMilliseconds": 17.9825,
+      "InitialPrivateBytes": 7839744,
+      "PeakPrivateBytes": 147349504,
+      "PeakWorkingSetBytes": 3956957184,
+      "ManagedAllocatedBytes": 37495944,
+      "CpuMilliseconds": 44984.375,
+      "CacheBytes": 8589923318,
+      "TilePasses": [
+        {
+          "Pass": 0,
+          "Count": 601,
+          "Bytes": 309362688,
+          "Milliseconds": 670.7692,
+          "P50Milliseconds": 1.0728,
+          "P95Milliseconds": 2.0316,
+          "Checksum": 148731
+        },
+        {
+          "Pass": 1,
+          "Count": 601,
+          "Bytes": 309362688,
+          "Milliseconds": 715.9527,
+          "P50Milliseconds": 1.0532,
+          "P95Milliseconds": 1.9724,
+          "Checksum": 148731
+        },
+        {
+          "Pass": 2,
+          "Count": 601,
+          "Bytes": 309362688,
+          "Milliseconds": 656.8696,
+          "P50Milliseconds": 1.0474,
+          "P95Milliseconds": 1.9476,
+          "Checksum": 148731
+        }
+      ],
+      "Error": null,
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging": "E90538DC59A17B305FE9022B5F032518D6964D36091C156AC866624A49520669"
+      },
+      "NetVipsLoaded": true
+    },
+    {
+      "Image": "24k-16bit.tif",
+      "Backend": "Own/OpenCV",
+      "Status": "FAIL",
+      "Width": null,
+      "Height": null,
+      "ImportMilliseconds": null,
+      "ReopenMilliseconds": null,
+      "InitialPrivateBytes": 7798784,
+      "PeakPrivateBytes": 11812864,
+      "PeakWorkingSetBytes": 35418112,
+      "ManagedAllocatedBytes": 113936,
+      "CpuMilliseconds": 62.5,
+      "CacheBytes": null,
+      "TilePasses": null,
+      "Error": "OpenCvSharp.OpenCVException: pixels <= CV_IO_MAX_IMAGE_PIXELS",
+      "OptimizationEnabled": {
+        "VisionImaging.Abstractions": true,
+        "VisionImaging.OpenCv": true,
+        "VisionImaging.Pyramid": true
+      },
+      "BinaryHashes": {
+        "VisionImaging.Abstractions": "38787A056BB296529FC72EE97569D857F947F1F2CF935307EA6ADFA94AC6D14A",
+        "VisionImaging.OpenCv": "DA885A3CF08261478A800A7AF0FB247DAF933D120F5C130E3C0693095BA58C30",
+        "VisionImaging.Pyramid": "68852B65724DB298EE107DD4B8E5DF336B9A02742AB3BD03469BA9C525CF8AD4"
+      },
+      "NetVipsLoaded": false
+    }
+  ],
+  "Quality": [
+    {
+      "File": "24k-gray16.tif",
+      "Status": "EXACT_SAMPLED",
+      "Width": 24576,
+      "Height": 8192,
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 32768000,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 24641536,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 8388608,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 2097152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 786432,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 5,
+          "Samples": 196608,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 6,
+          "Samples": 49152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "24k-gray8.tif",
+      "Status": "EXACT_SAMPLED",
+      "Width": 24576,
+      "Height": 8192,
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 32768000,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 24641536,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 8388608,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 2097152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 786432,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 5,
+          "Samples": 196608,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 6,
+          "Samples": 49152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "8k-color.jpg",
+      "Status": "EXACT_SAMPLED",
+      "Width": 8192,
+      "Height": 8192,
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 112197632,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 45088768,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 12582912,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 2097152,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 1048576,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "8k-gray8.png",
+      "Status": "EXACT_SAMPLED",
+      "Width": 8192,
+      "Height": 8192,
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 28049408,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 11272192,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 3145728,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 3,
+          "Samples": 524288,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 4,
+          "Samples": 262144,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "odd-gray16.png",
+      "Status": "EXACT_SAMPLED",
+      "Width": 1031,
+      "Height": 519,
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 535089,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 134160,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 33540,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    },
+    {
+      "File": "odd-rgba.png",
+      "Status": "EXACT_SAMPLED",
+      "Width": 1031,
+      "Height": 519,
+      "Levels": [
+        {
+          "Level": 0,
+          "Samples": 2140356,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 1,
+          "Samples": 536640,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        },
+        {
+          "Level": 2,
+          "Samples": 134160,
+          "Differences": 0,
+          "MaximumError": 0,
+          "MeanAbsoluteError": 0
+        }
+      ]
+    }
+  ]
+}

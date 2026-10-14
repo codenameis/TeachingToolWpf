@@ -1,5 +1,91 @@
 # 단계별 작업 목록
 
+## 2026-10-14 NetVips 의존성 제거
+
+- [x] PASS: WebP 유지 후속, libwebp1.6.0 decoder-only static 연결·BSD/PATENTS 고지. 손실/무손실/알파·오류·취소·예산12건과8192² 전체 픽셀 검증. 전체 RGBA 메모리·native 호출 중 취소 제한은 [기록](../docs/netvips-removal.md).
+
+- [x] PASS: 기본 앱·샘플·검사 CLI를 자체 TIFF/PNG/JPEG 로더로 전환. NetVips 관리/Windows/Linux native PackageReference0개. Canvas/Core/카메라 경계 보존.
+- [x] PASS: 메인 Release0경고/0오류, 전체1,210테스트 + 별도 엔진68테스트. 원본 값·취소·cache·실패 원자성 검증. 테스트/벤치마크 fixture의 NetVips 코드 이전.
+- [x] PASS: 새 기본 self-contained ZIP과 샘플/CLI 게시에서 NetVips/libvips/Skia/fixture 의존성0개. 8K JPEG GPU/WARP 앱 편집·독립 샘플·검사4예제 통과.
+- [x] PASS: 코덱 고정 라이선스 확인과 배포 고지 유지. 기존 비교 기록/캐시 보존, 과거 NetVips 측정 명령 폐기/현재 backend 명시. [결정](../docs/decisions/0044-remove-netvips-dependency.md), [검증·제한·실행법](../docs/netvips-removal.md).
+- [x] PASS: 사용자 승인으로 VipsRuntime.cs/VipsRegionPixels.cs 두 파일 삭제 및 임시 Compile 제외 제거. 옛 배포/패키지 캐시 보존.
+- [ ] NOT_RUN: Linux 실제 실행·다른 PC·현장 corpus·새60FPS 수용. BMP/VIPS 및 코덱 미지원 변형은 지원하지 않음. 정적 WebP는 후속 지원. 커밋·푸시 없음.
+
+
+## 2026-10-14 Skia JPEG scanline / 메인 앱 비교 빌드
+
+- [x] PASS: JPEG GetScanlines 직접 행 디코드·64행 취소 확인·불완전 행 오류/해제, PNG/TIFF 보존. Skia18테스트와5입력 원본/축소 표본 차이0.
+- [x] PASS: 일반/progressive8K JPEG × 자체/Skia × 각5회20측정. Skia 전용 메모리32.3/402.4MiB, 준비1,168.5/1,029.5ms. 자체31.9/401.8MiB,785.4/834.0ms. [실측](../docs/skia-jpeg-scanline.md).
+- [x] PASS: Windows self-contained 자체/Skia 메인 앱 두 ZIP, NetVips0개, 공통 Canvas/알고리즘 해시 동일. [사용법](../docs/skia-scanline-builds.md). JPEG GPU/CPU 실제 앱 편집·Undo/Redo 확인.
+- [x] PASS: 최종68테스트(Skia18/native26/pyramid24), 메인 앱6시나리오(두 로더 JPEG GPU/CPU + Skia24K TIFF·8K PNG). 작은 TIFF의 진단 ROI 범위 실패는 보존하고 적정 크기 입력으로 재검증.
+- [ ] NOT_RUN: Linux 실실행·새60FPS 수용·ICC/CMYK 전체 corpus. PNG16 미지원과 native 호출 중 즉시 취소 제한 유지. 기존 기록/캐시 보존, 로컬 작업만 진행.
+
+## 2026-10-14 SkiaSharp PNG/JPEG 별도 비교
+
+- [x] PASS: 별도 VisionImaging.Skia + Skia CLI. TIFF/BigTIFF는 기존 디코더, 공통 피라미드/타일 DLL 해시 동일. 생산 Canvas/앱 변경 없음.
+- [x] PASS: 8K4입력×두 로더×각5회40실행. 새 프로세스/캐시·교차 순서·시간·메모리·실행물 해시와 캐시 보존. [실측과 판단](../docs/skia-loader-comparison.md), [실행법](../experiments/PyramidComparison/Skia/README.md).
+- [x] PASS: 원본/모든 축소 단계8입력 표본 차이0, Skia14테스트. PNG8bit alpha/palette/tRNS/Adam7, 오류·취소·수명·비트맵 예산 검증.
+- [x] PASS: 기존 코덱26·피라미드24 회귀(전체64테스트). 최종 CLI Release0경고/0오류, 측정본과 디코더 해시 일치, 패키지 라이선스 고지 복사.
+- [ ] NOT_IMPLEMENTED: Skia Gray16 PNG 원본 보존·scanline 최적화·native 호출 중 취소. 현재 명시적 거부/전체 비트맵/호출 종료 후 취소. 기존 로더 전체 대체로 표현하지 않음.
+- [ ] NOT_RUN: Linux 실제 실행, 다양한 ICC/CMYK/EXIF corpus, Canvas GPU/WARP/60FPS 재측정. 이번 결과는 파일 준비 비교이며 ROI 표시 성능 검증이 아님.
+
+## 2026-10-13 로더별 비교 배포와 완전 제거 점검
+
+- [x] PASS: [남은 전환/제거 작업과 사용법](../docs/loader-comparison-guide.md). 생산 배포의 NetVips 제외와 저장소 전체 제거를 구분하고 파일 호환성·Linux·안정성·60FPS 미달·테스트/생성기/benchmark 이전을 기록.
+- [x] PASS: `scripts/Publish-LoaderComparison.ps1`로 같은 소스의 Windows x64 Release self-contained 두 폴더/ZIP 생성. 일반/CPU 실행 도우미와 창 제목으로 로더 구별, 각 배포 캐시 분리. 기존 캐시 삭제 없음.
+- [x] PASS: 두 배포×GPU 자동/CPU 강제4회,24K Gray16 실파일·128 ROI 복사/붙여넣기·정확한 Undo/Redo·정상 종료. 자체 NetVips 패키지/DLL0개, 공통 Canvas/알고리즘 DLL 해시 일치.
+- [ ] NOT_RUN: 개발 도구 없는 별도 PC 실행. 이번 시험은 배포 기능 확인이며 새로운60FPS/성능 수용 결과가 아니다. 저장소 기본값은 기존 NetVips, 로컬 작업만 진행.
+
+## 2026-10-13 TIFF·PNG·JPEG 스트리밍 파일 엔진 구현
+
+사용자 선택: **세 형식 모두**, Windows 구현 진행·Linux 실제 검증은 환경 준비 후. [계획](streaming-image-loader-plan.md), [구현 결정](../docs/decisions/0043-streaming-file-engine.md), [실측·근거](../docs/streaming-image-loader-validation.md). 기존 NetVips 기본값과 다른 미완료 작업을 보존한다. 현재 main에서 로컬 구현·검증만 진행했으며 커밋·푸시 없음.
+
+아래 PASS는 기록한 Windows 입력/조건 범위다. Linux 미실행·60FPS 미달을 함께 완료로 계산하지 않는다.
+
+| 상태 / ID | 작업과 수용 기준 | 검증 |
+|---|---|---|
+| [x] PASS F01 | Windows corpus·같은 조건 기준선 | 29입력 표본, 대표4입력×두 로더×5회40 PASS, 원본/실행물 해시 기록 |
+| [x] PASS F02 | 거대 strip·Adam7·progressive 위험 probe | 큰 무압축 strip 분할, PackBits8MiB 거부/512MiB 읽기,8K scratch·계수·취소 실측 |
+| [x] PASS F03 | C ABI 오류·handle 경계 | 잘린 TIFF/JPEG·PNG CRC 오류, native 정리/파일 재열기 |
+| [x] PASS F04 | managed 순차 행·수명 | 코덱/로더26테스트 PASS; 취소·작은 버퍼·중복 Dispose 포함 |
+| [ ] NOT_RUN F05(Linux) | 버전/빌드/라이선스·native 배포 | Windows DLL/세 호스트 실행 PASS. Linux는 사용자 지정으로 환경 준비 후 |
+| [x] PASS F06 | TIFF strip Gray8/16 | none/LZW/Deflate/PackBits 원본·축소 표본 차이0 |
+| [x] PASS F07 | TIFF tile·endian·RGB/RGBA | LE/BE/white-is-zero 단위 검증, straight alpha/홀수 가장자리 fixture 차이0; 미지원 변형은 명시 |
+| [x] PASS F08 | 24576×131072 Gray8/16 완주 | 원본3/6GiB 및 모든 단계 표본 차이0,4GiB 이후 offset. 현재각1회 |
+| [x] PASS F09 | PNG 원본 명암/색 | palette·저비트 gray·8bit tRNS·RGBA·Gray16 픽셀 검증 |
+| [x] PASS F10 | Adam7 scratch/취소 | 6조합 전 픽셀,8K 실제 읽기·취소·잔여 scratch0 |
+| [x] PASS F11 | sequential JPEG | Gray/RGB fixture와8K 원본·축소 표본 차이0 |
+| [x] PASS F12 | progressive 계수 예산 | 8K512MiB 예산 완료·64MiB 거부, private400.6MiB·취소18.2ms(각1회) |
+| [x] PASS F13 | 제한 행 묶음/worker·대여 배열 계측 | 공통24테스트 PASS. Gray8/16/RGBA 최대4MiB 행·풀 크기 경계6조건의 작업 배열64MiB 이하, 프로세스 총량과 구별 |
+| [x] PASS F14 | 제한8MiB 타일 매핑 창 | 경계 왕복·타일 p50/p95/p99·private/working 비교, 초대형 RAM 감소 |
+| [x] PASS F15 | 프로세스 간 준비/원자적 게시 | 4프로세스 완료 항목1개, writer 강제 종료 후 partial1→0 복구 |
+| [ ] NOT_RUN F16(실제 ENOSPC) | 소유 캐시 예산·손상/취소 복구 구현 | 예산 거부·manifest/길이 손상·live lease·임의 파일 보존 PASS. 실제 디스크 full/전원 손실 시험 미실행 |
+| [x] PASS F17 | RawImageLoader 연결 | 독립 source·취소·오류·peer Dispose/재읽기, 앱과 CLI 실행 |
+| [x] PASS F18 | 중립 ImageFileVersion | 길이/시간 정책 보존, 변경 version 거부, 이미지 이력67관련 테스트 |
+| [x] PASS F19 | VisionImaging.Sources 분리 | 생성/live의 파일 로더 미호출, frame 수명과 독립 Canvas GPU/WARP |
+| [ ] NOT_RUN F20(Linux) | NetVips 선택형 native 배포 | Windows app/sample/CLI deps·DLL 제외 PASS. Linux 실행물 검증 남음 |
+| [x] PASS F21 | 선택형 WPF 조립 | 기본 솔루션·Streaming 빌드/시작/파일 열기, eager Vips 초기화 제거 |
+| [x] PASS F22 | 샘플/진단 호스트 갱신 | GPU/WARP sample, 실파일4만 ROI 진단,40회 교체·필터, loader 이름 기록 |
+| [ ] FAIL F23(60FPS) | 정확한 교체·ROI/이력·검사 보존 PASS | 검사4종 결과 완전 일치. 파일 준비/편집 프레임16.67ms 기준은 기존/신규 모두 미달 |
+| [ ] NOT_RUN F24(Linux 등) | Windows 비교 보고 완료 | 대표4입력5회, 초대형1회. 사용자가 초대형 캐시 보존·1회 기록 확정. Linux 실제 실행·프레임 수용은 남음 |
+
+Checkpoint: F02/F05/F08/F10/F12/F14/F16/F18/F20/F22/F24 후 관련 테스트·증거·남은 실패를 검토한다. 양 플랫폼 실행 환경 확보 전 F05/F24 완료를 선언하지 않는다. 설계 원칙 예외·지원 범위 확대는 적용 전에 별도 판단하며 일상 구현 단계마다 재확인하지 않는다.
+
+## 2026-10-13 자체 엔진 메모리·추가 성능 검토
+
+- [x] PASS: 구간별 경계/20ms 표본 메모리, 전용 할당과 RAM 상주 분리. Gray16 원본 Mat 해제 후 약403→18MiB, 반복 타일 source 해제 시 상주363→53MiB 확인. 표본/순간값/전체 피크 구별.
+- [x] PASS: 실험 OpenCV 컬러 루프의 native 너비 조회를 지역값으로 재사용. 변경 전후 독립5회씩 JPEG1363.8→979.6ms(28.2% 단축), 메모리 개선 없음·Gray16 개선 근거 없음. 원본 픽셀/취소/수명과 공통 타일 엔진 보존.
+- [x] PASS: 공통 테스트14개, 6개 이미지의 단계별 픽셀 표본 오차0, Linux x64 publish. [원본 수치·후속 후보·검증 한계](../docs/pyramid-memory-review.md).
+- [ ] NOT_RUN: 스트리밍 디코더/SIMD/제한 매핑 창 최적화, Linux 실실행, 현장 파일·장시간·메모리 압박·화면60FPS. 초대형 OpenCV 읽기 실패는 기존대로 유지. 생산 코드 변경·커밋·푸시 없음.
+
+## 2026-10-13 자체 피라미드·타일 엔진 비교
+
+- [x] PASS: 별도 실험 솔루션. `net10.0` 공통 raw 피라미드/타일 캐시와 OpenCV 디코더 어댑터, 기존 NetVips 비교 콘솔. 생산 코드·Canvas/검사 경계 보존. [실행법](../experiments/PyramidComparison/README.md).
+- [x] PASS: Release 경고0/오류0, 공통 엔진14개 테스트, 축소 조건 변이4개 실패→복원14개 통과, 6개 fixture의 결정적 픽셀 표본 오차0, SOLID5/GRASP9 검토.
+- [x] PASS: 동일 입력/독립 프로세스로 일반8K·24K 각3회 및 초대형 각1회 준비·재열기·타일 p95·메모리 비교. Linux x64 publish와 NetVips 없는 자체 의존성/로드 확인. [결과와 실행물 해시](../docs/pyramid-decoder-comparison.md).
+- [ ] FAIL: 자체 OpenCV 경로의24576×131072 Gray8/Gray16 파일 읽기. 기본 픽셀 제한으로 실패. 일반24K×8K 결과로 초대형 수용을 대체하지 않는다.
+- [ ] NOT_RUN: Linux 실실행·성능, Linux 화면, 현장 데이터, 장시간 스트리밍, 이번 실험의 ROI/GPU/WARP60FPS. 로컬 작업만 수행하며 기존 미커밋 변경과 성능 미달을 보존한다.
+
 ## 2026-10-13 전체 변경 커밋·main 반영 승인
 
 사용자가 **현재 프로젝트 변경 전체를 검증 후 커밋·푸시**하도록 후속 승인했다. 작업 브랜치는 이미 `main`이며 fetch 시점에 `origin/main`과 동일했다. 별도 미병합 로컬 브랜치는 없었다. 아래의 로컬 수정·커밋 없음 표기는 각 구현/검증 당시의 기록이다. 별도 Git 저장소인 `dotnet-anti-slop/`와 기존 무시 대상 빌드/실험 산출물은 상위 프로젝트 커밋에서 제외한다.
@@ -878,3 +964,5 @@ dotnet run --project .\benchmarks\TeachingToolWpf.Benchmarks\TeachingToolWpf.Ben
 - [x] PASS: 전역 설치 스킬·프로젝트 분석기 설치, 기존 AGENTS 보존 및 중복 없는 .NET 규칙 병합. [충돌/검증 기록](../docs/dotnet-anti-slop-adoption.md).
 - [x] PASS: 알려진 DAS1003 위반 검출 및 수정 후 통과, 일반 전체 Release 빌드와 6개 프로젝트 테스트.
 - [ ] FAIL: 기본 분석기 감사 오류40/경고56. 자동 강제 적용은 보류하고 `EnableDotNetAntiSlop=true`로 별도 실행. 기존 경고 오류 정책은 유지.
+
+- WebP 후속 배포: 기본 win-x64 Build/ComputeFilesToPublish PASS. 승인된 runtimes 폴더만 정리한 뒤 artifacts/netvips-webp/Streaming-WebP-win-x64.zip 생성, 665개 파일 해시·NetVips/Skia 패키지0·라이선스 포함 PASS. 추가 Skia 빌드는 native PDB 복사 중 디스크 부족 FAIL 기록 유지. 기존 ZIP은 WebP 추가 이전 실행물이다.

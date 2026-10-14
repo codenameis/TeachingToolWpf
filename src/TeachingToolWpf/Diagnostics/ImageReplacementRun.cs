@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
-using NetVips;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Presentation;
 using VisionCanvas.Controls;
@@ -93,6 +92,7 @@ internal static class ImageReplacementRun
         };
         void Save(string? error) => File.WriteAllText(report, JsonSerializer.Serialize(new
         {
+            FileBackend = ImageLoaderHost.Backend,
             ReplacementsPerCycle = 2,
             WarmupCycles = 10,
             Samples = samples,
@@ -112,23 +112,13 @@ internal static class ImageReplacementRun
             var path = Path.Combine(directory, name);
             if (!File.Exists(path))
             {
-                var row = Enumerable.Range(0, width).Select(x => (ushort)(x % 256 * 257)).ToArray();
-                using var line = Image.NewFromMemory(row, width, 1, 1, Enums.BandFormat.Ushort);
-                using var full = line.Replicate(1, height);
-                if (gray16)
-                {
-                    full.WriteToFile(path, new VOption { { "tile", true }, { "compression", Enums.ForeignTiffCompression.Deflate } });
-                }
-                else
-                {
-                    using var gray = full.Linear([1d / 257], [0]);
-                    using var bytes = gray.Cast(Enums.BandFormat.Uchar);
-                    using var rgb = bytes.Bandjoin([bytes, bytes]);
-                    using var rgba = rgb.Bandjoin(255);
-                    rgba.WriteToFile(path);
-                }
+#if STREAMING_IMAGE_LOADER
+                throw new FileNotFoundException("먼저 Baseline diagnostic-fixtures 명령으로 진단 입력을 준비하세요.", path);
+#else
+                DiagnosticImageFixtures.CreateReplacement(path, width, height, gray16);
+#endif
             }
-            return new(path, name, width, height, DiskPyramidSource.Version(path));
+            return new(path, name, width, height, ImageFileVersion.Read(path));
         }
     }
 }

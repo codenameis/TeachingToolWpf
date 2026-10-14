@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title += ImageLoaderHost.Backend == "Streaming" ? " · 자체 파일 로더" : " · Skia JPEG Scanline";
         if (Environment.GetCommandLineArgs().Contains("--software-rendering"))
         {
             Viewport.DevicePreference = VisionCanvas.Rendering.RenderDevicePreference.Software;
@@ -29,9 +30,13 @@ public partial class MainWindow : Window
         var paperLatency = Environment.GetCommandLineArgs().Contains("--paper-latency-smoke");
         var rotationInspection = Environment.GetCommandLineArgs().Contains("--rotation-inspection-smoke");
         var cache = smoke || inspectionSmoke || largeImage || memoryCheck || paperLatency || rotationInspection ? System.IO.Path.GetFullPath("artifacts/image-cache") : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TeachingToolWpf", "ImageCache");
-        VisionImaging.VipsRuntime.Configure();
+        var cadenceCache = Array.IndexOf(Environment.GetCommandLineArgs(), "--cadence-cache");
+        if (cadenceCache >= 0 && cadenceCache + 1 < Environment.GetCommandLineArgs().Length)
+        {
+            cache = System.IO.Path.GetFullPath(Environment.GetCommandLineArgs()[cadenceCache + 1]);
+        }
         var live = new Presentation.LivePreview(Viewport, kind => new VisionImaging.SyntheticFrameSource(kind));
-        var loader = new VisionImaging.ImageLoader(cache);
+        var loader = ImageLoaderHost.Create(cache);
         _filterPreview = new(loader, Viewport.RetainFrame, () => _filterGpu ??= new IndustrialVision.Filters.Gpu.CudaBackend());
         _model = new(Viewport, loader, live, _filterPreview,
             new Imaging.Matching.ShapeMatchingService(loader, Viewport.RetainFrame, _inspectionCompute.Rent, _inspectionCompute.PrepareAsync,

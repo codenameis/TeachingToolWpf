@@ -1,0 +1,23 @@
+[
+  {
+    "Folder": "artifacts/loader-comparison/20261014-100720/Streaming",
+    "NetVipsSkiaFixturePackages": [],
+    "UnexpectedNativeDlls": [],
+    "HistoricalNotices": [],
+    "NativeCodecSha256": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+  },
+  {
+    "Folder": "artifacts/netvips-removal/sample",
+    "NetVipsSkiaFixturePackages": [],
+    "UnexpectedNativeDlls": [],
+    "HistoricalNotices": [],
+    "NativeCodecSha256": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+  },
+  {
+    "Folder": "artifacts/netvips-removal/cli",
+    "NetVipsSkiaFixturePackages": [],
+    "UnexpectedNativeDlls": [],
+    "HistoricalNotices": [],
+    "NativeCodecSha256": "803334FDEDC60405C82DEB9CDB7CF80ED171CB198A1687DB67437A34548E4C40"
+  }
+]

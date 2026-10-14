@@ -31,7 +31,7 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
             linked.Token.ThrowIfCancellationRequested();
             var searchRoi = recipe.SearchRoi?.ToGeometry();
             var teachingRoi = recipe.TeachingRoi?.ToGeometry();
-            var loader = new ImageLoader(_cacheDirectory);
+            var loader = ImageLoaderHost.Create(_cacheDirectory);
             inspectionImage = await ReadImageAsync(recipe.InspectionImage, recipeDirectory, loader, linked.Token).ConfigureAwait(false);
             InspectionRunResult result;
             if (recipe.Method == "primitives")
@@ -126,7 +126,7 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
         IImageLoader loader, CancellationToken token)
     {
         var path = Path.GetFullPath(imagePath, Path.GetFullPath(recipeDirectory));
-        var version = DiskPyramidSource.Version(path);
+        var version = ImageFileVersion.Read(path);
         var reference = new ImageReference(path, Path.GetFileName(path), 1, 1, version);
         using var source = await loader.LoadAsync(reference, new Progress<string>(), token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();

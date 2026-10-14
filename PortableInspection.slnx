@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
+    <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />
     <Project Path="src/VisionInspection/VisionInspection.csproj" />
@@ -11,5 +12,10 @@
   <Folder Name="/tests/">
     <Project Path="tests/VisionAlgorithm.Tests/VisionAlgorithm.Tests.csproj" />
     <Project Path="tests/VisionInspection.Tests/VisionInspection.Tests.csproj" />
+  </Folder>
+  <Folder Name="/file-engine/">
+    <Project Path="experiments/VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
+    <Project Path="experiments/VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
+    <Project Path="tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
   </Folder>
 </Solution>

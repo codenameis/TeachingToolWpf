@@ -1,0 +1,8 @@
+[
+  { "name": "libwebp-1.6.0", "archive": "libwebp-1.6.0.tar.gz", "url": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz", "sha256": "E4AB7009BF0629FD11982D4C2AA83964CF244CFFBA7347ECD39019A9E38C4564" },
+  { "name": "zlib-1.3.2", "archive": "zlib-1.3.2.tar.gz", "url": "https://zlib.net/zlib-1.3.2.tar.gz", "sha256": "BB329A0A2CD0274D05519D61C667C062E06990D72E125EE2DFA8DE64F0119D16" },
+  { "name": "tiff-4.7.2", "archive": "tiff-4.7.2.tar.gz", "url": "https://download.osgeo.org/libtiff/tiff-4.7.2.tar.gz", "sha256": "672BD7D10AEE4606171AFB864F3570B83340F6A33E2C186DC0512F7145FFDF6A" },
+  { "name": "libpng-1.6.59", "archive": "libpng-1.6.59.tar.gz", "url": "https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.59.tar.gz", "sha256": "2540302A1844AD2B2B501977ABECFA850F265F97B78F065A712AB4074A89F5B5" },
+  { "name": "libjpeg-turbo-3.2.0", "archive": "libjpeg-turbo-3.2.0.tar.gz", "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz", "sha256": "6F30092CEF9FB839779646608F4EE14AE3CBAC989C47FA05E841B0841F09878E" },
+  { "name": "nasm-2.16.03", "archive": "nasm-2.16.03-win64.zip", "url": "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip", "sha256": "3EE4782247BCB874378D02F7EAB4E294A84D3D15F3F6EE2DE2F47A46AA7226E6", "windowsOnly": true }
+]

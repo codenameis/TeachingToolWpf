@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
+    <Compile Include="../Shared/Measurement.cs" Link="Measurement.cs" />
+    <Compile Include="../Shared/MemoryInspection.cs" Link="MemoryInspection.cs" />
+    <Compile Include="../Own/ObservedDecoder.cs" Link="ObservedDecoder.cs" />
+  </ItemGroup>
+</Project>

@@ -19,6 +19,7 @@ internal static class SampleSmoke
     {
         Directory.CreateDirectory(outputDirectory);
         var report = new Dictionary<string, object?>();
+        report["FileBackend"] = ImageLoaderHost.Backend;
         using var log = new StreamWriter(Path.Combine(outputDirectory, "smoke.log")) { AutoFlush = true };
         var exitCode = 1;
         try
@@ -54,10 +55,10 @@ internal static class SampleSmoke
 
             var file = Path.Combine(outputDirectory, "file-input.png");
             WriteFileFixture(file);
-            await window.LoadImageAsync(new(file, "파일 샘플", 0, 0, DiskPyramidSource.Version(file)));
+            await window.LoadImageAsync(new(file, "파일 샘플", 0, 0, ImageFileVersion.Read(file)));
             Assert(window.Session.State.Image is { Width: 320, Height: 240 }, "파일 원본 크기");
             await PresentAndCaptureAsync(window, outputDirectory, "file", "파일 원본 · ImageLoader 공개 API");
-            log.WriteLine("PASS NetVips 파일 읽기 · 원본 크기 · overlay fence · 캡처");
+            log.WriteLine($"PASS {ImageLoaderHost.Backend} 파일 읽기 · 원본 크기 · overlay fence · 캡처");
             var beforeFailure = window.Session.State;
             var undoBeforeFailure = window.Session.UndoName;
             try
@@ -76,6 +77,9 @@ internal static class SampleSmoke
             Assert(!loaded.Intersect(forbidden).Any(), "앱/검사/알고리즘 어셈블리 없이 실행");
             Assert(window.RendererErrors.Count == 0, string.Join(Environment.NewLine, window.RendererErrors));
             report["LoadedAssemblies"] = loaded;
+#if STREAMING_IMAGE_LOADER
+            Assert(!loaded.Any(name => name is not null && name.Contains("Vips", StringComparison.OrdinalIgnoreCase)), "NetVips 어셈블리 미로드");
+#endif
             using var process = Process.GetCurrentProcess();
             report["PrivateBytesAtEnd"] = process.PrivateMemorySize64;
             report["Status"] = "PASS";

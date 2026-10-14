@@ -60,7 +60,7 @@ public partial class RepeatedRoiWindow : Window
         {
             try
             {
-                var source = await new ImageLoader(System.IO.Path.GetFullPath("artifacts/image-cache"))
+                var source = await ImageLoaderHost.Create(System.IO.Path.GetFullPath("artifacts/image-cache"))
                     .LoadAsync(image, new Progress<string>(text => Model.Status = text), _loading.Token);
                 if (_loading.IsCancellationRequested)
                 {

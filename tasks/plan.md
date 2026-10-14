@@ -1,5 +1,17 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-14 NetVips 제거:** 사용자 요청으로 기본 파일 로더를 자체 스트리밍 코덱으로 전환한다. 앱·샘플·검사·테스트·측정 도구의 패키지 참조 제거, TIFF/PNG/JPEG/WebP 지원·원본·이력 회귀와 새 배포를 검증한다. [ADR-044](../docs/decisions/0044-remove-netvips-dependency.md), [전환 기록](../docs/netvips-removal.md). 기존 결과/캐시 보존, Linux 실실행 보류, 로컬 검증만 진행.
+
+- **2026-10-14 JPEG scanline 후속:** Skia JPEG를 호출자 버퍼로 직접 디코드하고 PNG/TIFF 기존 경로를 보존한다. 자체 로더와8K JPEG2종×각5회 재비교 및 Windows 자체/Skia 메인 앱 ZIP을 제공한다. [측정·제한·검증](../docs/skia-jpeg-scanline.md). 메모리 감소와 자체 대비 속도 열세를 구분하고 기본 로더/원칙 예외/커밋·푸시 없이 진행한다.
+
+- **2026-10-14 Skia 비교 후속:** 별도 SkiaSharp4.153.1 PNG/JPEG 전체 비트맵 디코더를 기존 C# 피라미드에 연결하고 TIFF는 기존 native 방식으로 보존한다. Windows8K4입력×각5회 비교·메모리·픽셀 검증은 [실측](../docs/skia-loader-comparison.md)을 따른다. 생산 기본값 변경 없음. Gray16 PNG 미지원·Linux 미실행·native 취소 지연을 보존하며 로컬 검증만 진행한다.
+
+- **2026-10-13 파일 엔진 실행 후속:** 사용자 승인으로 **TIFF·PNG·JPEG** 스트리밍 코덱·제한 버퍼 피라미드·캐시 수명·선택형 앱/샘플/검사 CLI를 로컬 구현했다. [실측](../docs/streaming-image-loader-validation.md), [ADR-043](../docs/decisions/0043-streaming-file-engine.md), [상태](todo.md)를 따른다. NetVips 기본값은 유지하고 Linux 실제 검증은 사용자 지정으로 환경 준비 후다. 대표4입력5회/초대형1회·기능 PASS와60FPS FAIL을 구별한다. 기존 [계획/견적](streaming-image-loader-plan.md)은 이력이며 커밋·푸시는 하지 않는다.
+
+- **2026-10-13 메모리·성능 검토 후속:** 별도 실험에서 디코드/피라미드/타일/해제의 전용 할당과 RAM 상주량을 구분한다. 컬러 변환의 반복 native 너비 조회만 줄여 독립5회 비교와 픽셀 동등성을 검증한다. 전체 Mat 제거/스트리밍 디코더·SIMD·매핑 창은 후속 후보이며 성과로 표현하지 않는다. [메모리·속도 검토](../docs/pyramid-memory-review.md).
+
+- **2026-10-13 자체 파일 엔진 비교·크로스플랫폼 후속:** 별도 `experiments/PyramidComparison.slnx`에서 순수 .NET 피라미드/타일 캐시와 OpenCV 디코더 어댑터를 구현한다. Windows8K·24K에서 기존 NetVips와 준비 시간·타일 지연·메모리·픽셀을 비교하고 Linux x64 배포물을 생성한다. 생산 경로는 보존하며 Linux 실실행과 초대형 파일 대체의 제한은 [실측](../docs/pyramid-decoder-comparison.md)에 명시한다. 로컬 구현·검증만 진행한다.
+
 - **2026-10-13 원격 반영 후속 승인:** 사용자가 현재 프로젝트 변경 전체의 검증 후 커밋·푸시와 main 반영을 요청했다. 이미 main에서 작업 중이며 별도 미병합 브랜치는 없으므로 main의 일반 커밋·푸시로 반영한다. 아래 로컬 작업 선택은 구현 당시 기록이다. [반영 전 검증](todo.md)을 따른다.
 
 - **2026-10-13 신입 학습 후속:** 기존 성능·동작·구조를 보존하며 기하·타일 변수/수식의 의미와 이력 타입별 읽기 경계를 정리한다. [한국어 HTML 실습서](../manual/index.html)는 픽셀·수식·SOLID/GRASP부터 실제 Canvas 호스트 구축까지 설명한다. [검증 범위](../docs/beginner-manual-validation.md)는 IL 동등성·기능 회귀와 프레임 성능 실측을 구별한다. 사용자 선택에 따라 로컬 수정·검증만 진행한다.

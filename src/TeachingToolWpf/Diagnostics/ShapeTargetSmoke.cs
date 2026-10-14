@@ -17,6 +17,7 @@ using VisionCanvas.Diagnostics;
 using VisionCanvas.Rendering;
 using VisionGeometry;
 using VisionImaging;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Diagnostics;
 
@@ -88,7 +89,7 @@ internal static class ShapeTargetSmoke
                 if (kensa)
                 {
                     var path = Path.GetFullPath("kensa.png");
-                    await model.Images.ReplaceAsync(new(path, "kensa", 1024, 1536, DiskPyramidSource.Version(path)));
+                    await model.Images.ReplaceAsync(new(path, "kensa", 1024, 1536, ImageFileVersion.Read(path)));
                     Require(model.Session.State.Image is { Width: 1024, Height: 1536 }, "kensa 원본 로딩 실패");
                 }
                 else

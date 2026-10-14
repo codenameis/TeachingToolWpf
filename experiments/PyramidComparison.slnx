@@ -1,0 +1,18 @@
+<Solution>
+  <Project Path="../src/VisionGeometry/VisionGeometry.csproj" />
+  <Project Path="../src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
+  <Project Path="../src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
+  <Project Path="../src/VisionImaging/VisionImaging.csproj" />
+  <Project Path="VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
+  <Project Path="VisionImaging.OpenCv/VisionImaging.OpenCv.csproj" />
+  <Project Path="VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
+  <Project Path="VisionImaging.Codecs.Tests/VisionImaging.Codecs.Tests.csproj" />
+  <Project Path="VisionImaging.Pyramid.Tests/VisionImaging.Pyramid.Tests.csproj" />
+  <Project Path="PyramidComparison/Baseline/Baseline.csproj" />
+  <Project Path="PyramidComparison/Own/Own.csproj" />
+  <Project Path="PyramidComparison/Streaming/Streaming.csproj" />
+  <Project Path="VisionImaging.Skia/VisionImaging.Skia.csproj" />
+  <Project Path="VisionImaging.Skia.Tests/VisionImaging.Skia.Tests.csproj" />
+  <Project Path="PyramidComparison/Skia/Skia.csproj" />
+  <Project Path="../tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
+</Solution>

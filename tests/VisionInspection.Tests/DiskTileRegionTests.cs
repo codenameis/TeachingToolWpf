@@ -1,4 +1,4 @@
-using NetVips;
+using VisionImaging.Fixtures;
 using VisionImaging;
 using VisionImaging.Abstractions;
 
@@ -27,11 +27,7 @@ public sealed class DiskTileRegionTests : IDisposable
             }
         }
         var path = Path.Combine(_directory, "pixels.tif");
-        using (var image = Image.NewFromMemory(bytes, Width, Height, gray16 ? 1 : 4,
-            gray16 ? Enums.BandFormat.Ushort : Enums.BandFormat.Uchar))
-        {
-            image.WriteToFile(path);
-        }
+        ImageFixtureWriter.Write(path, Width, Height, gray16 ? 1 : 4, gray16 ? 16 : 8, bytes);
         using var source = DiskPyramidSource.Open(path, Path.Combine(_directory, "cache"), new Progress<string>(), default);
         for (var row = 0; row < 3; row++)
         {

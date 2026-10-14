@@ -19,7 +19,7 @@ namespace VisionCanvas.Sample;
 
 internal sealed class SampleWindow : Window
 {
-    private readonly ImageLoader _loader;
+    private readonly IImageLoader _loader;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly WrapPanel _toolbar = new();
     private readonly TextBlock _status = new() { Margin = new(8) };
@@ -68,7 +68,7 @@ internal sealed class SampleWindow : Window
         {
             Viewport.DevicePreference = RenderDevicePreference.Software;
         }
-        Title = "VisionCanvas 독립 호스트";
+        Title = "VisionCanvas 독립 호스트 · " + ImageLoaderHost.Backend;
         Width = 1280;
         Height = 820;
         MinWidth = 900;
@@ -78,7 +78,7 @@ internal sealed class SampleWindow : Window
             ? args[outputIndex + 1] : "artifacts/vision-canvas-sample");
         var cache = args.Contains("--smoke") ? Path.Combine(output, "image-cache")
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VisionCanvas.Sample", "ImageCache");
-        _loader = new(cache);
+        _loader = ImageLoaderHost.Create(cache);
         Input = new(Session);
         Viewport.Input = Input;
         Viewport.InputEnabled = () => !_busy;
@@ -214,9 +214,9 @@ internal sealed class SampleWindow : Window
 
     private Task OpenFileAsync()
     {
-        var dialog = new OpenFileDialog { Filter = "이미지|*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff|모든 파일|*.*" };
+        var dialog = new OpenFileDialog { Filter = "이미지|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp|모든 파일|*.*" };
         return dialog.ShowDialog(this) == true
-            ? LoadImageAsync(new(dialog.FileName, Path.GetFileName(dialog.FileName), 0, 0, DiskPyramidSource.Version(dialog.FileName)))
+            ? LoadImageAsync(new(dialog.FileName, Path.GetFileName(dialog.FileName), 0, 0, ImageFileVersion.Read(dialog.FileName)))
             : Task.CompletedTask;
     }
 

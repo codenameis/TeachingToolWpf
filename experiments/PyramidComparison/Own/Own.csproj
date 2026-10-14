@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DecoderNativeRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</DecoderNativeRid>
+    <DecoderNativeRid Condition="'$(DecoderNativeRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</DecoderNativeRid>
+    <DecoderNativeRid Condition="'$(DecoderNativeRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</DecoderNativeRid>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../VisionImaging.OpenCv/VisionImaging.OpenCv.csproj" />
+    <Compile Include="../Shared/Measurement.cs" Link="Measurement.cs" />
+    <Compile Include="../Shared/MemoryInspection.cs" Link="MemoryInspection.cs" />
+    <PackageReference Include="OpenCvSharp4.runtime.win.slim" Version="4.13.0.20260627" Condition="'$(DecoderNativeRid)' == 'win-x64'" />
+    <PackageReference Include="OpenCvSharp4.official.runtime.linux-x64.slim" Version="4.13.0.20260627" Condition="'$(DecoderNativeRid)' == 'linux-x64'" />
+  </ItemGroup>
+  <Target Name="ValidateDecoderNativeRuntime" BeforeTargets="PrepareForBuild"
+          Condition="'$(DecoderNativeRid)' != 'win-x64' and '$(DecoderNativeRid)' != 'linux-x64'">
+    <Error Text="실험 파일 호스트의 native 배포 대상은 win-x64 또는 linux-x64입니다." />
+  </Target>
+</Project>

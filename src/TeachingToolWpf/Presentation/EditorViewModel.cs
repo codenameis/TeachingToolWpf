@@ -495,7 +495,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
         PrimitiveSample = Async(async () =>
         {
             var path = Path.Combine(AppContext.BaseDirectory, "Assets", "primitive-shapes.png");
-            await Images.ReplaceAsync(new(path, "일반 도형 샘플", 640, 480, DiskPyramidSource.Version(path)));
+            await Images.ReplaceAsync(new(path, "일반 도형 샘플", 640, 480, ImageFileVersion.Read(path)));
             if (Session.State.Image?.Key == path)
             {
                 Inspections.Selected = InspectionToolKind.PrimitiveShapes;
@@ -805,10 +805,10 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
 
     private async Task OpenAsync()
     {
-        var dialog = new OpenFileDialog { Title = "배경 이미지 열기 · 대용량 이미지는 최초 캐시 생성이 필요합니다", Filter = "이미지|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp;*.v|모든 파일|*.*" };
+        var dialog = new OpenFileDialog { Title = "배경 이미지 열기 · 대용량 이미지는 최초 캐시 생성이 필요합니다", Filter = "이미지|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.webp|모든 파일|*.*" };
         if (dialog.ShowDialog() == true)
         {
-            await Images.ReplaceAsync(new(dialog.FileName, "", 0, 0, DiskPyramidSource.Version(dialog.FileName)));
+            await Images.ReplaceAsync(new(dialog.FileName, "", 0, 0, ImageFileVersion.Read(dialog.FileName)));
         }
     }
 
@@ -817,7 +817,7 @@ public sealed partial class EditorViewModel : ObservableObject, IDisposable
     private Task LoadPatternSampleAsync()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Assets", "pattern-matching.png");
-        return Images.ReplaceAsync(new(path, "", 0, 0, DiskPyramidSource.Version(path)));
+        return Images.ReplaceAsync(new(path, "", 0, 0, ImageFileVersion.Read(path)));
     }
 
     public void Publish()

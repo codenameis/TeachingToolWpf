@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
     <ProjectReference Include="../../src/VisionInspection/VisionInspection.csproj" />
     <ProjectReference Include="../../src/VisionInspection.Cli/VisionInspection.Cli.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

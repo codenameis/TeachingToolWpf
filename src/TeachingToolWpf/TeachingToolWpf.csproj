@@ -15,14 +15,13 @@
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
     <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
-    <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
     <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
     <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
     <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README.md;..\..\AGENTS.md;..\..\Agent.MD;..\..\THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\licenses\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\licenses\**\*" Exclude="..\..\licenses\NetVips*;..\..\licenses\LGPL-3.0.txt;..\..\licenses\GPL-3.0.txt;..\..\licenses\skia\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\**\*.md;..\..\docs\**\*.json;..\..\docs\**\*.csv;..\..\docs\**\*.zip" Link="docs\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\tasks\*.md" Link="tasks\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\scripts\Summarize-*.ps1" Link="scripts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -34,4 +33,5 @@
   </ItemGroup>
 
   <Import Project="../../build/InspectionNativeRuntime.props" />
+  <Import Project="../../build/ImageLoaderHost.props" />
 </Project>

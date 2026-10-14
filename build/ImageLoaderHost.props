@@ -1,0 +1,18 @@
+<Project>
+  <!-- 기본 파일 경로는 native 코덱과 자체 피라미드다. 이전 빌드 인자는 호환용으로 유지한다. -->
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);STREAMING_IMAGE_LOADER</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(UseSkiaImageLoader)' == 'true'">
+    <DefineConstants>$(DefineConstants);SKIA_IMAGE_LOADER</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(UseSkiaImageLoader)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)SkiaFileDecoder.cs" Link="Hosting/SkiaFileDecoder.cs" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../experiments/VisionImaging.Skia/VisionImaging.Skia.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)ImageLoaderHost.cs" Link="Hosting/ImageLoaderHost.cs" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VisionImaging/VisionImaging.csproj" />
+  </ItemGroup>
+</Project>

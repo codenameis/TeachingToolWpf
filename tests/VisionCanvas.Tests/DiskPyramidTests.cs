@@ -1,4 +1,4 @@
-using NetVips;
+using VisionImaging.Fixtures;
 using VisionImaging;
 using VisionImaging.Abstractions;
 
@@ -11,19 +11,13 @@ public sealed class DiskPyramidTests : IDisposable
     public DiskPyramidTests()
     {
         Directory.CreateDirectory(_directory);
-        Cache.MaxMem = 64UL * 1024 * 1024;
     }
 
     [Fact]
     public void Actual24KGray16FilePreservesPixelValuesAndEdgeTiles()
     {
         var path = Path.Combine(_directory, "24k.tif");
-        using (var black = Image.Black(24576, 513))
-        using (var value = black + 12345)
-        using (var gray = value.Cast(Enums.BandFormat.Ushort))
-        {
-            gray.WriteToFile(path);
-        }
+        ImageFixtureWriter.Constant(path, 24576, 513, 16, 12345);
 
         using var source = DiskPyramidSource.Open(path, Path.Combine(_directory, "cache"), new Progress<string>(), CancellationToken.None);
         Assert.Equal(24576, source.Info.Width);
@@ -43,11 +37,7 @@ public sealed class DiskPyramidTests : IDisposable
     public async Task RelativeCacheDirectoryImportsAndReopensOriginalPixels()
     {
         var path = Path.Combine(_directory, "relative-cache.png");
-        using (var black = Image.Black(600, 3))
-        using (var gray = (black + 73).Cast(Enums.BandFormat.Uchar))
-        {
-            gray.WriteToFile(path);
-        }
+        ImageFixtureWriter.Constant(path, 600, 3, 8, 73);
         var cacheRoot = Path.Combine(_directory, "cache");
         var relativeCache = Path.GetRelativePath(Environment.CurrentDirectory, cacheRoot);
         Assert.False(Path.IsPathRooted(relativeCache));
@@ -73,10 +63,7 @@ public sealed class DiskPyramidTests : IDisposable
     public void CancellationDoesNotPublishPartialCache()
     {
         var path = Path.Combine(_directory, "sample.png");
-        using (var image = Image.Black(1024, 1024))
-        {
-            image.WriteToFile(path);
-        }
+        ImageFixtureWriter.Constant(path, 1024, 1024, 8, 0);
 
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -85,17 +72,69 @@ public sealed class DiskPyramidTests : IDisposable
     }
 
     [Theory]
+    [InlineData(8, 1)]
+    [InlineData(16, 1)]
+    [InlineData(8, 513)]
+    [InlineData(16, 513)]
+    public void BigTiffFixturePreservesOriginalRows(int bits, int height)
+    {
+        var path = Path.Combine(_directory, "rows.tif");
+        ImageFixtureWriter.WriteBigTiff(path, 517, height, bits, (y, row) =>
+        {
+            for (var x = 0; x < 517; x++)
+            {
+                var value = (x + y) % 256;
+                if (bits == 8) row[x] = (byte)value;
+                else System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(row.AsSpan(x * 2), (ushort)(value * 257));
+            }
+        });
+        using var source = DiskPyramidSource.Open(path, Path.Combine(_directory, "cache"), new Progress<string>(), CancellationToken.None);
+        using var edge = source.Read(new(0, 1, (height - 1) / 512), CancellationToken.None);
+        Assert.Equal(5, edge.Width);
+        for (var y = 0; y < edge.Height; y++)
+        for (var x = 0; x < edge.Width; x++)
+        {
+            var expected = (512 + x + (height - 1) / 512 * 512 + y) % 256;
+            var offset = (y * edge.Width + x) * (bits / 8);
+            Assert.Equal(expected * (bits == 8 ? 1 : 257), bits == 8 ? edge.Bytes[offset] : BitConverter.ToUInt16(edge.Bytes, offset));
+        }
+    }
+
+    [Theory]
+
+    [InlineData("bmp")]
+    public void UnsupportedFilesFailWithoutPublishingCache(string extension)
+    {
+        var path = Path.Combine(_directory, "unsupported." + extension);
+        ImageFixtureWriter.Constant(path, 16, 16, 8, 12, 34, 56);
+        var cache = Path.Combine(_directory, "cache");
+        Assert.Throws<NotSupportedException>(() => DiskPyramidSource.Open(path, cache, new Progress<string>(), CancellationToken.None));
+        Assert.Empty(Directory.GetFiles(cache, "image.json", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void LegacyCacheIsPreservedDuringImport()
+    {
+        var cache = Path.Combine(_directory, "cache");
+        var legacy = Path.Combine(cache, "legacy");
+        Directory.CreateDirectory(legacy);
+        var sentinel = Path.Combine(legacy, "0.v");
+        File.WriteAllText(sentinel, "preserved legacy cache");
+        var path = Path.Combine(_directory, "sample.png");
+        ImageFixtureWriter.Constant(path, 16, 16, 8, 73);
+        using var source = DiskPyramidSource.Open(path, cache, new Progress<string>(), CancellationToken.None);
+        Assert.Equal("preserved legacy cache", File.ReadAllText(sentinel));
+    }
+
+    [Theory]
     [InlineData("png", 24576)]
     [InlineData("jpg", 24576)]
     [InlineData("webp", 8192)]
+
     public void ColorFilesPreserveChannelsAndDimensions(string extension, int width)
     {
         var path = Path.Combine(_directory, "color." + extension);
-        using (var black = Image.Black(width, 9, bands: 3))
-        using (var color = (black + new[] { 210d, 90d, 30d }).Cast(Enums.BandFormat.Uchar))
-        {
-            color.WriteToFile(path);
-        }
+        ImageFixtureWriter.Constant(path, width, 9, 8, 210, 90, 30);
 
         using var source = DiskPyramidSource.Open(path, Path.Combine(_directory, "cache"), new Progress<string>(), CancellationToken.None);
         Assert.Equal(PixelKind.Rgba32, source.Info.Pixels);
