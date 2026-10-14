@@ -47,6 +47,8 @@ public sealed partial class EditorSession
 
     public Guid Add(RoiGeometry geometry) => AddRoi(geometry, null);
 
+    public Guid AddParent(RoiGeometry geometry) => AddRoi(geometry, null, isGroup: true);
+
     public Guid AddChild(Guid parentId, RoiGeometry geometry)
     {
         if (!State.Rois.ContainsKey(parentId))
@@ -54,15 +56,21 @@ public sealed partial class EditorSession
             throw new ArgumentException("자식 ROI를 추가할 부모가 없습니다.", nameof(parentId));
         }
 
+        if (RoiHierarchy.Depth(State.Rois, parentId) >= RoiHierarchy.MaximumDepth)
+        {
+            throw new InvalidOperationException("ROI 계층은 RootGroup을 포함하여 최대 4단계입니다.");
+        }
+
         return AddRoi(geometry, parentId);
     }
 
-    private Guid AddRoi(RoiGeometry geometry, Guid? parentId)
+    private Guid AddRoi(RoiGeometry geometry, Guid? parentId, bool isGroup = false)
     {
         geometry = RoiImageBounds.ClipNew(geometry, State.Image);
         var order = _nextOrder + 1;
-        var roi = new Roi(Guid.NewGuid(), $"ROI {order:000}", geometry, parentId, false, order);
-        Commit(parentId is null ? "부모 ROI 추가" : "자식 ROI 추가", State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
+        var roi = new Roi(Guid.NewGuid(), $"ROI {order:000}", geometry, parentId, isGroup, order);
+        var name = isGroup ? "부모 ROI 추가" : parentId is null ? "ROI 추가" : "자식 ROI 추가";
+        Commit(name, State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
         {
             Selection = [roi.Id],
             RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
@@ -90,6 +98,10 @@ public sealed partial class EditorSession
                 }
 
                 parent = added[index];
+                if (RoiHierarchy.Depth(rois, parent.Value) >= RoiHierarchy.MaximumDepth)
+                {
+                    throw new InvalidOperationException("ROI 계층은 RootGroup을 포함하여 최대 4단계입니다.");
+                }
             }
 
             var roi = new Roi(Guid.NewGuid(), $"ROI {++order:000}", RoiImageBounds.ClipNew(definition.Geometry, State.Image), parent, false, order);
@@ -177,7 +189,7 @@ public sealed partial class EditorSession
             throw new ArgumentException("이름은 1–256자여야 합니다.");
         }
 
-        if (State.IsGroupingRoi(id) && searchRange != State.Rois[id].SearchRange)
+        if (State.IsGroupRoi(id) && searchRange != State.Rois[id].SearchRange)
         {
             throw new ArgumentException("그룹 부모에는 검색 범위를 설정할 수 없습니다.", nameof(searchRange));
         }
@@ -263,14 +275,18 @@ public sealed partial class EditorSession
     public Guid GroupSelection()
     {
         var order = _nextOrder + 1;
-        var next = RoiGrouping.Group(State, order, CancellationToken.None);
+        var next = RoiGroupEditor.Group(State, order, CancellationToken.None);
+        var createdGroup = next.Rois.Count > State.Rois.Count;
         Commit("부모 ROI로 그룹화", next);
-        _nextOrder = order;
+        if (createdGroup)
+        {
+            _nextOrder = order;
+        }
         return next.Selection.Single();
     }
 
     public void UngroupSelection()
-        => Commit("그룹 해제", RoiGrouping.Ungroup(State, CancellationToken.None));
+        => Commit("그룹 해제", RoiGroupEditor.Ungroup(State, CancellationToken.None));
 
     public DocumentState PreviewUndo() => _history.PreviewUndo(State);
 

@@ -3,8 +3,9 @@ using System.Numerics;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using TeachingToolWpf.Commands;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionGeometry;
 
@@ -12,7 +13,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static partial class InspectionSmoke
 {
-    private static async Task VerifyBoundariesAsync(Window window, Dx12Viewport viewport, EditorViewModel model,
+    private static async Task VerifyBoundariesAsync(Window window, Dx12Viewport viewport, MainWindowViewModel model,
         Func<string, Task> capture, Func<AsyncCommand, Task> invoke)
     {
         await model.PatternSample.ExecuteAsync();

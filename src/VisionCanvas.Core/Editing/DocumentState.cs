@@ -73,7 +73,7 @@ public sealed partial record DocumentState(
 
     public RoiSnapshot Snapshot => _snapshot;
 
-    public bool IsGroupingRoi(Guid id) => Rois[id].IsGroup || Snapshot.Children.ContainsKey(id);
+    public bool IsGroupRoi(Guid id) => Rois[id].IsGroup || Snapshot.Children.ContainsKey(id);
 
     public bool IsTransformSelectionPrepared
     {
@@ -105,7 +105,7 @@ public sealed partial record DocumentState(
             var value = Volatile.Read(ref _selectionFacts);
             if (value is null)
             {
-                value = new(() => new(Rois, Selection));
+                value = new(() => new(Rois, Selection, Snapshot));
                 value = Interlocked.CompareExchange(ref _selectionFacts, value, null) ?? value;
             }
             return value.Value;

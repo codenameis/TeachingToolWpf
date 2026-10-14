@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionGeometry;
 
@@ -13,7 +13,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>Measures dispatch, total completion and dispatcher gaps separately on the real HWND renderer.</summary>
 internal static class ResponsiveEditingRun
 {
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;

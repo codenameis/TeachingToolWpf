@@ -14,7 +14,7 @@
 
 ## 책임과 원칙 검토
 
-`PolygonClosure`는 Core의 교차·닫힌 경로 계산, `InteractionController`는 입력 상태·미리보기·확정, `EditorViewModel.RoiCreation`은 버튼 연결을 담당한다. 기존 Command/Memento와 입력 State를 사용하며 별도 이력이나 WPF 기하 계산을 추가하지 않는다.
+`PolygonClosure`는 Core의 교차·닫힌 경로 계산, `InteractionController`는 입력 상태·미리보기·확정, `MainWindowViewModel.RoiCreation`은 버튼 연결을 담당한다. 기존 Command/Memento와 입력 State를 사용하며 별도 이력이나 WPF 기하 계산을 추가하지 않는다.
 
 | 원칙 | 검토 |
 |---|---|

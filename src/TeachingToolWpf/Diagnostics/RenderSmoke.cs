@@ -10,7 +10,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class RenderSmoke
 {
-    public static void Attach(Window window, Dx12Viewport viewport, Presentation.EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, ViewModels.MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;
@@ -29,6 +29,11 @@ internal static class RenderSmoke
                     return;
                 }
                 await ExplicitHierarchySmokeScenario.Run(window, model, viewport);
+                if (Environment.GetCommandLineArgs().Contains("--hierarchy-rules-smoke"))
+                {
+                    await RoiHierarchyRulesSmoke.Run(model, viewport);
+                    return;
+                }
                 await EditingSmokeScenario.Run(model, viewport);
                 await InspectorSmokeScenario.Run(window, model);
                 File.AppendAllText("artifacts/smoke.log", "Paged list selection, pan, focused inspector editing and Korean value undo passed" + Environment.NewLine);

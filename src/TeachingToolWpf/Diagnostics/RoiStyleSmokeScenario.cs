@@ -10,7 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using TeachingToolWpf.Views;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
@@ -22,7 +22,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>Captures role strokes on the real renderer and verifies hierarchy/history independently of pixels.</summary>
 internal static class RoiStyleSmokeScenario
 {
-    public static async Task Run(Window window, EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(Window window, MainWindowViewModel model, Dx12Viewport viewport)
     {
         var editor = model.Session;
         Require(editor.State.Rois.Count == 0, "style fixture starts with an empty document");
@@ -91,9 +91,9 @@ internal static class RoiStyleSmokeScenario
             var beforeStyle = editor.State;
             var historyBytes = editor.HistoryBytes;
             var undoName = editor.UndoName;
-            EnterThickness("일반 ROI 선 두께", "2");
+            EnterThickness("공통 표시 선 두께", "2");
             EnterThickness("자식 ROI 선 두께", "3");
-            EnterThickness("부모 ROI 선 두께", "4");
+            EnterThickness("ROI 그룹 선 두께", "4");
             Keyboard.ClearFocus();
             Require(settings.DefaultThickness == "2" && settings.ChildThickness == "3" && settings.ParentThickness == "4",
                 "actual ValueTextBox input updates all three bindings");
@@ -114,7 +114,7 @@ internal static class RoiStyleSmokeScenario
                 "width changes preserve normal and selected role colors");
             Require(settings.Palette.Parent.StrokeThickness(true) == 4.5f && settings.Palette.Child.StrokeThickness(true) == 3.5f,
                 "selection adds half a DIP independently of each role width");
-            var multiColor = Descendants(panel).OfType<TextBox>().Single(field => AutomationProperties.GetName(field) == "일반 ROI 다중 선택 색상");
+            var multiColor = Descendants(panel).OfType<TextBox>().Single(field => AutomationProperties.GetName(field) == "공통 표시 다중 선택 색상");
             multiColor.Text = "#FFB82E";
             invoke.Invoke();
             await Dispatcher.Yield(DispatcherPriority.Background);
@@ -221,9 +221,9 @@ internal static class RoiStyleSmokeScenario
 
         void AssertRoles(Guid parent, Guid child, Guid standalone, bool attached)
         {
-            Require(RoiStyleRoles.Resolve(editor.State, parent) == (attached ? RoiRole.Parent : RoiRole.Default), "parent role follows actual children");
-            Require(RoiStyleRoles.Resolve(editor.State, child) == (attached ? RoiRole.Child : RoiRole.Default), "child role follows its current parent");
-            Require(RoiStyleRoles.Resolve(editor.State, standalone) == RoiRole.Default, "unrelated ROI keeps default role");
+            Require(RoiStyleRoles.Resolve(editor.State, parent) == (attached ? RoiRole.Parent : RoiRole.Child), "parent role follows actual children");
+            Require(RoiStyleRoles.Resolve(editor.State, child) == RoiRole.Child, "leaf role is independent of parent attachment");
+            Require(RoiStyleRoles.Resolve(editor.State, standalone) == RoiRole.Child, "independent ROI uses child style");
         }
 
         async Task Capture(string name)

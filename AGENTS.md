@@ -111,6 +111,12 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 
 ## 작업 원칙
 
+2026-10-15 부모 버튼·MVVM 폴더 후속: 앱은 `Models / Views / ViewModels`와 `Commands / Services / Infrastructure`로 나눈다. `Views/MainWindow.xaml`은 `ViewModels/MainWindowViewModel`에 바인딩하며 `App.xaml`의 시작 URI도 Views 경로다. 독립 초록색 ROI 버튼과 별도로 `부모 추가 / 부모 그리기`를 유지한다. 빈 부모는 `IsGroup = true`로 생성하여 부모 색상/그룹 규칙/통합 이력을 적용한다. 폴더 변경으로 공통 Canvas/Core 도메인을 앱에 복제하지 않는다. [ADR-046 후속](docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [폴더 안내](docs/code-guide.md).
+
+2026-10-14 그룹 버그·MVVM 후속: [ADR-046](docs/decisions/0046-parent-reuse-and-mvvm-viewport.md)에 따라 부모 하나 + 독립 ROI 그룹화는 기존 부모에 연결하고 추가 ROI/생성 번호를 만들지 않는다. 중첩 부모도 연결 대상이 되지만 부모가 있는 자식의 재편입은 거부한다. 부모 여러 개의 상위 그룹화와 최대4단계는 유지한다. TeachingToolWpf VM은 Scene/Input/Layout을 바인딩하고 구체 Viewport·대화상자·DispatcherTimer·검사 구현 생성에 의존하지 않는다. 이미지 표시 서비스는 소스 소유권 이전/재시작만 제공한다. View의 화면 조립·네이티브 수명·입력 이벤트 전달은 유지하며 코드 비하인드 존재 자체를 MVVM 위반으로 판단하지 않는다. [검증](docs/mvvm-viewport-validation.md). 로컬 수정·검증만 진행한다.
+
+2026-10-14 ROI 계층 후속: [ADR-045](docs/decisions/0045-roi-hierarchy-and-explicit-names.md)에 따라 `RootGroup → ModuleGroup → RoiGroup → Roi`를 포함하여 최대4단계다. **자식 그리기만** 부모 실제 도형 안으로 제한하고, 생성 후 이동·회전·resize 및 기존 독립 ROI 편입에는 포함 제한을 추가하지 않는다. 부모가 있는 유효 루트의 재그룹화/재편입, 순환 연결과5단계 생성·붙여넣기는 거부한다. 기존 문서/통합 이력과 계층 캐시를 유지하며 단계별 색상을 설정한다. 검색범위 타입은 선택 즉시 적용하고 숫자 draft는 변경 적용으로 확정한다. `RoiGroupEditor`, `IsGroupRoi` 등 명명 변경과 [검증](docs/roi-hierarchy-validation.md)을 따른다. 아래 ADR-014 기반의 부모 밖 **그리기** 및 부모 아래 재그룹화 허용 설명은 이 후속 결정으로 대체한다. 로컬 수정·검증만 승인되었다.
+
 2026-10-13 DX12 후속: 사용자는 DX12 활용을 우선하고 수정 범위를 작게 유지하며 전체 구조 변경이 필요할 때 먼저 질문하도록 요청했다. [표시 대기 개선](docs/dx12-frame-pacing.md)은 기존 Surface/Worker/Metrics 안에서 DXGI 준비 대기 후 최신 장면을 소비한다. 슬롯 fence·두 back buffer·Present(1)·최소화/resize/종료 수명을 보존한다. 입력 경과·제출 간격·DXGI 표시 카운터를 구별하고 표시 주기 추정으로 기존 엄격한 프레임 예산 판정을 대체하지 않는다.
 
 2026-10-13 1억 ROI 후속: 사용자는 **반복 격자이되 각 ROI를 개별 선택·편집 가능**, 로컬 수정·검증만 진행하도록 확정했다. 이후 별도 창이 아닌 현재 메인 편집기로 정정하고 **공통 문서 확장까지 진행**을 승인했다. [ADR-042](docs/decisions/0042-main-editor-repeated-rois.md)의 공통 문서·압축 셀 범위·부분 배치·클립보드·통합 이력이 [ADR-041](docs/decisions/0041-repeated-roi-grid.md)의 별도 시험 창 설명을 대체한다. 메인 버튼은 이미지 중심의100,020,001개를 만들며 기존 ROI와 부분/전체 선택·복붙·변환·개별 편집을 지원한다. 일반30만 개 선택은 불변 membership과 선택 BVH 준비를 개선했다. 축소 요약과 실제 개별 윤곽·ID를 구별하고, 반복 셀의 그룹·이름/검색 범위·검사·필터·마스크까지 지원한다고 표현하지 않는다. 더블클릭은 기존 선택과 관계없이 실제 ROI를 선택한다. [실측](docs/main-editor-repeated-roi-validation.md)의 엄격한60FPS 미달과 미검증 범위는 유지하며 원칙 예외는 없다.
@@ -223,7 +229,7 @@ WPF에서 실시간 영상과 대용량 라인 스캔 이미지를 표시하고,
 - ROI와 레시피 편집은 앱에서 하나의 원자적 이력 순서를 사용한다. 템플릿 자산 참조/메모리 예산도 관리하고, 두 개의 독립 Undo 스택을 이벤트로 뒤늦게 동기화하지 않는다. 검사 실행·결과는 편집 이력에 쌓지 않는다.
 - 결과는 source generation/frame ID/recipe revision/template version/run ID와 함께 검증해 게시한다. 오류·취소·오래된 결과·불완전 검색을 OK 또는 제품 NG로 위장하지 않는다. 라이브 검사 드롭과 표시 드롭은 구별한다.
 - renderer가 소유한 `ITileSource`를 검사 worker에서 동시 읽기/해제하지 않는다. 독립 reader lease 또는 소유자가 직렬화한 요청으로 읽고, native 호출 종료 전에 모델/버퍼를 반환하지 않는다. 단일 실행+최신 대기 하나와 작업 메모리 예산을 지킨다.
-- 오른쪽 패널은 영역/패턴 티칭/검사/결과의 책임을 분리한다. 기존 편집/필터/표시 기능을 보존하고 결과는 DX12의 공급자 비의존 overlay로 표시한다. MainWindow와 EditorViewModel에 검색/판정/자원 수명을 몰아넣지 않는다.
+- 오른쪽 패널은 영역/패턴 티칭/검사/결과의 책임을 분리한다. 기존 편집/필터/표시 기능을 보존하고 결과는 DX12의 공급자 비의존 overlay로 표시한다. MainWindow와 MainWindowViewModel에 검색/판정/자원 수명을 몰아넣지 않는다.
 - 2026-10-04 사용자 요청으로 `src/VisionCanvas`를 분리했다. HWND 입력·DX12·셰이더·영상/타일·필터 표시와 좁은 viewport 계약을 소유한다. 이후 ADR-023에 따라 공통 원본 I/O를 VisionImaging으로 옮겼으며 Canvas의 프로젝트 참조는 Core와 VisionImaging이다. 알고리즘/검사 공급자를 참조하지 않는다. 앱은 `src/TeachingToolWpf`, 검사·공급자 UI는 앱에 남긴다. 기존 namespace는 호환성을 위해 유지하며 프로젝트 경계는 참조 그래프로 검증한다. [ADR-014](docs/decisions/0014-canvas-and-explicit-hierarchy.md)와 ADR-023을 따른다.
 
 ## 좌표와 ROI 불변 조건

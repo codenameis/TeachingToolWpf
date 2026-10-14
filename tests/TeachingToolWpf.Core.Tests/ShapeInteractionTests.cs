@@ -164,7 +164,7 @@ public class ShapeInteractionTests
     public void FailedChildClosurePreservesDraftAndCanRetryAfterParentUndo()
     {
         var editor = new EditorSession();
-        var parent = editor.Add(new(new(300, 300), 10, 10, 0));
+        var parent = editor.Add(new(new(60, 60), 140, 140, 0));
         var input = new InteractionController(editor)
         {
             DrawShape = RoiShapeKind.Polygon,

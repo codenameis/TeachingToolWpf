@@ -5,46 +5,56 @@ using VisionImaging.Abstractions;
 namespace VisionCanvas.Core.Interaction;
 
 /// <summary>초안은 문서와 분리하고 포인터를 놓을 때 한 번만 이력에 등록한다.</summary>
-internal sealed class MaskDrawGesture(InteractionController controller, Roi owner, PointD start) : IGesture
+internal sealed class MaskDrawGesture(InteractionController controller, Roi targetRoi, PointD dragStartScreen) : IGesture
 {
-    private readonly ViewportTransform _view = controller.Editor.State.Viewport;
-    private readonly ImageReference? _image = controller.Editor.State.Image;
+    private const double MinimumDrawDistanceDip = 4;
+    private const double MinimumSizeInImage = .01;
+
+    private readonly ViewportTransform _initialViewport = controller.Editor.State.Viewport;
+    private readonly ImageReference? _initialImage = controller.Editor.State.Image;
     private MaskRegion? _draft;
 
     public void Move(PointD screen, InputModifiers modifiers)
     {
-        var first = _view.ScreenToImage(start);
-        if (!owner.Geometry.Contains(first) || (screen - start).Length < 4)
+        var startInImage = _initialViewport.ScreenToImage(dragStartScreen);
+        if (!targetRoi.Geometry.Contains(startInImage) || (screen - dragStartScreen).Length < MinimumDrawDistanceDip)
         {
             _draft = null;
             controller.Show(new());
             return;
         }
-        var a = Normalize(first);
-        var b = Normalize(_view.ScreenToImage(screen));
-        var bounds = new BoundsD(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.X, b.X), Math.Max(a.Y, b.Y));
-        _draft = bounds.Width * owner.Geometry.Width < .01 || bounds.Height * owner.Geometry.Height < .01
-            ? null : new(controller.MaskShape, bounds);
+        var normalizedStart = Normalize(startInImage);
+        var normalizedEnd = Normalize(_initialViewport.ScreenToImage(screen));
+        var normalizedBounds = new BoundsD(Math.Min(normalizedStart.X, normalizedEnd.X), Math.Min(normalizedStart.Y, normalizedEnd.Y), Math.Max(normalizedStart.X, normalizedEnd.X), Math.Max(normalizedStart.Y, normalizedEnd.Y));
+        if (normalizedBounds.Width * targetRoi.Geometry.Width < MinimumSizeInImage ||
+            normalizedBounds.Height * targetRoi.Geometry.Height < MinimumSizeInImage)
+        {
+            _draft = null;
+        }
+        else
+        {
+            _draft = new(controller.MaskShape, normalizedBounds);
+        }
         controller.Show(new()
         {
             MaskDraft = _draft
         });
     }
 
-    private PointD Normalize(PointD world)
+    private PointD Normalize(PointD pointInImage)
     {
-        var point = owner.Geometry.ToLocal(world);
-        return new(Math.Clamp((point.X / owner.Geometry.Width) + .5, 0, 1),
-            Math.Clamp((point.Y / owner.Geometry.Height) + .5, 0, 1));
+        var pointInRoi = targetRoi.Geometry.ToLocal(pointInImage);
+        return new(Math.Clamp((pointInRoi.X / targetRoi.Geometry.Width) + .5, 0, 1),
+            Math.Clamp((pointInRoi.Y / targetRoi.Geometry.Height) + .5, 0, 1));
     }
 
     public void Complete()
     {
         var state = controller.Editor.State;
-        if (_draft is not null && ReferenceEquals(_image, state.Image) && state.Selection.Count == 1 &&
-            state.Selection.Contains(owner.Id) && state.Rois.TryGetValue(owner.Id, out var current) && current == owner)
+        if (_draft is not null && ReferenceEquals(_initialImage, state.Image) && state.Selection.Count == 1 &&
+            state.Selection.Contains(targetRoi.Id) && state.Rois.TryGetValue(targetRoi.Id, out var currentRoi) && currentRoi == targetRoi)
         {
-            controller.Editor.AddMask(owner.Id, _draft);
+            controller.Editor.AddMask(targetRoi.Id, _draft);
             controller.ValidateDraftImage();
         }
     }

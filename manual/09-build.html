@@ -1,36 +1,57 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="실행되는 예제에서 시작해 책임별로 한 단계씩"><title>09. 작은 캔버스를 직접 구축하기 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="실행되는 예제에서 시작해 책임별로 한 단계씩"><title>09. 작은 캔버스를 직접 구축하기 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script><script src="assets/code-blocks.js" defer></script></head>
 <body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
 <div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
-<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html" aria-current="page">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html" aria-current="page">09. 작은 캔버스를 직접 구축하기</a><a href="12-reference.html">부록. 용어·수식·다음 읽기</a></nav>
 <p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
 </aside>
 <main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>09. 작은 캔버스를 직접 구축하기</h1>
 <p>실행되는 예제에서 시작해 책임별로 한 단계씩</p>
 </div>
-<section>
-<h2>두 개의 실행 가능한 실습</h2>
-<p>두 프로젝트는 제품 솔루션에 추가하지 않은 독립 학습 예제입니다. NuGet의 새 패키지를 직접 추가하지 않고 기존 프로젝트를 참조합니다. 첫 번째는 GPU 없이 좌표와 문서를 확인하고, 두 번째는 실제 VisionCanvas를 WPF에 연결합니다. 짧은 호스트이므로 파일 교체·검사·대량 목록 등 제품 기능은 기존 샘플과 메인 앱에서 계속 배웁니다.</p>
-<pre><code>dotnet build manual/labs/Foundations -c Release -m:1
+<section class="lesson-start" id="start-here">
+<p class="lesson-label">먼저 이 장면 하나만 생각하세요</p>
+<h2>한꺼번에 만들지 말고, 확인되는 순서로 연결합시다</h2><p>목표는 8K 체크무늬를 보여 주고 ROI를 끌 수 있는 작은 창입니다. 처음부터 전부 연결하면 검은 화면의 원인이 좌표인지 입력인지 표시인지 알기 어렵습니다. 화면 없이 확인할 수 있는 것부터 통과시킵니다.</p>
+<p class="lesson-key"><strong>기억할 한 문장</strong>계산 → 입력 → 창 연결 순서로, 각 단계의 결과를 확인하고 다음으로 갑니다.</p>
+<ol class="scene-steps"><li><strong>Foundations · 계산 확인</strong><p>좌표·메모리·계층·이력의 예상 결과를 확인합니다. 실행하면 PASS 열한 개가 나와야 합니다.</p></li><li><strong>InputLifecycle · 드래그 확인</strong><p>실제 마우스 대신 Down·Move·Up·Cancel을 넣습니다. 마지막 위치 반영과 Undo·취소를 포함한 PASS 여덟 개를 확인합니다.</p></li><li><strong>CanvasHost · 화면 확인</strong><p>합성 타일과 입력·세션·뷰포트를 연결합니다. 체크무늬와 ROI가 보이고, 이동·취소·Undo가 동작하는지 확인합니다.</p></li></ol>
+<div class="predict"><h3>잠깐, 답을 보기 전에 예상해 보세요</h3><p>창을 띄우기 전에 취소 동작을 검증할 수 있을까요?</p><details><summary>예상과 비교하기</summary><p>가능합니다. InputLifecycle처럼 같은 입력 컨트롤러에 포인터 좌표와 취소 요청을 직접 넣고 문서 상태를 확인합니다. 그 확인을 마친 뒤 창에서 오는 실제 입력과 표시를 연결합니다.</p></details></div>
+<nav class="reading-route" aria-label="이 장의 첫 읽기 순서"><strong>이제 본문에서 확인할 세 곳</strong><ol><li><a href="#reading-3" data-reading-target="reading-3">단계 A: GPU 없이 먼저 정답 만들기</a></li><li><a href="#reading-1" data-reading-target="reading-1">단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기</a></li><li><a href="#reading-5" data-reading-target="reading-5">단계 B: 창에 연결하는 다섯 줄의 역할</a></li></ol></nav>
+</section>
+<section id="reading-2">
+<h2>세 개의 실행 가능한 실습</h2>
+<p class="lesson-question">“전체 솔루션을 열었는데 어디부터 만들어야 할지 모르겠어요.” 먼저 화면 없이도 정답을 아는 계산을 만들고, 그 결과를 작은 창에 연결합시다. 창이 검게 나올 때 좌표·타일·GPU 중 어디가 틀렸는지 구별하려면, 각 단계에 눈으로 확인할 수 있는 정답이 필요합니다.</p>
+
+<details class="code-example">
+<summary><span class="code-language">PowerShell</span><span class="code-title">세 개의 실행 가능한 실습</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 10줄</span><button type="button" data-copy-code hidden aria-label="세 개의 실행 가능한 실습 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="세 개의 실행 가능한 실습 코드"><code data-language="powershell">dotnet build manual/labs/Foundations -c Release -m:1
 dotnet run --project manual/labs/Foundations -c Release --no-build
+
+dotnet build manual/labs/InputLifecycle -c Release -m:1
+dotnet run --project manual/labs/InputLifecycle -c Release --no-build
 
 dotnet build manual/labs/CanvasHost -c Release -m:1
 dotnet run --project manual/labs/CanvasHost -c Release --no-build
 # CPU 표시를 명시적으로 확인할 때
-dotnet run --project manual/labs/CanvasHost -c Release --no-build -- --software-rendering</code></pre><p>Foundations는 11개 PASS를 출력하고 잘못된 결과이면 예외로 실패합니다. CanvasHost는 8K 체커 영상과 중앙의 회전 사각형을 표시합니다. 휠로 확대, 선택 도구로 드래그, 회전 핸들로 회전, 취소/Esc, 삭제·Undo·Redo를 확인하세요. 같은 중앙 위치에 추가되므로 겹친 ROI는 이동해 구별합니다. 이 예제의 영상은 실제 카메라 입력이 아닙니다.</p>
+dotnet run --project manual/labs/CanvasHost -c Release --no-build -- --software-rendering</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>Foundations는 11개 PASS를 출력하고 잘못된 결과이면 예외로 실패합니다. CanvasHost는 8K 체커 영상과 중앙의 회전 사각형을 표시합니다. 휠로 확대, 선택 도구로 드래그, 회전 핸들로 회전, 취소/Esc, 삭제·Undo·Redo를 확인하세요. 같은 중앙 위치에 추가되므로 겹친 ROI는 이동해 구별합니다. 이 예제의 영상은 실제 카메라 입력이 아닙니다.</p>
 <p>아래에 <a href="#foundations-code">Foundations 전체 파일</a>과 <a href="#canvas-host-code">CanvasHost 전체 파일</a>이 이어집니다. 별도 소스 파일을 열지 않아도 이 장에서 끝까지 읽을 수 있습니다.</p>
 <figure><img src="assets/canvas-host.png" width="1628" height="986" loading="lazy" alt="실제 학습 호스트에서 8K 체커 영상 가운데 15도 회전한 선택 ROI와 핸들, 우하단 미니맵을 표시한 GPU 캡처"><figcaption>RTX 3060 Laptop GPU에서 실행한 실제 학습 호스트. GPU 뷰포트 캡처이므로 WPF 툴바는 포함하지 않습니다. 표시 기능의 증거이며 60FPS 측정값은 아닙니다.</figcaption></figure>
+
+<div class="worked-example"><h3>복사하기 전에 다음 결과를 예측하세요</h3>
+<p>세 프로젝트는 제품 솔루션 밖의 독립 예제이며 새 NuGet 패키지를 직접 추가하지 않고 기존 프로젝트를 참조합니다. 파일 교체·검사·대량 목록 같은 제품 기능 전체를 구현한 예제는 아닙니다. 실습 A는 기하와 편집의 기대값을 확인하는 출발점이고, 실습 B는 준비된 라이브러리를 호스트에 연결하는 출발점입니다. 세 실습을 실행했다고 전체 DX12 엔진을 처음부터 설계한 것은 아닙니다. 아래 단계 D에서 라이브러리 내부를 직접 구현하는 학습 순서를 따로 제시합니다.</p>
+<ol><li>실행할 예제의 입력을 한 줄로 적습니다. 예: 원본 점 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(100,50), Scale=2, Offset=(20,10)"><semantics><mrow><mrow><mrow><mo>(</mo><mrow><mn>100</mn><mo>,</mo><mn>50</mn></mrow><mo>)</mo></mrow><mo>,</mo><mi mathvariant="normal">Scale</mi><mo>=</mo><mn>2</mn><mo>,</mo><mi mathvariant="normal">Offset</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>20</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">(100,50), Scale=2, Offset=(20,10)</annotation></semantics></math>.</li><li>실행 전에 기대값 (220,110)을 적습니다.</li><li>결과가 다르면 입력·변환·출력 중 첫 번째로 어긋난 경계를 찾습니다.</li><li>맞았다면 숫자 하나를 바꾸어 다시 예측합니다. 같은 출력만 재현한 것과 규칙을 이해한 것을 구별할 수 있습니다.</li></ol></div>
 </section>
-<section>
+<section id="reading-3">
 <h2>단계 A: GPU 없이 먼저 정답 만들기</h2>
 <ol><li><strong>입력과 단위를 쓴다.</strong> 원본 좌표는 px, UI는 DIP, 각도는 degree라고 문서에 적습니다.</li><li><strong>PointD와 변환을 읽는다.</strong> (100,50) → (220,110)과 역변환이 맞는지 Foundations에서 확인합니다.</li><li><strong>문서를 만든다.</strong> EditorSession.InitializeImage는 최초 이미지 상태를 준비합니다. 일반 교체의 SetImage와 구분합니다.</li><li><strong>ROI를 추가한다.</strong> Add와 AddChild를 사용합니다. 사전을 외부에서 직접 수정하지 않습니다.</li><li><strong>이력을 검증한다.</strong> 부모 삭제→Undo→Redo→새 편집의 분기 제거까지 확인합니다.</li></ol>
 <p>이 단계에서 틀린 좌표를 GPU 화면을 보며 고치려 하면 원인이 수식인지 표시인지 구분하기 어렵습니다. 계산과 규칙을 먼저 테스트하는 이유입니다.</p>
 </section>
 <section id="foundations-code"><h2>실습 A 전체 코드: 이 페이지에서 읽고 실행하기</h2>
 <p>아래 두 파일이 Foundations의 전부입니다. 실행 명령은 이 장 위에 있습니다. 프로젝트 파일의 상대 경로는 저장소의 <code>manual/labs/Foundations</code> 위치를 기준으로 합니다. using은 다른 namespace의 이름을 가져오는 선언이며, PixelBuffer 옆의 using은 자원 해제를 약속하는 문법입니다.</p>
-<details class="code-example"><summary>Foundations.csproj · 프로젝트 설정</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="labs/Foundations/Foundations.csproj">manual/labs/Foundations/Foundations.csproj</a></p>
-<pre tabindex="0" aria-label="Foundations.csproj · 프로젝트 설정"><code data-source="labs/Foundations/Foundations.csproj" data-kind="full">&lt;Project Sdk=&quot;Microsoft.NET.Sdk&quot;&gt;
+<details id="source-d6d2eff6975b" class="code-example">
+<summary><span class="code-language">XML</span><span class="code-title">Foundations.csproj · 프로젝트 설정</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Foundations.csproj · 12줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="Foundations.csproj · 프로젝트 설정 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="Foundations.csproj · 프로젝트 설정 코드"><code data-source="labs/Foundations/Foundations.csproj" data-kind="full" data-language="xml">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
   &lt;PropertyGroup&gt;
     &lt;OutputType&gt;Exe&lt;/OutputType&gt;
     &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
@@ -39,13 +60,14 @@ dotnet run --project manual/labs/CanvasHost -c Release --no-build -- --software-
     &lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;
   &lt;/PropertyGroup&gt;
   &lt;ItemGroup&gt;
-    &lt;ProjectReference Include=&quot;../../../src/VisionCanvas.Core/VisionCanvas.Core.csproj&quot; /&gt;
+    &lt;ProjectReference Include="../../../src/VisionCanvas.Core/VisionCanvas.Core.csproj" /&gt;
   &lt;/ItemGroup&gt;
 &lt;/Project&gt;</code></pre>
-</details>
-<details class="code-example" open><summary>Program.cs · 좌표·메모리·계층·이력 11개 확인</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="labs/Foundations/Program.cs">manual/labs/Foundations/Program.cs</a></p>
-<pre tabindex="0" aria-label="Program.cs · 좌표·메모리·계층·이력 11개 확인"><code data-source="labs/Foundations/Program.cs" data-kind="full">using VisionCanvas.Core.Editing;
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/Foundations/Foundations.csproj</code></p></details>
+<details id="source-91bd93676cd6" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">Program.cs · 좌표·메모리·계층·이력 11개 확인</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Program.cs · 51줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="Program.cs · 좌표·메모리·계층·이력 11개 확인 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="Program.cs · 좌표·메모리·계층·이력 11개 확인 코드"><code data-source="labs/Foundations/Program.cs" data-kind="full" data-language="csharp">using VisionCanvas.Core.Editing;
 using VisionGeometry;
 using VisionImaging.Abstractions;
 
@@ -53,76 +75,308 @@ using VisionImaging.Abstractions;
 var view = new ViewportTransform(2, new PointD(20, 10));
 var imagePoint = new PointD(100, 50);
 var screenPoint = view.ImageToScreen(imagePoint);
-Require(screenPoint == new PointD(220, 110), &quot;이미지 → 화면 좌표&quot;);
-Require(view.ScreenToImage(screenPoint) == imagePoint, &quot;화면 → 이미지 역변환&quot;);
+Require(screenPoint == new PointD(220, 110), "이미지 → 화면 좌표");
+Require(view.ScreenToImage(screenPoint) == imagePoint, "화면 → 이미지 역변환");
 
 var anchor = new PointD(400, 300);
 var zoomed = view.ZoomAt(anchor, 1.5);
 Require((view.ScreenToImage(anchor) - zoomed.ScreenToImage(anchor)).Length &lt; 1e-9,
-    &quot;확대 후 마우스 아래 원본 좌표 유지&quot;);
+    "확대 후 마우스 아래 원본 좌표 유지");
 
 var rotation = new RigidTransform2D(new PointD(10, 10), 90, new PointD(3, 0));
 var rotated = rotation.Apply(new PointD(20, 10));
-Require((rotated - new PointD(13, 20)).Length &lt; 1e-9, &quot;회전 후 이동&quot;);
-Require((rotation.InverseApply(rotated) - new PointD(20, 10)).Length &lt; 1e-9, &quot;강체 역변환&quot;);
+Require((rotated - new PointD(13, 20)).Length &lt; 1e-9, "회전 후 이동");
+Require((rotation.InverseApply(rotated) - new PointD(20, 10)).Length &lt; 1e-9, "강체 역변환");
 
 using (var pixels = new PixelBuffer(3, 2, PixelKind.Gray16))
 {
-    Require(pixels.Stride == 6 &amp;&amp; pixels.Length == 12, &quot;Gray16의 바이트 수&quot;);
+    Require(pixels.Stride == 6 &amp;&amp; pixels.Length == 12, "Gray16의 바이트 수");
 }
 
 var session = new EditorSession();
-session.InitializeImage(new ImageReference(&quot;lesson&quot;, &quot;학습 영상&quot;, 1024, 1024), ViewportTransform.Identity);
+session.InitializeImage(new ImageReference("lesson", "학습 영상", 1024, 1024), ViewportTransform.Identity);
 var parent = session.Add(new RoiGeometry(new PointD(300, 300), 200, 200, 0));
 session.AddChild(parent, new RoiGeometry(new PointD(300, 300), 20, 20, 0));
-Require(session.State.Rois.Count == 2, &quot;부모와 자식 생성&quot;);
+Require(session.State.Rois.Count == 2, "부모와 자식 생성");
 session.Select([parent]);
 session.DeleteSelection();
-Require(session.State.Rois.Count == 0, &quot;부모 삭제 시 자손 연쇄 삭제&quot;);
+Require(session.State.Rois.Count == 0, "부모 삭제 시 자손 연쇄 삭제");
 session.Undo();
-Require(session.State.Rois.Count == 2, &quot;Undo가 부모와 자식을 복원&quot;);
+Require(session.State.Rois.Count == 2, "Undo가 부모와 자식을 복원");
 session.Redo();
-Require(session.State.Rois.Count == 0, &quot;Redo가 같은 삭제를 적용&quot;);
+Require(session.State.Rois.Count == 0, "Redo가 같은 삭제를 적용");
 session.Undo();
 session.Add(new RoiGeometry(new PointD(700, 700), 40, 40, 0));
-Require(!session.CanRedo, &quot;새 편집은 이전 Redo 분기를 제거&quot;);
-Console.WriteLine(&quot;완료: 좌표·메모리·계층·이력 11개 확인. 성능 측정은 포함하지 않습니다.&quot;);
+Require(!session.CanRedo, "새 편집은 이전 Redo 분기를 제거");
+Console.WriteLine("완료: 좌표·메모리·계층·이력 11개 확인. 성능 측정은 포함하지 않습니다.");
 
 static void Require(bool condition, string description)
 {
     if (!condition)
     {
-        throw new InvalidOperationException($&quot;FAIL: {description}&quot;);
+        throw new InvalidOperationException($"FAIL: {description}");
     }
-    Console.WriteLine($&quot;PASS: {description}&quot;);
+    Console.WriteLine($"PASS: {description}");
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/Foundations/Program.cs</code></p></details>
 </section>
-<section>
+<section class="implementation-lesson" id="reading-1"><h2>단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기</h2><p>창을 붙이기 전에 입력 계약부터 실행해 보겠습니다. 좌표만 직접 넣으면 실제 마우스와 같은 Down·Move·Up·Cancel을 GPU 없이 검증할 수 있습니다. 새 폴더 <code>manual/labs/InputLifecycle</code>에 아래 두 파일을 두고 실행하세요. 기존 저장소에는 이미 들어 있습니다.</p><details class="code-example">
+<summary><span class="code-language">PowerShell</span><span class="code-title">단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 1줄</span><button type="button" data-copy-code hidden aria-label="단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기 코드"><code data-language="powershell">dotnet run --project manual/labs/InputLifecycle -c Release</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>예상 결과는 PASS 여덟 줄과 완료 한 줄입니다. 실패하면 Require가 예외를 던지므로 종료 코드도 실패합니다. Up 위치를 Move와 일부러 다르게 두었습니다. 먼저 최종 ROI 중심을 손으로 구하고 실행하세요.</p><details id="source-8371102faecf" class="code-example">
+<summary><span class="code-language">XML</span><span class="code-title">InputLifecycle.csproj</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">InputLifecycle.csproj · 12줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="InputLifecycle.csproj 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="InputLifecycle.csproj 코드"><code data-source="labs/InputLifecycle/InputLifecycle.csproj" data-kind="full" data-language="xml">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;Exe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net10.0&lt;/TargetFramework&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;
+  &lt;/PropertyGroup&gt;
+  &lt;ItemGroup&gt;
+    &lt;ProjectReference Include="../../../src/VisionCanvas.Core/VisionCanvas.Core.csproj" /&gt;
+  &lt;/ItemGroup&gt;
+&lt;/Project&gt;</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 코드 · <code>labs/InputLifecycle/InputLifecycle.csproj</code></p></details><details id="source-089714eab6e7" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">Program.cs: 가짜 포인터로 이동·확정·Undo·취소</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Program.cs · 45줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="Program.cs: 가짜 포인터로 이동·확정·Undo·취소 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="Program.cs: 가짜 포인터로 이동·확정·Undo·취소 코드"><code data-source="labs/InputLifecycle/Program.cs" data-kind="full" data-language="csharp">using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Interaction;
+using VisionGeometry;
+
+// HWND 대신 좌표를 직접 전달한다. 실제 마우스도 DIP 변환 뒤 같은 API를 호출한다.
+var session = new EditorSession();
+session.SetViewport(new ViewportTransform(2, new PointD(20, 10)));
+var roiId = session.Add(new RoiGeometry(new PointD(100, 100), 80, 80, 0));
+var input = new InteractionController(session);
+
+// 원본 중심 (100,100)은 화면 (220,210)에 있다.
+input.Down(new PointD(220, 210));
+input.Move(new PointD(240, 220));
+Require(session.IsPreviewing, "이동 중에는 미리보기 상태");
+Require(session.State.Rois[roiId].Geometry.Center == new PointD(100, 100),
+    "이동 미리보기는 원본 ROI를 매번 다시 만들지 않음");
+Require(session.TransformPreview is not null, "표시용 공통 변환이 존재함");
+
+// Move에서 멈춘 위치와 Up 위치가 다르다. Up의 마지막 위치까지 반영해야 한다.
+input.Up(new PointD(260, 230));
+Require(session.State.Rois[roiId].Geometry.Center == new PointD(120, 110),
+    "화면 이동 (40,20)을 배율 2로 나눈 원본 이동 (20,10)");
+Require(!session.IsPreviewing &amp;&amp; !input.IsDragging, "확정 후 제스처와 미리보기 종료");
+session.Undo();
+Require(session.State.Rois[roiId].Geometry.Center == new PointD(100, 100), "Undo 한 번으로 이동 취소");
+session.Redo();
+Require(session.State.Rois[roiId].Geometry.Center == new PointD(120, 110), "Redo로 이동 복원");
+
+var committedCenter = session.State.Rois[roiId].Geometry.Center;
+var undoName = session.UndoName;
+input.Down(session.State.Viewport.ImageToScreen(committedCenter));
+input.Move(new PointD(300, 260));
+input.Cancel();
+Require(session.State.Rois[roiId].Geometry.Center == committedCenter &amp;&amp; session.UndoName == undoName,
+    "Cancel은 드래그 전 ROI와 이력을 유지");
+Console.WriteLine("완료: 입력 수명 8개 확인. WPF/GPU 프레임 성능 시험은 아닙니다.");
+
+static void Require(bool condition, string description)
+{
+    if (!condition)
+    {
+        throw new InvalidOperationException($"FAIL: {description}");
+    }
+    Console.WriteLine($"PASS: {description}");
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 코드 · <code>labs/InputLifecycle/Program.cs</code></p></details><aside class="teach-back"><h3>본문을 가리고 설명하기</h3><p>코드의 영상 배율을2에서4로 바꾸고 화면의 드래그 거리는 유지하면 원본 이동량은 어떻게 됩니까?</p><details><summary>설명 예시와 다시 확인할 지점</summary><p>원본 이동량은 절반이 됩니다. 단, Down 좌표도 ImageToScreen으로 새 중심에 맞춰야 같은 ROI를 클릭합니다. 배율만 바꾸고 예전 화면 좌표를 그대로 쓰면 다른 대상을 누를 수 있습니다.</p></details></aside></section>
+<section id="reading-5">
 <h2>단계 B: 창에 연결하는 다섯 줄의 역할</h2>
-<pre><code>var session = new EditorSession();
+<p class="lesson-question">“생성자와 이벤트를 연결하는 코드는 따라 썼는데 왜 필요한지 모르겠어요.” 물이 어디서 들어와 어떤 관을 지나 어디로 나가는지 그리듯, 입력 하나와 장면 하나가 이동하는 경로를 그려 보세요. 각 객체를 연결한 이유를 설명할 수 있어야 문제가 생겼을 때 고칠 위치를 찾을 수 있습니다.</p>
+
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">단계 B: 창에 연결하는 다섯 줄의 역할</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 5줄</span><button type="button" data-copy-code hidden aria-label="단계 B: 창에 연결하는 다섯 줄의 역할 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="단계 B: 창에 연결하는 다섯 줄의 역할 코드"><code data-language="csharp">var session = new EditorSession();
 var input = new InteractionController(session);
 var viewport = new Dx12Viewport();
 viewport.Input = input;
-session.Changed += (_, _) =&gt; Publish();</code></pre><p>이 코드는 흐름을 보여 주는 발췌이며 전체 실행 코드는 LessonWindow입니다. session은 문서 책임, input은 마우스 도구 조정, viewport는 HWND와 렌더 수명입니다. Changed에서는 변경된 상태를 장면으로 게시합니다. 사용자가 드래그할 때 overlay도 바뀌므로 <code>input.Changed</code>와 크기 변경 <code>viewport.LayoutChanged</code>도 게시에 연결합니다.</p>
-<pre><code>input.SetViewportSize(viewport.ViewWidth, viewport.ViewHeight);
+session.Changed += (_, _) =&gt; Publish();</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>이 코드는 흐름을 보여 주는 발췌이며 전체 실행 코드는 LessonWindow입니다. session은 문서 책임, input은 마우스 도구 조정, viewport는 HWND와 렌더 수명입니다. Changed에서는 변경된 상태를 장면으로 게시합니다. 사용자가 드래그할 때 overlay도 바뀌므로 <code>input.Changed</code>와 크기 변경 <code>viewport.LayoutChanged</code>도 게시에 연결합니다.</p>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">단계 B: 창에 연결하는 다섯 줄의 역할</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 5줄</span><button type="button" data-copy-code hidden aria-label="단계 B: 창에 연결하는 다섯 줄의 역할 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="단계 B: 창에 연결하는 다섯 줄의 역할 코드"><code data-language="csharp">input.SetViewportSize(viewport.ViewWidth, viewport.ViewHeight);
 viewport.Submit(new RenderScene(
     session.State, imageInfo, generation,
     viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi,
-    input.Overlay, Transform: session.TransformPreview));</code></pre><p>RenderScene의 각 값은 순서대로 문서, 영상 정보, 이미지 세대, 화면 DIP 크기, DPI 계수, 도구 overlay, 편집 preview입니다. <strong>Transform을 빠뜨리면 드래그 중 표시가 확정 문서와 다르게 보일 수 있습니다.</strong> UI 컬렉션을 렌더에 직접 넘기지 않습니다.</p>
+    input.Overlay, Transform: session.TransformPreview));</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>RenderScene의 각 값은 순서대로 문서, 영상 정보, 이미지 세대, 화면 DIP 크기, DPI 계수, 도구 overlay, 편집 preview입니다. <strong>Transform을 빠뜨리면 드래그 중 표시가 확정 문서와 다르게 보일 수 있습니다.</strong> UI 컬렉션을 렌더에 직접 넘기지 않습니다.</p>
+
+<div class="worked-example"><h3>창이 빈 화면일 때 질문을 좁히기</h3>
+<p>첫 질문은 ‘GPU가 고장 났나?’가 아니라 ‘유효한 크기의 창과 이미지 규격이 준비되었나?’입니다. 다음은 ‘장면이 게시되었나?’, ‘필요한 타일이 요청되고 반환되었나?’, ‘렌더 쪽에서 현재 세대의 결과를 받았나?’입니다. 앞 경계의 출력이 확인된 뒤 다음 경계로 넘어갑니다.</p>
+<p>아래 전체 코드의 Publish를 읽을 때 State·Image·Generation·크기·DPI·미리보기를 하나씩 짚으며 ‘이 값이 빠지면 무엇을 결정하지 못하는가’를 말해 보세요. 예를 들어 DPI를 빼면 DIP와 물리 px를 맞출 정보가 사라지고, Generation을 빼면 이전 이미지의 늦은 결과를 구별하기 어려워집니다.</p></div>
 </section>
-<section>
+<section id="reading-6">
 <h2>단계 C: 파일 디코더 없이 8K 타일 소스 만들기</h2>
-<p>CheckerTileSource는 8192×8192 전체 배열 대신 Read 호출이 요청한 512×512 Gray8 타일만 만듭니다. <code>TileKey(Level,X,Y)</code>를 원본 좌표로 바꾼 뒤 256px 체커의 밝기 64/192를 채웁니다. 이 고정 크기에서는 모든 단계가 타일과 체커 경계에 정렬되어 가장자리 규칙이 단순합니다. 임의 파일 크기 소스는 마지막 타일의 유효 너비·높이까지 처리해야 합니다.</p>
+<p>CheckerTileSource는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8192×8192"><semantics><mrow><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn></mrow></mrow><annotation encoding="text/plain">8192×8192</annotation></semantics></math> 전체 배열 대신 Read 호출이 요청한 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512 Gray8"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn><mi mathvariant="normal">Gray</mi><mn>8</mn></mrow></mrow><annotation encoding="text/plain">512×512 Gray8</annotation></semantics></math> 타일만 만듭니다. <code>TileKey(Level,X,Y)</code>를 원본 좌표로 바꾼 뒤 256px 체커의 밝기 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="64/192"><semantics><mrow><mrow><mfrac><mn>64</mn><mn>192</mn></mfrac></mrow></mrow><annotation encoding="text/plain">64/192</annotation></semantics></math>를 채웁니다. 이 고정 크기에서는 모든 단계가 타일과 체커 경계에 정렬되어 가장자리 규칙이 단순합니다. 임의 파일 크기 소스는 마지막 타일의 유효 너비·높이까지 처리해야 합니다.</p>
 <p>취소는 행마다 확인합니다. 버퍼를 만든 뒤 취소·오류가 발생하면 반환하고 예외를 다시 던집니다. 성공한 Read만 호출자에게 소유권을 넘깁니다. 창에서는 <code>SetSource</code>의 반환 generation을 보관하고 장면에 같은 값을 전달합니다.</p>
-<details><summary>실습: 24K로 숫자만 바꿔도 될까?</summary><p>고정 예제의 tileCount는 정사각형·2의 거듭제곱 분할을 가정합니다. 임의 크기에서는 X/Y 개수를 각각 ceiling으로 구하고 마지막 타일 크기, 레벨별 크기, 바깥 key 검증을 바꿔야 합니다. 먼저 기존 <a href="../src/VisionImaging/Imaging/ProceduralTileSource.cs">ProceduralTileSource</a>를 읽고 <a href="../samples/VisionCanvas.Sample/README.md">검증된 샘플의 24K 경로</a>를 실행합니다. 파일 원본 시험은 별도입니다.</p>
+<details><summary>실습: 24K로 숫자만 바꿔도 될까?</summary><p>고정 예제의 tileCount는 정사각형·2의 거듭제곱 분할을 가정합니다. 임의 크기에서는 X/Y 개수를 각각 ceiling으로 구하고 마지막 타일 크기, 레벨별 크기, 바깥 key 검증을 바꿔야 합니다. 먼저 기존 <a href="#source-00643a7aa8a1" data-code-target="source-00643a7aa8a1">ProceduralTileSource</a>를 읽고 <a href="../samples/VisionCanvas.Sample/README.md">검증된 샘플의 24K 경로</a>를 실행합니다. 파일 원본 시험은 별도입니다.</p><details id="source-00643a7aa8a1" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">ProceduralTileSource</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">ProceduralTileSource.cs · 146줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="ProceduralTileSource 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="ProceduralTileSource 코드"><code data-source="../src/VisionImaging.Sources/ProceduralTileSource.cs" data-kind="full" data-language="csharp">using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using VisionImaging.Abstractions;
+
+namespace VisionImaging;
+
+/// &lt;summary&gt;Deterministic, full-resolution sample surface. No source-sized allocation.&lt;/summary&gt;
+public sealed class ProceduralTileSource : ITileSource, IOriginalGrayTileSource
+{
+    public ImageInfo Info
+    {
+        get;
+    }
+
+    public ProceduralTileSource(int width = 8192, int height = 8192)
+        =&gt; Info = new($"sample:{width}:{height}", $"검사 샘플 · {width:N0} × {height:N0}", width, height,
+            PixelKind.Rgba32, ImageInfo.CalculateLevelCount(width, height));
+
+    public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)
+        =&gt; ReadPixels(key, PixelKind.Rgba32, cancellationToken);
+
+    public PixelBuffer ReadOriginalGray8(int tileX, int tileY, CancellationToken cancellationToken)
+        =&gt; ReadPixels(new(0, tileX, tileY), PixelKind.Gray8, cancellationToken);
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private PixelBuffer ReadPixels(TileKey key, PixelKind kind, CancellationToken token)
+    {
+        if (key.Level &lt; 0 || key.Level &gt;= Info.Levels || key.X &lt; 0 || key.Y &lt; 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(key));
+        }
+        var factor = 1 &lt;&lt; key.Level;
+        var levelWidth = (Info.Width + factor - 1) / factor;
+        var levelHeight = (Info.Height + factor - 1) / factor;
+        var left = checked(key.X * ImageInfo.TileSize);
+        var top = checked(key.Y * ImageInfo.TileSize);
+        if (left &gt;= levelWidth || top &gt;= levelHeight)
+        {
+            throw new ArgumentOutOfRangeException(nameof(key));
+        }
+        var pixels = new PixelBuffer(Math.Min(512, levelWidth - left), Math.Min(512, levelHeight - top), kind);
+        try
+        {
+            Span&lt;byte&gt; grayNoise = stackalloc byte[pixels.Width];
+            Span&lt;uint&gt; colorNoise = stackalloc uint[pixels.Width];
+            Span&lt;ProceduralPattern.Segment&gt; segments = stackalloc ProceduralPattern.Segment[16];
+            for (var x = 0; x &lt; pixels.Width; x++)
+            {
+                grayNoise[x] = (byte)(((left + x) * factor * 13) &amp; 7);
+                colorNoise[x] = grayNoise[x] * 0x00010101u;
+            }
+            var worldLeft = left * factor;
+            var worldRight = worldLeft + (pixels.Width * factor);
+            for (var y = 0; y &lt; pixels.Height; y++)
+            {
+                token.ThrowIfCancellationRequested();
+                var worldY = (top + y) * factor;
+                var row = pixels.Span.Slice(y * pixels.Stride, pixels.Width * (kind == PixelKind.Gray8 ? 1 : 4));
+                Fill(row, kind, 0, pixels.Width, ProceduralPattern.Background);
+                var count = ProceduralPattern.WriteRow(worldY % ProceduralPattern.Period, segments);
+                for (var cell = worldLeft / ProceduralPattern.Period * ProceduralPattern.Period; cell &lt; worldRight; cell += ProceduralPattern.Period)
+                {
+                    foreach (var segment in segments[..count])
+                    {
+                        var from = Math.Max(0, (int)Math.Ceiling((cell + Math.Max(0, segment.Start) - worldLeft) / (double)factor));
+                        var to = Math.Min(pixels.Width, (int)Math.Ceiling((cell + Math.Min(ProceduralPattern.Period, segment.End) - worldLeft) / (double)factor));
+                        if (from &lt; to)
+                        {
+                            Fill(row, kind, from, to, segment.Color);
+                        }
+                    }
+                }
+                var vertical = (byte)((worldY * 7) &amp; 7);
+                if (kind == PixelKind.Gray8)
+                {
+                    AddGrayNoise(row, grayNoise, vertical);
+                }
+                else
+                {
+                    AddColorNoise(MemoryMarshal.Cast&lt;byte, uint&gt;(row), colorNoise, vertical * 0x00010101u);
+                }
+            }
+            return pixels;
+        }
+        catch
+        {
+            pixels.Dispose();
+            throw;
+        }
+    }
+
+    private static void Fill(Span&lt;byte&gt; row, PixelKind kind, int start, int end, uint color)
+    {
+        if (kind == PixelKind.Gray8)
+        {
+            row.Slice(start, end - start).Fill(ProceduralPattern.Gray(color));
+        }
+        else
+        {
+            MemoryMarshal.Cast&lt;byte, uint&gt;(row).Slice(start, end - start).Fill(color);
+        }
+    }
+
+    private static void AddGrayNoise(Span&lt;byte&gt; row, ReadOnlySpan&lt;byte&gt; noise, byte vertical)
+    {
+        var x = 0;
+        if (Vector256.IsHardwareAccelerated)
+        {
+            var y = Vector256.Create(vertical);
+            for (; x &lt;= row.Length - Vector256&lt;byte&gt;.Count; x += Vector256&lt;byte&gt;.Count)
+            {
+                var colors = Vector256.LoadUnsafe(ref MemoryMarshal.GetReference(row), (nuint)x);
+                var horizontal = Vector256.LoadUnsafe(ref MemoryMarshal.GetReference(noise), (nuint)x);
+                (colors + (horizontal ^ y)).StoreUnsafe(ref MemoryMarshal.GetReference(row), (nuint)x);
+            }
+        }
+        for (; x &lt; row.Length; x++)
+        {
+            row[x] += (byte)(noise[x] ^ vertical);
+        }
+    }
+
+    private static void AddColorNoise(Span&lt;uint&gt; row, ReadOnlySpan&lt;uint&gt; noise, uint vertical)
+    {
+        var x = 0;
+        if (Vector256.IsHardwareAccelerated)
+        {
+            var y = Vector256.Create(vertical);
+            for (; x &lt;= row.Length - Vector256&lt;uint&gt;.Count; x += Vector256&lt;uint&gt;.Count)
+            {
+                var colors = Vector256.LoadUnsafe(ref MemoryMarshal.GetReference(row), (nuint)x);
+                var horizontal = Vector256.LoadUnsafe(ref MemoryMarshal.GetReference(noise), (nuint)x);
+                (colors + (horizontal ^ y)).StoreUnsafe(ref MemoryMarshal.GetReference(row), (nuint)x);
+            }
+        }
+        for (; x &lt; row.Length; x++)
+        {
+            row[x] += noise[x] ^ vertical;
+        }
+    }
+
+    public void Dispose()
+    {
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionImaging.Sources/ProceduralTileSource.cs</code></p></details>
 </details>
 </section>
 <section id="canvas-host-code"><h2>실습 B 전체 코드: 파일 네 개로 조립하기</h2>
-<p>설정 → 진입점 → 타일 생성 → 창 연결 순서입니다. 파일 제목을 누르면 전체가 펼쳐집니다. 소스 링크는 원본 파일을 따로 보고 싶을 때만 사용하세요. 코드가 이미 HTML 안에 있으므로 인터넷이나 JavaScript 없이도 읽을 수 있습니다.</p>
-<details class="code-example"><summary>1. CanvasHost.csproj · Windows/WPF와 Canvas 참조</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="labs/CanvasHost/CanvasHost.csproj">manual/labs/CanvasHost/CanvasHost.csproj</a></p>
-<pre tabindex="0" aria-label="1. CanvasHost.csproj · Windows/WPF와 Canvas 참조"><code data-source="labs/CanvasHost/CanvasHost.csproj" data-kind="full">&lt;Project Sdk=&quot;Microsoft.NET.Sdk&quot;&gt;
+<p>설정 → 진입점 → 타일 생성 → 창 연결 순서입니다. 먼저 각 파일의 역할을 말해 본 뒤 제목을 눌러 코드를 펼치세요. 코드는 HTML 안에 있으므로 인터넷이나 JavaScript 없이도 읽을 수 있습니다.</p>
+<details id="source-e2ab12962646" class="code-example">
+<summary><span class="code-language">XML</span><span class="code-title">1. CanvasHost.csproj · Windows/WPF와 Canvas 참조</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">CanvasHost.csproj · 14줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="1. CanvasHost.csproj · Windows/WPF와 Canvas 참조 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="1. CanvasHost.csproj · Windows/WPF와 Canvas 참조 코드"><code data-source="labs/CanvasHost/CanvasHost.csproj" data-kind="full" data-language="xml">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
   &lt;PropertyGroup&gt;
     &lt;OutputType&gt;WinExe&lt;/OutputType&gt;
     &lt;TargetFramework&gt;net10.0-windows&lt;/TargetFramework&gt;
@@ -133,13 +387,14 @@ viewport.Submit(new RenderScene(
     &lt;TreatWarningsAsErrors&gt;true&lt;/TreatWarningsAsErrors&gt;
   &lt;/PropertyGroup&gt;
   &lt;ItemGroup&gt;
-    &lt;ProjectReference Include=&quot;../../../src/VisionCanvas/VisionCanvas.csproj&quot; /&gt;
+    &lt;ProjectReference Include="../../../src/VisionCanvas/VisionCanvas.csproj" /&gt;
   &lt;/ItemGroup&gt;
 &lt;/Project&gt;</code></pre>
-</details>
-<details class="code-example" open><summary>2. Program.cs · STA 진입점과 창 실행</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="labs/CanvasHost/Program.cs">manual/labs/CanvasHost/Program.cs</a></p>
-<pre tabindex="0" aria-label="2. Program.cs · STA 진입점과 창 실행"><code data-source="labs/CanvasHost/Program.cs" data-kind="full">using System.Windows;
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/CanvasHost/CanvasHost.csproj</code></p></details>
+<details id="source-0ba263d06f16" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">2. Program.cs · STA 진입점과 창 실행</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Program.cs · 13줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="2. Program.cs · STA 진입점과 창 실행 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="2. Program.cs · STA 진입점과 창 실행 코드"><code data-source="labs/CanvasHost/Program.cs" data-kind="full" data-language="csharp">using System.Windows;
 
 namespace VisionCanvas.Manual;
 
@@ -149,14 +404,15 @@ internal static class Program
     private static int Main(string[] args)
     {
         var application = new Application();
-        return application.Run(new LessonWindow(args.Contains(&quot;--software-rendering&quot;)));
+        return application.Run(new LessonWindow(args.Contains("--software-rendering")));
     }
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/CanvasHost/Program.cs</code></p></details>
 <p>Read는 전체 8K 배열을 만들지 않고 주소 하나의 픽셀을 만듭니다. factor를 곱하는 곳과 stride를 곱하는 곳은 각각 좌표 변환과 메모리 주소 계산입니다.</p>
-<details class="code-example" open><summary>3. CheckerTileSource.cs · 512px 조각의 생성과 소유권</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="labs/CanvasHost/CheckerTileSource.cs">manual/labs/CanvasHost/CheckerTileSource.cs</a></p>
-<pre tabindex="0" aria-label="3. CheckerTileSource.cs · 512px 조각의 생성과 소유권"><code data-source="labs/CanvasHost/CheckerTileSource.cs" data-kind="full">using VisionImaging.Abstractions;
+<details id="source-eb1695eb8dea" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">3. CheckerTileSource.cs · 512px 조각의 생성과 소유권</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">CheckerTileSource.cs · 57줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="3. CheckerTileSource.cs · 512px 조각의 생성과 소유권 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="3. CheckerTileSource.cs · 512px 조각의 생성과 소유권 코드"><code data-source="labs/CanvasHost/CheckerTileSource.cs" data-kind="full" data-language="csharp">using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Manual;
 
@@ -168,7 +424,7 @@ internal sealed class CheckerTileSource : ITileSource
     public ImageInfo Info
     {
         get;
-    } = new(&quot;manual-checker&quot;, &quot;8K 체커 학습 영상&quot;, 8192, 8192,
+    } = new("manual-checker", "8K 체커 학습 영상", 8192, 8192,
         PixelKind.Gray8, ImageInfo.CalculateLevelCount(8192, 8192));
 
     public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)
@@ -213,11 +469,12 @@ internal sealed class CheckerTileSource : ITileSource
 
     public void Dispose() =&gt; _disposed = true;
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/CanvasHost/CheckerTileSource.cs</code></p></details>
 <p>LessonWindow는 조립을 담당합니다. 생성자에서 도구·이벤트를 연결하고 InitializeImage에서 소스를 넘깁니다. AddRectangle/Fit은 기존 세션에 요청하며 Publish는 그 결과를 화면에 전달합니다. AddButton은 반복되는 버튼 연결만 모으고 ROI 규칙을 직접 구현하지 않습니다.</p>
-<details class="code-example"><summary>4. LessonWindow.cs · 실제 창과 이벤트 연결 전체</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="labs/CanvasHost/LessonWindow.cs">manual/labs/CanvasHost/LessonWindow.cs</a></p>
-<pre tabindex="0" aria-label="4. LessonWindow.cs · 실제 창과 이벤트 연결 전체"><code data-source="labs/CanvasHost/LessonWindow.cs" data-kind="full">using System.Windows;
+<details id="source-c0e4a0d1178d" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">4. LessonWindow.cs · 실제 창과 이벤트 연결 전체</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">LessonWindow.cs · 139줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="4. LessonWindow.cs · 실제 창과 이벤트 연결 전체 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="4. LessonWindow.cs · 실제 창과 이벤트 연결 전체 코드"><code data-source="labs/CanvasHost/LessonWindow.cs" data-kind="full" data-language="csharp">using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using VisionCanvas.Controls;
@@ -242,7 +499,7 @@ internal sealed class LessonWindow : Window
 
     public LessonWindow(bool softwareRendering)
     {
-        Title = &quot;VisionCanvas 학습 호스트 · 8K 합성 영상&quot;;
+        Title = "VisionCanvas 학습 호스트 · 8K 합성 영상";
         Width = 1100;
         Height = 760;
         _input = new InteractionController(_session);
@@ -253,14 +510,14 @@ internal sealed class LessonWindow : Window
         }
 
         var toolbar = new WrapPanel();
-        AddButton(toolbar, &quot;사각형 추가&quot;, AddRectangle);
-        AddButton(toolbar, &quot;선택 도구&quot;, () =&gt; _input.Tool = EditorTool.Select);
-        AddButton(toolbar, &quot;화면 이동&quot;, () =&gt; _input.Tool = EditorTool.Pan);
-        AddButton(toolbar, &quot;화면 맞춤&quot;, Fit);
-        AddButton(toolbar, &quot;삭제&quot;, _session.DeleteSelection);
-        AddButton(toolbar, &quot;Undo&quot;, _session.Undo);
-        AddButton(toolbar, &quot;Redo&quot;, _session.Redo);
-        AddButton(toolbar, &quot;취소&quot;, _input.Cancel);
+        AddButton(toolbar, "사각형 추가", AddRectangle);
+        AddButton(toolbar, "선택 도구", () =&gt; _input.Tool = EditorTool.Select);
+        AddButton(toolbar, "화면 이동", () =&gt; _input.Tool = EditorTool.Pan);
+        AddButton(toolbar, "화면 맞춤", Fit);
+        AddButton(toolbar, "삭제", _session.DeleteSelection);
+        AddButton(toolbar, "Undo", _session.Undo);
+        AddButton(toolbar, "Redo", _session.Redo);
+        AddButton(toolbar, "취소", _input.Cancel);
         var layout = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
         DockPanel.SetDock(_status, Dock.Bottom);
@@ -356,19 +613,45 @@ internal sealed class LessonWindow : Window
         toolbar.Children.Add(button);
     }
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/CanvasHost/LessonWindow.cs</code></p></details>
 </section>
-<section>
+<section class="implementation-lesson" id="reading-11"><h2>작은 캔버스 조립: 작성 순서와 눈으로 확인할 결과</h2><table><thead><tr><th>순서</th><th>작성할 코드 / 연결</th><th>그 단계의 완료 기준</th></tr></thead><tbody><tr><td>1. 데이터와 기하</td><td>PointD·RoiGeometry·ViewportTransform 사용. 영상 원본 px와 화면 DIP 구별</td><td>원본→화면→원본 왕복 결과가 같음</td></tr><tr><td>2. 편집 세션</td><td>EditorSession 생성, InitializeImage와 Add</td><td>ID로 ROI를 조회하고 Undo/Redo가 복원됨</td></tr><tr><td>3. 입력</td><td>InteractionController 생성. Down/Move/Up/Cancel 호출</td><td>위 콘솔 실습의8가지 상태가 맞음</td></tr><tr><td>4. WPF 창</td><td>STA 진입점, LessonWindow, Dx12Viewport를 DockPanel에 배치</td><td>실제 자식 창 크기가0보다 큼</td></tr><tr><td>5. 소스 인계</td><td>CheckerTileSource 생성 → SetSource → 세대 번호 저장</td><td>Info와 세대를 같은 RenderScene에 넣음</td></tr><tr><td>6. 게시 구독</td><td>Session.Changed·Input.Changed·LayoutChanged → Publish</td><td>문서 편집, 초안, 창 크기 변경이 모두 보임</td></tr><tr><td>7. 장면 제출</td><td>State·ImageInfo·Generation·DIP 크기·Dpi·Overlay·TransformPreview</td><td>드래그 중 모양과 확정 뒤 모양이 이어짐</td></tr><tr><td>8. 종료와 오류</td><td>Closing에서 입력 취소, InputFailed 표시, 소스 소유권 인계 준수</td><td>취소/닫기 때 진행 중 편집이나 반환된 버퍼를 재사용하지 않음</td></tr></tbody></table><p>여기까지는 기존 라이브러리를 조립하는 학습 호스트입니다. Canvas 내부까지 직접 구현하려면 먼저 2장의 순수 기하, 5장의 편집·입력, 6장의 타일 계약, 7장의 표시 수명 순서로 책임을 채웁니다. 각 책임을 만든 뒤 같은 입력/출력으로 기존 구현과 비교하세요. 처음부터 대량 ROI와 GPU 코드를 한 메서드에 넣으면 어느 계산이 틀렸는지 분리하기 어렵습니다.</p><p><strong>직접 해 볼 변경:</strong> LessonWindow의 툴바에 그리기 버튼을 추가해 <code>_input.Tool = EditorTool.Draw</code>와 <code>_input.DrawShape = RoiShapeKind.Rectangle</code>을 설정합니다. 눌러 끌면 초안이 보이고, 놓으면 한 ROI가 추가되며, Escape는 추가 없이 끝나야 합니다. 다음에는 Circle로만 바꾸고 나머지 입력/이력 코드가 그대로 재사용되는지 확인하세요.</p><p><strong>원본 파일 열기는 별도 준비가 있습니다.</strong> 합성 타일 실습에는 네이티브 코덱이 필요하지 않습니다. 전체 앱을 처음 빌드할 때 <code>VisionImageCodecs.dll</code>이 없다는 오류가 나면 C++ 빌드 도구를 준비하고 다음 명령으로 자체 코덱을 먼저 생성합니다. 현재 빌드가 <code>artifacts/streaming-codecs</code> 런타임을 참조하므로 그 폴더 전체를 임시 파일로 생각해 지우면 안 됩니다.</p><details class="code-example">
+<summary><span class="code-language">PowerShell</span><span class="code-title">작은 캔버스 조립: 작성 순서와 눈으로 확인할 결과</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 2줄</span><button type="button" data-copy-code hidden aria-label="작은 캔버스 조립: 작성 순서와 눈으로 확인할 결과 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="작은 캔버스 조립: 작성 순서와 눈으로 확인할 결과 코드"><code data-language="powershell">pwsh -File experiments/VisionImaging.Codecs/Build-Native.ps1
+dotnet build TeachingToolWpf.slnx -c Release -m:1</code></pre>
+<p class="code-copy-status" role="status"></p></details><aside class="teach-back"><h3>본문을 가리고 설명하기</h3><p>Session.Changed만 구독하고 Input.Changed를 빼면 어떤 화면이 빠질 수 있습니까?</p><details><summary>설명 예시와 다시 확인할 지점</summary><p>문서에 아직 없는 그리기 초안·선택 상자 같은 Overlay 변경은 Input.Changed가 알립니다. 문서가 변하지 않았다는 이유로 게시를 생략하면 마우스를 끄는 중의 안내가 안 보일 수 있습니다. LessonWindow의 세 이벤트 구독과 Publish 인수를 다시 확인하세요.</p></details></aside></section>
+<section id="reading-12"><h2>그리기 버튼 추가 코드와 동작 확인</h2><p>아래는 학습자가 추가할 교육용 코드입니다. 위 LessonWindow 전체 파일에는 아직 없는 버튼입니다. 생성자의 기존 AddButton 호출 바로 아래에 넣으세요. 이미 있는 AddButton은 실행 전에 진행 중 입력을 취소하므로 버튼을 눌러 도구를 바꾸는 수명도 함께 처리합니다.</p><details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">그리기 버튼 추가 코드와 동작 확인</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 11줄</span><button type="button" data-copy-code hidden aria-label="그리기 버튼 추가 코드와 동작 확인 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="그리기 버튼 추가 코드와 동작 확인 코드"><code data-language="csharp">// LessonWindow 생성자의 기존 AddButton 호출들 아래에 넣는다.
+AddButton(toolbar, "사각형 그리기", () =&gt;
+{
+    _input.DrawShape = RoiShapeKind.Rectangle;
+    _input.Tool = EditorTool.Draw;
+});
+AddButton(toolbar, "원 그리기", () =&gt;
+{
+    _input.DrawShape = RoiShapeKind.Circle;
+    _input.Tool = EditorTool.Draw;
+});</code></pre>
+<p class="code-copy-status" role="status"></p></details><ol><li>사각형 그리기를 누르고 이미지 안에서 끕니다. 임시 도형이 마우스를 따라야 합니다.</li><li>마우스를 놓습니다. ROI 한 개가 추가되고 선택 도구로 돌아가야 합니다.</li><li>Undo를 한 번 누릅니다. 방금 도형만 없어져야 합니다.</li><li>다시 그리는 중 Escape를 누릅니다. 초안만 없어지고 기존 ROI는 남아야 합니다.</li><li>원 버튼으로 반복합니다. 입력 전달·미리보기·이력은 그대로이고 도형 종류만 달라져야 합니다.</li></ol></section>
+<details class="deep-dive"><summary>다음 단계 · 라이브러리 내부를 직접 구현하기</summary><section id="reading-8">
 <h2>단계 D: 라이브러리 내부를 직접 만드는 연습 순서</h2>
 <p>기존 제품을 갈아엎지 말고 별도 연습 프로젝트에서 아래 순서로 만듭니다. 각 단계의 완료 조건을 통과한 뒤 다음으로 갑니다. 현재 라이브러리 코드는 정답을 비교할 참고 자료입니다.</p>
 <table><thead><tr><th>순서</th><th>만들 책임</th><th>통과 조건 / 실제 참고</th></tr></thead><tbody><tr><td>1</td><td>Point·Bounds·ViewportTransform</td><td>변환 왕복, 마우스 고정 확대 / VisionGeometry</td></tr><tr><td>2</td><td>불변 ROI 문서·단일 선택·이력</td><td>추가/삭제/Undo/Redo/취소 / EditorSession, DocumentEdit</td></tr><tr><td>3</td><td>입력 State</td><td>선택·pan·move·rotate 시작/진행/종료가 구별됨 / InteractionController, Gestures</td></tr><tr><td>4</td><td>ITileSource·PixelBuffer·TilePlanner</td><td>뷰 밖은 요청 없음, 취소 버퍼 누수 없음 / TilePlannerTests, TileWorkerLifetimeTests</td></tr><tr><td>5</td><td>HwndHost·장치·swap chain</td><td>단색 clear, resize, 최소화, 종료 / Dx12Viewport, Dx12Device, Dx12Surface</td></tr><tr><td>6</td><td>텍스처 업로드·셰이더</td><td>작은 체크 이미지의 행/채널이 맞음 / SpritePipeline, FrameUploadArena</td></tr><tr><td>7</td><td>장면 게시·ROI overlay</td><td>CPU 히트 테스트와 GPU 윤곽 일치, DPI별 핸들 크기 유지 / RenderScene, RoiPipeline</td></tr><tr><td>8</td><td>타일 캐시·세대·최신 프레임</td><td>빠른 이미지 교체에도 이전 타일 없음 / TileWorker, LatestFrameMailbox</td></tr><tr><td>9</td><td>계층·대량 자료 재사용</td><td>부모/자손 정확성, 불변 블록 공유, 프레임 간격 실측 / RoiHierarchy, RoiSpatialIndex</td></tr><tr><td>10</td><td>필터·검사 호스트 어댑터</td><td>원본·모델·판정 경계를 지킴 / VisionInspection, 앱 Presentation</td></tr></tbody></table>
 <p>처음부터 모든 타일·대량 ROI·검사를 동시에 만들면 오류 경계가 너무 많습니다. 반대로 좌표 테스트만으로 렌더러를 완성했다고 할 수도 없습니다. 단계 5부터는 실제 Windows 장치·WARP·창 수명 확인이 필요합니다.</p>
-</section>
-<section>
+</section></details>
+<section id="reading-9">
 <h2>혼자 완성해 보는 과제</h2>
-<ol><li>학습 호스트에 ‘원 추가’ 버튼을 만듭니다. Circle은 너비=높이를 지켜야 합니다.</li><li>‘각도 0’ 버튼을 연결하고 선택 없음·다중 선택·Undo를 확인합니다. 기존 세션 API부터 찾아 중복 규칙을 피합니다.</li><li>파일 입력을 붙일 때 호스트만 VisionImaging을 참조하고 실패하면 기존 문서가 유지되게 합니다. 기존 SampleWindow의 LoadImageAsync/InstallSource/HistoryAsync를 비교합니다.</li><li>각 변경마다 수정 이유, 소유자, 테스트, 남은 한계를 4문장으로 작성합니다.</li></ol>
+<ol><li><span>학습 호스트에 ‘원 추가’ 버튼을 만듭니다. <code>Circle</code>의 너비와 높이는 같아야 합니다.</span></li><li>‘각도 0’ 버튼을 연결하고 선택 없음·다중 선택·Undo를 확인합니다. 기존 세션 API부터 찾아 중복 규칙을 피합니다.</li><li>파일 입력을 붙일 때 호스트만 VisionImaging을 참조하고 실패하면 기존 문서가 유지되게 합니다. 기존 SampleWindow의 LoadImageAsync/InstallSource/HistoryAsync를 비교합니다.</li><li>각 변경마다 수정 이유, 소유자, 테스트, 남은 한계를 4문장으로 작성합니다.</li></ol>
 <p>완료 기준은 ‘창이 뜬다’에서 끝나지 않습니다. 잘못된 입력·취소·이미지 교체·종료를 설명하고, 선택/형상/이력을 보존하며, 느린 구간을 측정할 수 있어야 합니다.</p>
 </section>
-<nav class="pager" aria-label="이전과 다음 장"><a href="08-inspection.html">← 08. 패턴을 학습하고 검사하기</a><a href="10-review.html">10. 리뷰·디버깅·성능 →</a></nav>
+<section class="teach-back" aria-label="자기 말로 설명하기" id="reading-10">
+<h2>책을 덮고, 동료에게 설명해 보세요</h2>
+<p>본문을 가리고, 다음 상황의 이유를 자기 말로 설명해 보세요.</p>
+<p><strong>설명할 상황:</strong> 다른 신입에게 “파일 디코더 없는 8K 체크무늬 CanvasHost”를 설명한다고 합시다. 이미지 규격, 타일 생성, 입력 변환, 장면 게시, 종료 수명을 순서대로 말하고, 실제 코드에서 각 역할을 한 군데씩 짚으세요.</p>
+<details><summary>설명 예시와 스스로 확인할 기준</summary><p>“합성 소스가 영상 크기와 단계를 알리고 요청된 조각의 픽셀을 만들어 반환해. 입력은 화면 위치를 원본 좌표로 바꾸어 편집 요청으로 이어지고, 호스트가 확정 상태와 미리보기를 장면으로 게시해. 렌더러는 그 장면과 타일을 그려. 종료할 때도 worker와 렌더러가 쓰는 소스·버퍼·창의 수명 순서를 지켜야 해.”</p><p>파일명을 외우는 것으로 끝내지 말고, 본문의 전체 코드에서 실제 생성·연결·해제 위치를 찾아 설명했는지 확인하세요.</p><p><strong>막혔다면:</strong> 단계 B의 연결 흐름과 전체 LessonWindow 코드부터 읽고, 그다음 CheckerTileSource의 성공·예외 경로를 따라가세요. 다시 읽은 뒤 예시를 닫고 한 번 더 설명합니다.</p></details>
+</section><nav class="pager" aria-label="이전과 다음 장"><a href="08-inspection.html">← 08. 패턴을 학습하고 검사하기</a><a href="12-reference.html">부록. 용어·수식 →</a></nav>
 <footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
 </main></div></body></html>

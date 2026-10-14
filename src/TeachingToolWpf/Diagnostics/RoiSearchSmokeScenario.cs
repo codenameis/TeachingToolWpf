@@ -8,7 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
@@ -17,7 +17,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class RoiSearchSmokeScenario
 {
-    public static async Task Run(Window window, EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(Window window, MainWindowViewModel model, Dx12Viewport viewport)
     {
         var editor = model.Session;
         var originalView = editor.State.Viewport;
@@ -49,7 +49,7 @@ internal static class RoiSearchSmokeScenario
         model.ApplyProperties.Execute(null);
         Require(editor.State.Rois[id].Name == "한글 그룹 이름" && !editor.State.Rois[id].IsNameVisible,
             "parent name and Visible binding commit together");
-        Require(model.Properties.IsGrouping && !model.Properties.CanChangeType && !model.Matching.Train.CanExecute(null),
+        Require(model.Properties.IsGroup && !model.Properties.CanChangeType && !model.Matching.Train.CanExecute(null),
             "group parent cannot become inspection input");
         await model.Undo.ExecuteAsync();
         Require(editor.State.Rois[id].IsNameVisible, "Undo restores parent label visibility");

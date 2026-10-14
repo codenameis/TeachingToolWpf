@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
@@ -16,7 +16,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>Exercises one continuous rotation through the real selection handle and application commit path.</summary>
 internal static class RoiRotationRun
 {
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;
@@ -234,7 +234,7 @@ internal static class RoiRotationRun
                 window.Close();
             }
 
-            InputTiming MeasureInput(Action action)
+            InputMetrics MeasureInput(Action action)
             {
                 var allocated = GC.GetAllocatedBytesForCurrentThread();
                 var cpu = ThreadCpuClock.Milliseconds();
@@ -459,7 +459,7 @@ internal static class RoiRotationRun
         }
     }
 
-    private sealed record InputTiming(double CallbackMs, double LayoutMs, long CallbackAllocatedBytes,
+    private sealed record InputMetrics(double CallbackMs, double LayoutMs, long CallbackAllocatedBytes,
         long LayoutAllocatedBytes, double ThreadCpuMs, double GcPauseMs,
         long StartTicks, long CallbackEndTicks, long LayoutEndTicks, long UtcUnixMs);
 

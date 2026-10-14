@@ -96,10 +96,11 @@ internal sealed partial class ScenePainter
             _mesh.Line(white, top, rotation, 1, selectionColor);
             RotationHandle(white, rotation, selectionColor);
         }
+        var draftStyle = scene.Overlay.DraftIsGroup ? scene.RoiStyles.Parent : scene.RoiStyles.Child;
         if (scene.Overlay.Draft is { } draft)
         {
             _mesh.Outline(white, draft.Outline.Select(view.ImageToScreen).ToArray(),
-            scene.RoiStyles.Default.StrokeThickness(true), scene.RoiStyles.Default.SelectedColor);
+            draftStyle.StrokeThickness(true), draftStyle.SelectedColor);
         }
 
         if (!scene.Overlay.PolygonPoints.IsDefaultOrEmpty)
@@ -107,12 +108,12 @@ internal sealed partial class ScenePainter
             var points = scene.Overlay.PolygonPoints.Select(view.ImageToScreen).ToArray();
             for (var i = 1; i < points.Length; i++)
             {
-                _mesh.Line(white, points[i - 1], points[i], 1.5, s_accent);
+                _mesh.Line(white, points[i - 1], points[i], draftStyle.StrokeThickness(true), draftStyle.SelectedColor);
             }
 
             foreach (var point in points)
             {
-                Handle(white, point, 5, s_accent);
+                Handle(white, point, 5, draftStyle.SelectedColor);
             }
         }
         if (scene.Overlay.Marquee is { } selection)

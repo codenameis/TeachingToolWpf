@@ -1,6 +1,6 @@
 using System.Globalization;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 
 namespace TeachingToolWpf.Imaging.Tests;
@@ -20,7 +20,7 @@ public sealed class CrosshairSettingsTests
                 var settings = new CrosshairSettingsViewModel();
                 var changes = 0;
                 settings.Changed += () => changes++;
-                var binding = new CrosshairLayerBinding(viewport, settings);
+                var binding = new CrosshairLayerLink(viewport, settings);
                 var layer = viewport.Layers["Guide"];
                 Assert.False(layer.IsVisible);
                 settings.Apply.Execute(null);

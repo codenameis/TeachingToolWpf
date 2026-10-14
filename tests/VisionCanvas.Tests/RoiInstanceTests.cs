@@ -49,11 +49,12 @@ public class RoiInstanceTests
     {
         var scene = new RenderScene(DocumentState.Empty, null, 0, 500, 500, 1.5, new InteractionOverlay());
         var constants = new RoiDrawConstants(scene, default, default, false, RoiDrawPass.SearchRange);
-        Assert.Equal(128, Marshal.SizeOf<RoiDrawConstants>());
+        Assert.Equal(176, Marshal.SizeOf<RoiDrawConstants>());
         Assert.Equal(1, constants.SearchRangePass);
         Assert.Equal(new Vector4(1, 0, 0, 1), constants.DefaultColor);
         Assert.Equal(constants.DefaultColor, constants.ParentColor);
-        Assert.Equal(new Vector4(1.5f, 1.5f, 1.5f, 0), constants.StrokeWidths);
+        Assert.Equal(new Vector4(1.5f, 1.5f, 1.5f, 1.5f), constants.StrokeWidths);
+        Assert.Equal(new Vector4(1.5f, 0, 0, 0), constants.ExtraStrokeWidths);
     }
 
     [Fact]

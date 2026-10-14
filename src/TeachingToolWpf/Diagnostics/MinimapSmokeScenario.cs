@@ -1,6 +1,6 @@
 using System.IO;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionGeometry;
 
@@ -8,7 +8,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class MinimapSmokeScenario
 {
-    public static async Task Run(EditorViewModel model, Dx12Viewport viewport, string name)
+    public static async Task Run(MainWindowViewModel model, Dx12Viewport viewport, string name)
     {
         var before = model.Session.State;
         var historyBytes = model.Session.HistoryBytes;

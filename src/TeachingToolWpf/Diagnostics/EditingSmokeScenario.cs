@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionGeometry;
 
@@ -22,12 +22,12 @@ internal static class EditingSmokeScenario
 
     internal static void Pointer(Dx12Viewport viewport, int message, PointD image)
     {
-        var point = viewport.Input is not null ? image : throw new InvalidOperationException("Missing input controller");
+        var point = viewport.PointerInput is not null ? image : throw new InvalidOperationException("Missing input controller binding");
         var packed = (uint)(ushort)Math.Round(point.X * viewport.Dpi) | ((uint)(ushort)Math.Round(point.Y * viewport.Dpi) << 16);
         SendMessage(viewport.Handle, message, message == 0x202 ? 0 : 1, (nint)packed);
     }
 
-    public static async Task Run(EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(MainWindowViewModel model, Dx12Viewport viewport)
     {
         var editor = model.Session;
         var hitPoint = new NativeMethods.NativePoint { X = 40, Y = 40 };

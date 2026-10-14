@@ -12,6 +12,30 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiStyleRenderingTests
 {
     [Fact]
+    public void DetachingLastChildKeepsSummarySeparateFromLeafStylesWithoutEnumeration()
+    {
+        var parent = Roi("parent", new(100, 100), 100);
+        var child = Roi("child", new(100, 100), 10, parent.Id);
+        var before = State(parent, child);
+        var summary = new BoundsD(200, 200, 220, 220);
+        var block = new RoiSpatialBlock(new(), new(0, 0, 300, 300), 7, _ =>
+            new (Roi? Roi, BoundsD Bounds, int Count)[]
+            { (null, summary, 5), (parent, parent.Geometry.Bounds, 1), (child, child.Geometry.Bounds, 1) });
+        var detached = before.WithRois(before.Rois.SetItem(child.Id, child with
+        {
+            ParentId = null
+        }), [child.Id]);
+        var cache = new RoiRoleCache(before, RoiInstance.ResolveRoles(block, 50, before));
+        var noEnumeration = new RoiSpatialBlock(block.Identity, block.Bounds, block.Count,
+            _ => throw new InvalidOperationException("Existing roles must preserve summary slots."));
+        Assert.True(cache.Refresh(noEnumeration, 50, detached, 3));
+        Assert.Equal(new uint[] { (uint)RoiRole.Default, (uint)RoiRole.Child, (uint)RoiRole.Child }, cache.Values);
+        var fresh = new RoiRoleCache();
+        Assert.True(fresh.Refresh(block, 50, detached, 3));
+        Assert.Equal(cache.Values, fresh.Values);
+    }
+
+    [Fact]
     public void MultiSelectionUsesIndependentRoleColorsWithoutChangingGeometryOrGpuLayout()
     {
         var parent = Roi("parent", new(100, 100), 100);
@@ -42,7 +66,7 @@ public class RoiStyleRenderingTests
             }
         }, default, default, true, RoiDrawPass.Stroke);
         Assert.Equal(styles.Parent.SelectedColor, single.ParentColor);
-        Assert.Equal(128, Marshal.SizeOf<RoiDrawConstants>());
+        Assert.Equal(176, Marshal.SizeOf<RoiDrawConstants>());
         Assert.Equal(packed, RoiInstance.Pack(block, 0));
     }
 
@@ -99,7 +123,7 @@ public class RoiStyleRenderingTests
         Assert.Same(block.Identity, sameBlock.Identity);
         Assert.NotNull(block.Detail(0).Single(item => item.Roi?.Id == child.Id).Roi!.ParentId);
         Assert.True(cache.Refresh(block, 0, detached, geometry.Length));
-        Assert.All(cache.Values, role => Assert.Equal((uint)RoiRole.Default, role));
+        Assert.All(cache.Values, role => Assert.Equal((uint)RoiRole.Child, role));
         Assert.Equal(geometry, RoiInstance.Pack(sameBlock, 0));
         Assert.True(cache.Refresh(block, 0, before, geometry.Length));
         AssertRoles(block, before, cache.Values);
@@ -118,7 +142,7 @@ public class RoiStyleRenderingTests
             ParentId = null
         }), [child.Id]);
         Assert.Equal(RoiRole.Child, RoiStyleRoles.Resolve(detached, parent.Id));
-        Assert.Equal(RoiRole.Default, RoiStyleRoles.Resolve(detached, child.Id));
+        Assert.Equal(RoiRole.Child, RoiStyleRoles.Resolve(detached, child.Id));
         Assert.Equal(RoiRole.Parent, RoiStyleRoles.Resolve(detached, root.Id));
     }
 
@@ -147,7 +171,7 @@ public class RoiStyleRenderingTests
             ParentId = null
         }), [child.Id]);
         Assert.Equal(geometry, RoiInstance.Pack(Block(detached), 0));
-        Assert.All(RoiInstance.ResolveRoles(block, 0, detached), role => Assert.Equal((uint)RoiRole.Default, role));
+        Assert.All(RoiInstance.ResolveRoles(block, 0, detached), role => Assert.Equal((uint)RoiRole.Child, role));
     }
 
     [Fact]
@@ -286,16 +310,17 @@ public class RoiStyleRenderingTests
         RenderScene Scene(RoiStylePalette styles) => new(state, null, 0, 800, 600, 1, new(), Styles: styles);
         var original = new RoiDrawConstants(Scene(standard), block.Bounds.Center, default, false, RoiDrawPass.Stroke);
         var customized = new RoiDrawConstants(Scene(palette), block.Bounds.Center, default, false, RoiDrawPass.Stroke);
-        Assert.Equal(new Vector4(1, 1, 1, 0), original.StrokeWidths);
-        Assert.Equal(new Vector4(2, 3, 4, 0), customized.StrokeWidths);
+        Assert.Equal(new Vector4(1, 1, 1, 1), original.StrokeWidths);
+        Assert.Equal(new Vector4(2, 3, 4, 1), customized.StrokeWidths);
         Assert.Equal(original.DefaultColor, customized.DefaultColor);
         Assert.Equal(original.ChildColor, customized.ChildColor);
         Assert.Equal(original.ParentColor, customized.ParentColor);
         var selected = new RoiDrawConstants(Scene(palette), block.Bounds.Center, default, true, RoiDrawPass.Stroke);
-        Assert.Equal(new Vector4(2.5f, 3.5f, 4.5f, 0), selected.StrokeWidths);
+        Assert.Equal(new Vector4(2.5f, 3.5f, 4.5f, 1.5f), selected.StrokeWidths);
+        Assert.Equal(new Vector4(1.5f, 0, 0, 0), selected.ExtraStrokeWidths);
         Assert.Equal(palette.Parent.SelectedColor, selected.ParentColor);
         var shadow = new RoiDrawConstants(Scene(standard), block.Bounds.Center, default, true, RoiDrawPass.Shadow);
-        Assert.Equal(new Vector4(3, 3, 3, 0), shadow.StrokeWidths);
+        Assert.Equal(new Vector4(3, 3, 3, 3), shadow.StrokeWidths);
         var navigated = state with
         {
             Viewport = state.Viewport.Pan(new(100, 50))

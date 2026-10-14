@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
@@ -17,7 +17,7 @@ internal static class ImageReplacementRun
 {
     private sealed record Sample(int Cycle, long PrivateBytes, long WorkingBytes, long ManagedBytes, int Handles, long HistoryBytes);
 
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;

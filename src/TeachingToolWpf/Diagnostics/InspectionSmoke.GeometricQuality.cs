@@ -2,8 +2,10 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using TeachingToolWpf.Commands;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using TeachingToolWpf.Views;
 using VisionCanvas.Controls;
 
@@ -11,7 +13,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static partial class InspectionSmoke
 {
-    private static async Task VerifyGeometricQualityAsync(Window window, Dx12Viewport viewport, EditorViewModel model,
+    private static async Task VerifyGeometricQualityAsync(Window window, Dx12Viewport viewport, MainWindowViewModel model,
         Func<string, Task> capture, Func<AsyncCommand, Task> invoke)
     {
         var matching = model.Matching;

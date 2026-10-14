@@ -9,6 +9,7 @@ public sealed partial class RoiSnapshot
 {
     private readonly Lazy<RoiSpatialIndex> _spatial;
     private readonly Lazy<ImmutableDictionary<Guid, ImmutableArray<Guid>>> _children;
+    private readonly Lazy<ImmutableDictionary<Guid, int>> _groupLevels;
 
     public ImmutableDictionary<Guid, Roi> Rois
     {
@@ -20,6 +21,9 @@ public sealed partial class RoiSnapshot
     internal bool IsSpatialCreated => _spatial.IsValueCreated;
 
     public ImmutableDictionary<Guid, ImmutableArray<Guid>> Children => _children.Value;
+
+    // 리프 ROI=0, ROI 그룹=1, 모듈 그룹=2, 루트 그룹=3. 탐색·형상 편집에서 재사용한다.
+    public ImmutableDictionary<Guid, int> GroupLevels => _groupLevels.Value;
 
     public ImmutableDictionary<Guid, Roi>? PreviousRois
     {
@@ -45,6 +49,7 @@ public sealed partial class RoiSnapshot
     {
         Rois = rois;
         RowVersion = new();
+        _groupLevels = new(() => RoiHierarchy.BuildGroupLevels(rois));
         _spatial = new(() => new(rois.Values));
         _children = new(() => rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
             .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
@@ -65,12 +70,14 @@ public sealed partial class RoiSnapshot
         List<ParentChange>? parentChanges = bulk ? null : [];
         var rowsChanged = false;
         var topologyChanged = false;
+        var groupKindChanged = false;
         var rebuildSpatial = false;
         foreach (var id in changedIds)
         {
             token.ThrowIfCancellationRequested();
             var old = oldRois.GetValueOrDefault(id);
             var next = rois.GetValueOrDefault(id);
+            groupKindChanged |= old?.IsGroup != next?.IsGroup;
             rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup || old.Geometry.Shape.Kind != next.Geometry.Shape.Kind || (old.SearchRange is null) != (next.SearchRange is null);
             if (old?.ParentId != next?.ParentId)
             {
@@ -97,6 +104,8 @@ public sealed partial class RoiSnapshot
             }
         }
         RowVersion = rowsChanged ? new() : previous.RowVersion;
+        _groupLevels = topologyChanged || groupKindChanged
+            ? new(() => RoiHierarchy.BuildGroupLevels(rois)) : previous._groupLevels;
         // Capture evaluated values, not previous factories: Undo/Redo must not retain a recursive lazy chain.
         var oldSpatial = rebuildSpatial && !refitSpatial ? null : seed.Spatial;
         var spatialChanges = geometryChanges?.ToArray();

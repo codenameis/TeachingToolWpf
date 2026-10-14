@@ -1,0 +1,18 @@
+sequenceDiagram
+participant H as Host input
+participant C as InteractionController
+participant D as DrawGesture
+participant E as EditorSession
+H->>C: Down / Move
+C->>D: create / Move
+D->>C: Show(Draft, DragArea)
+alt valid draft and pointer released
+H->>C: Up
+C->>D: final Move then Complete
+D->>C: AddDrawnRoi(draft)
+C->>E: Add or AddChild
+else cancel before release
+H->>C: Cancel
+C->>D: Cancel
+Note over E: No ROI was added
+end

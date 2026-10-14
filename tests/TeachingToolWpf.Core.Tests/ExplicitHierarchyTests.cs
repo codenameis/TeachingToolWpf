@@ -23,24 +23,27 @@ public class ExplicitHierarchyTests
     }
 
     [Fact]
-    public void NestedGroupsUngroupTogetherAndCopiedChildrenResolveLaterParents()
+    public async Task NestedGroupsUngroupTogetherAndCopiedChildrenResolveLaterParents()
     {
         var editor = new EditorSession();
         editor.InitializeImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);
         var root = editor.Add(new(new(500, 500), 800, 800, 0));
-        var left = editor.AddChild(root, new(new(400, 500), 20, 20, 0));
-        var right = editor.AddChild(root, new(new(450, 500), 20, 20, 0));
-        var other = editor.AddChild(root, new(new(600, 500), 20, 20, 0));
+        var left = editor.Add(new(new(400, 500), 20, 20, 0));
+        var right = editor.Add(new(new(450, 500), 20, 20, 0));
+        var other = editor.Add(new(new(600, 500), 20, 20, 0));
+        var otherChild = editor.AddChild(other, new(new(600, 500), 10, 10, 0));
         editor.Select([left, right]);
         var inner = editor.GroupSelection();
         editor.Select([inner, other]);
         var outer = editor.GroupSelection();
+        editor.CommitPrepared(await editor.PrepareAttachAsync([outer], root));
+        editor.Select([outer]);
         var clipboard = new RoiClipboard();
         clipboard.Copy(editor.State);
         editor.Paste(clipboard);
         var copiedOuter = editor.State.Selection.Single();
         Assert.Null(editor.State.Rois[copiedOuter].ParentId);
-        Assert.Equal(5, RoiHierarchy.Subtree(editor.State, [copiedOuter]).Count);
+        Assert.Equal(6, RoiHierarchy.Subtree(editor.State, [copiedOuter]).Count);
         editor.Undo();
         editor.Select([inner, outer]);
         var before = editor.State;
@@ -49,7 +52,8 @@ public class ExplicitHierarchyTests
         editor.Undo();
         Assert.Equal(before.Rois, editor.State.Rois);
         editor.Redo();
-        Assert.Equal(4, editor.State.Rois.Count);
+        Assert.Equal(5, editor.State.Rois.Count);
+        Assert.Equal(other, editor.State.Rois[otherChild].ParentId);
     }
 
     [Fact]
@@ -89,7 +93,7 @@ public class ExplicitHierarchyTests
             DrawParentId = parent,
             Tool = EditorTool.Draw
         };
-        foreach (var point in new PointD[] { new(300, 300), new(340, 300), new(320, 340) })
+        foreach (var point in new PointD[] { new(80, 80), new(120, 80), new(100, 120) })
         {
             input.Down(point);
             input.Up(point);
@@ -153,7 +157,7 @@ public class ExplicitHierarchyTests
     }
 
     [Fact]
-    public void GroupOnlyConnectsSelectedRootsAndUngroupRestoresCommonParent()
+    public void ExistingParentPreventsRegroupingAndPreservesUnrelatedRoi()
     {
         var editor = new EditorSession();
         var parent = editor.Add(new(new(100, 100), 500, 500, 0));
@@ -161,15 +165,12 @@ public class ExplicitHierarchyTests
         var right = editor.AddChild(parent, new(new(150, 100), 20, 20, 0));
         var untouched = editor.Add(new(new(100, 100), 10, 10, 0));
         editor.Select([left, right]);
-        var group = editor.GroupSelection();
-        Assert.Equal(parent, editor.State.Rois[group].ParentId);
+        var before = editor.State;
+        Assert.Throws<InvalidOperationException>(() => editor.GroupSelection());
+        Assert.Same(before, editor.State);
         Assert.Null(editor.State.Rois[untouched].ParentId);
-        Assert.Equal(group, editor.State.Rois[left].ParentId);
-        editor.UngroupSelection();
         Assert.Equal(parent, editor.State.Rois[left].ParentId);
         Assert.Equal(parent, editor.State.Rois[right].ParentId);
-        editor.Undo();
-        Assert.Equal(group, editor.State.Rois[left].ParentId);
     }
 
     [Fact]

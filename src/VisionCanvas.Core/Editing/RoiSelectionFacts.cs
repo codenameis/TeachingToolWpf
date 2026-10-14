@@ -6,6 +6,7 @@ namespace VisionCanvas.Core.Editing;
 public sealed class RoiSelectionFacts
 {
     private readonly Lazy<bool> _hasMultipleRoots;
+    private readonly Lazy<bool> _canGroup;
 
     public Roi? First
     {
@@ -18,6 +19,7 @@ public sealed class RoiSelectionFacts
     }
 
     public bool HasMultipleRoots => _hasMultipleRoots.Value;
+    public bool CanGroup => _canGroup.Value;
 
     public bool HasMixedFilters
     {
@@ -29,10 +31,12 @@ public sealed class RoiSelectionFacts
         get;
     }
 
-    internal RoiSelectionFacts(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection)
+    internal RoiSelectionFacts(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection, RoiSnapshot snapshot)
     {
         // Command availability shares this result across navigation without adding work to unrelated facts.
         _hasMultipleRoots = new(() => FindMultipleRoots(rois, selection));
+        _canGroup = new(() => HasMultipleRoots && RoiGroupEditor.CanGroup(snapshot,
+            RoiHierarchy.EffectiveRoots(rois, selection).ToArray()));
         var registered = ImmutableArray.CreateBuilder<Roi>();
         FilterSettings? firstSettings = null;
         // Large partial selections scan immutable values once instead of performing a tree lookup

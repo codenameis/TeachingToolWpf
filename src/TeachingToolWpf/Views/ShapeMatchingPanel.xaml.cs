@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 
 namespace TeachingToolWpf.Views;
 
@@ -35,16 +35,7 @@ public partial class ShapeMatchingPanel : UserControl
         {
             return;
         }
-        var snapshot = model.InspectionLogs.ToArray();
-        try
-        {
-            var json = await Task.Run(() => Diagnostics.InspectionRunLog.Serialize(snapshot));
-            await System.IO.File.WriteAllTextAsync(dialog.FileName, json);
-        }
-        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
-        {
-            MessageBox.Show(Window.GetWindow(this), "로그 저장 실패: " + error.Message, "검사 로그", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        await model.SaveInspectionLogsAsync(dialog.FileName);
     }
 
     private void OnNumericValidationError(object sender, ValidationErrorEventArgs e)

@@ -1,7 +1,8 @@
 using System.Globalization;
 using System.Numerics;
 using System.Windows.Media;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Services;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
@@ -13,6 +14,33 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiStyleSettingsTests
 {
+    [Fact]
+    public void AllHierarchyColorsAreDistinctAndModuleRootSettingsAreAtomic() => OnSta(() =>
+    {
+        var settings = new RoiStyleSettingsViewModel();
+        Assert.Equal(5, settings.Roles.Count);
+        var roles = new[] { RoiRole.Child, RoiRole.Parent, RoiRole.Module, RoiRole.Root };
+        Assert.Equal(4, roles.Select(role => settings.Palette.For(role).Color).Distinct().Count());
+        Assert.Equal(4, roles.Select(role => settings.Palette.For(role).SelectedColor).Distinct().Count());
+        Assert.Equal(4, roles.Select(role => settings.Palette.For(role).MultiSelectedColor).Distinct().Count());
+        settings.Module.Color = "#123456";
+        settings.Root.Color = "#654321";
+        settings.Module.Thickness = "2";
+        settings.Root.Thickness = "3";
+        settings.Apply.Execute(null);
+        Assert.Empty(settings.Error);
+        Assert.Equal(2, settings.Palette.Module.ThicknessDip);
+        Assert.Equal(3, settings.Palette.Root.ThicknessDip);
+        var before = settings.Palette;
+        settings.Root.Color = "bad";
+        settings.Module.Thickness = "4";
+        settings.Apply.Execute(null);
+        Assert.Same(before, settings.Palette);
+        Assert.NotEmpty(settings.Error);
+        settings.Reset.Execute(null);
+        Assert.Equal(RoiStylePalette.Standard, settings.Palette);
+    });
+
     [Fact]
     public void RoleAndSelectionColorsApplyTogetherAndInvalidColorPreservesThePreviousPalette() => OnSta(() =>
     {
@@ -64,7 +92,7 @@ public class RoiStyleSettingsTests
         settings.Apply.Execute(null);
         Assert.Same(before, settings.Palette);
         Assert.Equal(0, changes);
-        Assert.Contains("부모 ROI", settings.Error);
+        Assert.Contains("ROI 그룹", settings.Error);
         Assert.Contains("0.5~8", settings.Error);
         Assert.Equal("2", settings.DefaultThickness);
         Assert.Equal("3", settings.ChildThickness);
@@ -130,7 +158,9 @@ public class RoiStyleSettingsTests
     public void DisplaySettingsPublishWithoutEditingDocumentOrHistoryAndDetachOnDispose() => OnSta(() =>
     {
         var surface = new Surface();
-        var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections());
+        var sceneChanges = 0;
+        model.PropertyChanged += (_, args) => sceneChanges += args.PropertyName == nameof(model.Scene) ? 1 : 0;
         try
         {
             model.Session.InitializeImage(new("test", "test", 1000, 1000), ViewportTransform.Identity);
@@ -141,11 +171,11 @@ public class RoiStyleSettingsTests
             var bytes = model.Session.HistoryBytes;
             var undo = model.Session.CanUndo;
             var redo = model.Session.CanRedo;
-            var publishes = surface.Submissions;
+            var publishes = sceneChanges;
             model.StyleSettings.ParentThickness = "7";
             model.StyleSettings.Apply.Execute(null);
-            Assert.Equal(publishes + 1, surface.Submissions);
-            Assert.Same(model.StyleSettings.Palette, surface.Last!.RoiStyles);
+            Assert.Equal(publishes + 1, sceneChanges);
+            Assert.Same(model.StyleSettings.Palette, model.Scene!.RoiStyles);
             Assert.Same(before, model.Session.State);
             Assert.Equal(bytes, model.Session.HistoryBytes);
             Assert.Equal(undo, model.Session.CanUndo);
@@ -155,9 +185,9 @@ public class RoiStyleSettingsTests
         {
             model.Dispose();
         }
-        var afterDispose = surface.Submissions;
+        var afterDispose = sceneChanges;
         model.StyleSettings.Reset.Execute(null);
-        Assert.Equal(afterDispose, surface.Submissions);
+        Assert.Equal(afterDispose, sceneChanges);
     });
 
     private static void AssertSwatch(Brush brush, Vector4 color)

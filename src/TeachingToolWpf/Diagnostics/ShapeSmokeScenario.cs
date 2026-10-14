@@ -4,7 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
@@ -13,7 +13,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class ShapeSmokeScenario
 {
-    public static async Task Run(Window window, EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(Window window, MainWindowViewModel model, Dx12Viewport viewport)
     {
         var editor = model.Session;
         Require(editor.State.Rois.Count == 0, "empty shape fixture");
@@ -72,17 +72,19 @@ internal static class ShapeSmokeScenario
         var addChild = Descendants(window).OfType<Button>().Single(b => ReferenceEquals(b.Command, model.AddChildRoi));
         Require(addChild.IsEnabled, "visible polygon child add enabled");
         addChild.Command.Execute(null);
-        foreach (var p in new PointD[] { new(1800, 4700), new(3000, 5900), new(1800, 5900) })
+        // Keep the crossing polygon wholly inside the concave parent, including native pixel rounding.
+        foreach (var p in new PointD[] { new(1800, 4700), new(2800, 5600), new(1800, 5600) })
         {
             Click(p);
         }
-        Pointer(0x200, new(3000, 4700));
+        Pointer(0x200, new(2800, 4700));
         Require(editor.State.Rois.Count == 3, "crossing preview does not commit");
-        Click(new(3000, 4700));
+        Click(new(2800, 4700));
         var crossed = editor.State.Rois[editor.State.Selection.Single()];
         Require(model.IsSelect && crossed.ParentId == polygon && crossed.Geometry.Shape.Vertices.Length == 3,
             "native crossing creates triangular child at intersection");
-        Require(crossed.Geometry.Outline.Any(p => (p - new PointD(2400, 5300)).Length < 30), "new intersection vertex matches native input rounding");
+        Require(crossed.Geometry.Outline.Any(p => (p - new PointD(2300, 5150)).Length < 30), "new intersection vertex matches native input rounding");
+        Require(editor.State.Rois[polygon].Geometry.Contains(crossed.Geometry), "drawn child stays inside its parent");
         await Task.Delay(300);
         viewport.Capture("artifacts/polygon-crossing.png");
         await Task.Delay(500);

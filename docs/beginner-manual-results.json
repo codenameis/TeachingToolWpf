@@ -78,5 +78,387 @@
     "inlineSourceMatches": 16,
     "productionSourceChanges": false,
     "browserValidation": "BLOCKED: existing file:// tool policy; actual rendering, accessibility and print not verified"
+  },
+  "feynmanExplanationFollowup": {
+    "date": "2026-10-13",
+    "checks": {
+      "status": "PASS",
+      "numericExampleGroups": 27,
+      "numericExamples": [
+        "Gray8 padding address",
+        "8K transfer",
+        "24K example bytes",
+        "forward/inverse and wrong order",
+        "zoom anchor quiz",
+        "quarter turn with translation",
+        "AABB quarter turn",
+        "threshold boundary",
+        "mean kernel",
+        "Gaussian normalization",
+        "Sobel raw components",
+        "bilinear worked example",
+        "masked mean",
+        "hierarchy exactly once",
+        "edge tile",
+        "visible interval and boundary",
+        "negative floor",
+        "LOD including DPI",
+        "finite pyramid memory",
+        "halo",
+        "NDC center and wrong units",
+        "NCC components",
+        "NCC reverse",
+        "RMS versus mean",
+        "crop mapping",
+        "IoU",
+        "frame budget and outlier"
+      ],
+      "rewrittenPages": 13,
+      "expandedSections": 38,
+      "chapterTeachBackExercises": 12,
+      "preservedMathML": 47,
+      "preservedSourceExamples": 16,
+      "preservedInteractiveLabs": 5,
+      "scope": "Independent arithmetic checks, HTML presence and baseline retention; not browser layout or reader comprehension testing."
+    },
+    "htmlLocalReferences": 335,
+    "mathTranscriptionChecks": 6,
+    "javascriptContractChecks": 25,
+    "productionSourceChanges": false,
+    "labSourceChanges": false,
+    "browserValidation": "BLOCKED: existing file:// tool policy; rendering, print and assistive technology not verified",
+    "readerComprehensionValidation": "NOT_RUN: beginner teach-back and independent construction need reader assessment",
+    "productionBuildTestsAndPerformance": "NOT_RUN for documentation-only follow-up; earlier evidence and performance failures unchanged"
+  },
+  "implementationGuide20261014": {
+    "html": {
+      "htmlPages": 13,
+      "localLinksAndAssets": 319,
+      "failures": [],
+      "scope": "Static HTML nesting, unique IDs, one h1, Korean lang, local links and fragment targets, no external runtime assets. Not a browser layout test."
+    },
+    "math": {
+      "status": "PASS",
+      "expressions": 510,
+      "displayExpressions": 20,
+      "structuralCounts": {
+        "math": 510,
+        "semantics": 510,
+        "mrow": 1175,
+        "mi": 724,
+        "annotation": 510,
+        "mn": 847,
+        "mo": 1099,
+        "mtable": 24,
+        "mtr": 67,
+        "mtd": 195,
+        "msup": 53,
+        "mtext": 34,
+        "msub": 49,
+        "mfrac": 88,
+        "munderover": 14,
+        "msqrt": 15,
+        "mover": 6
+      },
+      "transcriptionChecks": 6,
+      "scope": "MathML XML/namespace/arity, rectangular tables, labels, threshold boundary, Sobel, rotation, NCC, LOD and summation bounds. Not browser rendering."
+    },
+    "inlineCode": {
+      "status": "PASS",
+      "examples": 25,
+      "sources": [
+        {
+          "page": "01-image.html",
+          "source": "../src/VisionImaging.Abstractions/TileSource.cs",
+          "kind": "excerpt",
+          "sha256": "880951fd8670d5526108fb162cd225ac8a0573a398a3c9883fde36970f80627c"
+        },
+        {
+          "page": "02-coordinates.html",
+          "source": "../src/VisionGeometry/ViewportTransform.cs",
+          "kind": "full",
+          "sha256": "05a72eee753d70a505fadc9fccc5b9bbf842f87156bb4a7ac8c3b220107674f6"
+        },
+        {
+          "page": "04-design.html",
+          "source": "../src/VisionImaging.Abstractions/TileSource.cs",
+          "kind": "excerpt",
+          "sha256": "e2588610ee6acf29e50994c6ecccf8c2532dba24332b4c3f32b05e43cd7d6e40"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "labs/Foundations/Program.cs",
+          "kind": "excerpt",
+          "sha256": "c2d5a8c8fb34ac0524810caff29113988cd4b13782f9ea16479e9f36e95296d9"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "../src/VisionCanvas.Core/Editing/EditHistory.cs",
+          "kind": "excerpt",
+          "sha256": "4f69a3ea5e19b3e037071686ef2697e6d374e615ffce6d7bb24c7037f8a63c46"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "../src/TeachingToolWpf/Presentation/EditorViewModel.Editing.cs",
+          "kind": "full",
+          "sha256": "85adaac8131fb9b8c5a89d4c6b312b88f9874dc27588fecd8552a89cda277d82"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "../src/VisionCanvas.Core/Interaction/InteractionController.cs",
+          "kind": "full",
+          "sha256": "4a93edde31dd95d452147b299dc625687ab7059a75524e8b2412dbd71d77e348"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "../src/VisionCanvas.Core/Interaction/EditGesture.cs",
+          "kind": "full",
+          "sha256": "d9104611ef614c1734927513e829aef4cda1e6d1180be30815afd38f5452276d"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "../src/VisionCanvas.Core/Interaction/MoveGesture.cs",
+          "kind": "full",
+          "sha256": "2fe29cdd746bf18ced5becfc087f062d244f42493acf2c2e33e856cb0bd99add"
+        },
+        {
+          "page": "05-editing.html",
+          "source": "../src/VisionCanvas.Core/Interaction/RotateGesture.cs",
+          "kind": "full",
+          "sha256": "1113d8ddd636b489dfdd959ccf2bf417c9af573f7bc8024d5fcf433d4a90ede2"
+        },
+        {
+          "page": "06-streaming.html",
+          "source": "../src/VisionCanvas/Imaging/TilePlanner.cs",
+          "kind": "full",
+          "sha256": "c8dc2dd8e2a56f0080b5c7758ccc036cbbad1886aaad643ba01f3b7bd370622e"
+        },
+        {
+          "page": "06-streaming.html",
+          "source": "../src/VisionImaging/Imaging/DiskPyramidSource.cs",
+          "kind": "full",
+          "sha256": "34b2c9aa22b687a5d75f45ac2a7058b0eca16ff89fa0b5d2d4c9ad943e524b44"
+        },
+        {
+          "page": "06-streaming.html",
+          "source": "../src/VisionCanvas/Rendering/GpuImageResources.cs",
+          "kind": "excerpt",
+          "sha256": "cfed63e5e712ec15218570286c6e9496279f52d88cfaa7c0af5ea977fe0e3e41"
+        },
+        {
+          "page": "06-streaming.html",
+          "source": "../experiments/VisionImaging.Pyramid/RawPyramidSource.cs",
+          "kind": "excerpt",
+          "sha256": "3ee2f2b86c6dc3f0a81fb0815104e69a5283394c01cada2c9499816be3992dfd"
+        },
+        {
+          "page": "07-rendering.html",
+          "source": "labs/CanvasHost/LessonWindow.cs",
+          "kind": "excerpt",
+          "sha256": "1b1f814b7b669f42ae89ea20bf2c8aa5b283463f34c785c2d689bd0708854320"
+        },
+        {
+          "page": "07-rendering.html",
+          "source": "../src/VisionCanvas/Controls/Dx12Viewport.cs",
+          "kind": "excerpt",
+          "sha256": "78905af4ca8eda54404673a372f19e32f5adad8a480fa155193fecf37104aa35"
+        },
+        {
+          "page": "08-inspection.html",
+          "source": "../src/VisionAlgorithm/OpenSrc/PatternMatching/Imaging/OpenCvTemplateMatcher.cs",
+          "kind": "excerpt",
+          "sha256": "b94a240fc128a7292941ee89923fffe5dac9ec8448f46c9d02cee370a7b92761"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/InputLifecycle/InputLifecycle.csproj",
+          "kind": "full",
+          "sha256": "55bed4ec74cd2a05e7aeea48cc111d8b281ed28b238cac2fd0cb90d8368857ad"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/InputLifecycle/Program.cs",
+          "kind": "full",
+          "sha256": "8e666fadde1d50751bc97671f7dfd47de3ee8ff2d98bcb1d14859cdeebb6de7c"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/Foundations/Foundations.csproj",
+          "kind": "full",
+          "sha256": "55bed4ec74cd2a05e7aeea48cc111d8b281ed28b238cac2fd0cb90d8368857ad"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/Foundations/Program.cs",
+          "kind": "full",
+          "sha256": "8f54fed0654dd2173d0fd3bb4f9e7067e6593c3a050b44d3c9c30f5cedf0949a"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/CanvasHost/CanvasHost.csproj",
+          "kind": "full",
+          "sha256": "844441d1a948a97c430a58fae46649cfd59de154e053db147d566154ba044df4"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/CanvasHost/Program.cs",
+          "kind": "full",
+          "sha256": "03eb9fb8dfb25bf0cb7964d9168db461dc0433c5e2195dbfa71dadefdea374e1"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/CanvasHost/CheckerTileSource.cs",
+          "kind": "full",
+          "sha256": "4089f412d5b6d837e8beb921a37fc60cf6efa91e3e22587b5b2fd830acf91387"
+        },
+        {
+          "page": "09-build.html",
+          "source": "labs/CanvasHost/LessonWindow.cs",
+          "kind": "full",
+          "sha256": "5cfdfc1ed21d2c1d7e1bea16fd7e4e707cbbc292c72a5dfee8e0d8c2a29c306a"
+        }
+      ]
+    },
+    "content": {
+      "status": "PASS",
+      "checks": [
+        "screen to DIP to image",
+        "last pointer delta",
+        "zoom anchor",
+        "rotation around center",
+        "tile count and edge",
+        "half open visible columns",
+        "NCC mean and denominator",
+        "RMS distances",
+        "8K Gray8 bytes",
+        "24K Gray16 bytes",
+        "01-image.html no retired chapter links",
+        "01-image.html no libvips sample",
+        "02-coordinates.html no retired chapter links",
+        "02-coordinates.html no libvips sample",
+        "03-processing.html no retired chapter links",
+        "03-processing.html no libvips sample",
+        "04-design.html no retired chapter links",
+        "04-design.html no libvips sample",
+        "05-editing.html no retired chapter links",
+        "05-editing.html no libvips sample",
+        "06-streaming.html no retired chapter links",
+        "06-streaming.html no libvips sample",
+        "07-rendering.html no retired chapter links",
+        "07-rendering.html no libvips sample",
+        "08-inspection.html no retired chapter links",
+        "08-inspection.html no libvips sample",
+        "09-build.html no retired chapter links",
+        "09-build.html no libvips sample",
+        "10-review.html no retired chapter links",
+        "10-review.html no libvips sample",
+        "11-refactoring.html no retired chapter links",
+        "11-refactoring.html no libvips sample",
+        "12-reference.html no retired chapter links",
+        "12-reference.html no libvips sample",
+        "index.html no retired chapter links",
+        "index.html no libvips sample",
+        "editing-classes.svg valid SVG",
+        "editing-classes.svg accessible title",
+        "roi-draw-cancel.svg valid SVG",
+        "roi-draw-cancel.svg accessible title",
+        "roi-move.svg valid SVG",
+        "roi-move.svg accessible title",
+        "roi-prepared-commit.svg valid SVG",
+        "roi-prepared-commit.svg accessible title",
+        "three ROI sequences",
+        "class diagram source",
+        "five interactive labs"
+      ],
+      "checkCount": 47,
+      "scope": "Static structure and arithmetic, not browser or reader evaluation"
+    },
+    "javascriptChecks": 25,
+    "foundationsChecks": 11,
+    "inputLifecycleChecks": 8,
+    "canvasHostBuild": "PASS 0 warnings / 0 errors",
+    "buttonExampleBuild": "PASS 0 warnings / 0 errors",
+    "browserRendering": "NOT_RUN",
+    "readerEvaluation": "NOT_RUN",
+    "productionCodeChanged": false
+  },
+  "diagramReadabilityFollowup20261014": {
+    "removedUnusedFiles": [
+      "manual/10-review.html",
+      "manual/11-refactoring.html",
+      "manual/assets/diagrams/editing-classes.svg",
+      "manual/assets/diagrams/editing-classes.mmd"
+    ],
+    "classDiagrams": 3,
+    "preservedRoiSequenceDiagrams": 3,
+    "htmlPages": 11,
+    "localLinksAndAssets": 288,
+    "htmlStaticChecks": "PASS",
+    "svgXmlChecks": "PASS 3 documents",
+    "svgHorizontalTextBounds": "PASS 65 labels, Segoe UI and Malgun Gothic font metrics",
+    "inlineSourceExamples": "PASS 25",
+    "mathML": "PASS 510 expressions, 20 display equations, 6 transcription checks",
+    "javascriptChecks": "PASS 25",
+    "browserRendering": "NOT_RUN: browser security policy blocks file URLs; no workaround attempted",
+    "readerEvaluation": "NOT_RUN",
+    "productionBuildAndRuntime": "NOT_RUN: documentation-only follow-up",
+    "productionCodeChanged": false
+  },
+  "codeWindowsFollowup20261014": {
+    "htmlPages": 11,
+    "localLinksAndAssets": 299,
+    "initiallyCollapsedCodeWindows": 45,
+    "languages": { "csharp": 28, "xml": 3, "powershell": 4, "mermaid": 6, "text": 4 },
+    "highlightTextPreservation": "PASS 45 examples",
+    "domModel": "PASS lazy highlighting, repeated expansion, clipboard success, permission failure and unavailable API",
+    "inlineSourceExamples": "PASS 25",
+    "mathML": "PASS 510 expressions, 20 display equations, 6 transcription checks",
+    "existingJavascriptChecks": "PASS 25",
+    "browserRenderingAndInteraction": "NOT_RUN: existing local file URL security restriction; no workaround",
+    "productionCodeChanged": false
+  },
+  "inlineSourceLinksFollowup20261014": {
+    "addedFullSourceWindows": 30,
+    "rawSourceFileLinks": 0,
+    "inPageSourceLinks": 21,
+    "codeWindows": 75,
+    "verifiedSourceExamples": 55,
+    "htmlPages": 11,
+    "localLinksAndAssets": 270,
+    "highlightTextPreservation": "PASS 75 examples including HLSL",
+    "domModel": "PASS source-link opening, focus, hash navigation, modifier click preservation, highlighting and copy success/failure",
+    "mathML": "PASS 510 expressions, 20 display equations, 6 transcription checks",
+    "existingJavascriptChecks": "PASS 25",
+    "browserRenderingAndInteraction": "NOT_RUN: existing local file URL security restriction; no workaround",
+    "productionCodeChanged": false
+  },
+  "readingFlowFollowup20261014": {
+    "chapterScenarios": 9,
+    "scenarioSteps": 27,
+    "readingTargets": 27,
+    "collapsedReferenceSections": 19,
+    "htmlPages": 11,
+    "localLinksAndAssets": 297,
+    "verifiedSourceExamples": 55,
+    "codeWindows": 75,
+    "nestedSourceReveal": "PASS DOM model",
+    "mathML": "PASS 510 expressions, 20 display equations, 6 transcription checks",
+    "existingJavascriptChecks": "PASS 25",
+    "browserRenderingAndInteraction": "NOT_RUN: existing local file URL security restriction; no workaround",
+    "readerLearningEffect": "NOT_RUN: no observed learner evaluation",
+    "productionCodeChanged": false
+  },
+  "roiDragAnimation20261014": {
+    "modelAndDomChecks": 37,
+    "currentCsharpExcerpts": "PASS 4",
+    "highlightTextPreservation": "PASS 75 existing windows and 4 live excerpts",
+    "htmlPages": 11,
+    "localLinksAndAssets": 298,
+    "existingSourceExamples": "PASS 55",
+    "existingMathAndJavascript": "PASS",
+    "scope": "Educational SVG model: selected rectangle, 2 DIP per image pixel, default synchronous editing",
+    "browserPointerTouchKeyboardAndRendering": "NOT_RUN: existing file URL tool restriction; no workaround",
+    "fullCoreBehaviorEquivalence": "NOT_RUN: educational model, not execution of WPF or Core",
+    "productionCodeChanged": false
   }
 }

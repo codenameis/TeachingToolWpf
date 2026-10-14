@@ -9,11 +9,11 @@ internal enum RoiDrawPass
     Shadow, Stroke, SearchRange
 }
 
-/// <summary>Roi.hlsl Options의 128바이트 배치. 필드 순서는 GPU 계약이다.</summary>
+/// <summary>Roi.hlsl Options의 176바이트 배치. 필드 순서는 GPU 계약이다.</summary>
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
 internal readonly struct RoiDrawConstants
 {
-    public const int SizeInBytes = 128;
+    public const int SizeInBytes = 176;
     public const int RootConstantCount = SizeInBytes / sizeof(float);
 
     public readonly Vector2 ClipScale;
@@ -28,7 +28,10 @@ internal readonly struct RoiDrawConstants
     public readonly Vector4 DefaultColor;
     public readonly Vector4 ChildColor;
     public readonly Vector4 ParentColor;
+    public readonly Vector4 ModuleColor;
+    public readonly Vector4 RootColor;
     public readonly Vector4 StrokeWidths;
+    public readonly Vector4 ExtraStrokeWidths;
 
     public RoiDrawConstants(RenderScene scene, PointD blockOrigin, RigidTransform2D transform, bool selected, RoiDrawPass pass)
     {
@@ -55,15 +58,19 @@ internal readonly struct RoiDrawConstants
         DefaultColor = palette.Default.StrokeColor(selected, multiple);
         ChildColor = palette.Child.StrokeColor(selected, multiple);
         ParentColor = palette.Parent.StrokeColor(selected, multiple);
+        ModuleColor = palette.Module.StrokeColor(selected, multiple);
+        RootColor = palette.Root.StrokeColor(selected, multiple);
         StrokeWidths = new(
             palette.Default.StrokeThickness(selected) + shadowExpansion,
             palette.Child.StrokeThickness(selected) + shadowExpansion,
             palette.Parent.StrokeThickness(selected) + shadowExpansion,
-            0);
+            palette.Module.StrokeThickness(selected) + shadowExpansion);
+        ExtraStrokeWidths = new(palette.Root.StrokeThickness(selected) + shadowExpansion, 0, 0, 0);
         if (pass == RoiDrawPass.SearchRange)
         {
-            DefaultColor = ChildColor = ParentColor = new(1, 0, 0, 1);
-            StrokeWidths = new(1.5f, 1.5f, 1.5f, 0);
+            DefaultColor = ChildColor = ParentColor = ModuleColor = RootColor = new(1, 0, 0, 1);
+            StrokeWidths = new(1.5f, 1.5f, 1.5f, 1.5f);
+            ExtraStrokeWidths = new(1.5f, 0, 0, 0);
         }
     }
 }

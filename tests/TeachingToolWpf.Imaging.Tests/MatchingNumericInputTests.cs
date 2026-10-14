@@ -5,7 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

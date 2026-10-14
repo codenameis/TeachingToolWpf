@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="740" viewBox="0 0 640 740" role="img" aria-labelledby="title desc">
+<title id="title">편집 상태와 ROI 데이터의 관계</title><desc id="desc">EditorSession은 EditHistory를 소유하고 DocumentState를 현재 State로 보관한다. DocumentState는 Viewport와 일반 ROI 사전을 포함하며 Roi는 Geometry 값을 가진다.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M2 1 L11 6 L2 11" fill="none" stroke="#486574" stroke-width="1.6"/></marker>
+<marker id="triangle" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M1 1 L13 7 L1 13 Z" fill="white" stroke="#486574" stroke-width="1.4"/></marker>
+<marker id="diamond" viewBox="0 0 16 12" refX="1" refY="6" markerWidth="13" markerHeight="10" orient="auto"><path d="M1 6 L8 1 L15 6 L8 11 Z" fill="#486574"/></marker>
+</defs>
+<style>text {font-family:'Segoe UI','Malgun Gothic',sans-serif;fill:#18303b} .name {font-size:21px;font-weight:700} .member {font-size:18px} .kind {font-size:16px;fill:#426474} .label {font-size:18px;fill:#365562} .edge {fill:none;stroke:#486574;stroke-width:2}</style>
+<rect width="640" height="740" fill="white"/>
+<g class="class-box" data-name="EditorSession"><rect x="15" y="15" width="250" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="31" y="42">편집의 진입점</text>
+<text class="name" x="31" y="73">EditorSession</text>
+<path d="M15 92 H265" stroke="#c2d3da"/>
+<text class="member" x="31" y="122">State</text>
+<text class="member" x="31" y="147">Undo() / Redo()</text>
+</g>
+<g class="class-box" data-name="EditHistory"><rect x="375" y="15" width="250" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="391" y="42">세션이 소유하는 이력</text>
+<text class="name" x="391" y="73">EditHistory</text>
+<path d="M375 92 H625" stroke="#c2d3da"/>
+<text class="member" x="391" y="122">Undo(…) / Redo(…)</text>
+<text class="member" x="391" y="147">편집 기록과 현재 위치</text>
+</g>
+<g class="class-box" data-name="DocumentState"><rect x="15" y="280" width="250" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="31" y="307">불변 문서 상태</text>
+<text class="name" x="31" y="338">DocumentState</text>
+<path d="M15 357 H265" stroke="#c2d3da"/>
+<text class="member" x="31" y="387">Rois</text>
+<text class="member" x="31" y="412">Selection / Viewport</text>
+</g>
+<g class="class-box" data-name="ViewportTransform"><rect x="375" y="280" width="250" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="391" y="307">화면 변환 값</text>
+<text class="name" x="391" y="338">ViewportTransform</text>
+<path d="M375 357 H625" stroke="#c2d3da"/>
+<text class="member" x="391" y="387">Scale</text>
+<text class="member" x="391" y="412">Offset</text>
+</g>
+<g class="class-box" data-name="Roi"><rect x="15" y="555" width="250" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="31" y="582">일반 ROI 한 개</text>
+<text class="name" x="31" y="613">Roi</text>
+<path d="M15 632 H265" stroke="#c2d3da"/>
+<text class="member" x="31" y="662">Id / ParentId</text>
+<text class="member" x="31" y="687">Geometry / Masks</text>
+</g>
+<g class="class-box" data-name="RoiGeometry"><rect x="375" y="555" width="250" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="391" y="582">도형의 기하 값</text>
+<text class="name" x="391" y="613">RoiGeometry</text>
+<path d="M375 632 H625" stroke="#c2d3da"/>
+<text class="member" x="391" y="662">Center</text>
+<text class="member" x="391" y="687">Width / Height</text>
+<text class="member" x="391" y="712">Angle</text>
+</g>
+<path class="edge" d="M265 100 H375" marker-end="url(#arrow)" marker-start="url(#diamond)"/><text class="label" x="279" y="87">_history</text>
+<path class="edge" d="M140 185 V280" marker-end="url(#arrow)"/><text class="label" x="157" y="240">State</text>
+<path class="edge" d="M265 365 H375" marker-end="url(#arrow)"/><text class="label" x="276" y="352">Viewport</text>
+<path class="edge" d="M140 450 V555" marker-end="url(#arrow)"/><text class="label" x="157" y="506">Rois · 0..여러 개</text>
+<path class="edge" d="M265 640 H375" marker-end="url(#arrow)"/><text class="label" x="273" y="627">Geometry</text>
+</svg>

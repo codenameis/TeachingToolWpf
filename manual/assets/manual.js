@@ -9,10 +9,8 @@ const chapters = [
     ["06-streaming", "06. 큰 영상과 버퍼의 수명", "타일·피라미드·최신 프레임·소유권"],
     ["07-rendering", "07. WPF와 DX12로 그리기", "스레드, 명령, 셰이더와 fence"],
     ["08-inspection", "08. 패턴을 학습하고 검사하기", "NCC·형상 검색·원본 검증·판정"],
-    ["09-build", "09. 작은 캔버스를 직접 구축하기", "실행 가능한 C# 실습 2개와 단계별 과제"],
-    ["10-review", "10. 리뷰·디버깅·성능", "테스트와 측정으로 변경을 설명하기"],
-    ["11-refactoring", "11. 이번 리팩터링과 검증", "실제 변경 범위·실행 명령·원칙 검토"],
-    ["12-reference", "12. 용어·수식·다음 읽기", "검색 가능한 용어 사전과 공식 출처"]
+    ["09-build", "09. 작은 캔버스를 직접 구축하기", "계산·입력·화면을 연결하는 실습 3개"],
+    ["12-reference", "부록. 용어·수식·다음 읽기", "검색 가능한 용어 사전과 공식 출처"]
 ];
 
 const chapterList = document.getElementById("chapter-list");
@@ -63,7 +61,7 @@ connectLab("memory-lab", () => {
         return;
     }
     const frameBytes = width * height * bytes;
-    output.textContent = `${format(frameBytes)} bytes = ${format(frameBytes / 2 ** 20)} MiB/장. ` +
+    output.textContent = `${format(frameBytes)} bytes, 즉 ${format(frameBytes / 2 ** 20)} MiB/장. ` +
         `${format(fps)}장/초 전체 복사 가정: ${format(frameBytes * fps / 2 ** 30)} GiB/초. 실제 처리 속도 측정값이 아닙니다.`;
 });
 
@@ -112,8 +110,8 @@ if (thresholdLab) {
             });
         }
         document.getElementById("threshold-output").textContent =
-            `T=${threshold} · I > T이면 흰색` +
-            ` · 흰 픽셀 ${binary.filter(value => value === 255).length}/16개. I = T인 픽셀은 검정입니다.`;
+            `임계값 ${threshold} · 입력 밝기가 임계값보다 크면 흰색` +
+            ` · 흰 픽셀은 전체16개 중 ${binary.filter(value => value === 255).length}개. 임계값과 같은 밝기는 검정입니다.`;
     });
 }
 
@@ -123,8 +121,8 @@ connectLab("tile-lab", () => {
     const level = Math.min(4, Math.max(0, Math.floor(Math.log2(1 / (scale * dpi)))));
     const span = 512 * 2 ** level;
     const columns = Math.ceil(8192 / span);
-    document.getElementById("tile-output").textContent = `z × d = ${format(scale * dpi)} 물리 px/원본 px, ` +
-        `L=${level}. 한 타일이 덮는 원본 길이 ${span}px. 전체 단계 격자는 ${columns}×${columns} (${columns ** 2}개). ` +
+    document.getElementById("tile-output").textContent = `원본1픽셀의 화면 길이 ${format(scale * dpi)} 물리 px, ` +
+        `단계 ${level}. 한 타일이 덮는 원본 길이 ${span}px. 전체 단계 격자는 ${columns}행 ${columns}열 (${columns ** 2}개). ` +
         "실제 요청은 가시 영역과 교차하는 일부입니다.";
 });
 
@@ -154,8 +152,8 @@ connectLab("visible-tile-lab", () => {
         viewport.setAttribute(name, value);
     }
     document.getElementById("visible-output").textContent =
-        `원본 x=[${left},${left + width}), y=[${top},${top + height}). ` +
-        `열 [${firstColumn},${columnEnd}), 행 [${firstRow},${rowEnd}). ` +
+        `원본 가로 ${left} 이상 ${left + width} 미만, 세로 ${top} 이상 ${top + height} 미만. ` +
+        `열 ${firstColumn} 이상 ${columnEnd} 미만, 행 ${firstRow} 이상 ${rowEnd} 미만. ` +
         `${keys.length}개: ${keys.length ? keys.join(", ") : "요청 없음"}. ` +
         "개요·캐시는 제외한 level 0 계획입니다.";
 });

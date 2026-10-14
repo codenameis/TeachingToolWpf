@@ -39,6 +39,14 @@ internal static class RoiPaste
             });
         }
         AddRepeatedBefore(long.MaxValue);
+        foreach (var id in ids.Values)
+        {
+            token.ThrowIfCancellationRequested();
+            if (RoiHierarchy.Depth(rois, id) > RoiHierarchy.MaximumDepth)
+            {
+                throw new InvalidOperationException("ROI 계층은 RootGroup을 포함하여 최대 4단계입니다.");
+            }
+        }
         var result = before.WithRois(rois.ToImmutable(), ids.Values) with
         {
             Selection = RoiIdSet.CreateRange(roots),

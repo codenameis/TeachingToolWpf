@@ -7,9 +7,11 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using TeachingToolWpf.Commands;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using TeachingToolWpf.Views;
 using VisionCanvas.Controls;
 using VisionCanvas.Rendering;
@@ -20,7 +22,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>실제 파일 reader→학습/검사→WPF 바인딩→DX12 캡처를 검증한다.</summary>
 internal static partial class InspectionSmoke
 {
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;

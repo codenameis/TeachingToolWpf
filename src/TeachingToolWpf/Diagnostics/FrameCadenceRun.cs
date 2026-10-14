@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
@@ -17,7 +17,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>Offers 60 Hz navigation independently of UI progress during actual bulk-edit commands.</summary>
 internal static class FrameCadenceRun
 {
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;
@@ -417,7 +417,7 @@ internal static class FrameCadenceRun
     private sealed class NavigationDriver
     {
         private readonly Dispatcher _dispatcher;
-        private readonly EditorViewModel _model;
+        private readonly MainWindowViewModel _model;
         private readonly ViewportTransform _initialView;
         private readonly bool _zoom;
         private readonly CancellationTokenSource _cancellation = new();
@@ -434,7 +434,7 @@ internal static class FrameCadenceRun
         public List<ProducedInput> Produced { get; } = [];
         public List<AppliedInput> Applied { get; } = [];
 
-        public NavigationDriver(Dispatcher dispatcher, EditorViewModel model, bool zoom)
+        public NavigationDriver(Dispatcher dispatcher, MainWindowViewModel model, bool zoom)
         {
             _dispatcher = dispatcher;
             _model = model;

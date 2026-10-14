@@ -31,7 +31,7 @@ public sealed partial class EditorSession
 
     private void SetMasks(Guid id, ImmutableArray<MaskRegion> masks, string name)
     {
-        if (IsPreviewing || State.IsGroupingRoi(id))
+        if (IsPreviewing || State.IsGroupRoi(id))
         {
             throw new InvalidOperationException("편집 중이 아닌 검사 ROI 하나를 선택하세요.");
         }

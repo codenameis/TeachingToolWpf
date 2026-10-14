@@ -51,7 +51,7 @@ NetVips 선택형 연결의 최신 결과는 이 문서 마지막의 **ADR-032 �
 `scripts/Format-Code.ps1 -Verify`는 다음6개 파일의 기존 줄바꿈·중괄호 규칙 위반 때문에 실패했다. `preexisting-format-findings.json`은 using을 제외한 본문이 **공백까지 HEAD와 동일**함을 기록한다. 분리 작업에서 기존 알고리즘을 일괄 재포맷하지 않았다.
 
 - `src/TeachingToolWpf/Diagnostics/RotationInspectionSmoke.cs`
-- `src/TeachingToolWpf/Presentation/ShapeMatchingViewModel.Rotation.cs`
+- `src/TeachingToolWpf/ViewModels/ShapeMatchingViewModel.Rotation.cs`
 - `src/VisionAlgorithm/OpenSrc/PatternMatching/FineDetailModel.cs`
 - `src/VisionAlgorithm/OpenSrc/PatternMatching/MatchingContracts.cs`
 - `src/VisionAlgorithm/OpenSrc/PatternMatching/PreparedSearchImage.cs`

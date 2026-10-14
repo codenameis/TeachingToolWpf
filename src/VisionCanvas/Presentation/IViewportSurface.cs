@@ -1,9 +1,8 @@
 using VisionCanvas.Rendering;
-using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Presentation;
 
-public interface IViewportSurface
+public interface IViewportSurface : IImageDisplay
 {
     double ViewWidth
     {
@@ -17,8 +16,6 @@ public interface IViewportSurface
     {
         get;
     }
-    long SetSource(ITileSource source);
     void Submit(RenderScene scene);
-    Task RestartAsync();
     event Action? LayoutChanged;
 }

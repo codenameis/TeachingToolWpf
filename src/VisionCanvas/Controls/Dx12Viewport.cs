@@ -14,7 +14,7 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Controls;
 
-public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
+public sealed partial class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 {
     private RenderWorker? _renderer;
     private RenderScene? _scene;
@@ -102,7 +102,8 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
     /// <summary>별도 문서의 포인터 처리. 지정하면 기본 ROI Input보다 우선한다.</summary>
     public IViewportInput? PointerInput
     {
-        get; set;
+        get => (IViewportInput?)GetValue(PointerInputProperty);
+        set => SetValue(PointerInputProperty, value);
     }
 
     public Func<bool>? InputEnabled
@@ -113,8 +114,8 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
 
     public Func<Key, bool, bool, bool>? KeyAction
     {
-        get;
-        set;
+        get => (Func<Key, bool, bool, bool>?)GetValue(KeyActionProperty);
+        set => SetValue(KeyActionProperty, value);
     }
 
     public event Action<Exception>? InputFailed;
@@ -274,6 +275,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             suspended ? 0 : (int)Math.Ceiling(ActualWidth * dpi.DpiScaleX),
             suspended ? 0 : (int)Math.Ceiling(ActualHeight * dpi.DpiScaleY));
         LayoutChanged?.Invoke();
+        UpdateLayoutState();
     }
 
     private static InputModifiers Modifiers =>
@@ -311,7 +313,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
             var point = ClientPixelsToDips(NativeMethods.DecodePoint(lParam));
             if ((windowMessage is NativeWindowMessage.LeftButtonDown or NativeWindowMessage.LeftButtonDoubleClick or
                 NativeWindowMessage.MiddleButtonDown or NativeWindowMessage.MiddleButtonDoubleClick) &&
-                (InputEnabled?.Invoke() ?? true))
+                IsInputEnabled && (InputEnabled?.Invoke() ?? true))
             {
                 NativeMethods.SetFocus(hwnd);
                 NativeMethods.SetCapture(hwnd);
@@ -338,7 +340,7 @@ public sealed class Dx12Viewport : HwndHost, IViewportSurface, IFramePresenter
                 NativeMethods.ReleaseCapture();
                 handled = true;
             }
-            else if (windowMessage == NativeWindowMessage.MouseMove && (InputEnabled?.Invoke() ?? true))
+            else if (windowMessage == NativeWindowMessage.MouseMove && IsInputEnabled && (InputEnabled?.Invoke() ?? true))
             {
                 input.Move(point, Modifiers);
                 handled = true;

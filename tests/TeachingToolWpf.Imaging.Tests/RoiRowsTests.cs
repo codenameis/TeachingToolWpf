@@ -7,7 +7,9 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.Services;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
@@ -138,9 +140,9 @@ public class RoiRowsTests
     public void PageSynchronizationKeepsOffPageSelectionAndPlainClickReplacesIt() => OnStaAsync(async () =>
     {
         var surface = new Surface();
-        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        using var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections());
         var list = new RoiListBox { Width = 240, Height = 180, SelectionMode = SelectionMode.Extended };
-        using var binding = new RoiListBinding(list, model);
+        using var binding = new RoiListSelectionLink(list, model);
         model.Session.InitializeImage(new("rows", "rows", 10000, 10000), ViewportTransform.Identity);
         model.Session.AddRange(Enumerable.Range(0, 4600).Select(i => new RoiGeometry(new(50 + (i % 80 * 80), 50 + (i / 80 * 80)), 30, 30, 0)));
         var first = model.Rows[0].Id;
@@ -181,9 +183,9 @@ public class RoiRowsTests
     public void RepeatedBatchRowAndCtrlSelectionKeepPartialCells() => OnSta(() =>
     {
         var surface = new Surface();
-        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        using var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections());
         var list = new RoiListBox { SelectionMode = SelectionMode.Extended };
-        using var binding = new RoiListBinding(list, model);
+        using var binding = new RoiListSelectionLink(list, model);
         model.Session.InitializeImage(new("rows", "rows", 8192, 8192), ViewportTransform.Identity);
         var normal = model.Session.Add(new(new(100, 100), 20, 20, 0));
         model.Session.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
@@ -225,7 +227,7 @@ public class RoiRowsTests
             Assert.Equal(ids[index], rows[index].Id);
             Assert.Equal(index, rows[index].Depth);
         }
-        Assert.Equal("그룹 1", rows[0].Kind);
+        Assert.Equal("초과 계층 (30000단계) 1", rows[0].Kind);
         Assert.Equal("일반 · 사각형", rows[^1].Kind);
     }
 
@@ -245,8 +247,8 @@ public class RoiRowsTests
 
         Assert.Equal(new[] { root.Id, child.Id, grandchild.Id, siblingChild.Id, siblingRoot.Id }, rows.Select(row => row.Id));
         Assert.Equal(new[] { 0, 1, 2, 1, 0 }, rows.Select(row => row.Depth));
-        Assert.Equal("그룹 2", rows[0].Kind);
-        Assert.Equal("그룹 1", rows[1].Kind);
+        Assert.Equal("모듈 그룹 2", rows[0].Kind);
+        Assert.Equal("ROI 그룹 1", rows[1].Kind);
     }
 
     [Fact]

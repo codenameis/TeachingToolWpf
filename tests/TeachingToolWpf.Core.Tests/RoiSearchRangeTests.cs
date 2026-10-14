@@ -66,12 +66,12 @@ public sealed class RoiSearchRangeTests
         editor.SetProperties(id, "부모", editor.State.Rois[id].Geometry, new(20, 20), true);
         Assert.Single(editor.State.Snapshot.SearchSpatial.At(new(200, 200)));
         var child = editor.AddChild(id, new(new(200, 200), 10, 10, 0));
-        Assert.True(editor.State.IsGroupingRoi(id));
+        Assert.True(editor.State.IsGroupRoi(id));
         Assert.Empty(editor.State.Snapshot.SearchSpatial.At(new(200, 200)));
         Assert.Throws<ArgumentException>(() => editor.SetProperties(id, "부모", editor.State.Rois[id].Geometry, new(40, 40), true));
         editor.Select([child]);
         editor.DeleteSelection();
-        Assert.False(editor.State.IsGroupingRoi(id));
+        Assert.False(editor.State.IsGroupRoi(id));
         Assert.Single(editor.State.Snapshot.SearchSpatial.At(new(200, 200)));
         editor.Undo();
         Assert.Empty(editor.State.Snapshot.SearchSpatial.At(new(200, 200)));
@@ -80,7 +80,7 @@ public sealed class RoiSearchRangeTests
         Assert.Empty(editor.State.Rois);
         editor.Undo();
         Assert.Equal(2, editor.State.Rois.Count);
-        Assert.True(editor.State.IsGroupingRoi(id));
+        Assert.True(editor.State.IsGroupRoi(id));
     }
 
     [Fact]

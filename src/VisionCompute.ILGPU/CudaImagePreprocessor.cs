@@ -23,14 +23,14 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor, IShapeCandidateS
     private readonly Action<AcceleratorStream, Index1D, ArrayView<float>, ArrayView<float>, int, int> _vertical;
     private readonly Action<AcceleratorStream, Index1D, ArrayView<float>, ArrayView<float>, ArrayView<float>, int, int> _sobel;
     private CudaGradientBuffers? _buffers;
-    private readonly CudaCandidateScoring _candidateScoring;
+    private readonly CudaCandidateScorer _candidateScorer;
     private ImagePreprocessingDiagnostics _diagnostics;
     private bool _disposed;
     private bool _faulted;
 
     public ImagePreprocessingDiagnostics Diagnostics => Volatile.Read(ref _diagnostics);
 
-    public CandidateScoringDiagnostics CandidateDiagnostics => _candidateScoring.Diagnostics;
+    public CandidateScoringDiagnostics CandidateDiagnostics => _candidateScorer.Diagnostics;
 
     public CudaImagePreprocessor()
     {
@@ -55,13 +55,13 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor, IShapeCandidateS
             _vertical = _accelerator.LoadAutoGroupedKernel<Index1D, ArrayView<float>, ArrayView<float>, int, int>(CudaGradientKernels.Vertical);
             _sobel = _accelerator.LoadAutoGroupedKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<float>,
                 int, int>(CudaGradientKernels.Sobel);
-            _candidateScoring = new(_accelerator, _stream);
+            _candidateScorer = new(_accelerator, _stream);
             _diagnostics = new("ILGPU CUDA: smoothing + Sobel; CPU normalization", _accelerator.Name, 0, 0, 0);
         }
         catch (Exception failure)
         {
             ResourceCleanup.Complete(failure,
-                () => _candidateScoring?.Dispose(), () => _stream?.Dispose(), () => _accelerator?.Dispose(), () => _context?.Dispose());
+                () => _candidateScorer?.Dispose(), () => _stream?.Dispose(), () => _accelerator?.Dispose(), () => _context?.Dispose());
             throw;
         }
     }
@@ -146,7 +146,7 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor, IShapeCandidateS
             var buffers = _buffers;
             _buffers = null;
             ResourceCleanup.Complete(null, _stream.Synchronize,
-                () => buffers?.Dispose(), _candidateScoring.Dispose, _stream.Dispose, _accelerator.Dispose, _context.Dispose);
+                () => buffers?.Dispose(), _candidateScorer.Dispose, _stream.Dispose, _accelerator.Dispose, _context.Dispose);
         }
     }
 
@@ -165,7 +165,7 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor, IShapeCandidateS
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                return _candidateScoring.Score(request, cancellationToken);
+                return _candidateScorer.Score(request, cancellationToken);
             }
             catch (Exception failure)
             {

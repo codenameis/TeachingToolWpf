@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="740" viewBox="0 0 640 740" role="img" aria-labelledby="title desc">
+<title id="title">입력을 전달하는 객체의 연결</title><desc id="desc">Dx12Viewport는 Input으로 InteractionController를 참조한다. 컨트롤러는 활성 IGesture를 최대 하나 보관하고 EditorSession에 편집을 요청한다.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M2 1 L11 6 L2 11" fill="none" stroke="#486574" stroke-width="1.6"/></marker>
+<marker id="triangle" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M1 1 L13 7 L1 13 Z" fill="white" stroke="#486574" stroke-width="1.4"/></marker>
+<marker id="diamond" viewBox="0 0 16 12" refX="1" refY="6" markerWidth="13" markerHeight="10" orient="auto"><path d="M1 6 L8 1 L15 6 L8 11 Z" fill="#486574"/></marker>
+</defs>
+<style>text {font-family:'Segoe UI','Malgun Gothic',sans-serif;fill:#18303b} .name {font-size:21px;font-weight:700} .member {font-size:18px} .kind {font-size:16px;fill:#426474} .label {font-size:18px;fill:#365562} .edge {fill:none;stroke:#486574;stroke-width:2}</style>
+<rect width="640" height="740" fill="white"/>
+<g class="class-box" data-name="Dx12Viewport"><rect x="155" y="15" width="330" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="171" y="42">입력 입구 · WPF / 네이티브 창</text>
+<text class="name" x="171" y="73">Dx12Viewport</text>
+<path d="M155 92 H485" stroke="#c2d3da"/>
+<text class="member" x="171" y="122">Input</text>
+<text class="member" x="171" y="147">WndProc(…)</text>
+</g>
+<g class="class-box" data-name="InteractionController"><rect x="155" y="280" width="330" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="171" y="307">입력 조정 · Core</text>
+<text class="name" x="171" y="338">InteractionController</text>
+<path d="M155 357 H485" stroke="#c2d3da"/>
+<text class="member" x="171" y="387">Down(…) / Move(…) / Up(…)</text>
+<text class="member" x="171" y="412">Cancel()</text>
+</g>
+<g class="class-box" data-name="IGesture"><rect x="15" y="555" width="275" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="31" y="582">«interface» · 진행 중인 동작</text>
+<text class="name" x="31" y="613">IGesture</text>
+<path d="M15 632 H290" stroke="#c2d3da"/>
+<text class="member" x="31" y="662">Move(…)</text>
+<text class="member" x="31" y="687">Complete() / Cancel()</text>
+</g>
+<g class="class-box" data-name="EditorSession"><rect x="350" y="555" width="275" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="366" y="582">편집 규칙 · Core</text>
+<text class="name" x="366" y="613">EditorSession</text>
+<path d="M350 632 H625" stroke="#c2d3da"/>
+<text class="member" x="366" y="662">State</text>
+<text class="member" x="366" y="687">BeginPreview()</text>
+<text class="member" x="366" y="712">CommitPreview(…)</text>
+</g>
+<path class="edge" d="M320 185 V280" marker-end="url(#arrow)"/><text class="label" x="334" y="240">Input</text>
+<path class="edge" d="M240 450 V495 H152 V555" marker-end="url(#arrow)"/><text class="label" x="18" y="524">_activeGesture · 0..1</text>
+<path class="edge" d="M400 450 V495 H487 V555" marker-end="url(#arrow)"/><text class="label" x="505" y="524">editor</text>
+</svg>

@@ -5,14 +5,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Filters.Wpf.Controls;
 
 namespace TeachingToolWpf.Diagnostics;
 
 internal static class FilterControlSmokeScenario
 {
-    public static async Task Run(EditorViewModel model, FilterPanel panel)
+    public static async Task Run(MainWindowViewModel model, FilterPanel panel)
     {
         var filters = model.Filters;
         var toggle = (ToggleButton)panel.FindName("PreviewToggle");

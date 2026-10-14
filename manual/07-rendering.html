@@ -1,60 +1,816 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="CPU의 요청과 GPU의 완료를 구별하기"><title>07. WPF와 DX12로 그리기 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="CPU의 요청과 GPU의 완료를 구별하기"><title>07. WPF와 DX12로 그리기 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script><script src="assets/code-blocks.js" defer></script></head>
 <body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
 <div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
-<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html" aria-current="page">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html" aria-current="page">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="12-reference.html">부록. 용어·수식·다음 읽기</a></nav>
 <p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
 </aside>
 <main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>07. WPF와 DX12로 그리기</h1>
 <p>CPU의 요청과 GPU의 완료를 구별하기</p>
 </div>
-<section>
+<section class="lesson-start" id="start-here">
+<p class="lesson-label">먼저 이 장면 하나만 생각하세요</p>
+<h2>ROI가 움직인 뒤 화면에 보일 때까지 따라가 봅시다</h2><p>5장에서 ROI 이동 상태를 바꿨습니다. 이제 화면에 새 위치를 보여 줘야 합니다. 문서를 바꾼 시점, GPU에 일을 맡긴 시점, 실제로 보인 시점은 각각 다릅니다.</p>
+<p class="lesson-key"><strong>기억할 한 문장</strong>장면 전달, GPU 명령 제출, GPU 완료, 화면 표시는 구별해야 합니다.</p>
+<ol class="scene-steps"><li><strong>호스트가 장면 보내기</strong><p>현재 문서·영상·뷰포트·미리보기를 RenderScene에 담아 보냅니다. 이것은 표시할 내용을 전달한 단계입니다.</p></li><li><strong>렌더 스레드가 그리기 준비</strong><p>RenderWorker는 표시 준비와 사용할 자원을 확인합니다. Dx12Surface가 명령 기록 환경을 마련하고 ScenePainter가 표시 요소를 구성합니다.</p></li><li><strong>제출한 뒤 완료 확인</strong><p>GPU는 제출된 명령을 실행합니다. 자원을 다시 쓰거나 해제할 때는 필요한 fence 완료를 확인합니다. Submit 호출이 이 완료를 뜻하지는 않습니다.</p></li></ol>
+<div class="predict"><h3>잠깐, 답을 보기 전에 예상해 보세요</h3><p>장면을 Submit한 직후, 이전 프레임이 쓰던 텍스처를 바로 해제해도 될까요?</p><details><summary>예상과 비교하기</summary><p>그 사실만으로는 안 됩니다. GPU가 아직 이전 텍스처를 읽을 수 있습니다. 해당 사용이 끝났다는 완료 조건을 확인해야 합니다. 아래 프레임 순서와 fence 설명을 함께 읽으세요.</p></details></div>
+<nav class="reading-route" aria-label="이 장의 첫 읽기 순서"><strong>이제 본문에서 확인할 세 곳</strong><ol><li><a href="#reading-6" data-reading-target="reading-6">한 프레임을 실제 순서로 읽기</a></li><li><a href="#reading-9" data-reading-target="reading-9">호스트가 장면을 보내는 실제 코드</a></li><li><a href="#reading-7" data-reading-target="reading-7">resource barrier와 fence</a></li></ol></nav>
+</section>
+<section id="reading-3">
 <h2>WPF는 도구, DX12는 영상 뷰포트</h2>
 <p>WPF는 버튼·목록·속성·바인딩을 담당합니다. <code>HwndHost</code>는 WPF 레이아웃 안에 별도 Windows 자식 창(HWND)을 넣습니다. DX12는 그 창의 swap chain에 이미지·ROI·선택 핸들·이름표를 함께 그립니다. ROI마다 WPF Shape를 만들면 많은 객체·레이아웃 비용이 생깁니다.</p>
 <p>이 구조의 자식 HWND에는 airspace 제약이 있습니다. WPF 반투명 Canvas나 Adorner를 위에 올려 같은 화면처럼 그릴 수 있다고 가정하지 않습니다. ROI overlay는 같은 GPU 경로에 둡니다. D3DImage를 DX12 texture에 바로 연결하는 설계도 사용하지 않습니다.</p>
 <p class="source"><a href="https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/wpf-and-win32-interoperation">Microsoft WPF/Win32 상호운용 설명</a></p>
 </section>
-<section>
+<section class="implementation-lesson" id="reading-2"><h2>마우스 좌표가 문서까지 가는 세 번의 번역</h2><table><thead><tr><th>경계</th><th>들어오는 값</th><th>나가는 값 / 이유</th></tr></thead><tbody><tr><td>Win32 자식 창 → Dx12Viewport</td><td>lParam의 부호 있는 클라이언트 물리 픽셀</td><td>DecodePoint 후 ClientPixelsToDips. DPI 배율로 나눔</td></tr><tr><td>Dx12Viewport → IViewportInput</td><td>DIP 점, Ctrl/Shift/Alt, 가운데 버튼 또는 Space pan</td><td>포인터 계약은 Windows 메시지 번호를 몰라도 됨</td></tr><tr><td>제스처 → 기하/편집</td><td>DIP 시작점과 현재점, 초기 ViewportTransform</td><td>원본 이미지 좌표와 이동량(px)으로 바꿈</td></tr><tr><td>문서/Overlay → 호스트 Publish</td><td>편집 상태와 임시 표시, TransformPreview</td><td>RenderScene을 Submit. 입력 코드가 GPU 버퍼를 직접 수정하지 않음</td></tr></tbody></table><p>150% DPI 화면에서 창이 받은 물리 위치가 가로330, 세로315픽셀이라면 DIP 위치는 가로220, 세로210입니다. 그다음 원본 확대 배율이2이고 화면 이동량이 가로20, 세로10 DIP라면 원본 점은 가로100, 세로100픽셀입니다. DPI 배율과 영상 확대 배율은 서로 다른 단계입니다. 둘을 한 값으로 섞으면 다른 모니터에서 클릭 위치가 어긋납니다.</p><p>Wheel의 lParam은 일반 마우스 이동과 좌표계가 다릅니다. 현재 코드는 <code>WheelPositionInDips</code>에서 화면 위치를 클라이언트 위치로 맞춘 뒤 DIP로 바꿉니다. 휠을 단순히 MouseMove와 같은 좌표 디코드로 처리하지 마세요. <code>PointerInput ?? Input</code>은 별도 입력 계약이 지정됐으면 그것을 우선 사용한다는 뜻입니다.</p><p>화면 밖으로 드래그하는 경우를 구현하려면 포커스 설정·마우스 캡처·Up 이후 캡처 해제·캡처 상실 취소·예외 시 해제까지 한 묶음으로 읽어야 합니다. 아래 실제 WndProc은 이 순서를 모두 보여 줍니다.</p><aside class="teach-back"><h3>본문을 가리고 설명하기</h3><p>DPI 배율과 영상 확대 배율이 모두 바뀌면 어떤 순서로 클릭을 변환합니까?</p><details><summary>설명 예시와 다시 확인할 지점</summary><p>물리 픽셀을 DPI로 나눠 DIP를 만든 뒤, 영상 Offset을 빼고 영상 Scale로 나눠 원본 좌표를 만듭니다. 입력 계약이 이미 DIP라면 DPI를 두 번 나누지 않습니다.</p></details></aside></section>
+<section id="reading-4">
 <h2>세 스레드의 일</h2>
+<p class="lesson-question">“한 스레드에서 파일도 읽고 그리면 더 이해하기 쉽지 않나요?” 창의 입력을 받는 사람이 파일 읽기가 끝날 때까지 기다리면 마우스와 버튼도 기다리게 됩니다. 입력 접수, 오래 걸리는 준비, GPU 제출을 나누되 서로 주고받는 상태가 언제 완성되고 누가 소유하는지 명시해야 합니다.</p>
+
 <table><thead><tr><th>소유자</th><th>하는 일</th><th>전달물</th></tr></thead><tbody><tr><td>UI 스레드</td><td>입력·문서 확정·WPF 바인딩</td><td>불변 RenderScene</td></tr><tr><td>영상/편집 worker</td><td>파일 읽기·타일 준비·대량 편집 준비</td><td>소유권 있는 버퍼 또는 불변 준비 결과</td></tr><tr><td>렌더 스레드</td><td>GPU 자원·명령 기록·Present·fence</td><td>표시 상태·진단</td></tr></tbody></table>
 <p>렌더가 UI 컬렉션을 동시에 읽으면 사용자가 수정하는 순간 열거가 깨질 수 있습니다. 그래서 완성된 불변 장면을 게시합니다. RenderScene의 불변 껍데기만으로 내부 버퍼의 수명이 자동 해결되는 것은 아니므로 별도 소유권 계약도 필요합니다. 정지 화면은 계속 그리지 않고 요청을 합쳐 기다립니다.</p>
+
+<div class="worked-example"><h3>동시 작업에서 ‘같은 장면’의 뜻</h3>
+<p>렌더러가 ROI 목록 절반을 읽은 순간 UI가 나머지를 바꾸면, 화면은 어느 시점에도 존재하지 않았던 조합이 될 수 있습니다. 그래서 UI가 완성한 장면을 불변 값으로 게시합니다. 작업자가 초안을 수정하는 동안 다른 사람이 그 초안을 인쇄하지 않고, 확정본을 건네는 것과 비슷합니다.</p>
+<p>불변 장면을 보낸다고 CPU 픽셀·GPU 리소스의 수명이 자동으로 늘어나지는 않습니다. ‘내용이 바뀌지 않는가’와 ‘사용하는 동안 살아 있는가’를 별도로 확인하세요. 또한 worker가 여러 종류 있으므로 ‘세 스레드’는 세 책임 그룹을 설명하는 말이지 프로세스의 스레드 수가 정확히 세 개라는 보장은 아닙니다.</p></div>
 </section>
-<section>
+<section id="reading-5">
 <h2>GPU 명령을 음식 주문서처럼 읽기</h2>
 <dl><dt>device</dt><dd>사용할 그래픽 장치. 자동 모드는 하드웨어를 우선하고 생성할 수 없으면 WARP CPU 표시를 사용합니다.</dd><dt>command list / queue</dt><dd>복사·그리기 명령을 적은 목록과 GPU에 제출하는 줄입니다. 제출은 완료가 아닙니다.</dd><dt>texture / buffer</dt><dd>영상처럼 2차원으로 읽는 저장소와 일반 데이터 저장소입니다.</dd><dt>descriptor</dt><dd>셰이더가 어떤 자원을 어떤 형태로 읽을지 알려 주는 설명입니다.</dd><dt>shader</dt><dd>GPU에서 정점·픽셀 등에 적용할 작은 프로그램입니다. HLSL로 작성합니다.</dd><dt>swap chain / back buffer</dt><dd>그릴 화면 버퍼와 표시 전환을 관리합니다. 현재 구현은 back buffer 두 개입니다.</dd><dt>fence</dt><dd>제출한 작업이 어느 번호까지 끝났는지 확인하는 완료 표식입니다.</dd></dl>
 </section>
-<section>
+<section id="reading-6">
 <h2>한 프레임을 실제 순서로 읽기</h2>
 <ol><li>새 장면·영상·타일 요청을 기다립니다. DXGI 표시 준비 신호를 기다립니다.</li><li>유효한 창 크기를 확인하고 필요하면 resize합니다.</li><li><code>Dx12Surface.Begin</code>에서 사용할 슬롯의 이전 GPU 작업 완료를 확인합니다. 그 뒤에만 명령 메모리와 upload 공간을 재사용합니다.</li><li>대기 중 도착한 최신 장면을 가져옵니다. 타일·필터·라벨을 준비합니다.</li><li><code>ScenePainter</code>가 표시 요소를 만들고 각 Pipeline이 그리기 명령을 기록합니다.</li><li>현재 버퍼를 Present 가능한 상태로 바꾸고 제출·Present합니다. 완료 fence를 슬롯과 지연 해제 목록에 연결합니다.</li></ol>
-<p><a href="../src/VisionCanvas/Rendering/RenderWorker.cs">RenderWorker.Run</a> · <a href="../src/VisionCanvas/Rendering/Dx12Surface.cs">Dx12Surface</a> · <a href="../src/VisionCanvas/Rendering/ScenePainter.cs">ScenePainter</a></p>
+<details id="source-2914578d4c70" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">RenderWorker.Run</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">RenderWorker.cs · 327줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RenderWorker.Run 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="RenderWorker.Run 코드"><code data-source="../src/VisionCanvas/Rendering/RenderWorker.cs" data-kind="full" data-language="csharp">using System.Diagnostics;
+using VisionCanvas.Diagnostics;
+using VisionCanvas.Imaging;
+using VisionImaging.Abstractions;
+
+namespace VisionCanvas.Rendering;
+
+/// &lt;summary&gt;GPU 자원의 단일 소유 스레드. UI 장면과 영상 요청은 최신 값 하나로 합친다.&lt;/summary&gt;
+public sealed class RenderWorker : IDisposable
+{
+    private const double BytesPerGibibyte = 1024d * 1024 * 1024;
+    private const int MetricsNotificationFrameInterval = 30;
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly ManualResetEvent _stop = new(false);
+    private readonly Thread _thread;
+    private readonly nint _hwnd;
+    private readonly TileWorker _tiles;
+    private readonly ITextRasterizer _textRasterizer;
+    private readonly LatestFrameMailbox _frames;
+    private readonly IFramePreparer _framePreparer;
+    private readonly RenderDevicePreference _devicePreference;
+    private sealed record Submission(long Version, RenderScene Scene, long Received);
+    private sealed record CaptureRequest(long Version, string Path);
+    private Submission? _latestSubmission;
+    private CaptureRequest? _captureRequest;
+    private long _sceneVersion;
+    private volatile bool _stopping;
+    private int _width = 1;
+    private int _height = 1;
+    public event Action&lt;string&gt;? StatusChanged;
+    public event Action&lt;RenderMetrics&gt;? MetricsChanged;
+    public event Action&lt;OverlayPresentation&gt;? OverlayPresented;
+
+    public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames, IFramePreparer framePreparer)
+        : this(hwnd, tiles, textRasterizer, frames, framePreparer, RenderDevicePreference.Automatic)
+    {
+    }
+
+    public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames,
+        IFramePreparer framePreparer, RenderDevicePreference devicePreference)
+    {
+        if (!Enum.IsDefined(devicePreference))
+        {
+            throw new ArgumentOutOfRangeException(nameof(devicePreference));
+        }
+        _hwnd = hwnd;
+        _tiles = tiles;
+        _textRasterizer = textRasterizer;
+        _frames = frames;
+        _framePreparer = framePreparer;
+        _devicePreference = devicePreference;
+        tiles.TileReady += Invalidate;
+        frames.Available += Invalidate;
+        _thread = new Thread(Run) { IsBackground = true, Name = "DX12 renderer" };
+        _thread.SetApartmentState(ApartmentState.STA);
+    }
+
+    public void Start() =&gt; _thread.Start();
+
+    public void Resize(int width, int height)
+    {
+        Volatile.Write(ref _width, width);
+        Volatile.Write(ref _height, height);
+        _wake.Set();
+    }
+
+    public void Invalidate()
+    {
+        if (_stopping)
+        {
+            return;
+        }
+
+        try
+        {
+            _wake.Set();
+        }
+        catch (ObjectDisposedException) when (_stopping)
+        {
+            // 구독 해제 직전에 생산자가 이미 가져간 콜백은 종료 이후 도착할 수 있다.
+        }
+    }
+
+    public void Submit(RenderScene value)
+    {
+        var submission = new Submission(Interlocked.Increment(ref _sceneVersion), value, Stopwatch.GetTimestamp());
+        Volatile.Write(ref _latestSubmission, submission);
+        Invalidate();
+    }
+
+    public void Capture(string path)
+    {
+        var minimumSceneVersion = Volatile.Read(ref _latestSubmission)?.Version ?? 0;
+        Interlocked.Exchange(ref _captureRequest, new(minimumSceneVersion, path));
+        Invalidate();
+    }
+
+    private void Run()
+    {
+        try
+        {
+            using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"), _devicePreference);
+            using var surface = new Dx12Surface(gpu, _hwnd, _width, _height);
+            WaitHandle[] frameSignals = [surface.FrameReady, _stop];
+            using var pipeline = new SpritePipeline(gpu);
+            using var profile = new RenderProfile();
+            using var roiPipeline = new RoiPipeline(gpu, profile.Enabled);
+            using var maskPipeline = new MaskPipeline(gpu);
+            using var repeatedPipeline = new RepeatedRoiPipeline(gpu);
+            using var gpuTimer = gpu.IsSoftware ? null : new GpuTimer(gpu);
+            using var metrics = new FrameMetrics();
+            var painter = new ScenePainter();
+            using var labels = new GpuLabelCache(_textRasterizer, gpu);
+            using var resultLabels = new GpuResultLabels(_textRasterizer);
+            using var images = new GpuImageResources(gpu, pipeline, _tiles, _framePreparer);
+            using var filters = new GpuFilterPreview();
+            GpuTexture? white = null;
+            VideoFrame? retainedFrame = null;
+            long frame = 0;
+            var frameReady = false;
+            RenderScene? presentedScene = null;
+            var presentedOverlay = Guid.Empty;
+            StatusChanged?.Invoke(gpu.IsSoftware
+                ? $"DX12 · CPU (WARP) · {gpu.AdapterName} · Tile cache {gpu.TileBudgetBytes / (1024 * 1024)} MiB · Debug: {gpu.DebugEnabled}"
+                : $"DX12 · GPU · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
+            try
+            {
+                while (!_stopping)
+                {
+                    _wake.WaitOne();
+                    if (_stopping)
+                    {
+                        break;
+                    }
+
+                    var targetWidth = Volatile.Read(ref _width);
+                    var targetHeight = Volatile.Read(ref _height);
+                    if (targetWidth &lt;= 0 || targetHeight &lt;= 0)
+                    {
+                        continue;
+                    }
+
+                    var submission = Volatile.Read(ref _latestSubmission);
+                    var current = submission?.Scene;
+                    var nothingChanged = ReferenceEquals(current, presentedScene)
+                        &amp;&amp; targetWidth == surface.Width &amp;&amp; targetHeight == surface.Height
+                        &amp;&amp; !_frames.HasPending &amp;&amp; !_tiles.HasReady &amp;&amp; !labels.HasPending &amp;&amp; !roiPipeline.HasPendingDetails
+                        &amp;&amp; Volatile.Read(ref _captureRequest) is null &amp;&amp; white is not null;
+                    if (nothingChanged)
+                    {
+                        continue;
+                    }
+
+                    // Begin은 프레임 슬롯의 GPU 완료를 기다린다. 이후에만 그 슬롯의 업로드 공간을 재사용한다.
+                    var cpuStart = Stopwatch.GetTimestamp();
+                    var allocationStart = profile.Enabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
+                    var gcPauseStart = profile.Enabled ? GC.GetTotalPauseDuration() : default;
+                    var pacingStart = Stopwatch.GetTimestamp();
+                    if (!frameReady &amp;&amp; WaitHandle.WaitAny(frameSignals, 1000) != 0)
+                    {
+                        gpu.Device.DeviceRemovedReason.CheckError();
+                        Invalidate();
+                        continue;
+                    }
+                    var pacingElapsed = Stopwatch.GetElapsedTime(pacingStart).TotalMilliseconds;
+                    if (_stopping)
+                    {
+                        break;
+                    }
+                    frameReady = true;
+                    targetWidth = Volatile.Read(ref _width);
+                    targetHeight = Volatile.Read(ref _height);
+                    if (targetWidth &lt;= 0 || targetHeight &lt;= 0)
+                    {
+                        // 최소화 중에는 획득한 표시 허가를 다음 유효 프레임까지 보존한다.
+                        continue;
+                    }
+                    surface.Resize(targetWidth, targetHeight);
+                    surface.Begin();
+                    // 표시 대기 중 도착한 최신 불변 스냅샷을 그린다.
+                    submission = Volatile.Read(ref _latestSubmission);
+                    current = submission?.Scene;
+                    var sceneAge = submission is null ? 0 : Stopwatch.GetElapsedTime(submission.Received).TotalMilliseconds;
+                    frame++;
+                    var gpuElapsed = gpuTimer?.Begin(surface);
+                    pipeline.BeginFrame(surface);
+                    if (white is null)
+                    {
+                        using var pixel = new PixelBuffer(1, 1, PixelKind.Rgba32);
+                        pixel.Span.Fill(255);
+                        white = pipeline.Upload(pixel, surface);
+                    }
+                    var videoFrame = _frames.Take();
+                    if (videoFrame is not null)
+                    {
+                        retainedFrame?.Dispose();
+                        retainedFrame = videoFrame;
+                    }
+                    if (current?.IsLive == true &amp;&amp; retainedFrame is null)
+                    {
+                        retainedFrame = _frames.RetainLatest();
+                    }
+
+                    if (current?.IsLive != true)
+                    {
+                        retainedFrame?.Dispose();
+                        retainedFrame = null;
+                    }
+                    if (current is not null &amp;&amp; current.Width &gt; 0 &amp;&amp; current.Height &gt; 0)
+                    {
+                        if (images.Update(current, retainedFrame, surface, frame))
+                        {
+                            Invalidate();
+                        }
+
+                        filters.Update(current.FilterPreview, pipeline, surface);
+                        labels.Begin();
+                        resultLabels.Update(current, pipeline, surface);
+                        var paintStart = Stopwatch.GetTimestamp();
+                        var mesh = painter.Build(current, white, images.Tiles, text =&gt; labels.Get(text, current.Dpi, pipeline, surface),
+                            text =&gt; labels.TryGet(text, current.Dpi, pipeline, surface), images.Live, images.LiveBounds, filters, images.LiveOverview,
+                            resultLabels.Get);
+                        var submitStart = Stopwatch.GetTimestamp();
+                        pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () =&gt;
+                        {
+                            maskPipeline.Draw(current, surface);
+                            repeatedPipeline.Draw(current, surface);
+                            roiPipeline.Draw(current, surface);
+                        });
+                        var submitEnd = Stopwatch.GetTimestamp();
+                        var gcPauseDelta = profile.Enabled ? GC.GetTotalPauseDuration() - gcPauseStart : default;
+                        profile.Record(current, cpuStart, paintStart, submitStart, submitEnd, allocationStart, mesh, roiPipeline, labels, gcPauseDelta);
+                        labels.End(surface);
+                        if (labels.HasPending || roiPipeline.HasPendingDetails)
+                        {
+                            Invalidate();
+                        }
+                    }
+                    var capture = roiPipeline.HasPendingDetails ? null : TryTakeReadyCapture(submission, images, labels);
+                    using var readback = capture is null ? null : new FrameReadback(gpu, surface);
+                    gpuTimer?.End(surface);
+                    var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
+                    var presentStart = Stopwatch.GetTimestamp();
+                    var completionFence = surface.Present();
+                    frameReady = false;
+                    presentedScene = current;
+                    if (current?.Inspection is { BatchLabels: true } overlay &amp;&amp;
+                        overlay.PresentationId != presentedOverlay &amp;&amp; !labels.HasPending &amp;&amp; !roiPipeline.HasPendingDetails)
+                    {
+                        // 렌더 소유 스레드에서 이번 결과의 fence를 관찰한다. 다음 프레임이나 UI의 동기 대기에 의존하지 않는다.
+                        gpu.Wait(completionFence);
+                        presentedOverlay = overlay.PresentationId;
+                        OverlayPresented?.Invoke(new(overlay.PresentationId, Stopwatch.GetTimestamp()));
+                    }
+                    var measurement = metrics.Record(cpuElapsed, gpuElapsed, Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds, videoFrame?.Timestamp,
+                        _frames.Dropped, images.Bytes, videoFrame?.Sequence, surface.FenceWaitMilliseconds, sceneAge,
+                        metrics.Enabled ? surface.ReadPresentationStatistics() : null, pacingElapsed);
+                    if (frame % MetricsNotificationFrameInterval == 0)
+                    {
+                        MetricsChanged?.Invoke(measurement);
+                    }
+
+                    foreach (var message in gpu.ReadDebugMessages())
+                    {
+                        StatusChanged?.Invoke("D3D12 " + message);
+                    }
+
+                    if (readback is not null)
+                    {
+                        gpu.Flush();
+                        readback.Save(capture!);
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    gpu.Flush();
+                }
+                finally
+                {
+                    white?.Dispose();
+                    retainedFrame?.Dispose();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusChanged?.Invoke($"렌더 오류: {ex.Message}");
+        }
+    }
+
+    private string? TryTakeReadyCapture(Submission? submission, GpuImageResources images, GpuLabelCache labels)
+    {
+        var request = Volatile.Read(ref _captureRequest);
+        var current = submission?.Scene;
+        var overviewReady = current?.Image is not { } image
+            || (current.IsLive ? images.LiveOverview is not null : images.Tiles.ContainsKey(new(image.Levels - 1, 0, 0)));
+
+        // 이전 장면을 그리던 중 들어온 캡처 요청에 이전 화면을 저장하면 안 된다.
+        if (request is null || (submission?.Version ?? 0) &lt; request.Version || !overviewReady || labels.HasPending)
+        {
+            return null;
+        }
+
+        // 준비 중 새 캡처가 도착했다면 새 요청을 지우지 않고 다음 프레임에 처리한다.
+        var claimedRequest = Interlocked.CompareExchange(ref _captureRequest, null, request);
+        return ReferenceEquals(claimedRequest, request) ? request.Path : null;
+    }
+
+    public void Dispose()
+    {
+        _tiles.TileReady -= Invalidate;
+        _frames.Available -= Invalidate;
+        _stopping = true;
+        _stop.Set();
+        _wake.Set();
+        if (_thread.IsAlive)
+        {
+            _thread.Join();
+        }
+
+        _wake.Dispose();
+        _stop.Dispose();
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Rendering/RenderWorker.cs</code></p></details><details id="source-6b56c537330f" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">Dx12Surface</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Dx12Surface.cs · 212줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="Dx12Surface 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="Dx12Surface 코드"><code data-source="../src/VisionCanvas/Rendering/Dx12Surface.cs" data-kind="full" data-language="csharp">using System.Diagnostics;
+using Microsoft.Win32.SafeHandles;
+using Vortice.Direct3D12;
+using Vortice.DXGI;
+using Vortice.Mathematics;
+
+namespace VisionCanvas.Rendering;
+
+/// &lt;summary&gt;렌더 스레드에서만 사용하는 화면 버퍼와 프레임별 GPU 작업의 소유자.&lt;/summary&gt;
+internal sealed class Dx12Surface : IDisposable
+{
+    private const int BackBufferCount = 2;
+    private const SwapChainFlags Flags = SwapChainFlags.FrameLatencyWaitableObject;
+    private readonly Dx12Device _gpu;
+    private readonly IDXGISwapChain3 _swapChain;
+    private readonly ID3D12DescriptorHeap _renderTargets;
+    private readonly ID3D12Resource?[] _buffers = new ID3D12Resource[BackBufferCount];
+    private readonly ID3D12CommandAllocator[] _allocators = new ID3D12CommandAllocator[BackBufferCount];
+    private readonly ulong[] _frameCompletionFences = new ulong[BackBufferCount];
+    private readonly List&lt;IDisposable&gt;[] _resourcesAwaitingGpu = [[], []];
+    private readonly uint _descriptorSize;
+    private readonly AutoResetEvent _frameReady = new(false);
+
+    public ID3D12GraphicsCommandList Commands
+    {
+        get;
+    }
+
+    public int FrameIndex
+    {
+        get;
+        private set;
+    }
+
+    public int Width
+    {
+        get;
+        private set;
+    }
+
+    public int Height
+    {
+        get;
+        private set;
+    }
+
+    public ID3D12Resource CurrentBuffer =&gt; _buffers[FrameIndex]!;
+
+    public double FenceWaitMilliseconds
+    {
+        get; private set;
+    }
+
+    public WaitHandle FrameReady =&gt; _frameReady;
+
+    public FrameStatistics? ReadPresentationStatistics()
+        =&gt; _swapChain.GetFrameStatistics(out var statistics).Success ? statistics : null;
+
+    public Dx12Surface(Dx12Device gpu, nint hwnd, int width, int height)
+    {
+        _gpu = gpu;
+        Width = Math.Max(1, width);
+        Height = Math.Max(1, height);
+        try
+        {
+            using var chain = gpu.Factory.CreateSwapChainForHwnd(gpu.Queue, hwnd, new SwapChainDescription1
+            {
+                Width = (uint)Width,
+                Height = (uint)Height,
+                Format = Format.B8G8R8A8_UNorm,
+                BufferCount = BackBufferCount,
+                BufferUsage = Usage.RenderTargetOutput,
+                SampleDescription = new SampleDescription(1, 0),
+                SwapEffect = SwapEffect.FlipDiscard,
+                Scaling = Scaling.Stretch,
+                AlphaMode = AlphaMode.Ignore,
+                Flags = Flags
+            });
+            _swapChain = chain.QueryInterface&lt;IDXGISwapChain3&gt;();
+            _swapChain.MaximumFrameLatency = 1;
+            var frameReady = _swapChain.FrameLatencyWaitableObject;
+            if (frameReady == 0)
+            {
+                throw new InvalidOperationException("DXGI frame latency wait handle is unavailable.");
+            }
+            _frameReady.SafeWaitHandle.Dispose();
+            _frameReady.SafeWaitHandle = new SafeWaitHandle(frameReady, true);
+            _renderTargets = gpu.Device.CreateDescriptorHeap(new DescriptorHeapDescription(DescriptorHeapType.RenderTargetView, BackBufferCount));
+            _descriptorSize = gpu.Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.RenderTargetView);
+            for (var i = 0; i &lt; BackBufferCount; i++)
+            {
+                _allocators[i] = gpu.Device.CreateCommandAllocator(CommandListType.Direct);
+            }
+            Commands = gpu.Device.CreateCommandList&lt;ID3D12GraphicsCommandList&gt;(CommandListType.Direct, _allocators[0]);
+            Commands.Close();
+            CreateBuffers();
+        }
+        catch
+        {
+            ReleaseResources();
+            throw;
+        }
+    }
+
+    private CpuDescriptorHandle RenderTargetView(int index) =&gt;
+        _renderTargets.GetCPUDescriptorHandleForHeapStart() + (index * (int)_descriptorSize);
+
+    private void CreateBuffers()
+    {
+        for (var i = 0; i &lt; BackBufferCount; i++)
+        {
+            _buffers[i] = _swapChain.GetBuffer&lt;ID3D12Resource&gt;((uint)i);
+            _gpu.Device.CreateRenderTargetView(_buffers[i]!, null, RenderTargetView(i));
+        }
+    }
+
+    public void Resize(int width, int height)
+    {
+        if (width &lt;= 0 || height &lt;= 0 || (Width == width &amp;&amp; Height == height))
+        {
+            return;
+        }
+        // 화면 크기를 바꿀 때는 이전 크기의 버퍼를 사용하는 모든 GPU 작업이 끝나야 한다.
+        _gpu.Flush();
+        foreach (var buffer in _buffers)
+        {
+            buffer?.Dispose();
+        }
+
+        _swapChain.ResizeBuffers(BackBufferCount, (uint)width, (uint)height, Format.B8G8R8A8_UNorm, Flags).CheckError();
+        Width = width;
+        Height = height;
+        CreateBuffers();
+    }
+
+    public void Begin()
+    {
+        FrameIndex = (int)_swapChain.CurrentBackBufferIndex;
+        // 같은 프레임 슬롯의 명령 메모리와 업로드 버퍼는 fence 완료 후에만 재사용한다.
+        var waitStart = Stopwatch.GetTimestamp();
+        _gpu.Wait(_frameCompletionFences[FrameIndex]);
+        FenceWaitMilliseconds = Stopwatch.GetElapsedTime(waitStart).TotalMilliseconds;
+        DisposeRetiredResources(FrameIndex);
+        _allocators[FrameIndex].Reset();
+        Commands.Reset(_allocators[FrameIndex]);
+        Commands.ResourceBarrierTransition(CurrentBuffer, ResourceStates.Present, ResourceStates.RenderTarget);
+        Commands.OMSetRenderTargets(RenderTargetView(FrameIndex));
+        Commands.ClearRenderTargetView(RenderTargetView(FrameIndex), new Color4(0.045f, 0.06f, 0.085f, 1));
+        Commands.RSSetViewport(new Viewport(Width, Height));
+        Commands.RSSetScissorRect(new RectI(0, 0, Width, Height));
+    }
+
+    /// &lt;summary&gt;이번 프레임까지 제출된 GPU 참조가 끝난 뒤 해제하도록 예약한다.&lt;/summary&gt;
+    public void Retire(IDisposable resource) =&gt; _resourcesAwaitingGpu[FrameIndex].Add(resource);
+
+    private void DisposeRetiredResources(int frameIndex)
+    {
+        foreach (var resource in _resourcesAwaitingGpu[frameIndex])
+        {
+            resource.Dispose();
+        }
+
+        _resourcesAwaitingGpu[frameIndex].Clear();
+    }
+
+    public ulong Present()
+    {
+        Commands.ResourceBarrierTransition(CurrentBuffer, ResourceStates.RenderTarget, ResourceStates.Present);
+        Commands.Close();
+        _gpu.Queue.ExecuteCommandList(Commands);
+        _swapChain.Present(1, PresentFlags.None).CheckError();
+        _frameCompletionFences[FrameIndex] = _gpu.Signal();
+        return _frameCompletionFences[FrameIndex];
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _gpu.Flush();
+        }
+        finally
+        {
+            ReleaseResources();
+        }
+    }
+
+    private void ReleaseResources()
+    {
+        foreach (var frame in _resourcesAwaitingGpu)
+        {
+            foreach (var resource in frame)
+            {
+                resource.Dispose();
+            }
+        }
+        foreach (var buffer in _buffers)
+        {
+            buffer?.Dispose();
+        }
+
+        foreach (var allocator in _allocators)
+        {
+            allocator?.Dispose();
+        }
+
+        Commands?.Dispose();
+        _renderTargets?.Dispose();
+        _swapChain?.Dispose();
+        _frameReady.Dispose();
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Rendering/Dx12Surface.cs</code></p></details><details id="source-828c4d789190" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">ScenePainter</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">ScenePainter.cs · 213줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="ScenePainter 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="ScenePainter 코드"><code data-source="../src/VisionCanvas/Rendering/ScenePainter.cs" data-kind="full" data-language="csharp">using System.Numerics;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionCanvas.Imaging;
+using VisionGeometry;
+using VisionImaging.Abstractions;
+
+namespace VisionCanvas.Rendering;
+
+internal sealed partial class ScenePainter
+{
+    private readonly SpriteMesh _mesh = new();
+    private readonly RoiLabelPainter _labels = new();
+    private static readonly Vector4 s_accent = new(.22f, .52f, 1, 1);
+
+    public int RoiBatchBoundary
+    {
+        get;
+        private set;
+    }
+
+    public SpriteMesh Build(RenderScene scene, GpuTexture white, IReadOnlyDictionary&lt;TileKey, GpuTexture&gt; tiles, Func&lt;string, GpuTexture&gt; label,
+        Func&lt;string, GpuTexture?&gt; deferredLabel, GpuTexture? live, BoundsD liveBounds, GpuFilterPreview filters, GpuTexture? liveOverview,
+        Func&lt;string, GpuTextRegion?&gt;? batchLabel = null)
+    {
+        _mesh.Begin(scene.Width, scene.Height);
+        var view = scene.Document.Viewport;
+        if (scene.IsLive &amp;&amp; live is not null)
+        {
+            var a = view.ImageToScreen(new(liveBounds.Left, liveBounds.Top));
+            var b = view.ImageToScreen(new(liveBounds.Right, liveBounds.Bottom));
+            _mesh.Rectangle(live, new(a.X, a.Y, b.X, b.Y), Vector4.One, scene.PointSampling);
+        }
+        else if (!scene.IsLive &amp;&amp; scene.Image is { } image)
+        {
+            var visible = TilePlanner.Visible(image, view, scene.Width, scene.Height, scene.Dpi);
+            if (tiles.TryGetValue(new(image.Levels - 1, 0, 0), out var overview) &amp;&amp; !OpaqueTilesCover(image, visible, tiles))
+            {
+                var topLeft = view.ImageToScreen(new(0, 0));
+                var bottomRight = view.ImageToScreen(new(image.Width, image.Height));
+                _mesh.Rectangle(overview, new(topLeft.X, topLeft.Y, bottomRight.X, bottomRight.Y), Vector4.One, scene.PointSampling);
+            }
+            foreach (var key in visible)
+            {
+                if (!tiles.TryGetValue(key, out var texture))
+                {
+                    continue;
+                }
+
+                var factor = 1 &lt;&lt; key.Level;
+                var a = view.ImageToScreen(new(key.X * 512d * factor, key.Y * 512d * factor));
+                var b = view.ImageToScreen(new(Math.Min(image.Width, ((key.X * 512d) + texture.Width) * factor), Math.Min(image.Height, ((key.Y * 512d) + texture.Height) * factor)));
+                _mesh.Rectangle(texture, new(a.X, a.Y, b.X, b.Y), Vector4.One, scene.PointSampling);
+            }
+        }
+        foreach (var (region, texture, uv) in filters.Regions)
+        {
+            var corners = region.Geometry.FrameCorners.Select(view.ImageToScreen).ToArray();
+            _mesh.Quad(texture, corners[0], corners[1], corners[2], corners[3], Vector4.One, true, uv);
+        }
+        RoiBatchBoundary = _mesh.Split();
+        DrawRepeatedGrid(scene, white, label);
+        DrawRepeatedDocument(scene, white, label);
+        DrawDragFill(_mesh, scene, white);
+        if (scene.Overlay.Hover is { } hover &amp;&amp; scene.Document.Rois.TryGetValue(hover, out var hovered))
+        {
+            var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
+            _mesh.Outline(white, (scene.Transform?.Geometry(hovered) ?? hovered.Geometry).Outline.Select(view.ImageToScreen).ToArray(),
+                style.StrokeThickness(true), style.StrokeColor(true, scene.Document.SelectionCount &gt; 1 &amp;&amp; scene.Document.Selection.Contains(hover)));
+        }
+        if (scene.Document.SelectionCount == 1 &amp;&amp; scene.Document.Selection.Count == 1 &amp;&amp; !scene.MaskEditing)
+        {
+            var roi = scene.Document.Rois[scene.Document.Selection.Single()];
+            var color = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, roi.Id)).SelectedColor;
+            var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
+            var points = geometry.FrameCorners.Select(view.ImageToScreen).ToArray();
+            foreach (var point in HandleGeometry.ResizeHandles(geometry, view))
+            {
+                Handle(white, point, 6, color);
+            }
+
+            var top = (points[0] + points[1]) / 2;
+            var rotation = HandleGeometry.RotationHandle(geometry, view);
+            _mesh.Line(white, top, rotation, 1, color);
+            RotationHandle(white, rotation, color);
+        }
+        if (scene.Document.SelectionCount &gt; 1)
+        {
+            var selectionColor = scene.RoiStyles.Default.MultiSelectedColor;
+            var bounds = scene.Document.RepeatedSelection.IsEmpty ? scene.Document.SelectedSpatial.Bounds : scene.Document.TransformSelection.Bounds;
+            var transform = scene.Transform?.Transform ?? default;
+            var corners = SelectionCorners(bounds, view, transform);
+            _mesh.Outline(white, corners, 1, selectionColor);
+            var top = (corners[0] + corners[1]) / 2;
+            var rotation = top + transform.ApplyVector(new PointD(0, -28));
+            _mesh.Line(white, top, rotation, 1, selectionColor);
+            RotationHandle(white, rotation, selectionColor);
+        }
+        var draftStyle = scene.Overlay.DraftIsGroup ? scene.RoiStyles.Parent : scene.RoiStyles.Child;
+        if (scene.Overlay.Draft is { } draft)
+        {
+            _mesh.Outline(white, draft.Outline.Select(view.ImageToScreen).ToArray(),
+            draftStyle.StrokeThickness(true), draftStyle.SelectedColor);
+        }
+
+        if (!scene.Overlay.PolygonPoints.IsDefaultOrEmpty)
+        {
+            var points = scene.Overlay.PolygonPoints.Select(view.ImageToScreen).ToArray();
+            for (var i = 1; i &lt; points.Length; i++)
+            {
+                _mesh.Line(white, points[i - 1], points[i], draftStyle.StrokeThickness(true), draftStyle.SelectedColor);
+            }
+
+            foreach (var point in points)
+            {
+                Handle(white, point, 5, draftStyle.SelectedColor);
+            }
+        }
+        if (scene.Overlay.Marquee is { } selection)
+        {
+            _mesh.Outline(white, [new(selection.Left, selection.Top), new(selection.Right, selection.Top), new(selection.Right, selection.Bottom), new(selection.Left, selection.Bottom)], 1, s_accent);
+        }
+        _labels.Draw(_mesh, scene, white, deferredLabel, label);
+        if (_labels.HasSummaries)
+        {
+            var text = label("미세 ROI 요약 · 확대하면 개별 윤곽 표시");
+            _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), new(.13f, .16f, .22f, .94f));
+            _mesh.Rectangle(text, new(14, 12, 14 + (text.Width / scene.Dpi), 12 + (text.Height / scene.Dpi)), Vector4.One);
+        }
+        if (!scene.InspectionInLayer)
+        {
+            ResultOverlayPainter.Draw(_mesh, scene, white, label, deferredLabel, batchLabel);
+        }
+        DrawingLayerPainter.Draw(_mesh, scene, white, deferredLabel, label, batchLabel);
+        var minimapImage = scene.IsLive ? liveOverview : scene.Image is { } source ? tiles.GetValueOrDefault(new(source.Levels - 1, 0, 0)) : null;
+        MinimapPainter.Draw(_mesh, scene, white, minimapImage, label);
+        return _mesh;
+    }
+
+    private static bool OpaqueTilesCover(ImageInfo image, IReadOnlyList&lt;TileKey&gt; visible, IReadOnlyDictionary&lt;TileKey, GpuTexture&gt; tiles)
+    {
+        foreach (var key in visible)
+        {
+            if (!tiles.TryGetValue(key, out var texture) || !texture.HasPixels || !texture.IsOpaque)
+            {
+                return false;
+            }
+            var factor = 1 &lt;&lt; key.Level;
+            var width = Math.Min(ImageInfo.TileSize, (int)Math.Ceiling(image.Width / (double)factor) - (key.X * ImageInfo.TileSize));
+            var height = Math.Min(ImageInfo.TileSize, (int)Math.Ceiling(image.Height / (double)factor) - (key.Y * ImageInfo.TileSize));
+            if (texture.Width &lt; width || texture.Height &lt; height)
+            {
+                return false;
+            }
+        }
+        return visible.Count &gt; 0;
+    }
+
+    internal static void DrawDragFill(SpriteMesh mesh, RenderScene scene, GpuTexture white)
+    {
+        if ((scene.Overlay.DragArea ?? scene.Overlay.Marquee) is { } area)
+        {
+            mesh.Rectangle(white, area, s_accent with
+            {
+                W = .08f
+            });
+        }
+    }
+
+    private void DrawRepeatedGrid(RenderScene scene, GpuTexture white, Func&lt;string, GpuTexture&gt; label)
+    {
+        if (scene.RepeatedGrid is not { } grid)
+        {
+            return;
+        }
+        var view = scene.Document.Viewport;
+        foreach (var index in grid.Overrides.Keys)
+        {
+            var geometry = grid.Geometry(index);
+            _mesh.Outline(white, geometry.Outline.Select(view.ImageToScreen).ToArray(), 1,
+                scene.RoiStyles.Default.StrokeColor(scene.RepeatedSelection is null || scene.RepeatedSelection == index));
+        }
+        var selected = scene.RepeatedSelection is { } id ? grid.Geometry(id) : grid.Frame;
+        var color = scene.RoiStyles.Default.SelectedColor;
+        var corners = selected.FrameCorners.Select(view.ImageToScreen).ToArray();
+        _mesh.Outline(white, corners, 1.5, color);
+        var rotation = HandleGeometry.RotationHandle(selected, view);
+        _mesh.Line(white, (corners[0] + corners[1]) / 2, rotation, 1, color);
+        RotationHandle(white, rotation, color);
+        if (RepeatedRoiPipeline.SummaryStride(grid, view.Scale) &gt; 1)
+        {
+            var text = label("반복 격자 요약 · 확대하면 개별 ROI 윤곽 표시");
+            _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), new(.13f, .16f, .22f, .94f));
+            _mesh.Rectangle(text, new(14, 12, 14 + (text.Width / scene.Dpi), 12 + (text.Height / scene.Dpi)), Vector4.One);
+        }
+    }
+
+    internal static PointD[] SelectionCorners(BoundsD bounds, ViewportTransform view, RigidTransform2D transform)
+        =&gt; new[] { new PointD(bounds.Left, bounds.Top), new(bounds.Right, bounds.Top), new(bounds.Right, bounds.Bottom), new(bounds.Left, bounds.Bottom) }
+            .Select(point =&gt; view.ImageToScreen(transform.Apply(point))).ToArray();
+
+    private void Handle(GpuTexture white, PointD point, double size, Vector4 color)
+    {
+        _mesh.Rectangle(white, new(point.X - (size / 2) - 1, point.Y - (size / 2) - 1, point.X + (size / 2) + 1, point.Y + (size / 2) + 1), color);
+        _mesh.Rectangle(white, new(point.X - (size / 2), point.Y - (size / 2), point.X + (size / 2), point.Y + (size / 2)), Vector4.One);
+    }
+
+    private void RotationHandle(GpuTexture white, PointD point, Vector4 color)
+    {
+        _mesh.Circle(white, point, 5, color);
+        _mesh.Circle(white, point, 3.5, Vector4.One);
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Rendering/ScenePainter.cs</code></p></details>
 <aside class="note">DXGI의 표시 준비와 GPU fence 완료는 다른 조건입니다. 앞의 조건만 기다리고 GPU가 읽는 버퍼를 덮어쓰면 안 됩니다. Present(1)을 호출했다는 사실만으로 물리 모니터에 그 픽셀이 나타난 시각을 알 수 있는 것도 아닙니다.</aside>
 </section>
-<section>
-<h2>resource barrier와 fence</h2>
-<p>barrier는 GPU 자원을 복사 대상으로 쓰던 상태에서 셰이더 입력으로 쓰는 상태 등으로 전환합니다. fence는 CPU나 다른 작업이 완료를 관찰할 수 있게 합니다. ‘상태 전환’과 ‘완료 기다리기’를 바꿔 쓰지 않습니다.</p>
-<pre><code>GPU texture: COPY_DEST → PIXEL_SHADER_RESOURCE
-back buffer: PRESENT → RENDER_TARGET → PRESENT
-
-CPU: 명령 제출 → fence 번호 기록 → 다음 슬롯 작업
-GPU: 명령 실행 → 완료 번호 갱신
-CPU: 그 슬롯 재사용 시 완료 번호 확인</code></pre><p>이 순서를 생략하면 드물게 깜빡임·이전 픽셀·장치 오류가 생길 수 있습니다. C#의 GC는 GPU가 언제 읽기를 끝냈는지 알지 못합니다. <code>Retire</code>가 즉시 해제가 아니라 fence 후 해제 예약인 이유입니다.</p>
-<p class="source"><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/using-resource-barriers-to-synchronize-resource-states-in-direct3d-12">Microsoft resource barrier</a> · <a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/fence-based-resource-management">fence 기반 자원 관리</a></p>
-</section>
-<section>
-<h2>화면 좌표에서 셰이더 좌표까지</h2>
-<div class="formula" tabindex="0" role="group" aria-label="수식">
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="x_ndc = 2x_physical/W_physical − 1; y_ndc = 1 − 2y_physical/H_physical"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msub><mi>x</mi><mi mathvariant="normal">ndc</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mfrac><mrow><mn>2</mn><msub><mi>x</mi><mi mathvariant="normal">physical</mi></msub></mrow><msub><mi>W</mi><mi mathvariant="normal">physical</mi></msub></mfrac><mo>−</mo><mn>1</mn></mrow></mtd></mtr><mtr><mtd><msub><mi>y</mi><mi mathvariant="normal">ndc</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>1</mn><mo>−</mo><mfrac><mrow><mn>2</mn><msub><mi>y</mi><mi mathvariant="normal">physical</mi></msub></mrow><msub><mi>H</mi><mi mathvariant="normal">physical</mi></msub></mfrac></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">x_ndc = 2x_physical/W_physical − 1; y_ndc = 1 − 2y_physical/H_physical</annotation></semantics></math>
-</div><p>NDC는 정규화 장치 좌표입니다. 왼쪽은 −1, 오른쪽은 +1, 위쪽은 +1, 아래쪽은 −1입니다. 화면 y가 아래로 증가하므로 두 번째 식의 부호가 반대입니다. DIP와 물리 px를 분자·분모에 섞으면 DPI별로 틀어집니다.</p>
-<p>많은 ROI는 인스턴스 데이터로 보관하고 공통 이동·회전 상수만 갱신합니다. 화면 밖 후보는 BVH 공간 트리로 건너뜁니다. 작은 묶음을 LOD로 요약하더라도 문서의 실제 ROI는 그대로 남습니다. C# 구조체와 HLSL 상수의 크기·오프셋은 계약이므로 필드 순서를 ‘보기 좋게’ 바꾸면 안 됩니다.</p>
-<p><a href="../src/VisionCanvas/Rendering/RoiDrawConstants.cs">RoiDrawConstants</a> · <a href="../src/VisionCanvas/Shaders/Roi.hlsl">Roi.hlsl</a> · <a href="../tests/VisionCanvas.Tests/RoiGpuLayoutTests.cs">GPU 배치 테스트</a></p>
-<details><summary>직접 확인: 명령 제출 직후 texture.Dispose()가 위험한 이유는?</summary><p>CPU가 제출을 끝내도 GPU는 아직 그 texture를 읽을 수 있습니다. 마지막 사용의 fence가 완료된 뒤 소유자가 해제해야 합니다. UI 스레드에서 기다리는 방식으로 해결하면 입력이 멈출 수 있어 렌더 소유 경계에서 처리합니다.</p>
-</details>
-</section>
-<section><h2>호스트가 장면을 보내는 실제 코드</h2>
+<section id="reading-9"><h2>호스트가 장면을 보내는 실제 코드</h2>
 <p>렌더 스레드가 UI 컨트롤을 직접 읽게 하지 않고 화면 크기·영상 세대·문서·편집 미리보기를 한 장면으로 보냅니다. 아래 메서드는 9장의 LessonWindow 안에 있으며, 전체 창 코드는 같은 9장에서 펼칠 수 있습니다.</p>
-<details class="code-example" open><summary>Publish: 현재 상태를 RenderScene으로 게시</summary>
-<p class="source">현재 저장소 코드 · 발췌 · <a href="labs/CanvasHost/LessonWindow.cs">manual/labs/CanvasHost/LessonWindow.cs</a></p>
-<pre tabindex="0" aria-label="Publish: 현재 상태를 RenderScene으로 게시"><code data-source="labs/CanvasHost/LessonWindow.cs" data-kind="excerpt">private void Publish()
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">Publish: 현재 상태를 RenderScene으로 게시</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">LessonWindow.cs · 11줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="Publish: 현재 상태를 RenderScene으로 게시 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="Publish: 현재 상태를 RenderScene으로 게시 코드"><code data-source="labs/CanvasHost/LessonWindow.cs" data-kind="excerpt" data-language="csharp">private void Publish()
 {
     if (_image is null || _closing)
     {
@@ -65,8 +821,594 @@ CPU: 그 슬롯 재사용 시 완료 번호 확인</code></pre><p>이 순서를 
         _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi,
         _input.Overlay, Transform: _session.TransformPreview));
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 발췌 · <a href="#source-c0e4a0d1178d" data-code-target="source-c0e4a0d1178d">manual/labs/CanvasHost/LessonWindow.cs</a></p></details><details id="source-c0e4a0d1178d" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">manual/labs/CanvasHost/LessonWindow.cs</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">LessonWindow.cs · 139줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="manual/labs/CanvasHost/LessonWindow.cs 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="manual/labs/CanvasHost/LessonWindow.cs 코드"><code data-source="labs/CanvasHost/LessonWindow.cs" data-kind="full" data-language="csharp">using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using VisionCanvas.Controls;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Interaction;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+using VisionImaging.Abstractions;
+
+namespace VisionCanvas.Manual;
+
+/// &lt;summary&gt;소스·편집·입력·장면을 연결하는 작은 학습 호스트. 편집 규칙과 GPU 수명은 라이브러리에 둔다.&lt;/summary&gt;
+internal sealed class LessonWindow : Window
+{
+    private readonly EditorSession _session = new();
+    private readonly Dx12Viewport _viewport = new();
+    private readonly InteractionController _input;
+    private readonly TextBlock _status = new() { Margin = new Thickness(8) };
+    private ImageInfo? _image;
+    private long _generation;
+    private bool _closing;
+
+    public LessonWindow(bool softwareRendering)
+    {
+        Title = "VisionCanvas 학습 호스트 · 8K 합성 영상";
+        Width = 1100;
+        Height = 760;
+        _input = new InteractionController(_session);
+        _viewport.Input = _input;
+        if (softwareRendering)
+        {
+            _viewport.DevicePreference = RenderDevicePreference.Software;
+        }
+
+        var toolbar = new WrapPanel();
+        AddButton(toolbar, "사각형 추가", AddRectangle);
+        AddButton(toolbar, "선택 도구", () =&gt; _input.Tool = EditorTool.Select);
+        AddButton(toolbar, "화면 이동", () =&gt; _input.Tool = EditorTool.Pan);
+        AddButton(toolbar, "화면 맞춤", Fit);
+        AddButton(toolbar, "삭제", _session.DeleteSelection);
+        AddButton(toolbar, "Undo", _session.Undo);
+        AddButton(toolbar, "Redo", _session.Redo);
+        AddButton(toolbar, "취소", _input.Cancel);
+        var layout = new DockPanel();
+        DockPanel.SetDock(toolbar, Dock.Top);
+        DockPanel.SetDock(_status, Dock.Bottom);
+        layout.Children.Add(toolbar);
+        layout.Children.Add(_status);
+        layout.Children.Add(_viewport);
+        Content = layout;
+
+        _session.Changed += (_, _) =&gt; Publish();
+        _input.Changed += Publish;
+        _viewport.LayoutChanged += Publish;
+        _viewport.RendererStatusChanged += message =&gt; _status.Text = message;
+        _viewport.InputFailed += error =&gt; _status.Text = error.Message;
+        _viewport.Tiles.Failed += message =&gt; Dispatcher.BeginInvoke(() =&gt; _status.Text = message);
+        _viewport.KeyAction = (key, _, _) =&gt;
+        {
+            if (key != Key.Escape)
+            {
+                return false;
+            }
+            _input.Cancel();
+            return true;
+        };
+        Loaded += (_, _) =&gt; InitializeImage();
+        Closing += (_, _) =&gt;
+        {
+            _closing = true;
+            _input.Cancel();
+        };
+    }
+
+    private void InitializeImage()
+    {
+        if (_image is not null)
+        {
+            return;
+        }
+        var source = new CheckerTileSource();
+        var info = source.Info;
+        _generation = _viewport.SetSource(source); // 이후 source는 viewport의 worker가 해제한다.
+        _image = info;
+        _session.InitializeImage(new ImageReference(info.Key, info.Name, info.Width, info.Height),
+            ViewportTransform.Fit(info.Width, info.Height, _viewport.ViewWidth, _viewport.ViewHeight));
+        AddRectangle();
+    }
+
+    private void AddRectangle()
+    {
+        if (_image is null)
+        {
+            return;
+        }
+        _input.Cancel();
+        _session.Add(new RoiGeometry(new PointD(4096, 4096), 1600, 800, 15));
+    }
+
+    private void Fit()
+    {
+        if (_image is not null)
+        {
+            _session.SetViewport(ViewportTransform.Fit(_image.Width, _image.Height,
+                _viewport.ViewWidth, _viewport.ViewHeight));
+        }
+    }
+
+    private void Publish()
+    {
+        if (_image is null || _closing)
+        {
+            return;
+        }
+        _input.SetViewportSize(_viewport.ViewWidth, _viewport.ViewHeight);
+        _viewport.Submit(new RenderScene(_session.State, _image, _generation,
+            _viewport.ViewWidth, _viewport.ViewHeight, _viewport.Dpi,
+            _input.Overlay, Transform: _session.TransformPreview));
+    }
+
+    private void AddButton(Panel toolbar, string text, Action action)
+    {
+        var button = new Button { Content = text, Margin = new Thickness(4), Padding = new Thickness(8, 4, 8, 4) };
+        button.Click += (_, _) =&gt;
+        {
+            try
+            {
+                _input.Cancel();
+                action();
+            }
+            catch (Exception error)
+            {
+                _status.Text = error.Message;
+            }
+        };
+        toolbar.Children.Add(button);
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>labs/CanvasHost/LessonWindow.cs</code></p></details>
 <p>Submit 호출은 “장면을 전달했다”는 뜻입니다. GPU 제출, GPU 완료, 실제 모니터 표시는 각각 다른 시점입니다.</p></section>
-<nav class="pager" aria-label="이전과 다음 장"><a href="06-streaming.html">← 06. 큰 영상과 버퍼의 수명</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기 →</a></nav>
+<section id="reading-7">
+<h2>resource barrier와 fence</h2>
+<p class="lesson-question">“GPU에 그리라고 했으면 다 쓴 메모리를 바로 지워도 되나요?” 주문서를 주방에 넘긴 것과 요리가 끝난 것은 다릅니다. CPU는 명령 제출을 마쳤어도 GPU는 그 명령의 데이터를 나중에 읽을 수 있습니다. 자원을 어떤 용도로 쓰는지와 언제 사용이 끝났는지 둘 다 알아야 합니다.</p>
+
+<details class="code-example">
+<summary><span class="code-language">텍스트</span><span class="code-title">resource barrier와 fence</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 6줄</span><button type="button" data-copy-code hidden aria-label="resource barrier와 fence 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="resource barrier와 fence 코드"><code data-language="text">GPU texture: COPY_DEST → PIXEL_SHADER_RESOURCE
+back buffer: PRESENT → RENDER_TARGET → PRESENT
+
+CPU: 명령 제출 → fence 번호 기록 → 다음 슬롯 작업
+GPU: 명령 실행 → 완료 번호 갱신
+CPU: 그 슬롯 재사용 시 완료 번호 확인</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>이 순서를 생략하면 드물게 깜빡임·이전 픽셀·장치 오류가 생길 수 있습니다. C#의 GC는 GPU가 언제 읽기를 끝냈는지 알지 못합니다. <code>Retire</code>가 즉시 해제가 아니라 fence 후 해제 예약인 이유입니다.</p>
+<p class="source"><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/using-resource-barriers-to-synchronize-resource-states-in-direct3d-12">Microsoft resource barrier</a> · <a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/fence-based-resource-management">fence 기반 자원 관리</a></p>
+
+<div class="worked-example"><h3>번호 42가 끝나기 전에 42의 재료를 바꾸지 않기</h3>
+<p>한 슬롯의 마지막 사용 fence 번호가 42라고 합시다. GPU 완료 번호가 41이면 그 슬롯의 upload 공간을 덮어쓰면 안 됩니다. 완료 번호가 42 이상인 것을 확인해야 해당 작업이 더 이상 그 공간을 읽지 않는다고 판단할 수 있습니다. 이것이 완료 조건입니다.</p>
+<p>barrier는 복사 대상으로 사용한 texture를 셰이더 입력으로 사용하는 등의 접근 전환을 기록합니다. barrier를 기록했다는 사실만으로 CPU에서 작업 완료를 확인한 것은 아닙니다. 반대로 fence 완료만 기다렸다고 필요한 자원 상태 전환이 저절로 기록되지는 않습니다. 현재의 상태 전환·슬롯 완료 대기·지연 해제를 한 묶음으로 읽으세요.</p></div>
+</section>
+<details class="deep-dive"><summary>계산을 따라가기 · 셰이더 좌표 변환</summary><section id="reading-8">
+<h2>화면 좌표에서 셰이더 좌표까지</h2>
+<p class="lesson-question">“창 크기가 달라도 셰이더가 같은 규칙으로 그리려면 어떻게 할까요?” 창 안의 위치를 전체 크기에 대한 비율로 바꾼 뒤 −1부터 +1 사이의 눈금으로 옮깁니다. 서로 다른 길이의 자에 ‘왼쪽 끝·가운데·오른쪽 끝’이라는 공통 눈금을 붙이는 셈입니다.</p>
+
+<div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="x_ndc = 2x_physical/W_physical − 1; y_ndc = 1 − 2y_physical/H_physical"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msub><mi>x</mi><mi mathvariant="normal">ndc</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mfrac><mrow><mn>2</mn><msub><mi>x</mi><mi mathvariant="normal">physical</mi></msub></mrow><msub><mi>W</mi><mi mathvariant="normal">physical</mi></msub></mfrac><mo>−</mo><mn>1</mn></mrow></mtd></mtr><mtr><mtd><msub><mi>y</mi><mi mathvariant="normal">ndc</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>1</mn><mo>−</mo><mfrac><mrow><mn>2</mn><msub><mi>y</mi><mi mathvariant="normal">physical</mi></msub></mrow><msub><mi>H</mi><mi mathvariant="normal">physical</mi></msub></mfrac></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">x_ndc = 2x_physical/W_physical − 1; y_ndc = 1 − 2y_physical/H_physical</annotation></semantics></math>
+</div><div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x"><semantics><mrow><mi>x</mi></mrow><annotation encoding="text/plain">x</annotation></semantics></math></td><td>엑스: 뷰포트의 가로 좌표. physical 첨자는 물리 px</td><td>DIP에 DPI 배율을 곱한 후의 위치</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="ndc"><semantics><mrow><mi>ndc</mi></mrow><annotation encoding="text/plain">ndc</annotation></semantics></math></td><td>정규화 장치 좌표라는 첨자. 단위 없음</td><td>가로 왼쪽−1/오른쪽1, 세로 위1/아래−1</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="physical"><semantics><mrow><mi>physical</mi></mrow><annotation encoding="text/plain">physical</annotation></semantics></math></td><td>물리 픽셀이라는 첨자</td><td>아래첨자는 곱셈이나 새 변수가 아님</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W"><semantics><mrow><mi>W</mi></mrow><annotation encoding="text/plain">W</annotation></semantics></math></td><td>더블유: 렌더 대상의 물리 너비(px)</td><td>DIP 너비와 혼용 금지</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="y"><semantics><mrow><mi>y</mi></mrow><annotation encoding="text/plain">y</annotation></semantics></math></td><td>와이: 뷰포트의 세로 좌표. 물리 px이며 아래로 증가</td><td>NDC로 옮길 때 방향 반전</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="H"><semantics><mrow><mi>H</mi></mrow><annotation encoding="text/plain">H</annotation></semantics></math></td><td>에이치: 렌더 대상의 물리 높이(px)</td><td>물리 높이0이면 렌더 대상 준비 필요</td></tr></tbody></table></div><p>NDC는 정규화 장치 좌표입니다. 왼쪽은 −1, 오른쪽은 +1, 위쪽은 +1, 아래쪽은 −1입니다. 화면 y가 아래로 증가하므로 두 번째 식의 부호가 반대입니다. DIP와 물리 px를 분자·분모에 섞으면 DPI별로 틀어집니다.</p>
+<p>많은 ROI는 인스턴스 데이터로 보관하고 공통 이동·회전 상수만 갱신합니다. 화면 밖 후보는 BVH 공간 트리로 건너뜁니다. 작은 묶음을 LOD로 요약하더라도 문서의 실제 ROI는 그대로 남습니다. C# 구조체와 HLSL 상수의 크기·오프셋은 계약이므로 필드 순서를 ‘보기 좋게’ 바꾸면 안 됩니다.</p>
+<details id="source-4d9852453b55" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">RoiDrawConstants</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">RoiDrawConstants.cs · 76줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RoiDrawConstants 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="RoiDrawConstants 코드"><code data-source="../src/VisionCanvas/Rendering/RoiDrawConstants.cs" data-kind="full" data-language="csharp">using System.Numerics;
+using System.Runtime.InteropServices;
+using VisionGeometry;
+
+namespace VisionCanvas.Rendering;
+
+internal enum RoiDrawPass
+{
+    Shadow, Stroke, SearchRange
+}
+
+/// &lt;summary&gt;Roi.hlsl Options의 176바이트 배치. 필드 순서는 GPU 계약이다.&lt;/summary&gt;
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+internal readonly struct RoiDrawConstants
+{
+    public const int SizeInBytes = 176;
+    public const int RootConstantCount = SizeInBytes / sizeof(float);
+
+    public readonly Vector2 ClipScale;
+    public readonly float ImageScale;
+    public readonly float SearchRangePass;
+    public readonly Vector2 ScreenOrigin;
+    public readonly float ShadowPass;
+    public readonly float SummaryOpacity;
+    public readonly Vector4 ShadowColor;
+    public readonly Vector2 Rotation;
+    public readonly Vector2 ReservedRotation;
+    public readonly Vector4 DefaultColor;
+    public readonly Vector4 ChildColor;
+    public readonly Vector4 ParentColor;
+    public readonly Vector4 ModuleColor;
+    public readonly Vector4 RootColor;
+    public readonly Vector4 StrokeWidths;
+    public readonly Vector4 ExtraStrokeWidths;
+
+    public RoiDrawConstants(RenderScene scene, PointD blockOrigin, RigidTransform2D transform, bool selected, RoiDrawPass pass)
+    {
+        // 큰 이미지 원점은 double에서 변환하고, GPU에는 화면 원점과 블록 상대 float만 전달한다.
+        var screenOrigin = scene.Document.Viewport.ImageToScreen(transform.Apply(blockOrigin));
+        var palette = scene.RoiStyles;
+        var isShadow = pass == RoiDrawPass.Shadow;
+        var shadowExpansion = 0f;
+        if (isShadow)
+        {
+            shadowExpansion = selected ? 1.5f : 1f;
+        }
+
+        ClipScale = new((float)(2 / scene.Width), (float)(-2 / scene.Height));
+        ImageScale = (float)scene.Document.Viewport.Scale;
+        SearchRangePass = pass == RoiDrawPass.SearchRange ? 1 : 0;
+        ScreenOrigin = new((float)screenOrigin.X, (float)screenOrigin.Y);
+        ShadowPass = isShadow ? 1 : 0;
+        SummaryOpacity = selected ? 1 : .5f;
+        ShadowColor = new(0, 0, 0, .22f);
+        Rotation = new((float)transform.Cosine, (float)transform.Sine);
+        ReservedRotation = default;
+        var multiple = scene.Document.SelectionCount &gt; 1;
+        DefaultColor = palette.Default.StrokeColor(selected, multiple);
+        ChildColor = palette.Child.StrokeColor(selected, multiple);
+        ParentColor = palette.Parent.StrokeColor(selected, multiple);
+        ModuleColor = palette.Module.StrokeColor(selected, multiple);
+        RootColor = palette.Root.StrokeColor(selected, multiple);
+        StrokeWidths = new(
+            palette.Default.StrokeThickness(selected) + shadowExpansion,
+            palette.Child.StrokeThickness(selected) + shadowExpansion,
+            palette.Parent.StrokeThickness(selected) + shadowExpansion,
+            palette.Module.StrokeThickness(selected) + shadowExpansion);
+        ExtraStrokeWidths = new(palette.Root.StrokeThickness(selected) + shadowExpansion, 0, 0, 0);
+        if (pass == RoiDrawPass.SearchRange)
+        {
+            DefaultColor = ChildColor = ParentColor = ModuleColor = RootColor = new(1, 0, 0, 1);
+            StrokeWidths = new(1.5f, 1.5f, 1.5f, 1.5f);
+            ExtraStrokeWidths = new(1.5f, 0, 0, 0);
+        }
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Rendering/RoiDrawConstants.cs</code></p></details><details id="source-fc9b442c9843" class="code-example">
+<summary><span class="code-language">HLSL</span><span class="code-title">Roi.hlsl</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Roi.hlsl · 103줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="Roi.hlsl 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="Roi.hlsl 코드"><code data-source="../src/VisionCanvas/Shaders/Roi.hlsl" data-kind="full" data-language="hlsl">struct Instance {
+    float2 center;
+    float2 axisX;
+    float2 axisY;
+    uint summary;
+    uint padding;
+};
+StructuredBuffer&lt;Instance&gt; instances : register(t0);
+StructuredBuffer&lt;uint&gt; roles : register(t1);
+
+// RoiDrawConstants와 동일한 176바이트 배치. 각 줄의 묶음은 16바이트 경계를 유지한다.
+cbuffer Options : register(b0) {
+    float2 clipScale; float imageScale; float searchRangePass;
+    float2 screenOrigin; float shadowPass; float summaryOpacity;
+    float4 shadowColor;
+    float2 rotation; float2 reservedRotation;
+    float4 roleColors[5];
+    float4 roleWidths;
+    float4 extraRoleWidths;
+};
+struct Pixel { float4 position : SV_POSITION; float4 color : COLOR; float2 circleOffset : TEXCOORD0; float2 circleStroke : TEXCOORD1; float strokeDistance : TEXCOORD2; };
+static const uint RectangleEdgeCount = 4;
+static const uint VerticesPerEdge = 6;
+static const uint RootRole = 4;
+static const float2 corners[RectangleEdgeCount] = { float2(-1,-1), float2(1,-1), float2(1,1), float2(-1,1) };
+static const uint cornerIndex[VerticesPerEdge] = { 0,1,2,0,2,3 };
+
+float2 ToScreen(float2 localPosition) {
+    float2 rotatedPosition = float2(
+        localPosition.x*rotation.x-localPosition.y*rotation.y,
+        localPosition.x*rotation.y+localPosition.y*rotation.x);
+    return rotatedPosition*imageScale + screenOrigin;
+}
+
+float2 StrokeCorner(uint corner, float2 edgeStart, float2 edgeEnd, float2 halfWidthNormal) {
+    if (corner == 0) return edgeStart + halfWidthNormal;
+    if (corner == 1) return edgeEnd + halfWidthNormal;
+    if (corner == 2) return edgeEnd - halfWidthNormal;
+    return edgeStart - halfWidthNormal;
+}
+
+Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID) {
+    Instance roi = instances[instanceIndex];
+    uint role = min(roles[instanceIndex], RootRole);
+    float strokeWidth = role &lt; 4 ? roleWidths[role] : extraRoleWidths.x;
+    Pixel pixel;
+    pixel.circleOffset = 0;
+    pixel.circleStroke = 0;
+    pixel.strokeDistance = 0;
+    pixel.color = shadowPass != 0 ? shadowColor : roleColors[role];
+    float2 screenPosition;
+    if (roi.summary == 3) {
+        if (vertexIndex &gt;= VerticesPerEdge) {
+            pixel.position = float4(2,2,0,1);
+            return pixel;
+        }
+        float radius = length(roi.axisX)*imageScale;
+        float halfWidth = strokeWidth*.5;
+        pixel.circleOffset = corners[cornerIndex[vertexIndex]]*(radius+halfWidth+1);
+        pixel.circleStroke = float2(radius, halfWidth);
+        screenPosition = ToScreen(roi.center) + pixel.circleOffset;
+    } else if (roi.summary == 1) {
+        if (vertexIndex &gt;= VerticesPerEdge || shadowPass != 0) {
+            pixel.position = float4(2,2,0,1);
+            return pixel;
+        }
+        float2 summaryCorner = corners[cornerIndex[vertexIndex]];
+        screenPosition = ToScreen(roi.center + roi.axisX*summaryCorner.x + roi.axisY*summaryCorner.y);
+        pixel.color.a *= summaryOpacity;
+    } else {
+        if (roi.summary == 2 &amp;&amp; vertexIndex &gt;= VerticesPerEdge) {
+            pixel.position = float4(2,2,0,1);
+            return pixel;
+        }
+        uint edgeIndex = vertexIndex / VerticesPerEdge;
+        uint strokeCorner = cornerIndex[vertexIndex % VerticesPerEdge];
+        float2 localEdgeStart = corners[edgeIndex];
+        float2 localEdgeEnd = corners[(edgeIndex+1)%RectangleEdgeCount];
+        float2 edgeStart = ToScreen(roi.center + roi.axisX*localEdgeStart.x + roi.axisY*localEdgeStart.y);
+        float2 edgeEnd = ToScreen(roi.center + roi.axisX*localEdgeEnd.x + roi.axisY*localEdgeEnd.y);
+        if (roi.summary == 2) {
+            edgeStart = ToScreen(roi.center);
+            edgeEnd = ToScreen(roi.center + roi.axisX);
+        }
+        float2 edgeDirection = edgeEnd-edgeStart;
+        pixel.strokeDistance = (strokeCorner == 1 || strokeCorner == 2) ? length(edgeDirection) : 0;
+        float2 halfWidthNormal = float2(-edgeDirection.y,edgeDirection.x)
+            * (strokeWidth*.5/max(length(edgeDirection),.00001));
+        screenPosition = StrokeCorner(strokeCorner, edgeStart, edgeEnd, halfWidthNormal);
+    }
+    pixel.position = float4(screenPosition*clipScale + float2(-1,1),0,1);
+    return pixel;
+}
+float4 PSMain(Pixel pixel) : SV_TARGET {
+    // 화면 DIP 기준 8px 선 / 5px 공백으로 확대율과 무관한 대시 길이를 유지한다.
+    if (searchRangePass != 0 &amp;&amp; fmod(pixel.strokeDistance, 13) &gt;= 8) discard;
+    if (pixel.circleStroke.x &gt; 0) {
+        float distance = abs(length(pixel.circleOffset)-pixel.circleStroke.x);
+        pixel.color.a *= saturate(pixel.circleStroke.y + .5 - distance);
+        clip(pixel.color.a-.001);
+    }
+    return pixel.color;
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Shaders/Roi.hlsl</code></p></details><details id="source-1e079b70c47f" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">GPU 배치 테스트</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">RoiGpuLayoutTests.cs · 116줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="GPU 배치 테스트 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="GPU 배치 테스트 코드"><code data-source="../tests/VisionCanvas.Tests/RoiGpuLayoutTests.cs" data-kind="full" data-language="csharp">using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Rendering;
+using VisionGeometry;
+
+namespace TeachingToolWpf.Imaging.Tests;
+
+public class RoiGpuLayoutTests
+{
+    [Fact]
+    public void MixedRepeatedSelectionUsesMultipleColorForOrdinaryRoi()
+    {
+        var editor = new EditorSession();
+        editor.SetImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);
+        editor.Add(new(new(200, 200), 30, 30, 0));
+        editor.AddRepeatedGrid(new(1, 1, 100, new(400, 400)));
+        editor.SelectAll();
+        var scene = new RenderScene(editor.State, null, 0, 800, 600, 1, new());
+        var constants = new RoiDrawConstants(scene, default, default, true, RoiDrawPass.Stroke);
+        Assert.Equal(RoiStylePalette.Standard.Default.MultiSelectedColor, constants.DefaultColor);
+    }
+
+    [Fact]
+    public void DrawPayloadMatchesEveryHlslConstantOffsetAndContainsNoManagedReferences()
+    {
+        Assert.False(RuntimeHelpers.IsReferenceOrContainsReferences&lt;RoiDrawConstants&gt;());
+        Assert.Equal(176, Marshal.SizeOf&lt;RoiDrawConstants&gt;());
+        Assert.Equal(RoiDrawConstants.SizeInBytes, Unsafe.SizeOf&lt;RoiDrawConstants&gt;());
+        Assert.Equal(44, RoiDrawConstants.RootConstantCount);
+
+        var offsets = new (string Field, int ByteOffset)[]
+        {
+            (nameof(RoiDrawConstants.ClipScale), 0),
+            (nameof(RoiDrawConstants.ImageScale), 8),
+            (nameof(RoiDrawConstants.SearchRangePass), 12),
+            (nameof(RoiDrawConstants.ScreenOrigin), 16),
+            (nameof(RoiDrawConstants.ShadowPass), 24),
+            (nameof(RoiDrawConstants.SummaryOpacity), 28),
+            (nameof(RoiDrawConstants.ShadowColor), 32),
+            (nameof(RoiDrawConstants.Rotation), 48),
+            (nameof(RoiDrawConstants.ReservedRotation), 56),
+            (nameof(RoiDrawConstants.DefaultColor), 64),
+            (nameof(RoiDrawConstants.ChildColor), 80),
+            (nameof(RoiDrawConstants.ParentColor), 96),
+            (nameof(RoiDrawConstants.ModuleColor), 112),
+            (nameof(RoiDrawConstants.RootColor), 128),
+            (nameof(RoiDrawConstants.StrokeWidths), 144),
+            (nameof(RoiDrawConstants.ExtraStrokeWidths), 160)
+        };
+        foreach (var (field, byteOffset) in offsets)
+        {
+            Assert.Equal(byteOffset, Marshal.OffsetOf&lt;RoiDrawConstants&gt;(field).ToInt32());
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void FiveRolePayloadMatchesGpuBytesForEveryDrawPass(bool selected, bool shadow)
+    {
+        var palette = new RoiStylePalette(
+            new(new(.1f, .2f, .3f, .4f), new(.2f, .3f, .4f, .5f), 2),
+            new(new(.3f, .4f, .5f, .6f), new(.4f, .5f, .6f, .7f), 3),
+            new(new(.5f, .6f, .7f, .8f), new(.6f, .7f, .8f, .9f), 4));
+        var transform = new RigidTransform2D(new(1e12, 1e12), 37, new(17, -13));
+        var blockOrigin = new PointD(1e12 + 200, 1e12 + 100);
+        var state = DocumentState.Empty with
+        {
+            Viewport = new(.25, new(-2.5e11, -2.5e11))
+        };
+        var scene = new RenderScene(state, null, 0, 800, 600, 1.5, new(), Styles: palette);
+        var named = new RoiDrawConstants(scene, blockOrigin, transform, selected, shadow ? RoiDrawPass.Shadow : RoiDrawPass.Stroke);
+
+        // HLSL의 5색상/2개 두께 벡터 계약을 독립적으로 확인한다. 예약 슬롯은 0이다.
+        var screenOrigin = state.Viewport.ImageToScreen(transform.Apply(blockOrigin));
+        var expected = new float[44]
+        {
+            (float)(2 / scene.Width), (float)(-2 / scene.Height), (float)state.Viewport.Scale, 0,
+            (float)screenOrigin.X, (float)screenOrigin.Y, shadow ? 1 : 0, selected ? 1 : .5f,
+            0, 0, 0, .22f,
+            (float)transform.Cosine, (float)transform.Sine, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        for (var role = 0; role &lt; 5; role++)
+        {
+            var style = palette.For((RoiRole)role);
+            var color = style.StrokeColor(selected);
+            var offset = 16 + (role * 4);
+            expected[offset] = color.X;
+            expected[offset + 1] = color.Y;
+            expected[offset + 2] = color.Z;
+            expected[offset + 3] = color.W;
+            expected[36 + role] = style.StrokeThickness(selected) + (shadow ? selected ? 1.5f : 1 : 0);
+        }
+
+        Assert.Equal(MemoryMarshal.AsBytes(expected.AsSpan()).ToArray(), MemoryMarshal.AsBytes(new[] { named }.AsSpan()).ToArray());
+    }
+
+    [Fact]
+    public void InstanceStrideAndRoleStridePreserveTheTwoGpuViews()
+    {
+        Assert.False(RuntimeHelpers.IsReferenceOrContainsReferences&lt;RoiInstance&gt;());
+        Assert.Equal(32, Marshal.SizeOf&lt;RoiInstance&gt;());
+        Assert.Equal(RoiInstance.SizeInBytes, Unsafe.SizeOf&lt;RoiInstance&gt;());
+        Assert.Equal(sizeof(uint), RoiInstance.RoleSizeInBytes);
+        var instance = new RoiInstance(new(1, 2), new(3, 4), new(5, 6), 7, 8);
+        var bytes = MemoryMarshal.AsBytes(new[] { instance }.AsSpan());
+        Assert.Equal(new float[] { 1, 2, 3, 4, 5, 6 }, MemoryMarshal.Cast&lt;byte, float&gt;(bytes[..24]).ToArray());
+        Assert.Equal(new uint[] { 7, 8 }, MemoryMarshal.Cast&lt;byte, uint&gt;(bytes[24..]).ToArray());
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../tests/VisionCanvas.Tests/RoiGpuLayoutTests.cs</code></p></details>
+<details><summary>직접 확인: 명령 제출 직후 texture.Dispose()가 위험한 이유는?</summary><p>CPU가 제출을 끝내도 GPU는 아직 그 texture를 읽을 수 있습니다. 마지막 사용의 fence가 완료된 뒤 소유자가 해제해야 합니다. UI 스레드에서 기다리는 방식으로 해결하면 입력이 멈출 수 있어 렌더 소유 경계에서 처리합니다.</p>
+</details>
+
+<div class="worked-example"><h3>NDC 식을 세 단계로 만들기</h3>
+<ol><li>x를 물리 너비 W로 나누면 왼쪽 0, 오른쪽 1인 비율이 됩니다. 분자와 분모의 단위가 약분됩니다.</li><li>그 비율에 2를 곱하면 0~2가 되고, 1을 빼면 −1~+1이 됩니다.</li><li>y는 화면에서 아래로 증가하지만 이 NDC 눈금은 위가 +1입니다. 그래서 1에서 2y/H를 뺍니다.</li></ol>
+<table><thead><tr><th><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="800×600"><semantics><mrow><mrow><mn>800</mn><mo>×</mo><mn>600</mn></mrow></mrow><annotation encoding="text/plain">800×600</annotation></semantics></math> 물리 px 창의 점</th><th>x 계산</th><th>y 계산</th></tr></thead><tbody>
+<tr><td>왼쪽 위 경계 (0,0)</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2×0/800−1=−1"><semantics><mrow><mrow><mn>2</mn><mo>×</mo><mfrac><mn>0</mn><mn>800</mn></mfrac><mo>−</mo><mn>1</mn><mo>=</mo><mo>−</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">2×0/800−1=−1</annotation></semantics></math></td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1−2×0/600=+1"><semantics><mrow><mrow><mn>1</mn><mo>−</mo><mn>2</mn><mo>×</mo><mfrac><mn>0</mn><mn>600</mn></mfrac><mo>=</mo><mo>+</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">1−2×0/600=+1</annotation></semantics></math></td></tr>
+<tr><td>중앙 (400,300)</td><td>0</td><td>0</td></tr>
+<tr><td>오른쪽 아래 경계 (800,600)</td><td>+1</td><td>−1</td></tr></tbody></table>
+<p>여기서 800,600은 마지막 픽셀의 정수 인덱스가 아니라 창의 바깥 경계 좌표입니다. 물리 너비가 1200인데 중앙 x를 DIP 400 그대로 넣으면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2×400/1200−1≈−0.333"><semantics><mrow><mrow><mn>2</mn><mo>×</mo><mfrac><mn>400</mn><mn>1200</mn></mfrac><mo>−</mo><mn>1</mn><mo>≈</mo><mo>−</mo><mn>0.333</mn></mrow></mrow><annotation encoding="text/plain">2×400/1200−1≈−0.333</annotation></semantics></math>이 됩니다. 올바른 물리 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=600"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>600</mn></mrow></mrow><annotation encoding="text/plain">x=600</annotation></semantics></math>을 넣어야 중앙 0입니다. 2장의 단위 구분이 셰이더까지 이어지는 이유입니다.</p></div>
+</section></details>
+<details class="deep-dive"><summary>찾아보기 · 네이티브 입력 전달 전체 코드</summary><section id="reading-11"><h2>실제 네이티브 입력 전달 코드</h2><details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">실제 네이티브 입력 전달 코드</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Dx12Viewport.cs · 90줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="실제 네이티브 입력 전달 코드 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="실제 네이티브 입력 전달 코드 코드"><code data-source="../src/VisionCanvas/Controls/Dx12Viewport.cs" data-kind="excerpt" data-language="csharp">protected override nint WndProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
+{
+    var windowMessage = (NativeWindowMessage)message;
+    var input = PointerInput ?? Input;
+    if (windowMessage == NativeWindowMessage.GetDialogCode)
+    {
+        handled = true;
+        return NativeMethods.WantAllDialogKeys;
+    }
+    if (windowMessage == NativeWindowMessage.SetCursor &amp;&amp; NativeMethods.IsClientCursorMessage(lParam))
+    {
+        ViewportWindow.UseCursor(input?.Tool switch
+        {
+            EditorTool.Draw or EditorTool.Mask =&gt; NativeCursor.Cross,
+            EditorTool.Pan =&gt; NativeCursor.Hand,
+            _ =&gt; NativeCursor.Arrow
+        });
+        handled = true;
+        return 1;
+    }
+    if (input is null)
+    {
+        return base.WndProc(hwnd, message, wParam, lParam, ref handled);
+    }
+
+    try
+    {
+        var point = ClientPixelsToDips(NativeMethods.DecodePoint(lParam));
+        if ((windowMessage is NativeWindowMessage.LeftButtonDown or NativeWindowMessage.LeftButtonDoubleClick or
+            NativeWindowMessage.MiddleButtonDown or NativeWindowMessage.MiddleButtonDoubleClick) &amp;&amp;
+            IsInputEnabled &amp;&amp; (InputEnabled?.Invoke() ?? true))
+        {
+            NativeMethods.SetFocus(hwnd);
+            NativeMethods.SetCapture(hwnd);
+            var pan = windowMessage is NativeWindowMessage.MiddleButtonDown or NativeWindowMessage.MiddleButtonDoubleClick ||
+                NativeMethods.IsKeyPressed(NativeVirtualKey.Space);
+            if (windowMessage == NativeWindowMessage.LeftButtonDoubleClick &amp;&amp; !pan)
+            {
+                input.DoubleClick(point, Modifiers);
+            }
+            else
+            {
+                input.Down(point, Modifiers, pan);
+            }
+            handled = true;
+        }
+        else if (windowMessage is NativeWindowMessage.LeftButtonUp or NativeWindowMessage.MiddleButtonUp)
+        {
+            // ReleaseCapture가 CaptureChanged를 재진입시킬 수 있으므로 먼저 편집을 끝낸다.
+            if (input.IsDragging)
+            {
+                input.Up(point, Modifiers);
+            }
+
+            NativeMethods.ReleaseCapture();
+            handled = true;
+        }
+        else if (windowMessage == NativeWindowMessage.MouseMove &amp;&amp; IsInputEnabled &amp;&amp; (InputEnabled?.Invoke() ?? true))
+        {
+            input.Move(point, Modifiers);
+            handled = true;
+        }
+        else if (windowMessage == NativeWindowMessage.MouseWheel)
+        {
+            var wheelPoint = WheelPositionInDips(hwnd, lParam);
+            input.Wheel(wheelPoint, NativeMethods.DecodeWheelNotches(wParam));
+            handled = true;
+        }
+        else if (windowMessage == NativeWindowMessage.KeyDown)
+        {
+            var virtualKey = (int)wParam;
+            handled = DispatchKeyAction(virtualKey);
+            if (virtualKey == (int)NativeVirtualKey.Escape)
+            {
+                NativeMethods.ReleaseCapture();
+            }
+        }
+        else if ((windowMessage is NativeWindowMessage.CaptureChanged or NativeWindowMessage.KillFocus) &amp;&amp; input.IsDragging)
+        {
+            input.Cancel();
+        }
+    }
+    catch (Exception ex)
+    {
+        input.Cancel();
+        NativeMethods.ReleaseCapture();
+        InputFailed?.Invoke(ex);
+    }
+    return handled ? 0 : base.WndProc(hwnd, message, wParam, lParam, ref handled);
+}</code></pre>
+<p class="code-copy-status" role="status"></p></details></section></details>
+<details class="deep-dive"><summary>찾아보기 · 이 장의 기호와 단위</summary><section class="symbol-guide" id="reading-1"><h2>이 장의 기호를 먼저 읽는 표</h2><p>기호는 이 장 안에서의 뜻입니다. 같은 글자라도 다른 장에서는 다른 양을 가리킬 수 있습니다. 아래첨자는 성분·번호를, 윗줄은 평균을 뜻합니다. 합 기호는 표시한 시작 번호부터 끝 번호까지 항을 모두 더하라는 지시입니다. 절댓값은 부호를 버린 크기, 제곱근은 제곱하면 안의 값이 되는 음이 아닌 수입니다.</p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x"><semantics><mrow><mi>x</mi></mrow><annotation encoding="text/plain">x</annotation></semantics></math></td><td>엑스: 뷰포트의 가로 좌표. physical 첨자는 물리 px</td><td>DIP에 DPI 배율을 곱한 후의 위치</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="y"><semantics><mrow><mi>y</mi></mrow><annotation encoding="text/plain">y</annotation></semantics></math></td><td>와이: 뷰포트의 세로 좌표. 물리 px이며 아래로 증가</td><td>NDC로 옮길 때 방향 반전</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W"><semantics><mrow><mi>W</mi></mrow><annotation encoding="text/plain">W</annotation></semantics></math></td><td>더블유: 렌더 대상의 물리 너비(px)</td><td>DIP 너비와 혼용 금지</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="H"><semantics><mrow><mi>H</mi></mrow><annotation encoding="text/plain">H</annotation></semantics></math></td><td>에이치: 렌더 대상의 물리 높이(px)</td><td>물리 높이0이면 렌더 대상 준비 필요</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="ndc"><semantics><mrow><mi>ndc</mi></mrow><annotation encoding="text/plain">ndc</annotation></semantics></math></td><td>정규화 장치 좌표라는 첨자. 단위 없음</td><td>가로 왼쪽−1/오른쪽1, 세로 위1/아래−1</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="physical"><semantics><mrow><mi>physical</mi></mrow><annotation encoding="text/plain">physical</annotation></semantics></math></td><td>물리 픽셀이라는 첨자</td><td>아래첨자는 곱셈이나 새 변수가 아님</td></tr></tbody></table></section></details>
+<section class="teach-back" aria-label="자기 말로 설명하기" id="reading-10">
+<h2>책을 덮고, 동료에게 설명해 보세요</h2>
+<p>본문을 가리고, 다음 상황의 이유를 자기 말로 설명해 보세요.</p>
+<p><strong>설명할 상황:</strong> 동료가 “Present를 호출했으니 직전 프레임의 texture를 바로 해제하고, 남는 시간에 UI에서 fence를 기다리자”고 합니다. 제출·완료·표시를 구별하여 설명하세요.</p>
+<details><summary>설명 예시와 스스로 확인할 기준</summary><p>“CPU가 제출했어도 GPU가 아직 texture를 읽고 있을 수 있어. 마지막 사용 fence가 끝났는지 렌더 소유 경계에서 확인하고 지연 해제해야 해. UI에서 기다리면 입력이 멈출 수 있어. Present 호출 시각이 물리 화면에 표시된 시각과 같은 것도 아니야.”</p><p><strong>막혔다면:</strong> ‘한 프레임을 실제 순서로 읽기’와 ‘번호 42’를 확인하고, CPU와 GPU의 시간선을 종이에 따로 그리세요. 다시 읽은 뒤 예시를 닫고 한 번 더 설명합니다.</p></details>
+</section><nav class="pager" aria-label="이전과 다음 장"><a href="06-streaming.html">← 06. 큰 영상과 버퍼의 수명</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기 →</a></nav>
 <footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
 </main></div></body></html>

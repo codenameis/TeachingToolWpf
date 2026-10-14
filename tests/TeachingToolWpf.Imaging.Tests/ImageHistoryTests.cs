@@ -1,4 +1,5 @@
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Services;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
@@ -18,7 +19,7 @@ public class ImageHistoryTests
         var closing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stops = 0;
-        using var images = new ImageCoordinator(editor, view, new Loader(), async () =>
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), new Loader(), async () =>
         {
             if (++stops == 2)
             {
@@ -45,7 +46,7 @@ public class ImageHistoryTests
         using var view = new Viewport();
         var loader = new Loader();
         var stops = 0;
-        using var images = new ImageCoordinator(editor, view, loader, () =>
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), loader, () =>
         {
             stops++;
             return Task.CompletedTask;
@@ -65,7 +66,7 @@ public class ImageHistoryTests
     {
         var editor = new EditorSession();
         using var view = new Viewport();
-        using var images = new ImageCoordinator(editor, view, new Loader());
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), new Loader());
         await images.ReplaceAsync(new("sample:8192:8192", "A", 8192, 8192));
         var id = editor.Add(new(new(100, 100), 40, 40, 15));
         await images.ReplaceAsync(new("sample:24576:1024", "B", 24576, 1024));
@@ -140,7 +141,7 @@ public class ImageHistoryTests
         var editor = new EditorSession();
         using var view = new Viewport();
         var loader = new Loader();
-        using var images = new ImageCoordinator(editor, view, loader);
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), loader);
         await images.ReplaceAsync(new("sample:8192:8192", "A", 8192, 8192));
         Assert.False(editor.CanUndo);
         await images.ReplaceAsync(new("sample:24576:1024", "B", 24576, 1024));
@@ -167,7 +168,7 @@ public class ImageHistoryTests
         using var view = new Viewport();
         var loader = new GatedLoader();
         var stops = 0;
-        using var images = new ImageCoordinator(editor, view, loader, () =>
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), loader, () =>
         {
             stops++;
             return Task.CompletedTask;
@@ -212,7 +213,7 @@ public class ImageHistoryTests
         using var view = new Viewport();
         var loader = new GatedLoader();
         var stops = 0;
-        using var images = new ImageCoordinator(editor, view, loader, () =>
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), loader, () =>
         {
             stops++;
             return Task.CompletedTask;
@@ -258,7 +259,7 @@ public class ImageHistoryTests
         var loader = new GatedLoader();
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var images = new ImageCoordinator(editor, view, loader, preparePublication: async (_, token) =>
+        using var images = new ImageCoordinator(editor, view, new(view.ViewWidth, view.ViewHeight, view.Dpi), loader, preparePublication: async (_, token) =>
         {
             started.SetResult();
             await release.Task.WaitAsync(token);

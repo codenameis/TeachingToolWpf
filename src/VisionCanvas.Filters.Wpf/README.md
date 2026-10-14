@@ -27,6 +27,6 @@ xmlns:filters="clr-namespace:VisionCanvas.Filters.Wpf.Controls;assembly=VisionCa
 
 호스트는 라이브 영상 갱신 시 `RefreshLiveFrame()`을 호출한다. TeachingToolWpf는 기존 200ms 타이머를 유지한다. ROI/슬라이더 갱신은 실행을 매번 취소하지 않고 대기 요청 하나를 교체한다. 약 100ms 대기 후 최신 요청을 취하며 실제 갱신 주기는 처리 시간에 달려 있다. 처리 중 마지막 완료 결과는 **계산한 위치 그대로** 표시한다. 다른 이미지·선택·확정 파라미터·OFF·종료는 이전 작업을 무효화한다.
 
-종료 순서는 `Filters.Dispose()` → `await Filters.WhenIdle` → processor Dispose → GPU backend Dispose다. 호스트의 이벤트 구독도 해제한다. WPF Closing에서 이미 완료된 Task를 기다리는 경우에도 중첩 Close가 발생하지 않도록 다음 dispatcher 차례에서 닫는다. 실제 연결은 TeachingToolWpf의 MainWindow와 EditorViewModel을 참고한다.
+종료 순서는 `Filters.Dispose()` → `await Filters.WhenIdle` → processor Dispose → GPU backend Dispose다. 호스트의 이벤트 구독도 해제한다. WPF Closing에서 이미 완료된 Task를 기다리는 경우에도 중첩 Close가 발생하지 않도록 다음 dispatcher 차례에서 닫는다. 실제 연결은 TeachingToolWpf의 MainWindow와 MainWindowViewModel을 참고한다.
 
 현재 필터 목록은 엔진에서 구현된 범위다. 사용자 정의 convolution kernel, 자유 순서 파이프라인 편집기, Flat-field 맵 입력은 추가하지 않았다. [검증·제한](../../docs/filter-controls.md).

@@ -6,7 +6,8 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
@@ -16,7 +17,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>Reproduces marquee/copy/paste through the actual WPF application command path.</summary>
 internal static class ClipboardRun
 {
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;
@@ -35,7 +36,7 @@ internal static class ClipboardRun
         var cycles = 0;
         int? cycle = null;
         var phase = "initial";
-        var binaries = new[] { typeof(EditorSession).Assembly, typeof(EditorViewModel).Assembly }.Select(assembly =>
+        var binaries = new[] { typeof(EditorSession).Assembly, typeof(MainWindowViewModel).Assembly }.Select(assembly =>
         {
             using var stream = File.OpenRead(assembly.Location);
             return new
@@ -287,7 +288,7 @@ internal static class ClipboardRun
                         var roi = state.Rois[row.Id];
                         var depth = roi.ParentId is { } parent ? rows[parent].Depth + 1 : 0;
                         var children = state.Snapshot.Children.GetValueOrDefault(roi.Id, []).Length;
-                        if (row.Label != roi.Name || row.Depth != depth || row.Kind != RoiRow.Describe(roi, children))
+                        if (row.Label != roi.Name || row.Depth != depth || row.Kind != RoiRow.Describe(roi, children, state.Snapshot.GroupLevels.GetValueOrDefault(roi.Id)))
                         {
                             throw new InvalidOperationException("ROI row metadata or hierarchy mismatch.");
                         }

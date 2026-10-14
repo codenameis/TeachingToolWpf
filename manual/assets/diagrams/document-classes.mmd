@@ -1,0 +1,7 @@
+classDiagram
+direction TB
+EditorSession *-- EditHistory : _history
+EditorSession --> DocumentState : State
+DocumentState --> ViewportTransform : Viewport
+DocumentState --> Roi : Rois 0..many
+Roi --> RoiGeometry : Geometry

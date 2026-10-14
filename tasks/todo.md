@@ -1,5 +1,55 @@
 # 단계별 작업 목록
 
+## 2026-10-15 부모 버튼 복구·MVVM 폴더 구조
+
+- [x] PASS: 독립 ROI/부모 그룹/선택 부모의 자식 버튼을 각각 제공. 빈 부모도 생성 즉시 부모 색상, 네 도형·미리보기·명령 전환·Undo/Redo 검증.
+- [x] PASS: MainWindow를 Views, 화면 상태/명령을 ViewModels, 데이터/판정을 Models, 실행 작업을 Services, 명령/알림을 Commands/Infrastructure로 이동. App.xaml·namespace·테스트·문서 참조 갱신. 공통 Canvas/Core 경계 유지.
+- [x] PASS: 솔루션 Release 빌드0경고/0오류, 전체1,256개(Core316·앱293·Canvas235·Algorithm249·Compute52·Inspection111). GPU/WARP 실제 부모/독립/자식 버튼·기본/미리보기/설정 색상·4단계·이력 검증.
+- [ ] NOT_RUN: 별도PC/현장 영상/대량 편집60FPS 재측정. [결정](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [검증](../docs/mvvm-viewport-validation.md). 로컬 작업만 수행, 커밋·푸시 없음.
+
+## 2026-10-15 기본 ROI 표시·ViewModel 명명 후속
+
+- [x] PASS: `RoiStyleDraft → RoiStyles`, `EditorViewModel → MainWindowViewModel` 및 세 partial 파일/참조/문서 경로 갱신. MainWindow의 DataContext 연결 유지.
+- [x] PASS: 기본 추가·그리기는 부모 없는 ROI를 생성하며 처음부터 자식 ROI의 초록색/선택/설정 색상을 사용. 드래그·폴리곤 미리보기와 그룹 해제/Undo/Redo 캐시도 같은 규칙 적용. 실제 그룹 역할과 축소 요약은 구별.
+- [x] PASS: 앱284개·Canvas235개, Release 빌드0경고/0오류. GPU/WARP 실제 앱에서 추가·드래그·미리보기·선택 해제·사용자 색상 픽셀 및4단계/이력 확인. [상세 검증](../docs/mvvm-viewport-validation.md).
+- [ ] NOT_RUN: 대량 편집60FPS 재측정. 로컬 수정·검증만 진행, 커밋·푸시 없음.
+
+## 2026-10-14 기존 부모 재사용·MVVM Viewport
+
+- [x] PASS: 기존 부모 + 독립 ROI 그룹화의 중복 생성 재현/수정, 중첩 부모·원래 형상·번호·Undo/Redo, Core316개.
+- [x] PASS: Scene/Input/Layout 바인딩, ViewModel의 컨트롤/파일 창/타이머/구체 검사 생성 제거, 반복 ROI 입력·이미지/검사 로그 책임 정리. 앱281개·바인딩4개.
+- [x] PASS: 전체1,242개 회귀, 최종 앱 Release 빌드0경고/0오류, GPU/WARP 전체 앱 입력·설정·필터·8K live·재시작 및 계층 전용 부모 재사용/색상 검증, 변경 파일 형식/스타일 및 diff 검사. [결정](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [SOLID5/GRASP9·검증](../docs/mvvm-viewport-validation.md).
+- [ ] NOT_RUN: 대량 편집60FPS 재측정, 별도 저사양PC/현장 영상. 로컬 수정·검증만 진행.
+
+## 2026-10-14 ROI 명명·4단계 계층·타입 즉시 적용
+
+- [x] PASS: `RoiGrouping → RoiGroupEditor` 등 모호한 타입/변수 이름과 참조를 갱신. 기존 입력/매뉴얼 작업 보존.
+- [x] PASS: 자식 그리기의 실제 도형 포함 검사, 부모 없는 ROI 편입, 기존 부모 재그룹화·순환 연결 거부, 최대4단계 추가/그룹화/편입. 생성 후 부모 밖 이동·회전·resize 유지.
+- [x] PASS: 계층별 목록/속성/색상, 설정의 모듈·루트 슬롯, 검색 타입 즉시 저장과 숫자 draft 분리, 통합 Undo/Redo.
+- [x] PASS: 전체 Release 빌드0경고/0오류, 전체1,228개 회귀 후 마지막 붙여넣기 보완은 Core312개 재통과(최종 대상 합계1,230개). GPU RTX3060 Laptop·강제 WARP 실제 앱의4단계 기본/설정 색상 픽셀, HWND 그리기·편입·타입/이력·깊이 버튼 제한.
+- [x] PASS: 붙여넣기의4단계 보존/과거5단계 원자적 거부, 변경 파일 명명·중괄호·namespace 스타일 검사. 새 의존성/원칙 예외 없음.
+- [ ] NOT_RUN: 실제 저사양PC·현장 이미지·대량 입력60FPS 재측정. [사용법·SOLID5/GRASP9·검증](../docs/roi-hierarchy-validation.md), [결정](../docs/decisions/0045-roi-hierarchy-and-explicit-names.md). 커밋·푸시 없음.
+
+## 2026-10-14 매뉴얼: 현재 코드·입력 시퀀스·수식 설명
+
+- [x] PASS:5장 직접 드래그/재생 SVG 실습, 단계별 클래스 경로·실제 코드4곳·확정/미리보기/이력 표시. 모델/DOM37개·발췌 일치·HTML11개/참조298개·기존 문서 회귀 확인. 실제 브라우저/학습 효과는 NOT_RUN.
+- [x] PASS:1~9장 상황→세 단계→예상/풀이→본문 경로 구성. 드래그 계산·편집·표시 사례 연결,19개 참고 설명 접기, 입력/실습 본문 순서 정리. HTML11개/참조297개·55개 소스·75개 코드창·수식/JS 회귀 및 접힌 영역 코드 열기 확인. 실제 독자 학습 효과는 미검증.
+- [x] PASS: 소스 파일 직접 링크0개. RenderWorker·Dx12Surface·ScenePainter 포함 전체 소스30개 추가, 중복 참조21개는 기존 본문 코드창 열기. 총75개 코드창·55개 실제 소스 일치, HTML11개/참조270개·문자 보존·소스 열기/해시/복사 DOM 대역 검증. 실제 브라우저 미검증 유지.
+- [x] PASS:45개 기본 접힘 코드창·언어/파일명/줄 수·C#/XML 색상·복사/권한 제한 안내 적용. HTML11개·참조299개,45개 색상 전후 문자 보존·DOM 대역 동작, 기존 소스25개·수식·학습 JS 재검증. 실제 브라우저 검증은 아래 NOT_RUN 유지.
+- [x] PASS: 이전10·11장 파일과 교체된 옛 클래스 그림/원문 삭제. 첫 화면·1~9장·부록의11페이지 유지. 사용자가 미사용 매뉴얼 파일 정리 승인.
+- [x] PASS: 클래스 관계도를 입력 연결·제스처 상속·문서 구조3개로 분리, 반응형 폭·큰 글자·교차 없는 선과 관계별 설명 적용. SVG65개 글자 경계 확인. ROI 시퀀스3개(SVG와 Mermaid 원문) 유지. 입력 우선순위·DIP·캡처·마지막 Up·취소·장면 게시·소유권 설명.
+- [x] PASS: 본문 소스25곳이 현재 파일과 일치. 자체 raw 코덱 경로 갱신. 기호·단위·수식 근처 재설명, 자기 설명 문제와 풀이 보강.
+- [x] PASS: 개편 당시 InputLifecycle8개·Foundations11개 실행, CanvasHost와 본문 버튼 예제 Release 빌드0경고/0오류. 그림 정리 후 HTML11개·로컬 참조288개, 본문 소스25개, MathML 구조/주요 전사, 학습 JS25개 검사 재통과.
+- [ ] NOT_RUN: 실제 브라우저 배치·인쇄·보조공학, 신입 독자의 독립 구축 수행 평가. 기존 FPS·실제 앱 입력 검증으로 대체하지 않음. [검증과 한계](../docs/beginner-manual-validation.md).
+
+## 2026-10-14 신입 친화적 ROI 입력 리팩터링
+
+- [x] PASS: 입력 도구 선택·폴리곤 이어 그리기·핸들 판정을 이름 있는 메서드로 정리. 기존 11개 타입의 파일 분리와73개 심볼 Rename. 새 계층·패키지·공개 API 변경 없음.
+- [x] PASS: 최종 Release 전체 빌드0경고/0오류, Core302·Canvas228·Imaging274 총804개 회귀. 마지막 포인터·확정 콜백·실패 취소·탐색 전용 pan의6개 회귀 추가.
+- [x] PASS: 변경 파일 명명·중괄호·namespace 규칙 검사와 이동/회전/Down-Up 할당량 전후 동일. [SOLID5·GRASP9 검토와 원시 측정](../docs/input-readability-refactoring.md).
+- [ ] FAIL(기존 범위): 전체 컨벤션 검사에는 변경 밖 파일의 줄바꿈/공백 문제가 남음. 이번 변경의 검증과 구별.
+- [ ] NOT_RUN: 실제 GPU/WARP·대량 ROI의 프레임 성능 재측정. 매뉴얼 후속 개편은 사용자 지시에 따라 코드 작업 뒤로 보류. 로컬 수정·검증만 진행.
+
 ## 2026-10-14 NetVips 의존성 제거
 
 - [x] PASS: WebP 유지 후속, libwebp1.6.0 decoder-only static 연결·BSD/PATENTS 고지. 손실/무손실/알파·오류·취소·예산12건과8192² 전체 픽셀 검증. 전체 RGBA 메모리·native 호출 중 취소 제한은 [기록](../docs/netvips-removal.md).
@@ -85,6 +135,13 @@ Checkpoint: F02/F05/F08/F10/F12/F14/F16/F18/F20/F22/F24 후 관련 테스트·�
 - [x] PASS: 동일 입력/독립 프로세스로 일반8K·24K 각3회 및 초대형 각1회 준비·재열기·타일 p95·메모리 비교. Linux x64 publish와 NetVips 없는 자체 의존성/로드 확인. [결과와 실행물 해시](../docs/pyramid-decoder-comparison.md).
 - [ ] FAIL: 자체 OpenCV 경로의24576×131072 Gray8/Gray16 파일 읽기. 기본 픽셀 제한으로 실패. 일반24K×8K 결과로 초대형 수용을 대체하지 않는다.
 - [ ] NOT_RUN: Linux 실실행·성능, Linux 화면, 현장 데이터, 장시간 스트리밍, 이번 실험의 ROI/GPU/WARP60FPS. 로컬 작업만 수행하며 기존 미커밋 변경과 성능 미달을 보존한다.
+
+## 2026-10-13 후속: 파인만 방식으로 매뉴얼 설명 보강
+
+- [x] PASS: HTML13페이지의 38개 절을 쉬운 문제·비유·기호/단위·중간 계산·오답 원인으로 보강. 첫 화면 학습 순환과 1~12장의 자기 설명 과제·접힌 풀이·재학습 위치를 구성.
+- [x] PASS: 새 숫자 예제27묶음 산술 확인. 기존 MathML47개·실제 소스16곳·상호작용 실험5개 보존. HTML13페이지·참조335개, MathML 전사6개, 소스 일치, JS 계약25개 재확인.
+- [ ] BLOCKED / NOT_RUN: 실제 브라우저 렌더링·인쇄는 기존 도구 접근 제한으로 미검증. 신입 독자의 설명 수행·독립 구축 평가는 미실행. 정적 검사와 학습 효과를 구별한다.
+- 생산 C#·실습 코드·JavaScript 변경 없음. 이번 문서 설명 후속의 제품 재빌드·회귀·FPS 재측정은 미실행이며 기존 성능 미달은 유지한다. [상세 검증](../docs/beginner-manual-validation.md).
 
 ## 2026-10-13 전체 변경 커밋·main 반영 승인
 

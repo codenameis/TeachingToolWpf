@@ -4,14 +4,14 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionGeometry;
 
 namespace TeachingToolWpf.Diagnostics;
 
 internal static class InspectorSmokeScenario
 {
-    public static async Task Run(Window window, EditorViewModel model)
+    public static async Task Run(Window window, MainWindowViewModel model)
     {
         var editor = model.Session;
         editor.AddRange(Enumerable.Range(0, 4600).Select(i => new RoiGeometry(new(50 + (i % 80 * 80), 50 + (i / 80 * 80)), 30, 30, 0)));

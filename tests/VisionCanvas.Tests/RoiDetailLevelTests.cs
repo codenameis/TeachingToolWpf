@@ -75,7 +75,7 @@ public class RoiDetailLevelTests
         Assert.False(RoiInstance.PackInto(block, 32, after, instances, roles, []));
         Assert.Equal(initial.Instances, instances);
         Assert.True(cache.RefreshPacked(after, roles.ToArray(), instances.Count));
-        Assert.All(cache.Values, role => Assert.Equal((uint)RoiRole.Default, role));
+        Assert.All(cache.Values, role => Assert.Equal((uint)RoiRole.Child, role));
         Assert.False(cache.Refresh(NoEnumeration(block), 32, after, instances.Count));
     }
 
@@ -117,7 +117,7 @@ public class RoiDetailLevelTests
         Assert.Throws<InvalidOperationException>(() => cache.RefreshPacked(after, [], original.Length));
         Assert.Same(original, cache.Values);
         Assert.True(cache.Refresh(block, 32, after, original.Length));
-        Assert.All(cache.Values, role => Assert.Equal((uint)RoiRole.Default, role));
+        Assert.All(cache.Values, role => Assert.Equal((uint)RoiRole.Child, role));
     }
 
     private static (DocumentState State, Roi Parent, Roi Child) Fixture(RoiShapeKind kind)

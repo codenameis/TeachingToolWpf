@@ -1,48 +1,76 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="필요한 조각만 읽고, 소유자를 분명히 하기"><title>06. 큰 영상과 버퍼의 수명 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="필요한 조각만 읽고, 소유자를 분명히 하기"><title>06. 큰 영상과 버퍼의 수명 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script><script src="assets/code-blocks.js" defer></script></head>
 <body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
 <div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
-<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html" aria-current="page">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html" aria-current="page">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="12-reference.html">부록. 용어·수식·다음 읽기</a></nav>
 <p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
 </aside>
 <main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>06. 큰 영상과 버퍼의 수명</h1>
 <p>필요한 조각만 읽고, 소유자를 분명히 하기</p>
 </div>
+<section class="lesson-start" id="start-here">
+<p class="lesson-label">먼저 이 장면 하나만 생각하세요</p>
+<h2>큰 사진에서 지금 볼 조각만 가져와 봅시다</h2><p>가로 1300px, 세로 900px인 사진을 한 변 512px 타일로 나눕니다. 사진을 오른쪽으로 밀어 본다고 전체 파일을 매번 새로 읽을 필요는 없습니다. 화면과 만나는 조각의 주소부터 구합니다.</p>
+<p class="lesson-key"><strong>기억할 한 문장</strong>타일은 이미지를 잘라 부르는 주소이며, 화면에 필요한 주소만 요청합니다.</p>
+<ol class="scene-steps"><li><strong>가로와 세로 나누기</strong><p>가로에는 세 칸, 세로에는 두 칸이 필요합니다. 전체 타일 주소는 여섯 개입니다.</p></li><li><strong>끝 조각 확인하기</strong><p>맨 오른쪽 아래 타일의 실제 영상 영역은 가로 276px, 세로 388px입니다. 할당 버퍼의 남는 칸을 원본 픽셀로 세면 안 됩니다.</p></li><li><strong>보이는 주소 요청하기</strong><p>같은 확대 단계에서 화면이 왼쪽 위 한 타일 안에만 있다면 가시 영역은 그 주소 하나와 만납니다. 구현의 여유 요청이나 캐시는 별도로 살핍니다.</p></li></ol>
+<div class="predict"><h3>잠깐, 답을 보기 전에 예상해 보세요</h3><p>사진 크기가 타일 크기의 배수가 아니면 마지막 조각을 버려도 될까요?</p><details><summary>예상과 비교하기</summary><p>안 됩니다. 나머지에도 실제 픽셀이 있습니다. 마지막 타일의 유효 너비와 높이를 함께 전달해야 합니다. 아래 숫자 예에서 올림이 필요한 이유를 먼저 확인한 뒤 피라미드 단계로 넘어가세요.</p></details></div>
+<nav class="reading-route" aria-label="이 장의 첫 읽기 순서"><strong>이제 본문에서 확인할 세 곳</strong><ol><li><a href="#tile-address" data-reading-target="tile-address">2. 주소와 마지막 조각: 1300×9001300×900을 직접 나누기</a></li><li><a href="#tile-visible" data-reading-target="tile-visible">3. 지금 화면에 필요한 타일만 고르기</a></li><li><a href="#tile-code" data-reading-target="tile-code">5. 이제 실제 타일 계획 코드를 읽기</a></li></ol></nav>
+</section>
 <section id="tiling-basics">
 <h2>1. 타일링은 큰 그림을 작은 조각으로 관리하는 방법</h2>
-<p>지도 앱에서 지금 보는 동네의 조각을 먼저 읽는다고 생각하세요. 타일(tile)은 영상 격자를 일정 크기로 나눈 조각이고, 뷰포트(viewport)는 현재 창에서 영상을 보여 주는 영역입니다. <strong>타일링의 핵심은 조각내기와 함께 ‘필요한 조각만 읽고, 나중에 다시 쓰고, 예산을 넘으면 버리기’입니다.</strong> 전체 영상을 먼저 거대한 배열에 읽은 후 잘라 놓으면 최초 메모리 문제는 여전히 남습니다.</p>
-<p>이 프로젝트의 기본 타일은 512×512px입니다. 8192×8192 Gray8 전체는 64MiB, 타일 하나는 512×512×1=262,144bytes=256KiB입니다. 네 개만 필요한 순간의 유효 픽셀은 1MiB입니다. 이는 픽셀 바이트 계산이며, 실제 풀 배열·GPU 정렬·캐시·업로드 메모리와 파일 디코더 비용은 따로 셉니다.</p>
+<p class="lesson-question">“큰 지도를 보는데 왜 지금 보는 구역만 펼치지 않을까요?” 영상도 화면보다 훨씬 클 수 있습니다. 전체 픽셀을 한 번에 GPU로 옮기는 대신 주소가 붙은 작은 조각을 관리하고, 현재 창에 필요한 조각을 준비하는 것이 타일링입니다. 먼저 ‘조각의 주소’와 ‘그 조각이 실제 어디에 저장되는가’를 구별합시다.</p>
+
+<p>이 프로젝트의 기본 타일은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512px"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">512×512px</annotation></semantics></math>입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 8192×8192 Gray8"><semantics><mrow><mrow><mo>.</mo><mn>8192</mn><mo>×</mo><mn>8192</mn><mi mathvariant="normal">Gray</mi><mn>8</mn></mrow></mrow><annotation encoding="text/plain">. 8192×8192 Gray8</annotation></semantics></math> 전체는 64MiB, 타일 하나는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512×1=262,144bytes=256KiB"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn><mo>×</mo><mn>1</mn><mo>=</mo><mn>262,144</mn><mi mathvariant="normal">bytes</mi><mo>=</mo><mn>256</mn><mi mathvariant="normal">KiB</mi></mrow></mrow><annotation encoding="text/plain">512×512×1=262,144bytes=256KiB</annotation></semantics></math>입니다. 네 개만 필요한 순간의 유효 픽셀은 1MiB입니다. 이는 픽셀 바이트 계산이며, 실제 풀 배열·GPU 정렬·캐시·업로드 메모리와 파일 디코더 비용은 따로 셉니다.</p>
 <table><thead><tr><th>나누는 대상</th><th>무엇을 뜻하나</th><th>섞으면 생기는 오해</th></tr></thead><tbody>
 <tr><td>논리 타일</td><td>Level, X, Y로 요청하는 영상 조각</td><td>타일 API라고 원본 파일도 같은 블록으로 압축된 것은 아님</td></tr>
 <tr><td>디스크 피라미드</td><td>여러 축소 단계의 파일을 준비해 부분 읽기</td><td>최초 변환 시간·디스크 공간이 공짜가 아님</td></tr>
 <tr><td>GPU 타일 캐시</td><td>읽은 조각을 화면에 그릴 텍스처로 보관</td><td>퇴출 요청과 GPU 실제 해제는 다른 시점</td></tr></tbody></table>
 <p>512는 이 저장소의 선택입니다. 작으면 요청·텍스처 수가 늘고, 크면 화면 밖 픽셀까지 더 많이 읽고 업로드할 수 있습니다. 다른 크기가 항상 빠르다고 가정하지 말고 같은 이미지·탐색 경로에서 읽기량, 긴 프레임, 메모리를 비교합니다.</p>
+
+<div class="worked-example"><h3>타일링으로 해결되는 일과 남는 일</h3>
+<p>원본 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8192×8192 Gray8"><semantics><mrow><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn><mi mathvariant="normal">Gray</mi><mn>8</mn></mrow></mrow><annotation encoding="text/plain">8192×8192 Gray8</annotation></semantics></math>은 64 MiB이고 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math> 조각 하나는 256 KiB입니다. 창에 일부만 필요할 때 전체를 GPU에 올리지 않아도 되는 이점이 있습니다. 반면 조각을 찾는 주소 계산, 읽기 지연, 캐시, 늦게 도착한 결과의 처리라는 일이 생깁니다.</p>
+<p>논리 타일은 ‘이 영역을 읽어 달라’는 주소 단위입니다. 디스크 파일도 반드시 같은 크기의 조각으로 저장되었다는 뜻은 아닙니다. 첫 파일 열기에서 디코드·피라미드 준비 비용이 사라지는 것도 아닙니다. 아래 구현 흐름에서 디스크 준비와 GPU 표시를 각각 확인하세요.</p></div>
 </section>
 <section id="tile-address">
-<h2>2. 주소와 마지막 조각: 1300×900을 직접 나누기</h2>
-<p>우선 원본 단계인 level 0만 봅니다. X는 타일 열, Y는 타일 행이며 0부터 시작합니다. <code>TileKey(0, 2, 1)</code>은 원본의 오른쪽 아래 타일입니다. X=2가 원본 x=2px라는 뜻은 아닙니다.</p>
+<h2>2. 주소와 마지막 조각: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1300×900"><semantics><mrow><mrow><mn>1300</mn><mo>×</mo><mn>900</mn></mrow></mrow><annotation encoding="text/plain">1300×900</annotation></semantics></math>을 직접 나누기</h2>
+<p class="lesson-question">“512칸씩 나누었는데 마지막에 276칸이 남으면 버려도 되나요?” 책을 상자에 512권씩 넣고 남은 책도 마지막 상자에 담는 것과 같습니다. 꽉 찬 상자만 세는 내림이 아니라, 남은 것이 있으면 상자 하나를 더 세는 올림이 필요합니다.</p>
+
+<p>우선 원본 단계인 level 0만 봅니다. X는 타일 열, Y는 타일 행이며 0부터 시작합니다. <code>TileKey(0, 2, 1)</code>은 원본의 오른쪽 아래 타일입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". X=2"><semantics><mrow><mrow><mo>.</mo><mi>X</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">. X=2</annotation></semantics></math>가 원본 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=2px"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>2</mn><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">x=2px</annotation></semantics></math>라는 뜻은 아닙니다.</p>
 <div class="formula" tabindex="0" role="group" aria-label="수식">
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="열 수 = ceil(W/T); 행 수 = ceil(H/T); left = X×T; top = Y×T; 유효 너비 = min(T,W−left); 유효 높이 = min(T,H−top)"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mtext>열 수</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>⌈</mo><mfrac><mi>W</mi><mi>T</mi></mfrac><mo>⌉</mo></mrow></mtd></mtr><mtr><mtd><mtext>행 수</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>⌈</mo><mfrac><mi>H</mi><mi>T</mi></mfrac><mo>⌉</mo></mrow></mtd></mtr><mtr><mtd><mi mathvariant="normal">left</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>X</mi><mo>×</mo><mi>T</mi></mrow></mtd></mtr><mtr><mtd><mi mathvariant="normal">top</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>Y</mi><mo>×</mo><mi>T</mi></mrow></mtd></mtr><mtr><mtd><mtext>유효 너비</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi mathvariant="normal">min</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>T</mi><mo>,</mo><mrow><mi>W</mi><mo>−</mo><mi mathvariant="normal">left</mi></mrow></mrow><mo>)</mo></mrow></mrow></mtd></mtr><mtr><mtd><mtext>유효 높이</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi mathvariant="normal">min</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>T</mi><mo>,</mo><mrow><mi>H</mi><mo>−</mo><mi mathvariant="normal">top</mi></mrow></mrow><mo>)</mo></mrow></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">열 수 = ceil(W/T); 행 수 = ceil(H/T); left = X×T; top = Y×T; 유효 너비 = min(T,W−left); 유효 높이 = min(T,H−top)</annotation></semantics></math>
 </div>
-<p>W=1300, H=900, T=512를 넣으면 열은 ⌈2.539…⌉=3, 행은 ⌈1.757…⌉=2입니다. ⌈ ⌉는 올림입니다. 마지막 타일의 시작은 (1024,512), 크기는 <strong>276×388</strong>입니다. 현재 PixelBuffer는 이 유효 크기만 담습니다. 남은 부분을 검은 원본 픽셀이라고 검사에 넣으면 안 됩니다.</p>
-<pre><code>원본 x 범위       [0,512)    [512,1024)   [1024,1300)
+<div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W"><semantics><mrow><mi>W</mi></mrow><annotation encoding="text/plain">W</annotation></semantics></math></td><td>더블유: 계산 중인 피라미드 단계의 너비(px)</td><td>원본 기준인지 단계 기준인지 절 제목 확인</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="T"><semantics><mrow><mi>T</mi></mrow><annotation encoding="text/plain">T</annotation></semantics></math></td><td>티: 타일 한 변의 최대 픽셀 수. 현재512</td><td>임계값 T와 다른 문맥</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="H"><semantics><mrow><mi>H</mi></mrow><annotation encoding="text/plain">H</annotation></semantics></math></td><td>에이치: 해당 단계의 높이(px)</td><td>마지막 타일 크기를 제한</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="left"><semantics><mrow><mi>left</mi></mrow><annotation encoding="text/plain">left</annotation></semantics></math></td><td>왼쪽 경계. 주소 식에서는 단계 px, 가시영역 식에서는 원본 px</td><td>같은 변수명이어도 절의 좌표계를 확인</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="X"><semantics><mrow><mi>X</mi></mrow><annotation encoding="text/plain">X</annotation></semantics></math></td><td>대문자 엑스: 타일 열 번호, 0부터 시작</td><td>TileKey.X. 픽셀 x와 다른 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="top"><semantics><mrow><mi>top</mi></mrow><annotation encoding="text/plain">top</annotation></semantics></math></td><td>해당 타일의 위쪽 픽셀 위치</td><td>행 번호와 타일 크기를 곱함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="Y"><semantics><mrow><mi>Y</mi></mrow><annotation encoding="text/plain">Y</annotation></semantics></math></td><td>대문자 와이: 타일 행 번호, 0부터 시작</td><td>TileKey.Y</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="min"><semantics><mrow><mi>min</mi></mrow><annotation encoding="text/plain">min</annotation></semantics></math></td><td>둘 중 작은 값. 가장자리에서 이미지 크기를 넘지 않도록 제한</td><td>수학 연산</td></tr></tbody></table></div><p><span>너비1300픽셀, 높이900픽셀을 한 변512픽셀의 타일로 나눕니다. <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="ceil(1300/512)=3"><semantics><mrow><mrow><mrow><mo>⌈</mo><mfrac><mn>1300</mn><mn>512</mn></mfrac><mo>⌉</mo></mrow><mo>=</mo><mn>3</mn></mrow></mrow><annotation encoding="text/plain">ceil(1300/512)=3</annotation></semantics></math>열과 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="ceil(900/512)=2"><semantics><mrow><mrow><mrow><mo>⌈</mo><mfrac><mn>900</mn><mn>512</mn></mfrac><mo>⌉</mo></mrow><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">ceil(900/512)=2</annotation></semantics></math>행입니다. 올림은 남은 작은 조각도 하나로 세는 뜻입니다. 마지막 타일의 시작은 가로1024, 세로512이고 크기는 너비276, 높이388입니다. PixelBuffer는 유효 크기만 담습니다. 이미지 바깥을 검은 원본 픽셀로 검사하지 않습니다.</span></p><details class="code-example">
+<summary><span class="code-language">텍스트</span><span class="code-title">2. 주소와 마지막 조각: 1300×9001300×900을 직접 나누기</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 4줄</span><button type="button" data-copy-code hidden aria-label="2. 주소와 마지막 조각: 1300×9001300×900을 직접 나누기 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="2. 주소와 마지막 조각: 1300×9001300×900을 직접 나누기 코드"><code data-language="text">원본 x 범위       [0,512)    [512,1024)   [1024,1300)
 y [0,512)         (0,0)       (1,0)          (2,0)
 y [512,900)       (0,1)       (1,1)          (2,1)
 각 주소 앞의 Level은 모두 0입니다.</code></pre>
-<p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a 이상 b 미만"><semantics><mrow><mrow><mo>[</mo><mrow><mi>a</mi><mo>,</mo><mi>b</mi></mrow><mo>)</mo></mrow></mrow><annotation encoding="text/plain">a 이상 b 미만</annotation></semantics></math>는 a는 포함하고 b는 포함하지 않는 범위입니다. x=512인 픽셀은 두 타일에 중복 저장하지 않고 두 번째 타일에만 속합니다. 마지막 타일 Gray8의 stride는 276bytes, 유효 길이는 276×388=107,088bytes입니다.</p>
+<p class="code-copy-status" role="status"></p></details>
+<p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a 이상 b 미만"><semantics><mrow><mrow><mo>[</mo><mrow><mi>a</mi><mo>,</mo><mi>b</mi></mrow><mo>)</mo></mrow></mrow><annotation encoding="text/plain">a 이상 b 미만</annotation></semantics></math>는 a는 포함하고 b는 포함하지 않는 범위입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". x=512"><semantics><mrow><mrow><mo>.</mo><mi>x</mi><mo>=</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">. x=512</annotation></semantics></math>인 픽셀은 두 타일에 중복 저장하지 않고 두 번째 타일에만 속합니다. 마지막 타일 Gray8의 stride는 276bytes, 유효 길이는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="276×388=107,088bytes"><semantics><mrow><mrow><mn>276</mn><mo>×</mo><mn>388</mn><mo>=</mo><mn>107,088</mn><mi mathvariant="normal">bytes</mi></mrow></mrow><annotation encoding="text/plain">276×388=107,088bytes</annotation></semantics></math>입니다.</p>
+
+<div class="worked-example"><h3>ceil·min을 말로 읽고 검산하기</h3>
+<p>이 절의 W,H는 선택한 단계의 영상 크기(px), T는 타일 한 변(px)입니다. T는 3장의 이진화 임계값과 다른 뜻입니다. ceil은 올림, floor는 내림, min은 둘 중 작은 값입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 1300/512=2.539"><semantics><mrow><mrow><mo>.</mo><mfrac><mn>1300</mn><mn>512</mn></mfrac><mo>=</mo><mn>2.539</mn></mrow></mrow><annotation encoding="text/plain">. 1300/512=2.539</annotation></semantics></math>…를 올리면 열이 3개입니다. 열 번호는 0,1,2입니다.</p>
+<table><thead><tr><th>열</th><th>시작 x</th><th>남은 너비</th><th>실제 읽을 너비</th></tr></thead><tbody>
+<tr><td>0</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="0×512=0"><semantics><mrow><mrow><mn>0</mn><mo>×</mo><mn>512</mn><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">0×512=0</annotation></semantics></math></td><td>1300</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="min(512,1300)=512"><semantics><mrow><mrow><mi mathvariant="normal">min</mi><mrow><mo>(</mo><mrow><mn>512,130</mn><mn>0</mn></mrow><mo>)</mo></mrow><mo>=</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">min(512,1300)=512</annotation></semantics></math></td></tr>
+<tr><td>1</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1×512=512"><semantics><mrow><mrow><mn>1</mn><mo>×</mo><mn>512</mn><mo>=</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">1×512=512</annotation></semantics></math></td><td>788</td><td>512</td></tr>
+<tr><td>2</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2×512=1024"><semantics><mrow><mrow><mn>2</mn><mo>×</mo><mn>512</mn><mo>=</mo><mn>1024</mn></mrow></mrow><annotation encoding="text/plain">2×512=1024</annotation></semantics></math></td><td>276</td><td>276</td></tr></tbody></table>
+<p>높이는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="900/512"><semantics><mrow><mrow><mfrac><mn>900</mn><mn>512</mn></mfrac></mrow></mrow><annotation encoding="text/plain">900/512</annotation></semantics></math>를 올려 2행입니다. 마지막 행의 높이는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="900−512=388"><semantics><mrow><mrow><mn>900</mn><mo>−</mo><mn>512</mn><mo>=</mo><mn>388</mn></mrow></mrow><annotation encoding="text/plain">900−512=388</annotation></semantics></math>입니다. 오른쪽 아래 조각은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="276×388"><semantics><mrow><mrow><mn>276</mn><mo>×</mo><mn>388</mn></mrow></mrow><annotation encoding="text/plain">276×388</annotation></semantics></math>이므로 Gray8의 꽉 찬 버퍼는 107,088바이트입니다. 모든 조각을 무조건 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math>로 읽으면 영상 밖을 요청하게 됩니다. 조각의 유효 크기와 GPU 텍스처 배치 규칙도 별도로 확인해야 합니다.</p></div>
 </section>
 <section id="tile-visible">
 <h2>3. 지금 화면에 필요한 타일만 고르기</h2>
+<p class="lesson-question">“창이 두 조각에 걸쳐 있으면 어느 주소를 요청할까요?” 창의 왼쪽 끝을 포함한 첫 조각부터 오른쪽 끝 직전까지 덮는 조각을 고릅니다. 먼저 화면 DIP를 원본 좌표로 되돌린 다음 타일 번호로 바꿔야 합니다. 화면 숫자를 그대로 512로 나누면 확대할 때 잘못된 조각을 고르게 됩니다.</p>
+
 <p>먼저 화면 왼쪽 위 (0,0)와 오른쪽 아래 (화면 너비,화면 높이)를 <code>ScreenToImage</code>로 원본 좌표로 바꿉니다. 여기서는 ROI만 회전하며 ViewportTransform은 배율·이동만 가지므로 이 두 모서리로 범위를 구할 수 있습니다. 회전 뷰포트를 새로 설계한다면 네 모서리와 교차 판정을 다시 고려해야 합니다.</p>
 <div class="formula" tabindex="0" role="group" aria-label="수식">
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="firstColumn = clamp(floor(left/S),0,열 수); columnEnd = clamp(ceil(right/S),0,열 수); firstColumn ≤ column &lt; columnEnd; 행에도 같은 계산 적용"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi mathvariant="normal">firstColumn</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi mathvariant="normal">clamp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mo>⌊</mo><mfrac><mi mathvariant="normal">left</mi><mi>S</mi></mfrac><mo>⌋</mo></mrow><mo>,</mo><mn>0</mn><mo>,</mo><mtext>열 수</mtext></mrow><mo>)</mo></mrow></mrow></mtd></mtr><mtr><mtd><mi mathvariant="normal">columnEnd</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi mathvariant="normal">clamp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mo>⌈</mo><mfrac><mi mathvariant="normal">right</mi><mi>S</mi></mfrac><mo>⌉</mo></mrow><mo>,</mo><mn>0</mn><mo>,</mo><mtext>열 수</mtext></mrow><mo>)</mo></mrow></mrow></mtd></mtr><mtr><mtd><mtext>요청 열</mtext></mtd><mtd><mo>:</mo></mtd><mtd><mrow><mi mathvariant="normal">firstColumn</mi><mo>≤</mo><mi mathvariant="normal">column</mi><mo>&lt;</mo><mi mathvariant="normal">columnEnd</mi></mrow></mtd></mtr><mtr><mtd></mtd><mtd></mtd><mtd><mtext>행에도 같은 계산 적용</mtext></mtd></mtr></mtable></mrow><annotation encoding="text/plain">firstColumn = clamp(floor(left/S),0,열 수); columnEnd = clamp(ceil(right/S),0,열 수); firstColumn ≤ column &lt; columnEnd; 행에도 같은 계산 적용</annotation></semantics></math>
 </div>
-<p>S는 <strong>원본 좌표에서</strong> 타일 한 칸이 덮는 길이입니다. level 0에서는 512입니다. 화면의 원본 영역이 x=[400,1000), y=[300,700)이면 열 시작 0/끝 2, 행 시작 0/끝 2이므로 (0,0), (1,0), (0,1), (1,1)의 네 타일을 요청합니다. for문의 끝을 ≤로 쓰면 필요 없는 열/행이 하나씩 늘어납니다.</p>
+<div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="firstColumn"><semantics><mrow><mi>firstColumn</mi></mrow><annotation encoding="text/plain">firstColumn</annotation></semantics></math></td><td>처음 요청할 열 번호</td><td>내림 후 범위 제한</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="clamp"><semantics><mrow><mi>clamp</mi></mrow><annotation encoding="text/plain">clamp</annotation></semantics></math></td><td>값을 주어진 하한과 상한 사이로 제한</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="left"><semantics><mrow><mi>left</mi></mrow><annotation encoding="text/plain">left</annotation></semantics></math></td><td>왼쪽 경계. 주소 식에서는 단계 px, 가시영역 식에서는 원본 px</td><td>같은 변수명이어도 절의 좌표계를 확인</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="S"><semantics><mrow><mi>S</mi></mrow><annotation encoding="text/plain">S</annotation></semantics></math></td><td>대문자 에스: 한 타일이 원본에서 덮는 길이, 원본 px</td><td>512와 축소 계수를 곱함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="columnEnd"><semantics><mrow><mi>columnEnd</mi></mrow><annotation encoding="text/plain">columnEnd</annotation></semantics></math></td><td>요청에서 제외할 마지막 열 번호</td><td>올림 후 범위 제한. 이 번호 자체는 요청 안 함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="right"><semantics><mrow><mi>right</mi></mrow><annotation encoding="text/plain">right</annotation></semantics></math></td><td>가시영역의 오른쪽 제외 끝, 원본 px</td><td>경계에서 다음 타일을 불필요하게 요청하지 않음</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="column"><semantics><mrow><mi>column</mi></mrow><annotation encoding="text/plain">column</annotation></semantics></math></td><td>실제로 순회 중인 열 번호</td><td>첫 열 이상, 제외 끝 미만</td></tr></tbody></table></div><p>S는 <strong>원본 좌표에서</strong> 타일 한 칸이 덮는 길이입니다. level 0에서는 512입니다. 화면의 원본 영역이 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=[400,1000), y=[300,700)"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mo>[</mo><mn>400,100</mn><mn>0</mn><mo>)</mo><mo>,</mo><mi>y</mi><mo>=</mo><mo>[</mo><mn>300,700</mn><mo>)</mo></mrow></mrow><annotation encoding="text/plain">x=[400,1000), y=[300,700)</annotation></semantics></math>이면 열 시작 0/끝 2, 행 시작 0/끝 2이므로 (0,0), (1,0), (0,1), (1,1)의 네 타일을 요청합니다. for문의 끝을 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="≤"><semantics><mrow><mrow><mo>≤</mo></mrow></mrow><annotation encoding="text/plain">≤</annotation></semantics></math>로 쓰면 필요 없는 열/행이 하나씩 늘어납니다.</p>
 <div class="lab" id="visible-tile-lab">
 <h3>실험: 창을 옮기면서 요청 주소 보기</h3>
-<p>1300×900 영상, level 0, 배율 1, DPI 1로 고정했습니다. 슬라이더 값은 창 왼쪽 위의 원본 좌표입니다. 실제 ViewportTransform.Offset은 이 값의 음수입니다.</p>
-<div class="fields"><label>왼쪽 x(px)<input id="visible-x" type="range" min="0" max="1600" step="1" value="400"></label><label>위쪽 y(px)<input id="visible-y" type="range" min="0" max="1100" step="1" value="300"></label><label>창 크기(DIP)<select id="visible-size"><option value="600" selected>600×400</option><option value="512">512×512</option></select></label></div>
-<svg class="tile-map" viewBox="-60 -70 2280 1640" role="img" aria-labelledby="tile-map-title tile-map-desc">
+<p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1300×900"><semantics><mrow><mrow><mn>1300</mn><mo>×</mo><mn>900</mn></mrow></mrow><annotation encoding="text/plain">1300×900</annotation></semantics></math> 영상, level 0, 배율 1, DPI 1로 고정했습니다. 슬라이더 값은 창 왼쪽 위의 원본 좌표입니다. 실제 ViewportTransform.Offset은 이 값의 음수입니다.</p>
+<div class="fields"><label>왼쪽 x(px)<input id="visible-x" type="range" min="0" max="1600" step="1" value="400"></label><label>위쪽 y(px)<input id="visible-y" type="range" min="0" max="1100" step="1" value="300"></label><label>창 크기(DIP)<select id="visible-size"><option value="600" selected><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="600×400"><semantics><mrow><mrow><mn>600</mn><mo>×</mo><mn>400</mn></mrow></mrow><annotation encoding="text/plain">600×400</annotation></semantics></math></option><option value="512"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math></option></select></label></div>
+<svg class="tile-map" viewbox="-60 -70 2280 1640" role="img" aria-labelledby="tile-map-title tile-map-desc">
 <title id="tile-map-title">타일 격자와 이동하는 창</title><desc id="tile-map-desc">여섯 조각 중 요청한 타일을 청록색으로, 창을 주황색 테두리로 표시합니다. 정확한 주소는 그림 아래 텍스트에도 있습니다.</desc>
 <g stroke="#687b85" stroke-width="3">
 <rect id="visible-cell-0-0" x="0" y="0" width="512" height="512" fill="#bce6dc"></rect>
@@ -59,31 +87,49 @@ y [512,900)       (0,1)       (1,1)          (2,1)
 <rect id="visible-window" x="400" y="300" width="600" height="400" fill="none" stroke="#ad4b10" stroke-width="10" stroke-dasharray="24 12"></rect>
 </svg>
 <p>청록색: 계획된 타일 · 주황 점선: 현재 창 · 회색: 이번 계획에 없는 타일. 주소의 Level은 모두 0입니다.</p>
-<output id="visible-output" aria-live="polite">원본 x=[400,1000), y=[300,700). 열 [0,2), 행 [0,2). 4개: (0,0), (1,0), (0,1), (1,1).</output>
+<output id="visible-output" aria-live="polite">원본 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=[400,1000), y=[300,700)"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mo>[</mo><mn>400,100</mn><mn>0</mn><mo>)</mo><mo>,</mo><mi>y</mi><mo>=</mo><mo>[</mo><mn>300,700</mn><mo>)</mo></mrow></mrow><annotation encoding="text/plain">x=[400,1000), y=[300,700)</annotation></semantics></math>. 열 [0,2), 행 [0,2). 4개: (0,0), (1,0), (0,1), (1,1).</output>
 </div>
-<p>창 크기를 512×512, x=512, y=0으로 맞추면 딱 한 타일 (1,0)입니다. 슬라이더에 초점을 둔 뒤 방향키로 1px씩 조절할 수 있습니다. x=1600으로 옮기면 열 시작과 끝이 모두 3이 되어 0개입니다.</p>
-<aside class="note">실제 Planner는 유효 픽셀 영역보다 큰 <strong>타일 격자 범위</strong>로 제한합니다. 예를 들어 x=1400, y=0이면 영상은 이미 끝났지만 마지막 격자 셀은 x=1536까지이므로 가장자리 타일을 보수적으로 요청할 수 있습니다. 이 실험도 이 구현을 따릅니다. 그리기는 실제 이미지 끝에서 제한하며, 이 타일은 검사용 가상 검정 영역을 뜻하지 않습니다. 전체 개요 요청과 캐시 적중은 이 계산기에서 제외했습니다.</aside>
+<p>창 크기를 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512, x=512, y=0"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn><mo>,</mo><mi>x</mi><mo>=</mo><mn>512</mn><mo>,</mo><mi>y</mi><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">512×512, x=512, y=0</annotation></semantics></math>으로 맞추면 딱 한 타일 (1,0)입니다. 슬라이더에 초점을 둔 뒤 방향키로 1px씩 조절할 수 있습니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". x=1600"><semantics><mrow><mrow><mo>.</mo><mi>x</mi><mo>=</mo><mn>1600</mn></mrow></mrow><annotation encoding="text/plain">. x=1600</annotation></semantics></math>으로 옮기면 열 시작과 끝이 모두 3이 되어 0개입니다.</p>
+<aside class="note">실제 Planner는 유효 픽셀 영역보다 큰 <strong>타일 격자 범위</strong>로 제한합니다. 예를 들어 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=1400, y=0"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>1400</mn><mo>,</mo><mi>y</mi><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">x=1400, y=0</annotation></semantics></math>이면 영상은 이미 끝났지만 마지막 격자 셀은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=1536"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>1536</mn></mrow></mrow><annotation encoding="text/plain">x=1536</annotation></semantics></math>까지이므로 가장자리 타일을 보수적으로 요청할 수 있습니다. 이 실험도 이 구현을 따릅니다. 그리기는 실제 이미지 끝에서 제한하며, 이 타일은 검사용 가상 검정 영역을 뜻하지 않습니다. 전체 개요 요청과 캐시 적중은 이 계산기에서 제외했습니다.</aside>
+
+<div class="worked-example"><h3>시작은 내리고, 끝은 올리는 이유</h3>
+<p>여기서는 level 0, 타일 한 변 512라고 합시다. 창의 원본 x 범위가 [400,1000)이면 400은 포함하고 1000은 제외합니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". floor(400/512)=0"><semantics><mrow><mrow><mo>.</mo><mi mathvariant="normal">floor</mi><mrow><mo>(</mo><mrow><mfrac><mn>400</mn><mn>512</mn></mfrac></mrow><mo>)</mo></mrow><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">. floor(400/512)=0</annotation></semantics></math>이므로 0번부터<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=", ceil(1000/512)=2"><semantics><mrow><mrow><mo>,</mo><mi mathvariant="normal">ceil</mi><mrow><mo>(</mo><mrow><mfrac><mn>1000</mn><mn>512</mn></mfrac></mrow><mo>)</mo></mrow><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">, ceil(1000/512)=2</annotation></semantics></math>이므로 2번 직전까지, 즉 0·1번을 읽습니다. C# 반복문은 <code>column &lt; columnEnd</code>입니다.</p>
+<table><thead><tr><th>원본 x 구간</th><th>시작 / 제외 끝</th><th>필요한 열</th></tr></thead><tbody>
+<tr><td>[400,1000)</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="0 / 2"><semantics><mrow><mrow><mfrac><mn>0</mn><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">0 / 2</annotation></semantics></math></td><td>0, 1</td></tr>
+<tr><td>[512,1024)</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1 / 2"><semantics><mrow><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">1 / 2</annotation></semantics></math></td><td>1만. 끝 경계의 2번은 포함하지 않음</td></tr>
+<tr><td>[−100,100)</td><td>내림 −1 / 올림 1 → 유효 열 범위로 제한</td><td>0</td></tr></tbody></table>
+<p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="floor(−100/512)"><semantics><mrow><mrow><mi mathvariant="normal">floor</mi><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mn>100</mn><mn>512</mn></mfrac></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">floor(−100/512)</annotation></semantics></math>는 −1입니다. C#에서 실수를 int로 바로 바꾸면 0 쪽으로 잘려 0이 될 수 있으므로, 음수에서 내림과 단순 변환은 다릅니다. clamp는 계산한 번호를 허용 범위 안에 가둡니다.</p>
+<p>세로300 이상700 미만은0행과1행을 가로지릅니다. 열 두 개와 행 두 개의 조합으로 네 조각이 필요합니다. 아래 실험에서는 왜 이 네 주소인지 먼저 예측한 다음 창을 옮겨 확인하세요. 현재 계획 코드는 마지막 타일 격자까지 보수적으로 요청할 수 있으며 실제 유효 픽셀 크기는 읽기 단계에서 지킵니다.</p></div>
 </section>
 <section id="tile-pyramid">
 <h2>4. 축소 화면에서는 피라미드가 필요하다</h2>
-<p>큰 영상을 창에 맞춰 아주 작게 봐도 level 0 타일만 쓰면 결국 원본 전부를 읽게 됩니다. <strong>피라미드</strong>는 미리 더 작게 만든 영상들을 단계별로 준비하는 방법입니다. level 0은 원본, level 1은 가로·세로 약 절반, level 2는 약 1/4입니다. 표시용 디스크 피라미드는 NetVips의 Linear 축소를 사용합니다. 검사에서 원본 crop을 면적 평균하는 정책과 구별합니다.</p>
+<p class="lesson-question">“타일만 나누면 축소해서 전체를 볼 때도 빠를까요?” 전체 지도를 한눈에 보면 결국 모든 조각이 필요합니다. 그래서 더 작은 요약본을 여러 크기로 준비합니다. 원본이 level 0, 가로·세로를 절반씩 줄인 것이 다음 level입니다. 타일은 영역을 나누고, 피라미드는 해상도를 나눕니다.</p>
+
 <div class="formula" tabindex="0" role="group" aria-label="수식">
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="축소 계수 f = 2ᴸ; 원본에서 한 타일이 덮는 길이 S = 512×f; L = clamp(floor(log₂(1/(z·d))),0,Levels−1)"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>f</mi></mtd><mtd><mo>=</mo></mtd><mtd><msup><mn>2</mn><mi>L</mi></msup></mtd></mtr><mtr><mtd><mi>S</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>512</mn><mo>×</mo><mi>f</mi></mrow></mtd></mtr><mtr><mtd><mi>L</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi mathvariant="normal">clamp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mo>⌊</mo><mrow><msub><mi mathvariant="normal">log</mi><mn>2</mn></msub><mo>⁡</mo><mrow><mo>(</mo><mfrac><mn>1</mn><mrow><mi>z</mi><mo>·</mo><mi>d</mi></mrow></mfrac><mo>)</mo></mrow></mrow><mo>⌋</mo></mrow><mo>,</mo><mn>0</mn><mo>,</mo><mrow><mi mathvariant="normal">Levels</mi><mo>−</mo><mn>1</mn></mrow></mrow><mo>)</mo></mrow></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">축소 계수 f = 2ᴸ; 원본에서 한 타일이 덮는 길이 S = 512×f; L = clamp(floor(log₂(1/(z·d))),0,Levels−1)</annotation></semantics></math>
 </div>
-<p>L은 단계, z는 DIP/원본 px, d는 물리 px/DIP입니다. z·d는 원본 픽셀 하나가 차지하는 실제 화면 픽셀 수입니다. log₂는 ‘2를 몇 번 곱했는가’를 구합니다. z=0.25, d=1이면 1/(z·d)=4=2²이므로 L=2입니다. d=2이면 L=1로 더 자세한 타일을 선택합니다. 확대해서 z·d≥1이면 원본 L=0을 사용합니다.</p>
+<div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="f"><semantics><mrow><mi>f</mi></mrow><annotation encoding="text/plain">f</annotation></semantics></math></td><td>에프: 원본 대비 축소 계수, 단위 없음</td><td>단계가 하나 증가하면2배</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L"><semantics><mrow><mi>L</mi></mrow><annotation encoding="text/plain">L</annotation></semantics></math></td><td>엘: 피라미드 단계 번호. 0은 원본</td><td>TileKey.Level</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="S"><semantics><mrow><mi>S</mi></mrow><annotation encoding="text/plain">S</annotation></semantics></math></td><td>대문자 에스: 한 타일이 원본에서 덮는 길이, 원본 px</td><td>512와 축소 계수를 곱함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="clamp"><semantics><mrow><mi>clamp</mi></mrow><annotation encoding="text/plain">clamp</annotation></semantics></math></td><td>값을 주어진 하한과 상한 사이로 제한</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="log"><semantics><mrow><mi>log</mi></mrow><annotation encoding="text/plain">log</annotation></semantics></math></td><td>밑이2인 로그는2를 몇 번 곱해야 입력이 되는지 나타냄</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z"><semantics><mrow><mi>z</mi></mrow><annotation encoding="text/plain">z</annotation></semantics></math></td><td>지: 영상 확대 배율, DIP/원본 px</td><td>ViewportTransform.Scale</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="d"><semantics><mrow><mi>d</mi></mrow><annotation encoding="text/plain">d</annotation></semantics></math></td><td>디: DPI 배율, 물리 px/DIP</td><td>150% 표시 배율은1.5</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="Levels"><semantics><mrow><mi>Levels</mi></mrow><annotation encoding="text/plain">Levels</annotation></semantics></math></td><td>전체 단계 개수. 유효한 마지막 번호는 이 수보다1작음</td><td>ImageInfo.Levels</td></tr></tbody></table></div><p>L은 단계, z는 DIP/원본 px, d는 물리 px/DIP입니다. z·d는 원본 픽셀 하나가 차지하는 실제 화면 픽셀 수입니다. log₂는 ‘2를 몇 번 곱했는가’를 구합니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". z=0.25, d=1"><semantics><mrow><mrow><mo>.</mo><mi>z</mi><mo>=</mo><mn>0.25</mn><mo>,</mo><mi>d</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">. z=0.25, d=1</annotation></semantics></math>이면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1/(z·d)=4=2²"><semantics><mrow><mrow><mfrac><mn>1</mn><mrow><mi>z</mi><mo>·</mo><mi>d</mi></mrow></mfrac><mo>=</mo><mn>4</mn><mo>=</mo><msup><mn>2</mn><mn>2</mn></msup></mrow></mrow><annotation encoding="text/plain">1/(z·d)=4=2²</annotation></semantics></math>이므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=2"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">L=2</annotation></semantics></math>입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". d=2"><semantics><mrow><mrow><mo>.</mo><mi>d</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">. d=2</annotation></semantics></math>이면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=1"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">L=1</annotation></semantics></math>로 더 자세한 타일을 선택합니다. 확대해서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z·d≥1"><semantics><mrow><mrow><mi>z</mi><mo>·</mo><mi>d</mi><mo>≥</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">z·d≥1</annotation></semantics></math>이면 원본 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=0"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">L=0</annotation></semantics></math>을 사용합니다.</p>
 <table><thead><tr><th>8192 정사각형의 단계</th><th>단계 영상 크기</th><th>전체 타일 수</th><th>타일 한 칸의 원본 길이</th></tr></thead><tbody>
-<tr><td>0</td><td>8192×8192</td><td>16×16=256</td><td>512px</td></tr><tr><td>1</td><td>4096×4096</td><td>8×8=64</td><td>1024px</td></tr><tr><td>2</td><td>2048×2048</td><td>4×4=16</td><td>2048px</td></tr><tr><td>3</td><td>1024×1024</td><td>2×2=4</td><td>4096px</td></tr><tr><td>4</td><td>512×512</td><td>1</td><td>8192px</td></tr></tbody></table>
-<div class="lab" id="tile-lab"><h3>실험: 8192×8192의 표시 단계</h3>
-<div class="fields"><label>화면 배율<select id="tile-scale"><option value="1">1</option><option value="0.5">0.5</option><option value="0.25" selected>0.25</option><option value="0.125">0.125</option></select></label><label>DPI 계수<select id="tile-dpi"><option value="1">1 · 100%</option><option value="1.5">1.5 · 150%</option><option value="2">2 · 200%</option></select></label></div><output id="tile-output" aria-live="polite">L=2, 한 타일은 원본 2048px, 전체 단계 격자는 4×4.</output></div>
+<tr><td>0</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8192×8192"><semantics><mrow><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn></mrow></mrow><annotation encoding="text/plain">8192×8192</annotation></semantics></math></td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="16×16=256"><semantics><mrow><mrow><mn>16</mn><mo>×</mo><mn>16</mn><mo>=</mo><mn>256</mn></mrow></mrow><annotation encoding="text/plain">16×16=256</annotation></semantics></math></td><td>512px</td></tr><tr><td>1</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="4096×4096"><semantics><mrow><mrow><mn>4096</mn><mo>×</mo><mn>4096</mn></mrow></mrow><annotation encoding="text/plain">4096×4096</annotation></semantics></math></td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8×8=64"><semantics><mrow><mrow><mn>8</mn><mo>×</mo><mn>8</mn><mo>=</mo><mn>64</mn></mrow></mrow><annotation encoding="text/plain">8×8=64</annotation></semantics></math></td><td>1024px</td></tr><tr><td>2</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2048×2048"><semantics><mrow><mrow><mn>2048</mn><mo>×</mo><mn>2048</mn></mrow></mrow><annotation encoding="text/plain">2048×2048</annotation></semantics></math></td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="4×4=16"><semantics><mrow><mrow><mn>4</mn><mo>×</mo><mn>4</mn><mo>=</mo><mn>16</mn></mrow></mrow><annotation encoding="text/plain">4×4=16</annotation></semantics></math></td><td>2048px</td></tr><tr><td>3</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1024×1024"><semantics><mrow><mrow><mn>1024</mn><mo>×</mo><mn>1024</mn></mrow></mrow><annotation encoding="text/plain">1024×1024</annotation></semantics></math></td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2×2=4"><semantics><mrow><mrow><mn>2</mn><mo>×</mo><mn>2</mn><mo>=</mo><mn>4</mn></mrow></mrow><annotation encoding="text/plain">2×2=4</annotation></semantics></math></td><td>4096px</td></tr><tr><td>4</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math></td><td>1</td><td>8192px</td></tr></tbody></table>
+<div class="lab" id="tile-lab"><h3>실험: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8192×8192"><semantics><mrow><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn></mrow></mrow><annotation encoding="text/plain">8192×8192</annotation></semantics></math>의 표시 단계</h3>
+<div class="fields"><label>화면 배율<select id="tile-scale"><option value="1">1</option><option value="0.5">0.5</option><option value="0.25" selected>0.25</option><option value="0.125">0.125</option></select></label><label>DPI 계수<select id="tile-dpi"><option value="1">1 · 100%</option><option value="1.5">1.5 · 150%</option><option value="2">2 · 200%</option></select></label></div><output id="tile-output" aria-live="polite"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=2"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">L=2</annotation></semantics></math>, 한 타일은 원본 2048px, 전체 단계 격자는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="4×4"><semantics><mrow><mrow><mn>4</mn><mo>×</mo><mn>4</mn></mrow></mrow><annotation encoding="text/plain">4×4</annotation></semantics></math>.</output></div>
 
-<p><code>TileKey(2,1,0)</code>의 단계 영상 시작은 (512,0)이지만 원본 시작은 (2048,0)입니다. 이 타일 안의 픽셀 (10,20)의 셀 시작을 원본에 대응시키면 ((512+10)×4,20×4)=(2088,80)입니다. 픽셀 중심·축소 필터의 실제 샘플 위치를 다루는 식은 별도이므로 이 단순 주소식을 정밀 검사 좌표 보정에 그대로 쓰지 않습니다.</p>
-<p>정확히 절반씩 줄어드는 충분히 큰 영상의 총 픽셀 수는 <span class="math-inline-scroll" tabindex="0" role="group" aria-label="수식"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="WH × (1+1/4+1/16+…) ≈ 4WH/3"><semantics><mrow><mrow><mi>W</mi><mi>H</mi><mrow><mo>(</mo><mrow><mn>1</mn><mo>+</mo><mfrac><mn>1</mn><mn>4</mn></mfrac><mo>+</mo><mfrac><mn>1</mn><mn>16</mn></mfrac><mo>+</mo><mo>⋯</mo></mrow><mo>)</mo></mrow><mo>≈</mo><mfrac><mrow><mn>4</mn><mi>W</mi><mi>H</mi></mrow><mn>3</mn></mfrac></mrow></mrow><annotation encoding="text/plain">WH × (1+1/4+1/16+…) ≈ 4WH/3</annotation></semantics></math></span>입니다. 가로·세로가 모두 반이므로 면적은 1/4입니다. 원본이 64MiB라면 무한 단계 근사는 약85.33MiB, 위 5단계의 정확한 합은 85.25MiB입니다. 홀수 가장자리·파일 헤더·정렬·압축에 따라 실제 파일/메모리 크기는 다릅니다. 저장소는 한 변 최대512 이하에서 멈추므로 1×1까지 만들지 않습니다.</p>
+<p><code>TileKey(2,1,0)</code>의 단계 영상 시작은 (512,0)이지만 원본 시작은 (2048,0)입니다. 이 타일 안의 픽셀 (10,20)의 셀 시작을 원본에 대응시키면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="((512+10)×4,20×4)=(2088,80)"><semantics><mrow><mrow><mrow><mo>(</mo><mrow><mrow><mo>(</mo><mrow><mn>512</mn><mo>+</mo><mn>10</mn></mrow><mo>)</mo></mrow><mo>×</mo><mn>4</mn><mo>,</mo><mn>20</mn><mo>×</mo><mn>4</mn></mrow><mo>)</mo></mrow><mo>=</mo><mrow><mo>(</mo><mrow><mn>2088</mn><mo>,</mo><mn>80</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">((512+10)×4,20×4)=(2088,80)</annotation></semantics></math>입니다. 픽셀 중심·축소 필터의 실제 샘플 위치를 다루는 식은 별도이므로 이 단순 주소식을 정밀 검사 좌표 보정에 그대로 쓰지 않습니다.</p>
+<p>정확히 절반씩 줄어드는 충분히 큰 영상의 총 픽셀 수는 <span class="math-inline-scroll" tabindex="0" role="group" aria-label="수식"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="WH × (1+1/4+1/16+…) ≈ 4WH/3"><semantics><mrow><mrow><mi>W</mi><mi>H</mi><mrow><mo>(</mo><mrow><mn>1</mn><mo>+</mo><mfrac><mn>1</mn><mn>4</mn></mfrac><mo>+</mo><mfrac><mn>1</mn><mn>16</mn></mfrac><mo>+</mo><mo>⋯</mo></mrow><mo>)</mo></mrow><mo>≈</mo><mfrac><mrow><mn>4</mn><mi>W</mi><mi>H</mi></mrow><mn>3</mn></mfrac></mrow></mrow><annotation encoding="text/plain">WH × (1+1/4+1/16+…) ≈ 4WH/3</annotation></semantics></math></span>입니다. 가로·세로가 모두 반이므로 면적은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1/4"><semantics><mrow><mrow><mfrac><mn>1</mn><mn>4</mn></mfrac></mrow></mrow><annotation encoding="text/plain">1/4</annotation></semantics></math>입니다. 원본이 64MiB라면 무한 단계 근사는 약85.33MiB, 위 5단계의 정확한 합은 85.25MiB입니다. 홀수 가장자리·파일 헤더·정렬·압축에 따라 실제 파일/메모리 크기는 다릅니다. 저장소는 한 변 최대512 이하에서 멈추므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1×1"><semantics><mrow><mrow><mn>1</mn><mo>×</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">1×1</annotation></semantics></math>까지 만들지 않습니다.</p>
+
+<div class="worked-example"><h3>로그를 ‘2로 몇 번 줄였나’로 읽기</h3>
+<p>z는 DIP/원본 px, d는 물리 px/DIP입니다. 곱 zd는 원본 한 픽셀이 화면에서 차지하는 물리 px입니다. L단계의 픽셀 한 개는 원본에서 한 변이 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="f=2"><semantics><mrow><mrow><mi>f</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">f=2</annotation></semantics></math><sup>L</sup>인 범위를 대표합니다. 따라서 화면 크기는 대략 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="zd×2"><semantics><mrow><mrow><mi mathvariant="normal">zd</mi><mo>×</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">zd×2</annotation></semantics></math><sup>L</sup> 물리 px입니다.</p>
+<ol><li><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z=0.25, d=1"><semantics><mrow><mrow><mi>z</mi><mo>=</mo><mn>0.25</mn><mo>,</mo><mi>d</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">z=0.25, d=1</annotation></semantics></math>이면 원본 한 픽셀이 화면 0.25px입니다. 원본 가로 4칸을 화면 1칸 정도로 보여 주는 상황입니다.</li><li>필요한 축소 비율의 역수는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1/(zd)=4"><semantics><mrow><mrow><mfrac><mn>1</mn><mrow><mi mathvariant="normal">zd</mi></mrow></mfrac><mo>=</mo><mn>4</mn></mrow></mrow><annotation encoding="text/plain">1/(zd)=4</annotation></semantics></math>입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 4=2²"><semantics><mrow><mrow><mo>.</mo><mn>4</mn><mo>=</mo><msup><mn>2</mn><mn>2</mn></msup></mrow></mrow><annotation encoding="text/plain">. 4=2²</annotation></semantics></math>이므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="log₂4=2"><semantics><mrow><mrow><msub><mi mathvariant="normal">log</mi><mi>2</mi></msub><mn>4</mn><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">log₂4=2</annotation></semantics></math>입니다.</li><li>floor를 적용한 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=2"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">L=2</annotation></semantics></math>를 고릅니다. 이 단계의 한 픽셀은 화면에서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="0.25×4=1px"><semantics><mrow><mrow><mn>0.25</mn><mo>×</mo><mn>4</mn><mo>=</mo><mn>1</mn><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">0.25×4=1px</annotation></semantics></math>가 됩니다.</li><li>같은 z에서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="d=2"><semantics><mrow><mrow><mi>d</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">d=2</annotation></semantics></math>면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="zd=0.5"><semantics><mrow><mrow><mi mathvariant="normal">zd</mi><mo>=</mo><mn>0.5</mn></mrow></mrow><annotation encoding="text/plain">zd=0.5</annotation></semantics></math>, 역수 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2, log₂2=1"><semantics><mrow><mrow><mn>2</mn><mo>,</mo><msub><mi mathvariant="normal">log</mi><mi>2</mi></msub><mn>2</mn><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">2, log₂2=1</annotation></semantics></math>이므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=1"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">L=1</annotation></semantics></math>입니다. 고밀도 화면에는 더 자세한 단계가 필요합니다.</li></ol>
+<p>역수가 3이라면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="log₂3≈1.585"><semantics><mrow><mrow><msub><mi mathvariant="normal">log</mi><mi>2</mi></msub><mn>3</mn><mo>≈</mo><mn>1.585</mn></mrow></mrow><annotation encoding="text/plain">log₂3≈1.585</annotation></semantics></math>이고 내림해 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=1"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">L=1</annotation></semantics></math>입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". L=2"><semantics><mrow><mrow><mo>.</mo><mi>L</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">. L=2</annotation></semantics></math>로 올려 선택하면 한 단계 픽셀이 화면에서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="4/3px"><semantics><mrow><mrow><mfrac><mn>4</mn><mn>3</mn></mfrac><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">4/3px</annotation></semantics></math>로 커져 더 거칠어질 수 있습니다. 표시용 디스크 피라미드는 자체 TrianglePyramid의 삼각 가중 축소를 사용하며, 검사용 원본 crop의 면적 평균과 구별합니다. 실제 구현은 존재하는 단계 범위로 제한합니다. 최대 단계나 배율 조건 때문에 위 산술의 이상적인 크기를 항상 만족하는 것은 아닙니다.</p>
+<h3>2의 거듭제곱인데 메모리는 왜 4분의 1씩 줄까요?</h3>
+<p><span>가로와 세로를 각각 절반으로 줄이면 픽셀 수 비율은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(1/2)×(1/2)=1/4"><semantics><mrow><mrow><mrow><mo>(</mo><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow><mo>)</mo></mrow><mo>×</mo><mrow><mo>(</mo><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow><mo>)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mn>4</mn></mfrac></mrow></mrow><annotation encoding="text/plain">(1/2)×(1/2)=1/4</annotation></semantics></math>입니다. 원본 메모리를1로 놓았을 때 전체 단계의 비율을 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="S"><semantics><mrow><mi>S</mi></mrow><annotation encoding="text/plain">S</annotation></semantics></math>라고 부릅시다. 첫 항을 제외한 나머지는 전체 합의4분의1과 같으므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="S−S/4=1"><semantics><mrow><mrow><mi>S</mi><mo>−</mo><mfrac><mi>S</mi><mn>4</mn></mfrac><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">S−S/4=1</annotation></semantics></math>이고, 정리하면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="S=4/3"><semantics><mrow><mrow><mi>S</mi><mo>=</mo><mfrac><mn>4</mn><mn>3</mn></mfrac></mrow></mrow><annotation encoding="text/plain">S=4/3</annotation></semantics></math>입니다. 이는 무한 단계의 기하급수 근사입니다. 실제는 정수 크기·마지막 단계·캐시 헤더 등의 차이가 있습니다.</span></p><p>실제 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8192²"><semantics><mrow><mrow><msup><mn>8192</mn><mn>2</mn></msup></mrow></mrow><annotation encoding="text/plain">8192²</annotation></semantics></math>에서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512²"><semantics><mrow><mrow><msup><mn>512</mn><mn>2</mn></msup></mrow></mrow><annotation encoding="text/plain">512²</annotation></semantics></math>까지 다섯 단계의 Gray8 픽셀 합은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="64+16+4+1+0.25=85.25 MiB"><semantics><mrow><mrow><mn>64</mn><mo>+</mo><mn>16</mn><mo>+</mo><mn>4</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>0.25</mn><mo>=</mo><mn>85.25</mn><mi mathvariant="normal">MiB</mi></mrow></mrow><annotation encoding="text/plain">64+16+4+1+0.25=85.25 MiB</annotation></semantics></math>입니다. 파일 압축·GPU 정렬·동시 버퍼·캐시 관리 비용은 이 합에 포함되지 않습니다. <strong><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="4/3"><semantics><mrow><mrow><mfrac><mn>4</mn><mn>3</mn></mfrac></mrow></mrow><annotation encoding="text/plain">4/3</annotation></semantics></math>은 프로세스 전체 메모리 상한이 아닙니다.</strong></p></div>
 </section>
 <section id="tile-code"><h2>5. 이제 실제 타일 계획 코드를 읽기</h2>
 <p>수식과 이름을 연결하세요. downsampleFactor는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2의 L제곱"><semantics><mrow><msup><mn>2</mn><mi>L</mi></msup></mrow><annotation encoding="text/plain">2의 L제곱</annotation></semantics></math>, tileSpanInImage는 S, firstColumn/columnEnd는 시작/제외 끝입니다. <code>1 &lt;&lt; level</code>은 정수 1을 왼쪽으로 L비트 옮겨 2<sup>L</sup>을 만드는 표현입니다. 이 메서드는 주소 목록만 계산하며 파일 읽기나 GPU 생성은 하지 않습니다.</p>
-<details class="code-example" open><summary>TilePlanner 전체: 계산 순서대로 읽기</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="../src/VisionCanvas/Imaging/TilePlanner.cs">src/VisionCanvas/Imaging/TilePlanner.cs</a></p>
-<pre tabindex="0" aria-label="TilePlanner 전체: 계산 순서대로 읽기"><code data-source="../src/VisionCanvas/Imaging/TilePlanner.cs" data-kind="full">using VisionGeometry;
+<details id="source-a2f98f6505d1" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">TilePlanner 전체: 계산 순서대로 읽기</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">TilePlanner.cs · 41줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="TilePlanner 전체: 계산 순서대로 읽기 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="TilePlanner 전체: 계산 순서대로 읽기 코드"><code data-source="../src/VisionCanvas/Imaging/TilePlanner.cs" data-kind="full" data-language="csharp">using VisionGeometry;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Imaging;
@@ -124,47 +170,498 @@ public static class TilePlanner
         return result;
     }
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>src/VisionCanvas/Imaging/TilePlanner.cs</code></p></details>
 
 <p>다음은 파일 소스가 요청받은 단계에서 조각을 읽는 실제 메서드입니다. 여기의 left/top/width/height는 <strong>그 단계의 픽셀 좌표</strong>입니다. _levels에는 이미 축소 단계별 이미지가 있으므로 원본 축소 계수를 다시 곱하지 않습니다. 앞의 Planner가 만든 유효 key를 받아 쓰며, 임의의 외부 key 검증을 보여 주는 예제는 아닙니다.</p>
-<details class="code-example" open><summary>DiskPyramidSource.Read: 가장자리 크기와 실패 시 반환</summary>
-<p class="source">현재 저장소 코드 · 발췌 · <a href="../src/VisionImaging/Imaging/DiskPyramidSource.cs">src/VisionImaging/Imaging/DiskPyramidSource.cs</a></p>
-<pre tabindex="0" aria-label="DiskPyramidSource.Read: 가장자리 크기와 실패 시 반환"><code data-source="../src/VisionImaging/Imaging/DiskPyramidSource.cs" data-kind="excerpt">public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)
-{
-    cancellationToken.ThrowIfCancellationRequested();
-    var image = _levels[key.Level];
-    var left = key.X * 512;
-    var top = key.Y * 512;
-    var width = Math.Min(512, image.Width - left);
-    var height = Math.Min(512, image.Height - top);
-    var output = new PixelBuffer(width, height, Info.Pixels);
-    try
-    {
-        // Region은 생성·사용·해제를 같은 호출 스레드에서 한다. 다음 Read는 다른 worker여도 안전하다.
-        using var region = Region.New(image);
-        VipsRegionPixels.Copy(region, left, top, width, height, output.Bytes, output.Length);
-        cancellationToken.ThrowIfCancellationRequested();
-        return output;
-    }
-    catch
-    {
-        output.Dispose();
-        throw;
-    }
-}</code></pre>
-</details>
+<details id="source-e4e242d3b71d" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">현재 DiskPyramidSource: 자체 raw 피라미드로 위임하는 어댑터</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">DiskPyramidSource.cs · 18줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="현재 DiskPyramidSource: 자체 raw 피라미드로 위임하는 어댑터 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="현재 DiskPyramidSource: 자체 raw 피라미드로 위임하는 어댑터 코드"><code data-source="../src/VisionImaging/Imaging/DiskPyramidSource.cs" data-kind="full" data-language="csharp">using VisionImaging.Abstractions;
+using VisionImaging.Codecs;
+using VisionImaging.Pyramid;
 
-<p>Region은 해당 호출 스레드 안에서 생성·사용·해제합니다. 성공하면 output을 호출자에게 넘기고, 오류나 취소가 생기면 catch에서 직접 반환합니다. <code>return output</code>할 버퍼를 <code>using var output</code>으로 바꾸면 호출자가 읽기 전에 반환되므로 잘못입니다. NetVips 없는 합성 소스 전체는 9장에도 포함했습니다.</p>
-</section>
+namespace VisionImaging;
+
+/// &lt;summary&gt;기존 공개 진입점을 유지하는 자체 raw 피라미드 어댑터. 이전 VIPS 캐시와 키를 공유하지 않는다.&lt;/summary&gt;
+public sealed class DiskPyramidSource : ITileSource
+{
+    private readonly RawPyramidSource source;
+    private DiskPyramidSource(RawPyramidSource source) =&gt; this.source = source;
+    public ImageInfo Info =&gt; source.Info;
+    public static string Version(string path) =&gt; ImageFileVersion.Read(path);
+    public static DiskPyramidSource Open(string path, string cacheRoot, IProgress&lt;string&gt; progress, CancellationToken cancellationToken)
+        =&gt; new(RawPyramidSource.Open(path, cacheRoot, new NativeRasterDecoder(), progress, cancellationToken));
+    public PixelBuffer Read(TileKey key, CancellationToken cancellationToken) =&gt; source.Read(key, cancellationToken);
+    public void Dispose() =&gt; source.Dispose();
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 발췌 · <code>src/VisionImaging/Imaging/DiskPyramidSource.cs</code></p></details>
+
+<p>현재 DiskPyramidSource는 NativeRasterDecoder로 연 자체 RawPyramidSource에 타일 읽기를 위임합니다. 아래 실제 Read는 유효한 행 부분을 새 PixelBuffer로 복사합니다. 성공하면 호출자가 버퍼를 소유하고, 오류나 취소면 catch에서 즉시 Dispose합니다. 반환할 버퍼를 using 변수로 잡아 메서드 종료 때 먼저 반환하면 안 됩니다.</p></section>
 <section id="tile-pipeline"><h2>6. 파일 열기부터 화면에 붙이기까지</h2>
-<ol><li><strong>호스트가 파일을 연다.</strong> DiskPyramidSource.Open은 캐시가 없으면 원본을 순차 읽고 디스크의 0.v, 1.v… 단계를 준비합니다. 최초 준비에는 시간과 디스크 공간이 듭니다. 기존 캐시 식별에는 경로·파일 길이·최종 수정 시각이 사용됩니다.</li>
+<ol><li><strong>호스트가 파일을 연다.</strong> DiskPyramidSource.Open은 자체 RawPyramidSource와 NativeRasterDecoder를 연결합니다. 캐시가 없으면 원본 읽기와 축소를 거쳐 디스크의 0.raw, 1.raw… 단계를 준비합니다. WebP는 현재 전체 RGBA 디코드 경로이므로 모든 형식이 동일한 행 스트리밍 메모리 특성을 갖지는 않습니다. 최초 준비에는 시간과 디스크 공간이 듭니다. 캐시 식별은 raw 형식 버전·디코더 식별·원본 경로·파일 버전 정보를 함께 사용합니다.</li>
 <li><strong>장면에서 주소를 구한다.</strong> GpuImageResources는 가장 작은 전체 개요 타일 (Levels−1,0,0)을 먼저 붙이고, Planner가 구한 상세 타일 목록과 중복을 제거합니다.</li>
 <li><strong>캐시에 없는 주소만 요청한다.</strong> 이미 GPU에 있는 타일은 재사용합니다. 현재 목록은 개요 다음에 행/열 순이며, 커서 중심 우선이나 이동 방향 예측을 구현한 것으로 설명하지 않습니다.</li>
 <li><strong>TileWorker 한 곳에서 읽는다.</strong> 대기 요청은 최신 목록으로 합칩니다. 새 요청이 생겼다고 실행 중인 Read를 즉시 중단하는 것은 아니며, 현재 타일 처리 뒤 최신 요청으로 넘어갑니다. 준비 슬롯 32개가 가득 차면 소비를 기다립니다.</li>
 <li><strong>렌더 측에서 세대를 확인한다.</strong> 한 번의 Update에서 준비 결과를 최대16개 꺼내고 현재 세대·중복을 검사해 업로드합니다. 꺼낸 CPU 버퍼는 이 범위가 끝날 때 반환합니다.</li>
 <li><strong>완료된 조각을 그린다.</strong> 개요가 준비되어 있으면 상세 타일이 아직 없는 곳의 배경으로 활용합니다. 준비된 불투명 상세 타일이 모두 덮는 경우 개요 중복 그리기를 생략합니다. 개요마저 아직 없다면 즉시 완성 영상을 보장하지 않습니다.</li></ol>
 <p>압축 파일의 임의 사각형을 요청하는 API가 있다고 그 부분의 압축 바이트만 읽을 수 있는 것은 아닙니다. 형식과 디코더 접근 방식에 따라 선행 디코드가 필요합니다. 현재 디스크 피라미드 준비를 파일 열기 시간에서 빼고 “24K를 즉시 연다”고 말하면 안 됩니다.</p>
-<p class="source">부분 영역을 요구에 맞춰 계산하는 배경: <a href="https://www.libvips.org/API/current/how-it-works.html">libvips 공식 처리 모델</a>. 위 여섯 단계는 이 저장소의 DiskPyramidSource, TileWorker, GpuImageResources, ScenePainter를 확인한 설명입니다.</p>
+<p>위 경로는 현재 자체 디코더·RawPyramidSource·TileWorker·GpuImageResources를 기준으로 설명합니다. NetVips와 이전 .v 캐시는 현재 경로가 아닙니다.</p></section>
+<section id="reading-15"><h2>파일을 바꿨을 때 클래스들이 주고받는 것</h2><table><thead><tr><th>순서</th><th>실제 책임</th><th>다음으로 넘기는 것</th></tr></thead><tbody><tr><td>파일 선택</td><td>앱 ImageCoordinator가 IImageLoader에 준비 요청</td><td>영상 식별 정보·진행 보고·취소 토큰</td></tr><tr><td>파일 준비</td><td>ImageLoader → DiskPyramidSource → RawPyramidSource</td><td>Info와 타일 Read를 가진 ITileSource</td></tr><tr><td>소스 교체</td><td>뷰포트 SetSource로 TileWorker에 소유권 인계</td><td>새 세대 번호. 이전 작업의 결과와 구별</td></tr><tr><td>필요 영역 결정</td><td>현재 문서 뷰포트에서 TilePlanner가 주소 계산</td><td>Level·X·Y로 된 TileKey 목록</td></tr><tr><td>타일 준비</td><td>TileWorker가 ITileSource.Read를 호출</td><td>PixelBuffer와 세대 정보. 반환 책임도 함께 이동</td></tr><tr><td>화면 반영</td><td>렌더 측이 세대를 확인하고 GPU 자원에 업로드</td><td>준비된 타일을 현재 장면에 표시, CPU 버퍼 반환</td></tr></tbody></table><p>택배 비유로 설명하면, 주소 목록과 배송 상자는 다른 물건입니다. TileKey는 어디를 읽을지 적은 주소이고 PixelBuffer는 실제 픽셀을 담은 상자입니다. 주소만 바꿨다고 새 픽셀이 도착하지는 않습니다. 이전 이미지의 늦은 상자가 도착할 수도 있으므로 세대 확인이 필요합니다. 이 비유는 원본을 복사해도 비용이 없다는 뜻이 아니며, 풀 버퍼의 사용 종료를 정확히 관리해야 합니다.</p><details><summary>다시 설명하기: 새 이미지에서 옛 조각이 잠깐 보인다면?</summary><p>타일 주소만 비교하지 않았는지 확인합니다. 같은 Level·X·Y라도 영상 세대가 다르면 다른 조각입니다. 취소 요청이 기존 작업의 즉시 종료를 보장한다고 가정하지 말고, 결과를 소비하는 경계에서도 세대를 확인해야 합니다.</p></details></section>
+<section id="reading-10">
+<h2>오래된 결과가 새 이미지에 붙으면 안 된다</h2>
+<p>파일 A를 읽던 중 B를 열었다고 가정하세요. A의 느린 타일이 나중에 완료될 수 있습니다. <code>Generation</code>은 현재 이미지의 세대 번호입니다. 타일 결과에 번호를 붙이고 현재 번호와 다른 결과는 게시하지 않고 버퍼를 반환합니다.</p>
+<div class="flow"><span>SetSource<br>세대 증가</span><b>→</b><span>TileWorker<br>읽기·최대 32 준비 슬롯</span><b>→</b><span>세대 검증<br>GPU 업로드</span></div><p>취소는 ‘멈춰 달라’는 요청이고 세대 검증은 ‘지금 쓸 수 있는 결과인가’의 판단입니다. 둘 다 필요합니다. ITileSource는 영상 worker가 소유하며 읽기와 해제가 겹치면 안 됩니다. UI가 같은 source를 검사에도 직접 재사용하면 수명 충돌이 생길 수 있으므로 검사는 독립 원본 reader를 사용합니다.</p>
+<details id="source-9e4121024d12" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">TileWorker</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">TileWorker.cs · 187줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="TileWorker 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="TileWorker 코드"><code data-source="../src/VisionCanvas/Imaging/TileWorker.cs" data-kind="full" data-language="csharp">using System.Collections.Concurrent;
+using VisionImaging.Abstractions;
+
+namespace VisionCanvas.Imaging;
+
+public sealed record ReadyTile(long Generation, TileKey Key, PixelBuffer Pixels);
+
+/// &lt;summary&gt;One decoding owner, a coalesced request and at most 32 prepared tiles.&lt;/summary&gt;
+public sealed class TileWorker : IDisposable
+{
+    private readonly object _gate = new();
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly SemaphoreSlim _slots = new(32, 32);
+    private readonly CancellationTokenSource _shutdown = new();
+    private readonly ConcurrentQueue&lt;ReadyTile&gt; _ready = new();
+    private readonly Thread _thread;
+    private ITileSource? _pendingSource;
+    private long _generation;
+    private Request? _pendingRequest;
+    private sealed record Request(long Generation, IReadOnlyList&lt;TileKey&gt; Keys);
+    public event Action? TileReady;
+    public event Action&lt;string&gt;? Failed;
+
+    public long Generation =&gt; Interlocked.Read(ref _generation);
+
+    public bool HasReady =&gt; !_ready.IsEmpty;
+
+    public TileWorker()
+    {
+        _thread = new Thread(Run) { IsBackground = true, Name = "Image tile decoder" };
+        _thread.Start();
+    }
+
+    public long SetSource(ITileSource source)
+    {
+        lock (_gate)
+        {
+            _pendingSource?.Dispose();
+            _pendingSource = source;
+            _pendingRequest = null;
+            Interlocked.Increment(ref _generation);
+        }
+        _wake.Set();
+        return Generation;
+    }
+
+    public void RequestTiles(long expectedGeneration, IReadOnlyList&lt;TileKey&gt; keys)
+    {
+        if (keys.Count == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _pendingRequest = new(expectedGeneration, keys);
+        }
+
+        _wake.Set();
+    }
+
+    public bool TryTake(out ReadyTile? tile)
+    {
+        if (!_ready.TryDequeue(out tile))
+        {
+            return false;
+        }
+
+        _slots.Release();
+        return true;
+    }
+
+    private void Run()
+    {
+        ITileSource? source = null;
+        long sourceGeneration = 0;
+        long failedGeneration = -1;
+        try
+        {
+            while (!_shutdown.IsCancellationRequested)
+            {
+                _wake.WaitOne();
+                Request? request;
+                lock (_gate)
+                {
+                    if (_pendingSource is { } next)
+                    {
+                        source?.Dispose();
+                        source = next;
+                        _pendingSource = null;
+                        sourceGeneration = _generation;
+                    }
+                    request = _pendingRequest;
+                    _pendingRequest = null;
+                }
+                if (source is null || request is null || request.Generation != sourceGeneration || sourceGeneration == failedGeneration)
+                {
+                    continue;
+                }
+
+                foreach (var key in request.Keys)
+                {
+                    if (Generation != sourceGeneration || _shutdown.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    _slots.Wait(_shutdown.Token);
+                    PixelBuffer? pixels = null;
+                    var queued = false;
+                    try
+                    {
+                        pixels = source.Read(key, _shutdown.Token);
+                        if (Generation == sourceGeneration)
+                        {
+                            _ready.Enqueue(new(sourceGeneration, key, pixels));
+                            pixels = null;
+                            queued = true;
+                        }
+                    }
+                    catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        failedGeneration = sourceGeneration;
+                        Failed?.Invoke($"타일 읽기 실패: {ex.Message}. 이미지를 다시 열어 재시도하세요.");
+                        break;
+                    }
+                    finally
+                    {
+                        pixels?.Dispose();
+                        // A queued buffer owns the slot until TryTake. Notification is not part of decoding.
+                        if (!queued)
+                        {
+                            _slots.Release();
+                        }
+                    }
+                    if (queued)
+                    {
+                        TileReady?.Invoke();
+                    }
+
+                    lock (_gate)
+                    {
+                        if (_pendingRequest is not null)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Failed?.Invoke($"타일 읽기 실패: {ex.Message}");
+        }
+        finally
+        {
+            source?.Dispose();
+        }
+    }
+
+    public void Dispose()
+    {
+        _shutdown.Cancel();
+        _wake.Set();
+        _thread.Join();
+        lock (_gate)
+        {
+            _pendingSource?.Dispose();
+            _pendingSource = null;
+        }
+        while (_ready.TryDequeue(out var item))
+        {
+            item.Pixels.Dispose();
+        }
+
+        _shutdown.Dispose();
+        _wake.Dispose();
+        _slots.Dispose();
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Imaging/TileWorker.cs</code></p></details><details id="source-1c20c5327982" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">IImageLoader</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">IImageLoader.cs · 7줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="IImageLoader 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="IImageLoader 코드"><code data-source="../src/VisionImaging.Abstractions/IImageLoader.cs" data-kind="full" data-language="csharp">namespace VisionImaging.Abstractions;
+
+/// &lt;summary&gt;Creates an independently owned source. The caller transfers or disposes it after a successful load.&lt;/summary&gt;
+public interface IImageLoader
+{
+    Task&lt;ITileSource&gt; LoadAsync(ImageReference reference, IProgress&lt;string&gt; progress, CancellationToken cancellationToken);
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionImaging.Abstractions/IImageLoader.cs</code></p></details>
+</section>
+<section id="reading-11">
+<h2>소유권은 ‘누가 마지막으로 반환하나’</h2>
+<p class="lesson-question">“같은 배열을 두 곳이 받았으니 둘 다 Dispose하면 더 안전할까요?” 도서관 책을 한 권 빌려 두 사람이 같이 읽어도 반납은 한 번이어야 합니다. 배열 풀에서도 누군가 반납하면 다른 사용자가 그 배열을 빌려 덮어쓸 수 있습니다. 참조를 가지고 있다는 사실만으로 계속 읽어도 된다는 뜻은 아닙니다.</p>
+
+<table><thead><tr><th>객체</th><th>전달 전</th><th>전달 후/사용 종료</th></tr></thead><tbody><tr><td>PixelBuffer</td><td>생성자가 풀 배열 lease를 보유</td><td>이전받은 단일 소유자가 Dispose. 유효 영역만 읽기</td></tr><tr><td>ITileSource</td><td>호스트가 생성·열기</td><td>SetSource 이후 worker 소유. 호스트가 다시 해제하지 않음</td></tr><tr><td>VideoFrame</td><td>게시자가 한 lease 보유</td><td>PublishFrame으로 이전. 별도 보관은 Retain으로 새 lease</td></tr><tr><td>GPU 리소스</td><td>렌더 경계가 생성</td><td>GPU 마지막 사용 fence 완료 뒤 재사용·해제</td></tr></tbody></table>
+<p>메모리 풀은 주차장처럼 이미 확보한 공간을 빌려주는 도구입니다. 반환은 ‘내가 더는 사용하지 않겠다’는 약속이지 배열을 0으로 지운다는 뜻이 아닙니다. 반환된 배열의 참조를 보관해 읽으면 다른 프레임의 데이터가 보일 수 있습니다.</p>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">소유권은 ‘누가 마지막으로 반환하나’</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">본문 예제 · 8줄</span><button type="button" data-copy-code hidden aria-label="소유권은 ‘누가 마지막으로 반환하나’ 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="소유권은 ‘누가 마지막으로 반환하나’ 코드"><code data-language="csharp">// 지역 계산에만 쓰면 using이 적절하다.
+using var pixels = new PixelBuffer(512, 512, PixelKind.Gray8);
+pixels.Span.Fill(64);
+// 이 범위에서 다 썼으므로 끝에서 반환한다.
+
+// 소유권을 넘길 때는 using으로 즉시 반환하면 안 된다.
+var frame = new VideoFrame(sequence, timestamp, pixelsOwnedForFrame);
+viewport.PublishFrame(frame); // 이 호출 이후 frame을 게시자가 해제하지 않는다.</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>두 예제는 별개의 상황입니다. 첫 번째의 using 변수 <code>pixels</code>를 두 번째로 넘기라는 뜻이 아닙니다. 실제 게시 경로와 실패 시 소유권은 <a href="#source-309eb84c3af2" data-code-target="source-309eb84c3af2">LatestFrameMailbox</a> 및 <a href="#source-b8b2f1a21f5e" data-code-target="source-b8b2f1a21f5e">VideoFrame</a>을 함께 읽습니다.</p><details id="source-309eb84c3af2" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">LatestFrameMailbox</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">LatestFrameMailbox.cs · 88줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="LatestFrameMailbox 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="LatestFrameMailbox 코드"><code data-source="../src/VisionCanvas/Imaging/LatestFrameMailbox.cs" data-kind="full" data-language="csharp">using VisionImaging.Abstractions;
+
+namespace VisionCanvas.Imaging;
+
+/// &lt;summary&gt;Single-slot ownership transfer. Replaced frames are returned immediately.&lt;/summary&gt;
+public sealed class LatestFrameMailbox : IDisposable
+{
+    private readonly object _gate = new();
+    private VideoFrame? _pending;
+    private VideoFrame? _latest;
+    private bool _disposed;
+    private long _dropped;
+
+    public long Dropped =&gt; Interlocked.Read(ref _dropped);
+
+    public bool HasPending
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pending is not null;
+            }
+        }
+    }
+
+    public event Action? Available;
+
+    public void Publish(VideoFrame frame)
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                frame.Dispose();
+                return;
+            }
+            if (_pending is not null)
+            {
+                _pending.Dispose();
+                Interlocked.Increment(ref _dropped);
+            }
+            _latest?.Dispose();
+            _latest = frame.Retain();
+            _pending = frame;
+            Available?.Invoke();
+        }
+    }
+
+    public VideoFrame? Take()
+    {
+        lock (_gate)
+        {
+            var frame = _pending;
+            _pending = null;
+            return frame;
+        }
+    }
+
+    public VideoFrame? RetainLatest()
+    {
+        lock (_gate)
+        {
+            return _latest?.Retain();
+        }
+    }
+
+    public void Clear()
+    {
+        lock (_gate)
+        {
+            _pending?.Dispose();
+            _latest?.Dispose();
+            _pending = null;
+            _latest = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            _disposed = true;
+            Clear();
+            Available = null;
+        }
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Imaging/LatestFrameMailbox.cs</code></p></details><details id="source-b8b2f1a21f5e" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">VideoFrame</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">VideoFrame.cs · 91줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="VideoFrame 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="VideoFrame 코드"><code data-source="../src/VisionImaging.Abstractions/VideoFrame.cs" data-kind="full" data-language="csharp">namespace VisionImaging.Abstractions;
+
+public sealed class VideoFrame : IDisposable
+{
+    private sealed class SharedPixels(PixelBuffer pixels)
+    {
+        private int _references = 1;
+
+        public PixelBuffer Pixels
+        {
+            get;
+        } = pixels;
+
+        public void Retain()
+        {
+            int count;
+            do
+            {
+                count = Volatile.Read(ref _references);
+                if (count == 0)
+                {
+                    throw new ObjectDisposedException(nameof(VideoFrame));
+                }
+            }
+            while (Interlocked.CompareExchange(ref _references, count + 1, count) != count);
+        }
+
+        public void Release()
+        {
+            if (Interlocked.Decrement(ref _references) == 0)
+            {
+                Pixels.Dispose();
+            }
+        }
+    }
+    private readonly SharedPixels _shared;
+    private int _disposed;
+
+    public long Sequence
+    {
+        get;
+    }
+
+    public long Timestamp
+    {
+        get;
+    }
+
+    public PixelBuffer Pixels =&gt; Volatile.Read(ref _disposed) == 0 ? _shared.Pixels : throw new ObjectDisposedException(nameof(VideoFrame));
+
+    public VideoFrame(long sequence, long timestamp, PixelBuffer pixels)
+    {
+        Sequence = sequence;
+        Timestamp = timestamp;
+        _shared = new(pixels);
+    }
+
+    private VideoFrame(long sequence, long timestamp, SharedPixels pixels)
+    {
+        Sequence = sequence;
+        Timestamp = timestamp;
+        _shared = pixels;
+    }
+
+    public VideoFrame Retain()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            throw new ObjectDisposedException(nameof(VideoFrame));
+        }
+
+        _shared.Retain();
+        return new(Sequence, Timestamp, _shared);
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _shared.Release();
+        }
+    }
+}
+public interface IFrameSource
+{
+    ImageInfo Info
+    {
+        get;
+    }
+    IAsyncEnumerable&lt;VideoFrame&gt; Frames(CancellationToken cancellationToken);
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionImaging.Abstractions/VideoFrame.cs</code></p></details>
+
+<div class="worked-example"><h3>성공·취소·오래된 결과의 마지막 주인을 찾기</h3>
+<p>읽기를 성공해 버퍼를 반환할 때는 계약에 따라 다음 소비자에게 소유권을 넘깁니다. 만든 도중 예외가 났다면 아직 넘기지 못한 생산자가 정리해야 합니다. 새 이미지로 바뀌어 결과를 버리는 경우도 누군가는 반환해야 합니다. ‘사용하지 않는다’와 ‘정리할 필요 없다’는 다릅니다.</p>
+<p>도서관 비유에는 한계가 있습니다. 실제 프레임은 Retain 같은 명시적 공유 수명 계약을 사용할 수도 있습니다. 이때 마지막 참조가 끝날 때 반환되는 규칙을 따라야 하며, 임의로 Dispose를 한 번 더 호출해서 안전을 확보하려고 하면 안 됩니다. GPU 복사가 끝나는 시점은 CPU 버퍼 전달과도 별도입니다.</p></div>
+</section>
+<section id="reading-14"><h2>현재 원본 타일 읽기 구현과 반환 책임</h2><p>현재 표시 피라미드는 자체 TrianglePyramid가 만들며, 아래 Read는 이미 준비된 raw 단계에서 행 구간을 복사합니다. 코덱의 파일 열기/준비 시간과 이 타일 복사 시간을 구별하세요.</p><details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">현재 원본 타일 읽기 구현과 반환 책임</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">RawPyramidSource.cs · 31줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="현재 원본 타일 읽기 구현과 반환 책임 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="현재 원본 타일 읽기 구현과 반환 책임 코드"><code data-source="../experiments/VisionImaging.Pyramid/RawPyramidSource.cs" data-kind="excerpt" data-language="csharp">public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)
+{
+    ObjectDisposedException.ThrowIf(_disposed, this);
+    cancellationToken.ThrowIfCancellationRequested();
+    if ((uint)key.Level &gt;= _levels.Count)
+    {
+        throw new ArgumentOutOfRangeException(nameof(key));
+    }
+    var level = _levels[key.Level];
+    if (key.X &lt; 0 || key.Y &lt; 0 || key.X &gt; (level.Width - 1) / 512 || key.Y &gt; (level.Height - 1) / 512)
+    {
+        throw new ArgumentOutOfRangeException(nameof(key));
+    }
+    var left = key.X * 512;
+    var top = key.Y * 512;
+    var pixels = new PixelBuffer(Math.Min(512, level.Width - left), Math.Min(512, level.Height - top), Info.Pixels);
+    try
+    {
+        for (var y = 0; y &lt; pixels.Height; y++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            level.Row(top + y).Slice(left * Info.BytesPerPixel, pixels.Stride).CopyTo(pixels.Span.Slice(y * pixels.Stride, pixels.Stride));
+        }
+        return pixels;
+    }
+    catch
+    {
+        pixels.Dispose();
+        throw;
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p></details></section>
+<section id="reading-12">
+<h2>표시는 최신 완료 프레임 우선</h2>
+<p>생산자가 60장/초, 표시가 30장/초라면 모든 프레임을 줄 세워 표시할 때 지연이 계속 커집니다. 한 칸 mailbox는 아직 소비되지 않은 프레임을 최신 것으로 바꾸고 이전 lease를 반환합니다. 버린 개수는 Dropped로 셉니다. ‘모든 영상을 저장·검사해야 한다’는 무손실 요구는 다른 파이프라인입니다.</p>
+<p>기본 업로드는 CPU 원본 → 재사용 upload buffer → GPU texture입니다. Retain이 전체 픽셀 복사를 피한다고 전체 파이프라인이 zero-copy가 되지는 않습니다. 풀 배열·upload 공간·GPU texture·타일 캐시·디스크 캐시의 메모리는 각각 계산해야 합니다.</p>
+<details><summary>직접 확인: A 타일 준비 중 B를 열었다. A 타일이 완료되면?</summary><p>세대가 다르면 B 장면에 넣지 않고 A의 PixelBuffer를 반환합니다. B의 source는 유지합니다. 취소가 늦게 반영되어 A의 계산이 끝나도 게시 검증이 막아야 합니다. 예외를 무시하는 것으로 이 계약을 대신하지 않습니다.</p>
+</details>
 </section>
 <section id="tile-cache"><h2>7. 캐시와 메모리 예산을 함께 설계하기</h2>
 <p>캐시는 다시 볼 가능성이 있는 타일을 보관하는 공간입니다. LRU는 Least Recently Used, 즉 가장 오래 사용하지 않은 항목부터 버리는 방식입니다. 현재 구현은 마지막 사용 프레임 번호를 기록하고 현재 프레임에서 사용하는 타일은 퇴출하지 않습니다. 같은 번호의 항목 사이 순서까지 특별한 우선순위라고 해석하지 않습니다.</p>
@@ -172,9 +669,10 @@ public static class TilePlanner
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="유효 타일 바이트 = 너비×높이×픽셀당 바이트; Gray8 512²×1 byte=256 KiB; Gray16 512²×2 bytes=512 KiB; RGBA32 512²×4 bytes=1 MiB"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mtext>유효 타일 바이트</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mtext>너비</mtext><mo>×</mo><mtext>높이</mtext><mo>×</mo><mtext>픽셀당 바이트</mtext></mrow></mtd></mtr><mtr><mtd><mrow><mtext>Gray8: </mtext><msup><mn>512</mn><mn>2</mn></msup><mo>×</mo><mn>1</mn><mtext> byte</mtext></mrow></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>256</mn><mtext> KiB</mtext></mrow></mtd></mtr><mtr><mtd><mrow><mtext>Gray16: </mtext><msup><mn>512</mn><mn>2</mn></msup><mo>×</mo><mn>2</mn><mtext> bytes</mtext></mrow></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>512</mn><mtext> KiB</mtext></mrow></mtd></mtr><mtr><mtd><mrow><mtext>RGBA32: </mtext><msup><mn>512</mn><mn>2</mn></msup><mo>×</mo><mn>4</mn><mtext> bytes</mtext></mrow></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mn>1</mn><mtext> MiB</mtext></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">유효 타일 바이트 = 너비×높이×픽셀당 바이트; Gray8 512²×1 byte=256 KiB; Gray16 512²×2 bytes=512 KiB; RGBA32 512²×4 bytes=1 MiB</annotation></semantics></math>
 </div>
 <p>하드웨어 타일 예산은 <span class="math-inline-scroll" tabindex="0" role="group" aria-label="수식"><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="min(256 MiB, max(16 MiB, 로컬 메모리 예산/5))"><semantics><mrow><mrow><mi mathvariant="normal">min</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mn>256</mn><mtext> MiB</mtext></mrow><mo>,</mo><mrow><mi mathvariant="normal">max</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mrow><mn>16</mn><mtext> MiB</mtext></mrow><mo>,</mo><mfrac><mtext>로컬 메모리 예산</mtext><mn>5</mn></mfrac></mrow><mo>)</mo></mrow></mrow></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">min(256 MiB, max(16 MiB, 로컬 메모리 예산/5))</annotation></semantics></math></span>, WARP는 256MiB입니다. 이것은 활성 타일 퇴출 정책의 기준입니다. 현재 가시 타일은 유지하고, 퇴출된 GPU 리소스도 fence 완료까지 살아 있을 수 있습니다. 업로드·라이브 텍스처·라벨·ROI·CPU 풀·디스크 캐시까지 합친 프로세스 전체 상한이 아닙니다.</p>
-<details class="code-example"><summary>UpdateTiles 전체: 개요 추가 → 사용 표시 → 퇴출 → 누락 요청</summary>
-<p class="source">현재 저장소 코드 · 발췌 · <a href="../src/VisionCanvas/Rendering/GpuImageResources.cs">src/VisionCanvas/Rendering/GpuImageResources.cs</a></p>
-<pre tabindex="0" aria-label="UpdateTiles 전체: 개요 추가 → 사용 표시 → 퇴출 → 누락 요청"><code data-source="../src/VisionCanvas/Rendering/GpuImageResources.cs" data-kind="excerpt">private void UpdateTiles(ImageInfo image, RenderScene scene, Dx12Surface surface, long frameNumber)
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">UpdateTiles 전체: 개요 추가 → 사용 표시 → 퇴출 → 누락 요청</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">GpuImageResources.cs · 35줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="UpdateTiles 전체: 개요 추가 → 사용 표시 → 퇴출 → 누락 요청 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="UpdateTiles 전체: 개요 추가 → 사용 표시 → 퇴출 → 누락 요청 코드"><code data-source="../src/VisionCanvas/Rendering/GpuImageResources.cs" data-kind="excerpt" data-language="csharp">private void UpdateTiles(ImageInfo image, RenderScene scene, Dx12Surface surface, long frameNumber)
 {
     var visible = TilePlanner.Visible(image, scene.Document.Viewport, scene.Width, scene.Height, scene.Dpi).Prepend(new TileKey(image.Levels - 1, 0, 0)).Distinct().ToArray();
     foreach (var key in visible)
@@ -209,44 +707,211 @@ public static class TilePlanner
     }
     source.RequestTiles(_generation, visible.Where(key =&gt; !_tiles.ContainsKey(key)).ToArray());
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 발췌 · <a href="#source-80313e3040c2" data-code-target="source-80313e3040c2">src/VisionCanvas/Rendering/GpuImageResources.cs</a></p></details><details id="source-80313e3040c2" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">src/VisionCanvas/Rendering/GpuImageResources.cs</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">GpuImageResources.cs · 178줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="src/VisionCanvas/Rendering/GpuImageResources.cs 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="src/VisionCanvas/Rendering/GpuImageResources.cs 코드"><code data-source="../src/VisionCanvas/Rendering/GpuImageResources.cs" data-kind="full" data-language="csharp">using VisionCanvas.Imaging;
+using VisionGeometry;
+using VisionImaging.Abstractions;
+
+namespace VisionCanvas.Rendering;
+
+/// &lt;summary&gt;Owns image textures and their byte-budget eviction. Retired resources remain fence protected.&lt;/summary&gt;
+internal sealed class GpuImageResources(Dx12Device gpu, SpritePipeline pipeline, TileWorker source, IFramePreparer preparer) : IDisposable
+{
+    private readonly Dictionary&lt;TileKey, GpuTexture&gt; _tiles = [];
+    private readonly Dictionary&lt;TileKey, long&gt; _lastUsed = [];
+    private readonly GpuTexture?[] _video = new GpuTexture?[2];
+    private readonly GpuLiveOverview _overview = new();
+    private long _generation = -1;
+    private VideoFrame? _preparedIdentity;
+    private (ViewportTransform View, double Width, double Height, double Dpi) _preparedView;
+
+    public BoundsD LiveBounds
+    {
+        get;
+        private set;
+    }
+
+    public IReadOnlyDictionary&lt;TileKey, GpuTexture&gt; Tiles =&gt; _tiles;
+
+    public GpuTexture? Live
+    {
+        get;
+        private set;
+    }
+
+    public GpuTexture? LiveOverview =&gt; _overview.Texture;
+
+    public long Bytes =&gt; _tiles.Values.Sum(t =&gt; t.Bytes) + _video.Where(t =&gt; t is not null).Sum(t =&gt; t!.Bytes) + _overview.Bytes;
+
+    public bool Update(RenderScene scene, VideoFrame? frame, Dx12Surface surface, long frameNumber)
+    {
+        if (_generation != scene.Generation)
+        {
+            foreach (var texture in _tiles.Values)
+            {
+                surface.Retire(texture);
+            }
+
+            _tiles.Clear();
+            _lastUsed.Clear();
+            _generation = scene.Generation;
+            _overview.Clear(surface);
+        }
+        var count = 0;
+        while (count &lt; 16 &amp;&amp; source.TryTake(out var ready))
+        {
+            using var pixels = ready!.Pixels;
+            if (ready.Generation == _generation &amp;&amp; !_tiles.ContainsKey(ready.Key))
+            {
+                _tiles.Add(ready.Key, pipeline.Upload(pixels, surface));
+                _lastUsed[ready.Key] = frameNumber;
+            }
+            count++;
+        }
+        UpdateVideo(scene, frame, surface);
+        if (scene.IsLive &amp;&amp; frame is not null)
+        {
+            _overview.Update(frame, pipeline, surface, preparer);
+        }
+        else if (!scene.IsLive &amp;&amp; _overview.Texture is not null)
+        {
+            _overview.Clear(surface);
+        }
+
+        if (!scene.IsLive &amp;&amp; scene.Image is { } image)
+        {
+            UpdateTiles(image, scene, surface, frameNumber);
+        }
+
+        return count == 16;
+    }
+
+    private void UpdateVideo(RenderScene scene, VideoFrame? frame, Dx12Surface surface)
+    {
+        if (scene.IsLive &amp;&amp; frame is not null)
+        {
+            var key = (scene.Document.Viewport, scene.Width, scene.Height, scene.Dpi);
+            if (ReferenceEquals(frame, _preparedIdentity) &amp;&amp; key == _preparedView)
+            {
+                return;
+            }
+
+            using var prepared = preparer.Prepare(frame.Pixels, key.Viewport, key.Width, key.Height, key.Dpi);
+            _preparedIdentity = frame;
+            _preparedView = key;
+            if (prepared is null)
+            {
+                Live = null;
+                return;
+            }
+            var index = surface.FrameIndex;
+            var pixels = prepared.Pixels;
+            var texture = _video[index];
+            if (texture is null || texture.Width != pixels.Width || texture.Height != pixels.Height || texture.Kind != pixels.Kind)
+            {
+                if (texture is not null)
+                {
+                    surface.Retire(texture);
+                }
+
+                _video[index] = texture = pipeline.CreateTexture(pixels.Width, pixels.Height, pixels.Kind);
+            }
+            pipeline.Update(texture, pixels, surface);
+            Live = texture;
+            LiveBounds = prepared.ImageBounds;
+        }
+        else if (!scene.IsLive &amp;&amp; _preparedIdentity is not null)
+        {
+            for (var index = 0; index &lt; 2; index++)
+            {
+                if (_video[index] is { } texture)
+                {
+                    surface.Retire(texture);
+                }
+
+                _video[index] = null;
+            }
+            Live = null;
+            _preparedIdentity = null;
+        }
+    }
+
+    private void UpdateTiles(ImageInfo image, RenderScene scene, Dx12Surface surface, long frameNumber)
+    {
+        var visible = TilePlanner.Visible(image, scene.Document.Viewport, scene.Width, scene.Height, scene.Dpi).Prepend(new TileKey(image.Levels - 1, 0, 0)).Distinct().ToArray();
+        foreach (var key in visible)
+        {
+            if (_tiles.ContainsKey(key))
+            {
+                _lastUsed[key] = frameNumber;
+            }
+        }
+
+        var bytes = _tiles.Values.Sum(t =&gt; t.Bytes);
+        if (bytes &gt; gpu.TileBudgetBytes)
+        {
+            foreach (var entry in _lastUsed.OrderBy(p =&gt; p.Value).ToArray())
+            {
+                if (bytes &lt;= gpu.TileBudgetBytes)
+                {
+                    break;
+                }
+
+                if (entry.Value == frameNumber)
+                {
+                    continue;
+                }
+
+                var texture = _tiles[entry.Key];
+                bytes -= texture.Bytes;
+                _tiles.Remove(entry.Key);
+                _lastUsed.Remove(entry.Key);
+                surface.Retire(texture);
+            }
+        }
+        source.RequestTiles(_generation, visible.Where(key =&gt; !_tiles.ContainsKey(key)).ToArray());
+    }
+
+    public void Dispose()
+    {
+        _overview.Dispose();
+        foreach (var texture in _tiles.Values)
+        {
+            texture.Dispose();
+        }
+
+        foreach (var texture in _video)
+        {
+            texture?.Dispose();
+        }
+    }
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas/Rendering/GpuImageResources.cs</code></p></details>
 
 <p>TileKey만으로는 파일을 식별할 수 없습니다. 서로 다른 파일에도 (0,0,0)이 있습니다. 현재 GPU 사전은 한 세대만 보관하고 세대가 바뀌면 비우므로 안전한 경계를 만듭니다. 여러 이미지의 캐시를 함께 보관하는 설계로 바꾼다면 이미지 버전도 키에 포함해야 합니다.</p>
 </section>
-<section id="tile-seams"><h2>8. 타일 경계의 줄과 필터 이음새 구별하기</h2>
-<p>문제가 타일 경계마다 반복되면 먼저 좌표·유효 크기·stride·샘플링을 분리해 확인하세요. 마지막 276px 타일을 512px 폭으로 늘려 그리면 영상 자체가 밀립니다. GPU가 샘플링할 때의 경계 처리와 필터가 이웃 픽셀을 읽는 범위도 서로 다릅니다.</p>
-<p>예를 들어 3×3 평균 필터는 좌우·상하 한 픽셀 이웃이 필요합니다. 512×512 출력 타일을 독립 처리하려면 주변까지 514×514를 읽어 계산한 뒤 가운데 512×512만 남길 수 있습니다. 이 추가 테두리를 halo라고 부릅니다. 반경 r이면 내부 타일의 읽기 폭은 T+2r이며, 실제 영상 끝에서만 반사·복제·상수 같은 경계 규칙을 적용합니다. 매 타일 끝을 영상 끝처럼 처리하면 이웃 타일의 실제 픽셀 대신 가짜 경계를 사용합니다.</p>
-<p>가로 한 줄의 평균 예로 타일 A의 마지막 값이 0, 타일 B의 앞 두 값이 100,100이라면 B 첫 위치의 3점 평균은 (0+100+100)/3≈66.7입니다. B의 가장자리 값을 복제하면 (100+100+100)/3=100이 되어 경계에 차이가 남습니다. 여러 필터를 연결할 때는 각 연산의 이웃 범위도 누적해서 고려해야 합니다.</p>
+<details class="deep-dive"><summary>더 알아보기 · 타일 이음새와 필터 경계</summary><section id="tile-seams"><h2>8. 타일 경계의 줄과 필터 이음새 구별하기</h2>
+<p class="lesson-question">“각 타일에서 평균 필터를 돌렸더니 조각 사이에 선이 생겨요.” 조각 경계의 픽셀도 옆 조각의 이웃이 필요합니다. 책을 두 권으로 나눴다고 문장 중간에서 앞뒤 단어를 잃어서는 안 되는 것과 같습니다. 계산할 영역보다 조금 넓게 읽는 여백을 halo라고 부릅니다.</p>
+
+<p>예를 들어 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="3×3"><semantics><mrow><mrow><mn>3</mn><mo>×</mo><mn>3</mn></mrow></mrow><annotation encoding="text/plain">3×3</annotation></semantics></math> 평균 필터는 좌우·상하 한 픽셀 이웃이 필요합니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 512×512"><semantics><mrow><mrow><mo>.</mo><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">. 512×512</annotation></semantics></math> 출력 타일을 독립 처리하려면 주변까지 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="514×514"><semantics><mrow><mrow><mn>514</mn><mo>×</mo><mn>514</mn></mrow></mrow><annotation encoding="text/plain">514×514</annotation></semantics></math>를 읽어 계산한 뒤 가운데 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math>만 남길 수 있습니다. 이 추가 테두리를 halo라고 부릅니다. 반경 r이면 내부 타일의 읽기 폭은 T+2r이며, 실제 영상 끝에서만 반사·복제·상수 같은 경계 규칙을 적용합니다. 매 타일 끝을 영상 끝처럼 처리하면 이웃 타일의 실제 픽셀 대신 가짜 경계를 사용합니다.</p>
+<p>가로 한 줄의 평균 예로 타일 A의 마지막 값이 0, 타일 B의 앞 두 값이 100,100이라면 B 첫 위치의 3점 평균은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(0+100+100)/3≈66.7"><semantics><mrow><mrow><mfrac><mrow><mo>(</mo><mrow><mn>0</mn><mo>+</mo><mn>100</mn><mo>+</mo><mn>100</mn></mrow><mo>)</mo></mrow><mn>3</mn></mfrac><mo>≈</mo><mn>66.7</mn></mrow></mrow><annotation encoding="text/plain">(0+100+100)/3≈66.7</annotation></semantics></math>입니다. B의 가장자리 값을 복제하면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(100+100+100)/3=100"><semantics><mrow><mrow><mfrac><mrow><mo>(</mo><mrow><mn>100</mn><mo>+</mo><mn>100</mn><mo>+</mo><mn>100</mn></mrow><mo>)</mo></mrow><mn>3</mn></mfrac><mo>=</mo><mn>100</mn></mrow></mrow><annotation encoding="text/plain">(100+100+100)/3=100</annotation></semantics></math>이 되어 경계에 차이가 남습니다. 여러 필터를 연결할 때는 각 연산의 이웃 범위도 누적해서 고려해야 합니다.</p>
 <p class="source">이 halo 사례는 직접 타일 필터를 설계할 때의 교육 예이며, 현재 Canvas의 타일 표시 경로에 추가된 기능이 아닙니다. 영상 바깥 padding 규칙은 <a href="https://docs.opencv.org/4.13.0/dc/da3/tutorial_copyMakeBorder.html">OpenCV 경계 처리 공식 설명</a>을 참고하세요.</p>
 <aside class="note">작게 표시한 타일을 검사 원본으로 쓰지 않습니다. 표시 피라미드는 보기 위한 데이터이고, 검사 학습·최종 검증은 별도 원본 reader와 유효 마스크 계약을 따릅니다.</aside>
-<details><summary>직접 확인: 1300×900의 마지막 타일을 만들 때 512×512를 채우면 왜 문제가 될까?</summary><p>실제 유효 영역은 276×388입니다. 나머지를 실제 검은 픽셀로 평균·검사하면 값과 도형 경계가 달라집니다. 고정 크기 저장소를 설계할 수는 있지만 유효 너비/높이를 별도로 전달하고 모든 소비자가 지켜야 합니다. 현재 PixelBuffer는 유효 크기로 생성하므로 이런 별도 padding을 영상으로 전달하지 않습니다.</p></details>
-</section>
-<section>
-<h2>오래된 결과가 새 이미지에 붙으면 안 된다</h2>
-<p>파일 A를 읽던 중 B를 열었다고 가정하세요. A의 느린 타일이 나중에 완료될 수 있습니다. <code>Generation</code>은 현재 이미지의 세대 번호입니다. 타일 결과에 번호를 붙이고 현재 번호와 다른 결과는 게시하지 않고 버퍼를 반환합니다.</p>
-<div class="flow"><span>SetSource<br>세대 증가</span><b>→</b><span>TileWorker<br>읽기·최대 32 준비 슬롯</span><b>→</b><span>세대 검증<br>GPU 업로드</span></div><p>취소는 ‘멈춰 달라’는 요청이고 세대 검증은 ‘지금 쓸 수 있는 결과인가’의 판단입니다. 둘 다 필요합니다. ITileSource는 영상 worker가 소유하며 읽기와 해제가 겹치면 안 됩니다. UI가 같은 source를 검사에도 직접 재사용하면 수명 충돌이 생길 수 있으므로 검사는 독립 원본 reader를 사용합니다.</p>
-<p><a href="../src/VisionCanvas/Imaging/TileWorker.cs">TileWorker</a> · <a href="../src/VisionImaging.Abstractions/IImageLoader.cs">IImageLoader</a></p>
-</section>
-<section>
-<h2>소유권은 ‘누가 마지막으로 반환하나’</h2>
-<table><thead><tr><th>객체</th><th>전달 전</th><th>전달 후/사용 종료</th></tr></thead><tbody><tr><td>PixelBuffer</td><td>생성자가 풀 배열 lease를 보유</td><td>이전받은 단일 소유자가 Dispose. 유효 영역만 읽기</td></tr><tr><td>ITileSource</td><td>호스트가 생성·열기</td><td>SetSource 이후 worker 소유. 호스트가 다시 해제하지 않음</td></tr><tr><td>VideoFrame</td><td>게시자가 한 lease 보유</td><td>PublishFrame으로 이전. 별도 보관은 Retain으로 새 lease</td></tr><tr><td>GPU 리소스</td><td>렌더 경계가 생성</td><td>GPU 마지막 사용 fence 완료 뒤 재사용·해제</td></tr></tbody></table>
-<p>메모리 풀은 주차장처럼 이미 확보한 공간을 빌려주는 도구입니다. 반환은 ‘내가 더는 사용하지 않겠다’는 약속이지 배열을 0으로 지운다는 뜻이 아닙니다. 반환된 배열의 참조를 보관해 읽으면 다른 프레임의 데이터가 보일 수 있습니다.</p>
-<pre><code>// 지역 계산에만 쓰면 using이 적절하다.
-using var pixels = new PixelBuffer(512, 512, PixelKind.Gray8);
-pixels.Span.Fill(64);
-// 이 범위에서 다 썼으므로 끝에서 반환한다.
+<details><summary>직접 확인: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1300×900"><semantics><mrow><mrow><mn>1300</mn><mo>×</mo><mn>900</mn></mrow></mrow><annotation encoding="text/plain">1300×900</annotation></semantics></math>의 마지막 타일을 만들 때 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math>를 채우면 왜 문제가 될까?</summary><p>실제 유효 영역은 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="276×388"><semantics><mrow><mrow><mn>276</mn><mo>×</mo><mn>388</mn></mrow></mrow><annotation encoding="text/plain">276×388</annotation></semantics></math>입니다. 나머지를 실제 검은 픽셀로 평균·검사하면 값과 도형 경계가 달라집니다. 고정 크기 저장소를 설계할 수는 있지만 유효 너비/높이를 별도로 전달하고 모든 소비자가 지켜야 합니다. 현재 PixelBuffer는 유효 크기로 생성하므로 이런 별도 padding을 영상으로 전달하지 않습니다.</p></details>
 
-// 소유권을 넘길 때는 using으로 즉시 반환하면 안 된다.
-var frame = new VideoFrame(sequence, timestamp, pixelsOwnedForFrame);
-viewport.PublishFrame(frame); // 이 호출 이후 frame을 게시자가 해제하지 않는다.</code></pre><p>두 예제는 별개의 상황입니다. 첫 번째의 using 변수 <code>pixels</code>를 두 번째로 넘기라는 뜻이 아닙니다. 실제 게시 경로와 실패 시 소유권은 <a href="../src/VisionCanvas/Imaging/LatestFrameMailbox.cs">LatestFrameMailbox</a> 및 <a href="../src/VisionImaging.Abstractions/VideoFrame.cs">VideoFrame</a>을 함께 읽습니다.</p>
-</section>
-<section>
-<h2>표시는 최신 완료 프레임 우선</h2>
-<p>생산자가 60장/초, 표시가 30장/초라면 모든 프레임을 줄 세워 표시할 때 지연이 계속 커집니다. 한 칸 mailbox는 아직 소비되지 않은 프레임을 최신 것으로 바꾸고 이전 lease를 반환합니다. 버린 개수는 Dropped로 셉니다. ‘모든 영상을 저장·검사해야 한다’는 무손실 요구는 다른 파이프라인입니다.</p>
-<p>기본 업로드는 CPU 원본 → 재사용 upload buffer → GPU texture입니다. Retain이 전체 픽셀 복사를 피한다고 전체 파이프라인이 zero-copy가 되지는 않습니다. 풀 배열·upload 공간·GPU texture·타일 캐시·디스크 캐시의 메모리는 각각 계산해야 합니다.</p>
-<details><summary>직접 확인: A 타일 준비 중 B를 열었다. A 타일이 완료되면?</summary><p>세대가 다르면 B 장면에 넣지 않고 A의 PixelBuffer를 반환합니다. B의 source는 유지합니다. 취소가 늦게 반영되어 A의 계산이 끝나도 게시 검증이 막아야 합니다. 예외를 무시하는 것으로 이 계약을 대신하지 않습니다.</p>
-</details>
-</section>
-<nav class="pager" aria-label="이전과 다음 장"><a href="05-editing.html">← 05. ROI·선택·Undo/Redo</a><a href="07-rendering.html">07. WPF와 DX12로 그리기 →</a></nav>
+<div class="worked-example"><h3>저장 경계는 영상의 끝이 아닙니다</h3>
+<p>먼저 마지막 276px 조각을 512px로 늘려 그린 것은 아닌지 좌표·유효 크기·stride를 확인합니다. 그리기의 크기·샘플링 문제와 필터의 이웃 읽기 문제는 원인이 다릅니다. 아래는 후자의 예입니다.</p>
+<p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="3×3"><semantics><mrow><mrow><mn>3</mn><mo>×</mo><mn>3</mn></mrow></mrow><annotation encoding="text/plain">3×3</annotation></semantics></math> 필터의 중심 한 칸은 사방 한 칸을 더 읽습니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 512×512"><semantics><mrow><mrow><mo>.</mo><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">. 512×512</annotation></semantics></math> 출력 타일을 만들려면 영상 내부에서는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="514×514"><semantics><mrow><mrow><mn>514</mn><mo>×</mo><mn>514</mn></mrow></mrow><annotation encoding="text/plain">514×514</annotation></semantics></math> 입력 영역이 필요합니다. 계산 뒤 바깥 한 칸을 버리고 가운데 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></mrow><annotation encoding="text/plain">512×512</annotation></semantics></math>만 결과로 남깁니다.</p>
+<p>가로 세 값 [0,100,100]의 평균은 약 66.7입니다. 왼쪽 0이 옆 타일에 있다는 이유로 현재 타일의 100을 복제하면 [100,100,100]이 되어 100이 나옵니다. 조각 경계마다 밝기가 바뀌는 원인입니다. 실제 영상 바깥에서만 정한 padding 규칙을 적용해야 합니다. 이는 필터 설계 설명이며 현재 Canvas에 새로운 타일 필터 기능을 추가했다는 뜻은 아닙니다.</p></div>
+</section></details>
+<details class="deep-dive"><summary>찾아보기 · 이 장의 기호와 단위</summary><section class="symbol-guide" id="reading-1"><h2>이 장의 기호를 먼저 읽는 표</h2><p>기호는 이 장 안에서의 뜻입니다. 같은 글자라도 다른 장에서는 다른 양을 가리킬 수 있습니다. 아래첨자는 성분·번호를, 윗줄은 평균을 뜻합니다. 합 기호는 표시한 시작 번호부터 끝 번호까지 항을 모두 더하라는 지시입니다. 절댓값은 부호를 버린 크기, 제곱근은 제곱하면 안의 값이 되는 음이 아닌 수입니다.</p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W"><semantics><mrow><mi>W</mi></mrow><annotation encoding="text/plain">W</annotation></semantics></math></td><td>더블유: 계산 중인 피라미드 단계의 너비(px)</td><td>원본 기준인지 단계 기준인지 절 제목 확인</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="H"><semantics><mrow><mi>H</mi></mrow><annotation encoding="text/plain">H</annotation></semantics></math></td><td>에이치: 해당 단계의 높이(px)</td><td>마지막 타일 크기를 제한</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="T"><semantics><mrow><mi>T</mi></mrow><annotation encoding="text/plain">T</annotation></semantics></math></td><td>티: 타일 한 변의 최대 픽셀 수. 현재512</td><td>임계값 T와 다른 문맥</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="X"><semantics><mrow><mi>X</mi></mrow><annotation encoding="text/plain">X</annotation></semantics></math></td><td>대문자 엑스: 타일 열 번호, 0부터 시작</td><td>TileKey.X. 픽셀 x와 다른 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="Y"><semantics><mrow><mi>Y</mi></mrow><annotation encoding="text/plain">Y</annotation></semantics></math></td><td>대문자 와이: 타일 행 번호, 0부터 시작</td><td>TileKey.Y</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L"><semantics><mrow><mi>L</mi></mrow><annotation encoding="text/plain">L</annotation></semantics></math></td><td>엘: 피라미드 단계 번호. 0은 원본</td><td>TileKey.Level</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="f"><semantics><mrow><mi>f</mi></mrow><annotation encoding="text/plain">f</annotation></semantics></math></td><td>에프: 원본 대비 축소 계수, 단위 없음</td><td>단계가 하나 증가하면2배</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="S"><semantics><mrow><mi>S</mi></mrow><annotation encoding="text/plain">S</annotation></semantics></math></td><td>대문자 에스: 한 타일이 원본에서 덮는 길이, 원본 px</td><td>512와 축소 계수를 곱함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z"><semantics><mrow><mi>z</mi></mrow><annotation encoding="text/plain">z</annotation></semantics></math></td><td>지: 영상 확대 배율, DIP/원본 px</td><td>ViewportTransform.Scale</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="d"><semantics><mrow><mi>d</mi></mrow><annotation encoding="text/plain">d</annotation></semantics></math></td><td>디: DPI 배율, 물리 px/DIP</td><td>150% 표시 배율은1.5</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="Levels"><semantics><mrow><mi>Levels</mi></mrow><annotation encoding="text/plain">Levels</annotation></semantics></math></td><td>전체 단계 개수. 유효한 마지막 번호는 이 수보다1작음</td><td>ImageInfo.Levels</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="left"><semantics><mrow><mi>left</mi></mrow><annotation encoding="text/plain">left</annotation></semantics></math></td><td>왼쪽 경계. 주소 식에서는 단계 px, 가시영역 식에서는 원본 px</td><td>같은 변수명이어도 절의 좌표계를 확인</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="right"><semantics><mrow><mi>right</mi></mrow><annotation encoding="text/plain">right</annotation></semantics></math></td><td>가시영역의 오른쪽 제외 끝, 원본 px</td><td>경계에서 다음 타일을 불필요하게 요청하지 않음</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="top"><semantics><mrow><mi>top</mi></mrow><annotation encoding="text/plain">top</annotation></semantics></math></td><td>해당 타일의 위쪽 픽셀 위치</td><td>행 번호와 타일 크기를 곱함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="firstColumn"><semantics><mrow><mi>firstColumn</mi></mrow><annotation encoding="text/plain">firstColumn</annotation></semantics></math></td><td>처음 요청할 열 번호</td><td>내림 후 범위 제한</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="columnEnd"><semantics><mrow><mi>columnEnd</mi></mrow><annotation encoding="text/plain">columnEnd</annotation></semantics></math></td><td>요청에서 제외할 마지막 열 번호</td><td>올림 후 범위 제한. 이 번호 자체는 요청 안 함</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="column"><semantics><mrow><mi>column</mi></mrow><annotation encoding="text/plain">column</annotation></semantics></math></td><td>실제로 순회 중인 열 번호</td><td>첫 열 이상, 제외 끝 미만</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a"><semantics><mrow><mi>a</mi></mrow><annotation encoding="text/plain">a</annotation></semantics></math></td><td>에이: 축소 면적 평균 예시의 시작 경계</td><td>해당 예시의 픽셀 구간</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="b"><semantics><mrow><mi>b</mi></mrow><annotation encoding="text/plain">b</annotation></semantics></math></td><td>비: 축소 면적 평균 예시의 끝 경계</td><td>반열린 구간의 제외 끝</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="min"><semantics><mrow><mi>min</mi></mrow><annotation encoding="text/plain">min</annotation></semantics></math></td><td>둘 중 작은 값. 가장자리에서 이미지 크기를 넘지 않도록 제한</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="max"><semantics><mrow><mi>max</mi></mrow><annotation encoding="text/plain">max</annotation></semantics></math></td><td>둘 중 큰 값</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="clamp"><semantics><mrow><mi>clamp</mi></mrow><annotation encoding="text/plain">clamp</annotation></semantics></math></td><td>값을 주어진 하한과 상한 사이로 제한</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="log"><semantics><mrow><mi>log</mi></mrow><annotation encoding="text/plain">log</annotation></semantics></math></td><td>밑이2인 로그는2를 몇 번 곱해야 입력이 되는지 나타냄</td><td>수학 연산</td></tr></tbody></table></section></details>
+<section class="teach-back" aria-label="자기 말로 설명하기" id="reading-13">
+<h2>책을 덮고, 동료에게 설명해 보세요</h2>
+<p>본문을 가리고, 다음 상황의 이유를 자기 말로 설명해 보세요.</p>
+<p><strong>설명할 상황:</strong><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1300×900 Gray8"><semantics><mrow><mrow><mn>1300</mn><mo>×</mo><mn>900</mn><mi mathvariant="normal">Gray</mi><mn>8</mn></mrow></mrow><annotation encoding="text/plain">1300×900 Gray8</annotation></semantics></math>을 512 타일로 나눕니다. level 0에서 창이 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="[512,1024)×[0,512)"><semantics><mrow><mrow><mo>[</mo><mn>512,102</mn><mn>4</mn><mo>)</mo><mo>×</mo><mo>[</mo><mn>0,512</mn><mo>)</mo></mrow></mrow><annotation encoding="text/plain">[512,1024)×[0,512)</annotation></semantics></math>를 봅니다. 필요한 주소와 오른쪽 아래 마지막 타일 크기를 설명하고, 창을 축소해 전체를 볼 때 피라미드가 필요한 이유를 말하세요.</p>
+<details><summary>설명 예시와 스스로 확인할 기준</summary><p>“창은 정확히 열 1·행 0 한 조각이야. 끝 좌표 1024는 제외하니까 열 2까지 읽지 않아. 마지막 타일 주소는 (2,1)이고, 크기는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="1300−1024=276, 900−512=388"><semantics><mrow><mrow><mn>1300</mn><mo>−</mo><mn>1024</mn><mo>=</mo><mn>276</mn><mo>,</mo><mn>900</mn><mo>−</mo><mn>512</mn><mo>=</mo><mn>388</mn></mrow></mrow><annotation encoding="text/plain">1300−1024=276, 900−512=388</annotation></semantics></math>이야. 전체를 작게 볼 때 원본 타일만 쓰면 결국 전부 필요하니, 더 작은 피라미드 단계로 읽고 보낼 픽셀 양을 줄여.”</p><p>추가로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z=0.25, d=2"><semantics><mrow><mrow><mi>z</mi><mo>=</mo><mn>0.25</mn><mo>,</mo><mi>d</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">z=0.25, d=2</annotation></semantics></math>이면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="L=1"><semantics><mrow><mrow><mi>L</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">L=1</annotation></semantics></math>인 이유를 1/(zd)부터 계산해 보세요.</p><p><strong>막혔다면:</strong> ‘ceil·min’, ‘시작은 내리고 끝은 올리는 이유’, ‘로그를 2로 몇 번 줄였나로 읽기’ 중 설명이 막힌 부분으로 돌아가세요. 다시 읽은 뒤 예시를 닫고 한 번 더 설명합니다.</p></details>
+</section><nav class="pager" aria-label="이전과 다음 장"><a href="05-editing.html">← 05. ROI·선택·Undo/Redo</a><a href="07-rendering.html">07. WPF와 DX12로 그리기 →</a></nav>
 <footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>
 </main></div></body></html>

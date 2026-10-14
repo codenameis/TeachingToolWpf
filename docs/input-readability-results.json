@@ -1,0 +1,310 @@
+{
+  "date": "2026-10-14",
+  "configuration": "Release, .NET 10, DOTNET_TieredCompilation=0",
+  "warmup": 10000,
+  "iterationsPerSample": 20000,
+  "samplesPerRun": 7,
+  "scope": "Single ROI CPU input microbenchmark, not GPU/WPF or frame performance",
+  "runs": [
+    {
+      "run": "before-performance",
+      "data": {
+        "assembly": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\input-readability\\before\\VisionCanvas.Core.dll",
+        "sha256": "0E21B37DBD771A1431C1E0237D9E1F425E8D2FBD17FAD6FC98A2B95E0669AF21",
+        "results": [
+          {
+            "scenario": "move",
+            "iterations": 20000,
+            "times": [
+              0.9408,
+              0.922,
+              0.7786,
+              0.7892,
+              0.7784,
+              0.9631,
+              0.92
+            ],
+            "allocations": [
+              1599016,
+              1598960,
+              1598960,
+              1598960,
+              1599048,
+              1598960,
+              1598960
+            ]
+          },
+          {
+            "scenario": "rotate",
+            "iterations": 20000,
+            "times": [
+              2.0419,
+              2.2214,
+              2.4488,
+              2.5225,
+              2.1081,
+              2.316,
+              2.0376
+            ],
+            "allocations": [
+              2400056,
+              2400000,
+              2400000,
+              2400000,
+              2400088,
+              2400000,
+              2400000
+            ]
+          },
+          {
+            "scenario": "down-up",
+            "iterations": 20000,
+            "times": [
+              13.9698,
+              13.8988,
+              13.5575,
+              13.8046,
+              13.7366,
+              13.6452,
+              14.7015
+            ],
+            "allocations": [
+              29440056,
+              29440000,
+              29440000,
+              29440000,
+              29440088,
+              29440000,
+              29440000
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "run": "after-performance",
+      "data": {
+        "assembly": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\input-readability\\after\\VisionCanvas.Core.dll",
+        "sha256": "AE84A0A5288D4EE1DD6EDCBB153A9A2D1A01539B85B1AC27176C50428E026846",
+        "results": [
+          {
+            "scenario": "move",
+            "iterations": 20000,
+            "times": [
+              1.0398,
+              0.9348,
+              0.7837,
+              0.8936,
+              0.9745,
+              0.7956,
+              0.7736
+            ],
+            "allocations": [
+              1599016,
+              1598960,
+              1598960,
+              1598960,
+              1599048,
+              1598960,
+              1598960
+            ]
+          },
+          {
+            "scenario": "rotate",
+            "iterations": 20000,
+            "times": [
+              2.0334,
+              2.1396,
+              2.2635,
+              2.0691,
+              2.2201,
+              2.0198,
+              2.0112
+            ],
+            "allocations": [
+              2400056,
+              2400000,
+              2400000,
+              2400000,
+              2400088,
+              2400000,
+              2400000
+            ]
+          },
+          {
+            "scenario": "down-up",
+            "iterations": 20000,
+            "times": [
+              14.3906,
+              14.6025,
+              14.8308,
+              14.5288,
+              14.5533,
+              14.6761,
+              14.9738
+            ],
+            "allocations": [
+              29440056,
+              29440000,
+              29440000,
+              29440000,
+              29440088,
+              29440000,
+              29440000
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "run": "after-performance-2",
+      "data": {
+        "assembly": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\input-readability\\after\\VisionCanvas.Core.dll",
+        "sha256": "AE84A0A5288D4EE1DD6EDCBB153A9A2D1A01539B85B1AC27176C50428E026846",
+        "results": [
+          {
+            "scenario": "move",
+            "iterations": 20000,
+            "times": [
+              0.8405,
+              0.9868,
+              0.7761,
+              0.947,
+              0.9217,
+              0.9193,
+              0.7972
+            ],
+            "allocations": [
+              1599016,
+              1598960,
+              1598960,
+              1598960,
+              1599048,
+              1598960,
+              1598960
+            ]
+          },
+          {
+            "scenario": "rotate",
+            "iterations": 20000,
+            "times": [
+              2.1571,
+              2.3521,
+              2.1519,
+              2.4472,
+              2.1167,
+              2.1277,
+              2.3548
+            ],
+            "allocations": [
+              2400056,
+              2400000,
+              2400000,
+              2400000,
+              2400088,
+              2400000,
+              2400000
+            ]
+          },
+          {
+            "scenario": "down-up",
+            "iterations": 20000,
+            "times": [
+              15.5641,
+              14.8201,
+              14.4055,
+              14.4665,
+              14.5551,
+              15.2514,
+              14.8075
+            ],
+            "allocations": [
+              29440056,
+              29440000,
+              29440000,
+              29440000,
+              29440088,
+              29440000,
+              29440000
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "run": "before-performance-2",
+      "data": {
+        "assembly": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\artifacts\\input-readability\\before\\VisionCanvas.Core.dll",
+        "sha256": "0E21B37DBD771A1431C1E0237D9E1F425E8D2FBD17FAD6FC98A2B95E0669AF21",
+        "results": [
+          {
+            "scenario": "move",
+            "iterations": 20000,
+            "times": [
+              0.8812,
+              0.818,
+              0.7936,
+              0.7883,
+              0.7979,
+              1.176,
+              0.8074
+            ],
+            "allocations": [
+              1599016,
+              1598960,
+              1598960,
+              1598960,
+              1599048,
+              1598960,
+              1598960
+            ]
+          },
+          {
+            "scenario": "rotate",
+            "iterations": 20000,
+            "times": [
+              2.1105,
+              2.1721,
+              2.2846,
+              2.0753,
+              2.155,
+              2.3014,
+              2.1824
+            ],
+            "allocations": [
+              2400056,
+              2400000,
+              2400000,
+              2400000,
+              2400088,
+              2400000,
+              2400000
+            ]
+          },
+          {
+            "scenario": "down-up",
+            "iterations": 20000,
+            "times": [
+              18.0778,
+              15.4234,
+              15.3058,
+              15.1668,
+              15.5288,
+              19.3011,
+              14.9637
+            ],
+            "allocations": [
+              29440056,
+              29440000,
+              29440000,
+              29440000,
+              29440088,
+              29440000,
+              29440000
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

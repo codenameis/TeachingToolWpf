@@ -1,51 +1,432 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="수식을 작은 단계로 나누어 읽기"><title>02. 좌표·확대·회전 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script></head>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="수식을 작은 단계로 나누어 읽기"><title>02. 좌표·확대·회전 · VisionCanvas 실습서</title><link rel="stylesheet" href="assets/manual.css"><script src="assets/manual.js" defer></script><script src="assets/code-blocks.js" defer></script></head>
 <body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="index.html">VISION<span>CANVAS</span><small>개발자 실습서</small></a><span class="edition">C# 입문 이후 · 2026.10</span><button id="print" type="button">인쇄 / PDF</button></header>
 <div class="layout"><aside class="sidebar"><p class="eyebrow">LEARNING PATH</p>
-<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html" aria-current="page">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="10-review.html">10. 리뷰·디버깅·성능</a><a href="11-refactoring.html">11. 이번 리팩터링과 검증</a><a href="12-reference.html">12. 용어·수식·다음 읽기</a></nav>
+<nav aria-label="전체 차례"><a href="index.html">C# 다음, 비전 캔버스</a><a href="01-image.html">01. 이미지는 숫자다</a><a href="02-coordinates.html" aria-current="page">02. 좌표·확대·회전</a><a href="03-processing.html">03. 필터·윤곽·마스크</a><a href="04-design.html">04. 책임을 나누는 설계</a><a href="05-editing.html">05. ROI·선택·Undo/Redo</a><a href="06-streaming.html">06. 큰 영상과 버퍼의 수명</a><a href="07-rendering.html">07. WPF와 DX12로 그리기</a><a href="08-inspection.html">08. 패턴을 학습하고 검사하기</a><a href="09-build.html">09. 작은 캔버스를 직접 구축하기</a><a href="12-reference.html">부록. 용어·수식·다음 읽기</a></nav>
 <p class="sidebar-note">원본 px → 편집 상태 → GPU 화면<br>하나의 흐름으로 읽습니다.</p>
 </aside>
 <main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>02. 좌표·확대·회전</h1>
 <p>수식을 작은 단계로 나누어 읽기</p>
 </div>
-<section>
-<h2>같은 점에 세 가지 주소가 있다</h2>
-<p>이미지의 부품 위치는 <strong>원본 px</strong>, WPF 레이아웃은 <strong>DIP</strong>, 모니터에 실제로 찍는 위치는 <strong>물리 px</strong>로 셉니다. DIP는 96분의 1인치를 기준으로 하는 논리 단위입니다. 150% 배율에서 DPI 계수 d=1.5라면 100 DIP는 150 물리 px입니다. ROI 형상에는 원본 좌표를 저장하여 화면 확대와 무관하게 같은 부품을 가리킵니다.</p>
-<div class="flow"><span>원본 px</span><b>× Scale + Offset →</b><span>화면 DIP</span><b>× DPI 계수 →</b><span>물리 px</span></div><div class="formula" tabindex="0" role="group" aria-label="수식">
-<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="s = z·p + o; p = (s − o)/z"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>s</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>z</mi><mo>·</mo><mi>p</mi><mo>+</mo><mi>o</mi></mrow></mtd></mtr><mtr><mtd><mi>p</mi></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>s</mi><mo>−</mo><mi>o</mi></mrow><mi>z</mi></mfrac></mtd></mtr></mtable></mrow><annotation encoding="text/plain">s = z·p + o; p = (s − o)/z</annotation></semantics></math>
-</div><p>p는 원본 점, s는 화면 점, z는 배율(DIP/px), o는 화면 이동량(DIP)입니다. x와 y에 같은 식을 각각 씁니다. p=(100,50), z=2, o=(20,10)이면 s=(220,110)입니다. 반대로 (220−20)/2=100, (110−10)/2=50입니다. Scale=0으로 나누는 입력은 허용하면 안 됩니다.</p>
+<section class="lesson-start" id="start-here">
+<p class="lesson-label">먼저 이 장면 하나만 생각하세요</p>
+<h2>확대된 화면에서 ROI를 움직여 봅시다</h2><p>ROI의 원본 중심은 가로 100px, 세로 80px입니다. 화면에서 원본 1px를 2DIP 길이로 보여 줍니다. 사용자가 오른쪽 40DIP, 아래쪽 20DIP만큼 끌었습니다. 원본 중심은 어디로 옮겨야 할까요?</p>
+<p class="lesson-key"><strong>기억할 한 문장</strong>마우스가 움직인 화면 거리와 ROI에 저장할 원본 거리는 구별합니다.</p>
+<ol class="scene-steps"><li><strong>화면에서 받기</strong><p>이번 예의 마우스 이동은 가로 40DIP, 세로 20DIP입니다. 운영체제의 물리 픽셀 입력은 이미 DIP로 바꿨다고 가정합니다.</p></li><li><strong>원본 길이로 바꾸기</strong><p>원본 1px가 화면 2DIP이므로, 원본에서 움직인 거리는 오른쪽 20px, 아래쪽 10px입니다.</p></li><li><strong>문서에 저장하기</strong><p>중심은 가로 120px, 세로 90px가 됩니다. 확대율을 나중에 바꿔도 사진 속 이 위치는 그대로입니다.</p></li></ol>
+<div class="predict"><h3>잠깐, 답을 보기 전에 예상해 보세요</h3><p>같은 화면 거리를 4배 확대 상태에서 끌었다면 원본 이동 거리는 더 커질까요, 작아질까요?</p><details><summary>예상과 비교하기</summary><p>절반으로 작아집니다. 원본 1px가 화면에서 더 길게 보이기 때문입니다. 오른쪽 10px, 아래쪽 5px만 움직입니다. 화면 위치 전체를 변환할 때는 이동량뿐 아니라 Offset도 고려해야 합니다.</p></details></div>
+<nav class="reading-route" aria-label="이 장의 첫 읽기 순서"><strong>이제 본문에서 확인할 세 곳</strong><ol><li><a href="#reading-3" data-reading-target="reading-3">같은 점에 세 가지 주소가 있다</a></li><li><a href="#reading-4" data-reading-target="reading-4">마우스 아래를 고정하고 확대하기</a></li><li><a href="#reading-7" data-reading-target="reading-7">수식이 실제 C#이 되는 자리</a></li></ol></nav>
 </section>
-<section>
+<section id="math-reading"><h2>수식 읽기 준비: 점·길이·비율을 먼저 구별하기</h2><p>수학 기호는 새로운 마법이 아니라 긴 변수명의 별명입니다. 원본 점은 사진 속 부품의 주소이고 화면 점은 창 위에 비친 주소입니다. 두 점 모두 가로·세로 두 숫자를 가집니다. 배율은 점이 아니라 길이를 바꾸는 비율이고, Offset은 화면을 민 길이입니다. C#에서 PointD와 double을 구별하듯 수식에서도 서로 다른 종류를 구별합니다.</p><p>이 장의 점 기호는 두 성분을 가진 벡터입니다. 점에 숫자를 곱한다는 말은 가로와 세로에 각각 곱한다는 뜻입니다. 두 점을 뺀 결과는 “어느 방향으로 얼마나 떨어졌는지”를 뜻하는 이동 벡터입니다. 점끼리 나누는 연산은 여기서 사용하지 않습니다.</p><div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="sx = z px + ox; sy = z py + oy"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msub><mi>s</mi><mi>x</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>z</mi><msub><mi>p</mi><mi>x</mi></msub><mo>+</mo><msub><mi>o</mi><mi>x</mi></msub></mrow></mtd></mtr><mtr><mtd><msub><mi>s</mi><mi>y</mi></msub></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>z</mi><msub><mi>p</mi><mi>y</mi></msub><mo>+</mo><msub><mi>o</mi><mi>y</mi></msub></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">sx = z px + ox; sy = z py + oy</annotation></semantics></math>
+</div><div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="s"><semantics><mrow><mi>s</mi></mrow><annotation encoding="text/plain">s</annotation></semantics></math></td><td>에스: 뷰포트 안의 화면 점. 단위 DIP</td><td>ImageToScreen 결과 또는 입력 screen</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x"><semantics><mrow><mi>x</mi></mrow><annotation encoding="text/plain">x</annotation></semantics></math></td><td>엑스: 해당 점의 가로 성분. ROI 포함 검사에서는 중심 기준 로컬 px</td><td>점 전체 p와 그 성분 x를 구별</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z"><semantics><mrow><mi>z</mi></mrow><annotation encoding="text/plain">z</annotation></semantics></math></td><td>지: 영상 배율. 원본1px를 화면 몇 DIP로 표시하는가(DIP/px). 양수</td><td>ViewportTransform.Scale. 2이면1px가2DIP</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p"><semantics><mrow><mi>p</mi></mrow><annotation encoding="text/plain">p</annotation></semantics></math></td><td>피: 원본 이미지의 점. 가로·세로 두 성분이며 단위는 원본 px</td><td>PointD / imagePoint. 확대해도 같은 부품 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o"><semantics><mrow><mi>o</mi></mrow><annotation encoding="text/plain">o</annotation></semantics></math></td><td>오: 화면 원점을 민 양. 가로·세로 성분, DIP</td><td>ViewportTransform.Offset. 숫자0과 구별</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="y"><semantics><mrow><mi>y</mi></mrow><annotation encoding="text/plain">y</annotation></semantics></math></td><td>와이: 해당 점의 세로 성분. 이 영상 좌표에서는 아래로 증가</td><td>양의 회전은 화면에서 시계 방향</td></tr></tbody></table></div><p>아래첨자 x는 가로 성분, y는 세로 성분입니다. 두 줄을 한 번에 쓰려고 점 기호 하나로 묶은 것입니다. 지수나 곱셈으로 읽지 마세요. 위첨자 프라임은 이 장에서 변경 후 값이며 미분을 뜻하지 않습니다.</p><h3>배율을 모르는 동료에게 설명해 보기</h3><p>“사진 속 가로100번째 칸을 한 칸에2 DIP로 펼치면 화면에서는200 DIP 떨어집니다. 화면을 오른쪽으로20 DIP 밀었으니 최종 위치는220 DIP예요. 클릭을 거꾸로 찾을 때는 먼저20 DIP를 되돌린 뒤 한 칸 크기2로 나누면100번째 칸이 나와요.” 여기서 ‘확대 변환’이라는 용어를 빼도 과정을 설명할 수 있어야 합니다.</p><details><summary>확인 문제: 화면 이동만 바꾸면 원본 ROI도 바뀌나요?</summary><p>아닙니다. 부품 주소는 그대로이고 보여 주는 위치만 바뀝니다. 문서 ROI의 Geometry와 ViewportTransform을 다른 값으로 저장하는 이유입니다. 그 다음 직접 배율과 Offset을 바꿔 같은 원본 점의 화면 위치를 두 번 계산하세요.</p></details></section>
+<section id="reading-3">
+<h2>같은 점에 세 가지 주소가 있다</h2>
+<p class="lesson-question">“확대했더니 부품의 좌표도 바뀌어야 할까요?” 지도 앱을 확대해도 건물의 주소는 그대로입니다. 바뀌는 것은 화면에서 보이는 위치입니다. ROI에는 원본 이미지의 주소를 저장하고, 화면을 그리거나 클릭을 해석할 때만 주소를 번역합니다.</p>
+
+<div class="flow"><span>원본 px</span><b><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="× Scale + Offset"><semantics><mrow><mrow><mo>×</mo><mi mathvariant="normal">Scale</mi><mo>+</mo><mi mathvariant="normal">Offset</mi></mrow></mrow><annotation encoding="text/plain">× Scale + Offset</annotation></semantics></math> →</b><span>화면 DIP</span><b><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="× DPI"><semantics><mrow><mrow><mo>×</mo><mi mathvariant="normal">DPI</mi></mrow></mrow><annotation encoding="text/plain">× DPI</annotation></semantics></math> 계수 →</b><span>물리 px</span></div><div class="formula" tabindex="0" role="group" aria-label="수식">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="s = z·p + o; p = (s − o)/z"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>s</mi></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>z</mi><mo>·</mo><mi>p</mi><mo>+</mo><mi>o</mi></mrow></mtd></mtr><mtr><mtd><mi>p</mi></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>s</mi><mo>−</mo><mi>o</mi></mrow><mi>z</mi></mfrac></mtd></mtr></mtable></mrow><annotation encoding="text/plain">s = z·p + o; p = (s − o)/z</annotation></semantics></math>
+</div><div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="s"><semantics><mrow><mi>s</mi></mrow><annotation encoding="text/plain">s</annotation></semantics></math></td><td>에스: 뷰포트 안의 화면 점. 단위 DIP</td><td>ImageToScreen 결과 또는 입력 screen</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z"><semantics><mrow><mi>z</mi></mrow><annotation encoding="text/plain">z</annotation></semantics></math></td><td>지: 영상 배율. 원본1px를 화면 몇 DIP로 표시하는가(DIP/px). 양수</td><td>ViewportTransform.Scale. 2이면1px가2DIP</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p"><semantics><mrow><mi>p</mi></mrow><annotation encoding="text/plain">p</annotation></semantics></math></td><td>피: 원본 이미지의 점. 가로·세로 두 성분이며 단위는 원본 px</td><td>PointD / imagePoint. 확대해도 같은 부품 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o"><semantics><mrow><mi>o</mi></mrow><annotation encoding="text/plain">o</annotation></semantics></math></td><td>오: 화면 원점을 민 양. 가로·세로 성분, DIP</td><td>ViewportTransform.Offset. 숫자0과 구별</td></tr></tbody></table></div><p>p는 원본 점, s는 화면 점, z는 배율(DIP/px), o는 화면 이동량(DIP)입니다. x와 y에 같은 식을 각각 씁니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". p=(100,50), z=2, o=(20,10)"><semantics><mrow><mrow><mo>.</mo><mi>p</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>100</mn><mo>,</mo><mn>50</mn></mrow><mo>)</mo></mrow><mo>,</mo><mi>z</mi><mo>=</mo><mn>2</mn><mo>,</mo><mi>o</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>20</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">. p=(100,50), z=2, o=(20,10)</annotation></semantics></math>이면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="s=(220,110)"><semantics><mrow><mrow><mi>s</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>220,110</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">s=(220,110)</annotation></semantics></math>입니다. 반대로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(220−20)/2=100, (110−10)/2=50"><semantics><mrow><mrow><mfrac><mrow><mo>(</mo><mrow><mn>220</mn><mo>−</mo><mn>20</mn></mrow><mo>)</mo></mrow><mn>2</mn></mfrac><mo>=</mo><mn>100</mn><mo>,</mo><mfrac><mrow><mo>(</mo><mrow><mn>110</mn><mo>−</mo><mn>10</mn></mrow><mo>)</mo></mrow><mn>2</mn></mfrac><mo>=</mo><mn>50</mn></mrow></mrow><annotation encoding="text/plain">(220−20)/2=100, (110−10)/2=50</annotation></semantics></math>입니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". Scale=0"><semantics><mrow><mrow><mo>.</mo><mi mathvariant="normal">Scale</mi><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">. Scale=0</annotation></semantics></math>으로 나누는 입력은 허용하면 안 됩니다.</p>
+
+<div class="worked-example"><h3>곱한 뒤 더했으니, 되돌릴 때는 뺀 뒤 나눕니다</h3>
+<p>DIP는 96분의 1인치를 기준으로 한 WPF의 논리 길이 단위입니다. 150% 배율에서 100 DIP는 150 물리 px입니다. z는 원본 1px를 화면 몇 DIP로 그릴지, o는 화면을 몇 DIP 밀지 나타냅니다. p와 s는 점이므로 아래 계산을 x·y에 각각 적용합니다.</p>
+<table><thead><tr><th>단계</th><th>x 계산</th><th>이 단계의 의미</th></tr></thead><tbody>
+<tr><td>원본 위치</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p=100 px"><semantics><mrow><mrow><mi>p</mi><mo>=</mo><mn>100</mn><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">p=100 px</annotation></semantics></math></td><td>화면 확대와 무관한 부품 주소</td></tr>
+<tr><td>크기 바꾸기</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2 DIP/px × 100 px = 200 DIP"><semantics><mrow><mrow><mn>2</mn><mfrac><mi mathvariant="normal">DIP</mi><mi>px</mi></mfrac><mo>×</mo><mn>100</mn><mi mathvariant="normal">px</mi><mo>=</mo><mn>200</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">2 DIP/px × 100 px = 200 DIP</annotation></semantics></math></td><td>px가 약분되어 화면 단위가 남음</td></tr>
+<tr><td>화면 이동</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="200+20 = 220 DIP"><semantics><mrow><mrow><mn>200</mn><mo>+</mo><mn>20</mn><mo>=</mo><mn>220</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">200+20 = 220 DIP</annotation></semantics></math></td><td>화면에서 보이는 위치 s</td></tr>
+<tr><td>클릭을 원본으로</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(220−20)/2 = 100 px"><semantics><mrow><mrow><mfrac><mrow><mo>(</mo><mrow><mn>220</mn><mo>−</mo><mn>20</mn></mrow><mo>)</mo></mrow><mn>2</mn></mfrac><mo>=</mo><mn>100</mn><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">(220−20)/2 = 100 px</annotation></semantics></math></td><td>마지막에 더한 이동부터 되돌림</td></tr></tbody></table>
+<p>잘못해서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="220/2−20"><semantics><mrow><mrow><mfrac><mn>220</mn><mn>2</mn></mfrac><mo>−</mo><mn>20</mn></mrow></mrow><annotation encoding="text/plain">220/2−20</annotation></semantics></math>을 계산하면 90이 됩니다. 나눗셈과 뺄셈의 순서는 바꿀 수 없습니다. <code>ScreenToImage</code>의 괄호는 장식이 아니라 ‘이동을 먼저 되돌린다’는 뜻입니다. 물리 px로 받은 입력은 먼저 호스트에서 DIP로 맞춰야 이 계약과 연결됩니다.</p></div>
+</section>
+<section id="reading-4">
 <h2>마우스 아래를 고정하고 확대하기</h2>
-<p>배율만 바꾸면 이미지가 원점 기준으로 커져 마우스 아래의 부품이 도망갑니다. 기존 화면 anchor a 아래의 원본 점 p를 먼저 구합니다. 새 배율 z′에서 그 점을 다시 a에 놓도록 이동량 o′를 구합니다.</p>
+<p class="lesson-question">“마우스 아래 부품을 크게 보고 싶은데 왜 부품이 옆으로 움직일까요?” 확대는 원점으로부터의 거리를 늘립니다. 따라서 배율만 바꾸면 원점에서 떨어진 점은 이동합니다. 마우스 아래에 핀을 꽂았다고 생각하고, 확대한 뒤 그 핀을 원래 화면 위치로 돌려놓아야 합니다.</p>
+
 <div class="formula" tabindex="0" role="group" aria-label="수식">
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="p = (a − o)/z; o′ = a − z′·p"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mi>p</mi></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>a</mi><mo>−</mo><mi>o</mi></mrow><mi>z</mi></mfrac></mtd></mtr><mtr><mtd><msup><mi>o</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>a</mi><mo>−</mo><msup><mi>z</mi><mo>′</mo></msup><mo>·</mo><mi>p</mi></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">p = (a − o)/z; o′ = a − z′·p</annotation></semantics></math>
-</div><p>기존 z=1, o=0, 마우스 a=100이면 p=100입니다. 2배 확대 후 o′=100−2×100=−100이어야 화면 위치가 100으로 유지됩니다. <a href="../src/VisionGeometry/ViewportTransform.cs">ViewportTransform.ZoomAt</a>은 이 식과 배율 상한·하한을 적용합니다. <code>Fit</code>의 0.92는 화면 여백을 위한 비율입니다.</p>
+</div><div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p"><semantics><mrow><mi>p</mi></mrow><annotation encoding="text/plain">p</annotation></semantics></math></td><td>피: 원본 이미지의 점. 가로·세로 두 성분이며 단위는 원본 px</td><td>PointD / imagePoint. 확대해도 같은 부품 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a"><semantics><mrow><mi>a</mi></mrow><annotation encoding="text/plain">a</annotation></semantics></math></td><td>에이: 확대해도 움직이지 않게 고정할 화면 기준점, DIP</td><td>ZoomAt(anchor). 마우스의 화면 위치</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o"><semantics><mrow><mi>o</mi></mrow><annotation encoding="text/plain">o</annotation></semantics></math></td><td>오: 화면 원점을 민 양. 가로·세로 성분, DIP</td><td>ViewportTransform.Offset. 숫자0과 구별</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z"><semantics><mrow><mi>z</mi></mrow><annotation encoding="text/plain">z</annotation></semantics></math></td><td>지: 영상 배율. 원본1px를 화면 몇 DIP로 표시하는가(DIP/px). 양수</td><td>ViewportTransform.Scale. 2이면1px가2DIP</td></tr></tbody></table></div><p>기존 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z=1, o=0"><semantics><mrow><mrow><mi>z</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>o</mi><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">z=1, o=0</annotation></semantics></math>, 마우스 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a=100"><semantics><mrow><mrow><mi>a</mi><mo>=</mo><mn>100</mn></mrow></mrow><annotation encoding="text/plain">a=100</annotation></semantics></math>이면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p=100"><semantics><mrow><mrow><mi>p</mi><mo>=</mo><mn>100</mn></mrow></mrow><annotation encoding="text/plain">p=100</annotation></semantics></math>입니다. 2배 확대 후 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o′=100−2×100=−100"><semantics><mrow><mrow><msup><mi>o</mi><mo>′</mo></msup><mo>=</mo><mn>100</mn><mo>−</mo><mn>2</mn><mo>×</mo><mn>100</mn><mo>=</mo><mo>−</mo><mn>100</mn></mrow></mrow><annotation encoding="text/plain">o′=100−2×100=−100</annotation></semantics></math>이어야 화면 위치가 100으로 유지됩니다. <a href="#source-5b2ca1d44fde" data-code-target="source-5b2ca1d44fde">ViewportTransform.ZoomAt</a>은 이 식과 배율 상한·하한을 적용합니다. <code>Fit</code>의 0.92는 화면 여백을 위한 비율입니다.</p>
+
+<div class="worked-example"><h3>새 Offset 식을 외우지 않고 만들기</h3>
+<ol><li>기존 화면에서 마우스 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a=100 DIP"><semantics><mrow><mrow><mi>a</mi><mo>=</mo><mn>100</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">a=100 DIP</annotation></semantics></math> 아래 원본 점을 구합니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". z=1, o=0"><semantics><mrow><mrow><mo>.</mo><mi>z</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>o</mi><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">. z=1, o=0</annotation></semantics></math>이면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p=(100−0)/1=100 px"><semantics><mrow><mrow><mi>p</mi><mo>=</mo><mfrac><mrow><mo>(</mo><mrow><mn>100</mn><mo>−</mo><mn>0</mn></mrow><mo>)</mo></mrow><mn>1</mn></mfrac><mo>=</mo><mn>100</mn><mi mathvariant="normal">px</mi></mrow></mrow><annotation encoding="text/plain">p=(100−0)/1=100 px</annotation></semantics></math>입니다.</li><li>새 배율 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z′=2"><semantics><mrow><mrow><msup><mi>z</mi><mo>′</mo></msup><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">z′=2</annotation></semantics></math>에서 이동 없이 그리면 이 점은 200 DIP에 놓입니다.</li><li>목표는 100 DIP이므로 화면을 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="100−200=−100 DIP"><semantics><mrow><mrow><mn>100</mn><mo>−</mo><mn>200</mn><mo>=</mo><mo>−</mo><mn>100</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">100−200=−100 DIP</annotation></semantics></math> 옮깁니다. 이것이 새 o′입니다.</li><li>검산합니다<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 2×100+(−100)=100 DIP"><semantics><mrow><mrow><mo>.</mo><mn>2</mn><mo>×</mo><mn>100</mn><mo>+</mo><mrow><mo>(</mo><mrow><mo>−</mo><mn>100</mn></mrow><mo>)</mo></mrow><mo>=</mo><mn>100</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">. 2×100+(−100)=100 DIP</annotation></semantics></math>입니다. 마우스 위치가 유지됩니다.</li></ol>
+<p>프라임(′)은 미분이 아니라 이 절에서 ‘변경 후 값’을 뜻합니다. 원래 식 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a=z′p+o′"><semantics><mrow><mrow><mi>a</mi><mo>=</mo><msup><mi>z</mi><mo>′</mo></msup><mi>p</mi><mo>+</mo><msup><mi>o</mi><mo>′</mo></msup></mrow></mrow><annotation encoding="text/plain">a=z′p+o′</annotation></semantics></math>에서 z′p를 양쪽에서 빼면 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o′=a−z′p"><semantics><mrow><mrow><msup><mi>o</mi><mo>′</mo></msup><mo>=</mo><mi>a</mi><mo>−</mo><msup><mi>z</mi><mo>′</mo></msup><mi>p</mi></mrow></mrow><annotation encoding="text/plain">o′=a−z′p</annotation></semantics></math>가 됩니다. 코드의 <code>ZoomAt</code>이 배율 제한을 적용한 실제 새 배율로 Offset을 계산하는 이유도 같은 검산을 만족시키기 위해서입니다.</p></div>
 </section>
-<section>
+<section id="reading-5">
 <h2>회전은 두 성분을 섞는 계산</h2>
-<p>각도는 C# UI에서 도(degree), <code>Math.Sin</code>/<code>Math.Cos</code>에서 라디안(radian)을 씁니다. 한 바퀴 360°가 2π rad이므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="rad = degree × π/180"><semantics><mrow><mrow><mi mathvariant="normal">rad</mi><mo>=</mo><mi mathvariant="normal">degree</mi><mo>×</mo><mfrac><mi>π</mi><mn>180</mn></mfrac></mrow></mrow><annotation encoding="text/plain">rad = degree × π/180</annotation></semantics></math>입니다. cos는 가로 방향 몫, sin은 세로 방향 몫으로 생각하세요. 0°에서 cos=1, sin=0, 90°에서 cos≈0, sin=1입니다.</p>
+<p class="lesson-question">“점을 중심 주위로 돌린다는 말을 덧셈과 곱셈으로 어떻게 바꿀까요?” 시계의 바늘 끝을 생각하세요. 바늘의 길이는 유지하고 가로·세로로 뻗은 몫을 바꿉니다. 먼저 중심을 원점으로 옮긴 뒤 바늘을 돌리고, 중심을 원래 자리로 되돌립니다.</p>
+
+<p>각도는 C# UI에서 도(degree), <code>Math.Sin</code>/<code>Math.Cos</code>에서 라디안(radian)을 씁니다. 한 바퀴 360°가 2π rad이므로 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="rad = degree × π/180"><semantics><mrow><mrow><mi mathvariant="normal">rad</mi><mo>=</mo><mi mathvariant="normal">degree</mi><mo>×</mo><mfrac><mi>π</mi><mn>180</mn></mfrac></mrow></mrow><annotation encoding="text/plain">rad = degree × π/180</annotation></semantics></math>입니다. cos는 가로 방향 몫, sin은 세로 방향 몫으로 생각하세요. 0°에서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="cos=1, sin=0, 90°"><semantics><mrow><mrow><mi mathvariant="normal">cos</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">sin</mi><mo>=</mo><mn>0</mn><mo>,</mo><mn>90</mn><mo>°</mo></mrow></mrow><annotation encoding="text/plain">cos=1, sin=0, 90°</annotation></semantics></math>에서 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="cos≈0, sin=1"><semantics><mrow><mrow><mi mathvariant="normal">cos</mi><mo>≈</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">sin</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">cos≈0, sin=1</annotation></semantics></math>입니다.</p>
 <div class="formula" tabindex="0" role="group" aria-label="수식">
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="x′ = x cos θ − y sin θ; y′ = x sin θ + y cos θ; R(θ) = [cos θ, −sin θ; sin θ, cos θ]; p′ = c + R(θ)(p − c) + t"><semantics><mrow><mtable class="math-equations"><mtr><mtd><msup><mi>x</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>x</mi><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>−</mo><mi>y</mi><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow></mrow></mtd></mtr><mtr><mtd><msup><mi>y</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>x</mi><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>+</mo><mi>y</mi><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow></mrow></mtd></mtr><mtr><mtd><mrow><mi mathvariant="normal">R</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>θ</mi></mrow><mo>)</mo></mrow></mrow></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mo>[</mo><mtable class="math-matrix"><mtr><mtd><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow></mtd><mtd><mrow><mo>−</mo><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow></mrow></mtd></mtr><mtr><mtd><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow></mtd><mtd><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mtd></mtr><mtr><mtd><msup><mi>p</mi><mo>′</mo></msup></mtd><mtd><mo>=</mo></mtd><mtd><mrow><mi>c</mi><mo>+</mo><mrow><mi mathvariant="normal">R</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mi>θ</mi></mrow><mo>)</mo></mrow></mrow><mrow><mo>(</mo><mrow><mi>p</mi><mo>−</mo><mi>c</mi></mrow><mo>)</mo></mrow><mo>+</mo><mi>t</mi></mrow></mtd></mtr></mtable></mrow><annotation encoding="text/plain">x′ = x cos θ − y sin θ; y′ = x sin θ + y cos θ; R(θ) = [cos θ, −sin θ; sin θ, cos θ]; p′ = c + R(θ)(p − c) + t</annotation></semantics></math>
-</div><p>R(θ)는 위 두 줄을 묶어 부르는 회전 행렬입니다. c는 회전 중심, t는 회전 뒤 이동량입니다. 점에서 c를 빼고 → 회전하고 → c를 더하고 → t를 더합니다. 이 영상 좌표는 y가 아래로 증가하므로 양의 각도는 화면에서 시계 방향입니다. 수학책의 y가 위인 그림과 구별하세요.</p>
+</div><div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x"><semantics><mrow><mi>x</mi></mrow><annotation encoding="text/plain">x</annotation></semantics></math></td><td>엑스: 해당 점의 가로 성분. ROI 포함 검사에서는 중심 기준 로컬 px</td><td>점 전체 p와 그 성분 x를 구별</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="cos"><semantics><mrow><mi>cos</mi></mrow><annotation encoding="text/plain">cos</annotation></semantics></math></td><td>코사인: 주어진 각도의 가로 방향 기여를 계산. 각도 입력은 rad</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="θ"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="text/plain">θ</annotation></semantics></math></td><td>세타: 회전 각도. 본문 예시는 도, sin/cos 입력은 rad</td><td>RoiGeometry.Angle은 도. Math.Sin은 라디안</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="y"><semantics><mrow><mi>y</mi></mrow><annotation encoding="text/plain">y</annotation></semantics></math></td><td>와이: 해당 점의 세로 성분. 이 영상 좌표에서는 아래로 증가</td><td>양의 회전은 화면에서 시계 방향</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="sin"><semantics><mrow><mi>sin</mi></mrow><annotation encoding="text/plain">sin</annotation></semantics></math></td><td>사인: 주어진 각도의 세로 방향 기여를 계산. 각도 입력은 rad</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="R"><semantics><mrow><mi>R</mi></mrow><annotation encoding="text/plain">R</annotation></semantics></math></td><td>알: 회전의 두 계산을 묶은 행렬. 단위 없음</td><td>RigidTransform2D.Apply</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p"><semantics><mrow><mi>p</mi></mrow><annotation encoding="text/plain">p</annotation></semantics></math></td><td>피: 원본 이미지의 점. 가로·세로 두 성분이며 단위는 원본 px</td><td>PointD / imagePoint. 확대해도 같은 부품 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="c"><semantics><mrow><mi>c</mi></mrow><annotation encoding="text/plain">c</annotation></semantics></math></td><td>씨: 회전 중심, 원본 px</td><td>RigidTransform2D의 회전 중심</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="t"><semantics><mrow><mi>t</mi></mrow><annotation encoding="text/plain">t</annotation></semantics></math></td><td>티: 회전 뒤 더하는 이동 벡터, 원본 px</td><td>translation. 길이와 방향이 있는 변화량</td></tr></tbody></table></div><p>R(θ)는 위 두 줄을 묶어 부르는 회전 행렬입니다. c는 회전 중심, t는 회전 뒤 이동량입니다. 점에서 c를 빼고 → 회전하고 → c를 더하고 → t를 더합니다. 이 영상 좌표는 y가 아래로 증가하므로 양의 각도는 화면에서 시계 방향입니다. 수학책의 y가 위인 그림과 구별하세요.</p>
 <div class="lab" id="coordinate-lab"><h3>실험: 중심 (160,110) 주위의 점 (230,110)</h3>
-<div class="fields"><label>각도(도)<input id="angle" type="range" min="-180" max="180" value="30"></label><label>배율(DIP/px)<input id="zoom" type="range" min="0.5" max="1.5" step="0.05" value="1"></label></div><svg viewBox="0 0 400 270" role="img" aria-label="회전 중심, 원래 점, 회전한 점을 표시하는 좌표 그림"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#dce3e7"/></pattern></defs><rect width="400" height="270" fill="url(#grid)"/><g id="coordinate-scene"><circle cx="160" cy="110" r="70" fill="none" stroke="#81949d" stroke-dasharray="4 4"/><line id="rotation-arm" x1="160" y1="110" x2="220.62" y2="145" stroke="#c45125" stroke-width="3"/><circle cx="160" cy="110" r="5" fill="#1a4556"/><circle cx="230" cy="110" r="5" fill="#81949d"/><circle id="rotated-point" cx="220.62" cy="145" r="6" fill="#c45125"/><text x="90" y="95">중심 c</text><text x="238" y="107">원래 p</text></g></svg><output id="coordinate-output" aria-live="polite">30°: 원본 회전 결과 약 (220.62,145.00). 배율은 형상을 바꾸지 않습니다.</output></div><p>화면 확대는 도형을 편집하지 않습니다. 반면 ROI 자체를 회전하면 문서의 형상이 바뀌어 이력에 남습니다. 역변환은 먼저 t와 c를 빼고 −θ로 회전한 뒤 c를 더합니다. 코드에서는 sin의 부호를 바꾸어 계산합니다.</p>
+<div class="fields"><label>각도(도)<input id="angle" type="range" min="-180" max="180" value="30"></label><label>배율(DIP/px)<input id="zoom" type="range" min="0.5" max="1.5" step="0.05" value="1"></label></div><svg viewbox="0 0 400 270" role="img" aria-label="회전 중심, 원래 점, 회전한 점을 표시하는 좌표 그림"><defs><pattern id="grid" width="20" height="20" patternunits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#dce3e7"></path></pattern></defs><rect width="400" height="270" fill="url(#grid)"></rect><g id="coordinate-scene"><circle cx="160" cy="110" r="70" fill="none" stroke="#81949d" stroke-dasharray="4 4"></circle><line id="rotation-arm" x1="160" y1="110" x2="220.62" y2="145" stroke="#c45125" stroke-width="3"></line><circle cx="160" cy="110" r="5" fill="#1a4556"></circle><circle cx="230" cy="110" r="5" fill="#81949d"></circle><circle id="rotated-point" cx="220.62" cy="145" r="6" fill="#c45125"></circle><text x="90" y="95">중심 c</text><text x="238" y="107">원래 p</text></g></svg><output id="coordinate-output" aria-live="polite">30°: 원본 회전 결과 약 (220.62,145.00). 배율은 형상을 바꾸지 않습니다.</output></div><p>화면 확대는 도형을 편집하지 않습니다. 반면 ROI 자체를 회전하면 문서의 형상이 바뀌어 이력에 남습니다. 역변환은 먼저 t와 c를 빼고 −θ로 회전한 뒤 c를 더합니다. 코드에서는 sin의 부호를 바꾸어 계산합니다.</p>
+
+<div class="worked-example"><h3>행렬 한 줄은 곱셈 두 번과 덧셈 한 번입니다</h3>
+<p>θ(세타)는 회전각입니다. cos θ는 원래 오른쪽 방향이 회전 후 가로로 남는 몫, sin θ는 세로로 생기는 몫입니다. 반면 원래 아래 방향은 가로로 −sin θ, 세로로 cos θ만큼 기여합니다. 그래서 첫 행은 x cos θ−y sin θ, 둘째 행은 x sin θ+y cos θ입니다. 행렬은 이 두 규칙을 표로 묶은 표기입니다.</p>
+<p>C#의 <code>Math.Sin</code>/<code>Math.Cos</code>에는 라디안을 넣습니다. 한 바퀴 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="360°=2π rad"><semantics><mrow><mrow><mn>360</mn><mo>°</mo><mo>=</mo><mn>2</mn><mi>π</mi><mi mathvariant="normal">rad</mi></mrow></mrow><annotation encoding="text/plain">360°=2π rad</annotation></semantics></math>이므로 도에 π/180을 곱합니다. 90°는 π/2 rad이고 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="cos≈0, sin=1"><semantics><mrow><mrow><mi mathvariant="normal">cos</mi><mo>≈</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">sin</mi><mo>=</mo><mn>1</mn></mrow></mrow><annotation encoding="text/plain">cos≈0, sin=1</annotation></semantics></math>입니다. 여기서는 y가 아래로 증가하므로 양의 각도가 화면에서 시계 방향으로 보입니다.</p>
+<table><thead><tr><th>단계</th><th>중심 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="c=(10,10)"><semantics><mrow><mrow><mi>c</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">c=(10,10)</annotation></semantics></math>, 점 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p=(20,10)"><semantics><mrow><mrow><mi>p</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>20</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">p=(20,10)</annotation></semantics></math>, 회전 90°, 이동 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="t=(3,0)"><semantics><mrow><mrow><mi>t</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>3</mn><mo>,</mo><mn>0</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">t=(3,0)</annotation></semantics></math></th></tr></thead><tbody>
+<tr><td>중심에서 바라보기</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p−c=(10,0)"><semantics><mrow><mrow><mi>p</mi><mo>−</mo><mi>c</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>0</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">p−c=(10,0)</annotation></semantics></math>. 오른쪽으로 10인 바늘</td></tr>
+<tr><td>첫 행으로 x′ 계산</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="10×0−0×1=0"><semantics><mrow><mrow><mn>10</mn><mo>×</mo><mn>0</mn><mo>−</mo><mn>0</mn><mo>×</mo><mn>1</mn><mo>=</mo><mn>0</mn></mrow></mrow><annotation encoding="text/plain">10×0−0×1=0</annotation></semantics></math></td></tr>
+<tr><td>둘째 행으로 y′ 계산</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="10×1+0×0=10"><semantics><mrow><mrow><mn>10</mn><mo>×</mo><mn>1</mn><mo>+</mo><mn>0</mn><mo>×</mo><mn>0</mn><mo>=</mo><mn>10</mn></mrow></mrow><annotation encoding="text/plain">10×1+0×0=10</annotation></semantics></math>. 아래로 10인 바늘</td></tr>
+<tr><td>중심 복원</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(0,10)+(10,10)=(10,20)"><semantics><mrow><mrow><mrow><mo>(</mo><mrow><mn>0</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow><mo>+</mo><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow><mo>=</mo><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>20</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">(0,10)+(10,10)=(10,20)</annotation></semantics></math></td></tr>
+<tr><td>추가 이동</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="(10,20)+(3,0)=(13,20)"><semantics><mrow><mrow><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>20</mn></mrow><mo>)</mo></mrow><mo>+</mo><mrow><mo>(</mo><mrow><mn>3</mn><mo>,</mo><mn>0</mn></mrow><mo>)</mo></mrow><mo>=</mo><mrow><mo>(</mo><mrow><mn>13</mn><mo>,</mo><mn>20</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">(10,20)+(3,0)=(13,20)</annotation></semantics></math></td></tr></tbody></table>
+<p><strong>중심을 빼는 단계를 생략하면?</strong> (20,10)을 원점 주위로 돌려 (−10,20)을 얻습니다. 원하는 중심 (10,10) 주위 회전과 다릅니다. 화면에서 같은 각도인데 ROI가 멀리 날아가면 먼저 회전 중심과 적용 순서를 확인합니다.</p></div>
 </section>
-<section>
+<section id="reading-6">
 <h2>ROI 내부와 AABB는 다른 질문</h2>
-<p>ROI(Region of Interest)는 관심 영역입니다. 회전 사각형 안에 마우스가 있는지 보려면 마우스를 ROI의 로컬 좌표로 역회전합니다. 그 뒤 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="|x| ≤ W/2"><semantics><mrow><mrow><mrow><mo>|</mo><mi>x</mi><mo>|</mo></mrow><mo>≤</mo><mfrac><mi>W</mi><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">|x| ≤ W/2</annotation></semantics></math>와 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="|y| ≤ H/2"><semantics><mrow><mrow><mrow><mo>|</mo><mi>y</mi><mo>|</mo></mrow><mo>≤</mo><mfrac><mi>H</mi><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">|y| ≤ H/2</annotation></semantics></math>를 검사합니다. 원은 중심과의 거리 제곱이 r² 이하인지, 폴리곤은 실제 변과 내부를 검사합니다.</p>
+<p class="lesson-question">“회전한 부품을 감싸는 상자 안을 클릭했는데 부품 바깥일 수도 있나요?” 기울어진 액자를 똑바른 택배 상자에 넣으면 모서리에 빈 공간이 남습니다. AABB는 이 택배 상자입니다. 빠르게 후보를 찾는 데 쓰고, 실제 포함 여부는 액자 모양으로 다시 판단합니다.</p>
+
+<p>ROI(Region of Interest)는 관심 영역입니다. 회전 사각형 안에 마우스가 있는지 보려면 마우스를 ROI의 로컬 좌표로 역회전합니다. 그 뒤 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="|x| ≤ W/2"><semantics><mrow><mrow><mrow><mo>|</mo><mi>x</mi><mo>|</mo></mrow><mo>≤</mo><mfrac><mi>W</mi><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">|x| ≤ W/2</annotation></semantics></math>와 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="|y| ≤ H/2"><semantics><mrow><mrow><mrow><mo>|</mo><mi>y</mi><mo>|</mo></mrow><mo>≤</mo><mfrac><mi>H</mi><mn>2</mn></mfrac></mrow></mrow><annotation encoding="text/plain">|y| ≤ H/2</annotation></semantics></math>를 검사합니다. 원은 중심과의 거리 제곱이 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="r²"><semantics><mrow><mrow><msup><mi>r</mi><mn>2</mn></msup></mrow></mrow><annotation encoding="text/plain">r²</annotation></semantics></math> 이하인지, 폴리곤은 실제 변과 내부를 검사합니다.</p>
 <div class="formula" tabindex="0" role="group" aria-label="수식">
 <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="AABB 반너비 = (W|cos θ| + H|sin θ|)/2; AABB 반높이 = (W|sin θ| + H|cos θ|)/2"><semantics><mrow><mtable class="math-equations"><mtr><mtd><mtext>AABB 반너비</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>W</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow><mo>+</mo><mi>H</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow></mrow><mn>2</mn></mfrac></mtd></mtr><mtr><mtd><mtext>AABB 반높이</mtext></mtd><mtd><mo>=</mo></mtd><mtd><mfrac><mrow><mi>W</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">sin</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow><mo>+</mo><mi>H</mi><mrow><mo>|</mo><mrow><mi mathvariant="normal">cos</mi><mo>⁡</mo><mi>θ</mi></mrow><mo>|</mo></mrow></mrow><mn>2</mn></mfrac></mtd></mtr></mtable></mrow><annotation encoding="text/plain">AABB 반너비 = (W|cos θ| + H|sin θ|)/2; AABB 반높이 = (W|sin θ| + H|cos θ|)/2</annotation></semantics></math>
-</div><p>AABB는 축과 평행한 바깥 상자입니다. 빠르게 후보를 거르는 데 쓰지만 실제 도형보다 넓습니다. AABB가 겹친다고 실제 도형이 겹치거나 포함되는 것은 아닙니다. <code>RoiGeometry.Bounds</code>와 <code>Contains</code>를 구별하여 읽으세요. width=100, height=20, angle=90°의 AABB 크기는 약 20×100입니다.</p>
-<p><a href="../src/VisionGeometry/RigidTransform2D.cs">RigidTransform2D</a> · <a href="../src/VisionGeometry/RoiGeometry.cs">RoiGeometry</a> · <a href="../tests/TeachingToolWpf.Core.Tests/GeometryTests.cs">GeometryTests</a></p>
-<details><summary>직접 확인: c=(10,10), p=(20,10), θ=90°, t=(3,0)의 결과는?</summary><p>p−c=(10,0), 회전하면 (0,10), c를 더하면 (10,20), t를 더하면 (13,20)입니다. sin/cos는 부동소수점이라 극히 작은 오차가 있을 수 있습니다. 정확히 ==로 비교하기보다 오차 허용 범위를 정해 테스트합니다.</p>
+</div><div class="local-symbols"><p><strong>바로 위 수식에서 쓰인 기호</strong></p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W"><semantics><mrow><mi>W</mi></mrow><annotation encoding="text/plain">W</annotation></semantics></math></td><td>더블유: ROI의 전체 너비, 원본 px</td><td>RoiGeometry.Width</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="cos"><semantics><mrow><mi>cos</mi></mrow><annotation encoding="text/plain">cos</annotation></semantics></math></td><td>코사인: 주어진 각도의 가로 방향 기여를 계산. 각도 입력은 rad</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="θ"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="text/plain">θ</annotation></semantics></math></td><td>세타: 회전 각도. 본문 예시는 도, sin/cos 입력은 rad</td><td>RoiGeometry.Angle은 도. Math.Sin은 라디안</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="H"><semantics><mrow><mi>H</mi></mrow><annotation encoding="text/plain">H</annotation></semantics></math></td><td>에이치: ROI의 전체 높이, 원본 px</td><td>RoiGeometry.Height</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="sin"><semantics><mrow><mi>sin</mi></mrow><annotation encoding="text/plain">sin</annotation></semantics></math></td><td>사인: 주어진 각도의 세로 방향 기여를 계산. 각도 입력은 rad</td><td>수학 연산</td></tr></tbody></table></div><p>AABB는 축과 평행한 바깥 상자입니다. 빠르게 후보를 거르는 데 쓰지만 실제 도형보다 넓습니다. AABB가 겹친다고 실제 도형이 겹치거나 포함되는 것은 아닙니다. <code>RoiGeometry.Bounds</code>와 <code>Contains</code>를 구별하여 읽으세요<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". width=100, height=20, angle=90°"><semantics><mrow><mrow><mo>.</mo><mi mathvariant="normal">width</mi><mo>=</mo><mn>100</mn><mo>,</mo><mi mathvariant="normal">height</mi><mo>=</mo><mn>20</mn><mo>,</mo><mi mathvariant="normal">angle</mi><mo>=</mo><mn>90</mn><mo>°</mo></mrow></mrow><annotation encoding="text/plain">. width=100, height=20, angle=90°</annotation></semantics></math>의 AABB 크기는 약 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="20×100"><semantics><mrow><mrow><mn>20</mn><mo>×</mo><mn>100</mn></mrow></mrow><annotation encoding="text/plain">20×100</annotation></semantics></math>입니다.</p>
+<details id="source-97ce36fa74f3" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">RigidTransform2D</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">RigidTransform2D.cs · 79줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RigidTransform2D 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="RigidTransform2D 코드"><code data-source="../src/VisionGeometry/RigidTransform2D.cs" data-kind="full" data-language="csharp">namespace VisionGeometry;
+
+/// &lt;summary&gt;기하·입력·렌더가 공유하는 이미지 좌표의 강체 변환(회전과 이동). 기본값은 항등 변환이다.&lt;/summary&gt;
+public readonly record struct RigidTransform2D
+{
+    public PointD Pivot
+    {
+        get;
+    }
+
+    public double AngleDegrees
+    {
+        get;
+    }
+
+    public PointD Translation
+    {
+        get;
+    }
+
+    private readonly double _cosine;
+
+    private readonly double _sine;
+
+    public double Cosine =&gt; AngleDegrees == 0 ? 1 : _cosine;
+
+    public double Sine =&gt; _sine;
+
+    public bool IsIdentity =&gt; AngleDegrees % 360 == 0 &amp;&amp; Translation == default;
+
+    public static RigidTransform2D Identity =&gt; default;
+
+    public RigidTransform2D(PointD pivot, double angleDegrees, PointD translation = default)
+    {
+        if (!pivot.IsFinite || !translation.IsFinite || !double.IsFinite(angleDegrees))
+        {
+            throw new ArgumentOutOfRangeException(nameof(angleDegrees), "변환에는 유한한 좌표와 각도가 필요합니다.");
+        }
+
+        Pivot = pivot;
+        Translation = translation;
+        AngleDegrees = angleDegrees;
+        var reduced = Math.IEEERemainder(angleDegrees, 360);
+        (_sine, _cosine) = reduced == 0 ? (0, 1) : Math.SinCos(reduced * Math.PI / 180);
+    }
+
+    // 회전 중심을 원점으로 옮겨 회전한 다음 중심과 이동량을 더한다. p' = c + R(p - c) + t.
+    public PointD Apply(PointD point) =&gt; AngleDegrees % 360 == 0
+        ? point + Translation
+        : Pivot + ApplyVector(point - Pivot) + Translation;
+
+    public PointD ApplyVector(PointD vector) =&gt; new(
+        (vector.X * Cosine) - (vector.Y * Sine),
+        (vector.X * Sine) + (vector.Y * Cosine));
+
+    public PointD InverseApply(PointD point)
+    {
+        if (AngleDegrees % 360 == 0)
+        {
+            return point - Translation;
+        }
+
+        // 역변환은 이동을 먼저 빼고 반대 각도로 회전한다. 원래 변환의 역순이어야 한다.
+        var relative = point - Translation - Pivot;
+        return Pivot + new PointD(
+            (relative.X * Cosine) + (relative.Y * Sine),
+            (-relative.X * Sine) + (relative.Y * Cosine));
+    }
+
+    public BoundsD TransformBounds(BoundsD bounds) =&gt; Enclose(Apply(new(bounds.Left, bounds.Top)), Apply(new(bounds.Right, bounds.Top)),
+        Apply(new(bounds.Right, bounds.Bottom)), Apply(new(bounds.Left, bounds.Bottom)));
+
+    public BoundsD InverseTransformBounds(BoundsD bounds) =&gt; Enclose(InverseApply(new(bounds.Left, bounds.Top)), InverseApply(new(bounds.Right, bounds.Top)),
+        InverseApply(new(bounds.Right, bounds.Bottom)), InverseApply(new(bounds.Left, bounds.Bottom)));
+
+    private static BoundsD Enclose(PointD a, PointD b, PointD c, PointD d) =&gt; new(
+        Math.Min(Math.Min(a.X, b.X), Math.Min(c.X, d.X)), Math.Min(Math.Min(a.Y, b.Y), Math.Min(c.Y, d.Y)),
+        Math.Max(Math.Max(a.X, b.X), Math.Max(c.X, d.X)), Math.Max(Math.Max(a.Y, b.Y), Math.Max(c.Y, d.Y)));
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionGeometry/RigidTransform2D.cs</code></p></details><details id="source-836dfc73070e" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">RoiGeometry</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">RoiGeometry.cs · 206줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RoiGeometry 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="RoiGeometry 코드"><code data-source="../src/VisionGeometry/RoiGeometry.cs" data-kind="full" data-language="csharp">using System.Collections.Immutable;
+namespace VisionGeometry;
+
+public sealed record RoiGeometry
+{
+    public PointD Center
+    {
+        get;
+    }
+
+    public double Width
+    {
+        get;
+    }
+
+    public double Height
+    {
+        get;
+    }
+
+    public double Angle
+    {
+        get;
+    }
+
+    public RoiShape Shape
+    {
+        get;
+    }
+
+    public double Area =&gt; Width * Height * Shape.AreaFactor;
+
+    public double Radius =&gt; Shape.Radius(Width);
+
+    public PointD ContainmentAnchor =&gt; Radius &gt; 0 ? Center : ToWorld(new(Shape.Vertices[0].X * Width, Shape.Vertices[0].Y * Height));
+
+    public PointD[] Outline =&gt; Shape.Vertices.Select(p =&gt; ToWorld(new(p.X * Width, p.Y * Height))).ToArray();
+
+    public string ShapeName =&gt; Shape.Kind switch
+    {
+        RoiShapeKind.Circle =&gt; "원",
+        RoiShapeKind.Triangle =&gt; "삼각형",
+        RoiShapeKind.Polygon =&gt; "폴리곤",
+        _ =&gt; "사각형"
+    };
+
+    public RoiGeometry(PointD center, double width, double height, double angle, RoiShape? shape = null)
+    {
+        if (!center.IsFinite)
+        {
+            throw new ArgumentOutOfRangeException(nameof(center));
+        }
+
+        if (!double.IsFinite(width) || width &lt; 0.01)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width));
+        }
+
+        if (!double.IsFinite(height) || height &lt; 0.01)
+        {
+            throw new ArgumentOutOfRangeException(nameof(height));
+        }
+
+        if (!double.IsFinite(angle) || !double.IsFinite(width * height))
+        {
+            throw new ArgumentOutOfRangeException(nameof(angle));
+        }
+
+        Center = center;
+        Width = width;
+        Height = height;
+        Angle = NormalizeAngle(angle);
+        Shape = shape ?? RoiShape.Rectangle;
+        if (!double.IsFinite(Area) || Area &lt;= 0)
+        {
+            throw new ArgumentException("도형 면적은 유한한 양수여야 합니다.", nameof(shape));
+        }
+
+        if (Shape.Kind == RoiShapeKind.Circle &amp;&amp; width != height)
+        {
+            throw new ArgumentException("원의 너비와 높이는 지름으로 같아야 합니다.");
+        }
+    }
+
+    public RoiGeometry WithFrame(PointD center, double width, double height, double angle)
+        =&gt; new(center, width, height, angle, Shape);
+
+    public static RoiGeometry Create(RoiShapeKind kind, PointD center, double width, double height)
+    {
+        if (!Enum.IsDefined(kind))
+        {
+            throw new ArgumentOutOfRangeException(nameof(kind));
+        }
+
+        if (kind == RoiShapeKind.Circle)
+        {
+            return new(center, Math.Min(width, height), Math.Min(width, height), 0, RoiShape.Circle);
+        }
+
+        if (kind == RoiShapeKind.Triangle)
+        {
+            return new(center, width, height, 0, RoiShape.Triangle);
+        }
+
+        if (kind == RoiShapeKind.Polygon)
+        {
+            return Polygon(Enumerable.Range(0, 5).Select(i =&gt; center + new PointD(Math.Sin(i * Math.PI * 2 / 5) * width / 2, -Math.Cos(i * Math.PI * 2 / 5) * height / 2)));
+        }
+
+        return new(center, width, height, 0);
+    }
+
+    public static RoiGeometry Polygon(IEnumerable&lt;PointD&gt; vertices)
+    {
+        var points = vertices.ToArray();
+        PolygonMath.Validate(points);
+        var bounds = BoundsD.FromPoints(points);
+        var normalized = points.Select(p =&gt; new PointD((p.X - bounds.Center.X) / bounds.Width, (p.Y - bounds.Center.Y) / bounds.Height)).ToImmutableArray();
+        return new(bounds.Center, bounds.Width, bounds.Height, 0, new RoiShape.PolygonShape(RoiShapeKind.Polygon, normalized));
+    }
+
+    public double Support(PointD direction) =&gt; (Center.X * direction.X) + (Center.Y * direction.Y)
+        + Shape.Support(direction.Rotate(-Angle), Width, Height);
+
+    public static double NormalizeAngle(double angle) =&gt; ((angle % 360) + 360) % 360;
+
+    public PointD ToWorld(PointD local) =&gt; Center + local.Rotate(Angle);
+
+    public PointD ToLocal(PointD world) =&gt; (world - Center).Rotate(-Angle);
+
+    public PointD[] FrameCorners =&gt;
+    [
+        ToWorld(new(-Width / 2, -Height / 2)), ToWorld(new(Width / 2, -Height / 2)),
+        ToWorld(new(Width / 2, Height / 2)), ToWorld(new(-Width / 2, Height / 2))
+    ];
+
+    public BoundsD Bounds
+    {
+        get
+        {
+            if (Radius &gt; 0)
+            {
+                return new(Center.X - Radius, Center.Y - Radius, Center.X + Radius, Center.Y + Radius);
+            }
+
+            if (Shape.Kind == RoiShapeKind.Rectangle)
+            {
+                // 회전 사각형을 감싸는 축 정렬 경계. 실제 ROI 내부 판정은 Contains가 담당한다.
+                var (sine, cosine) = Math.SinCos(Angle * Math.PI / 180);
+                var halfBoundsWidth = ((Width * Math.Abs(cosine)) + (Height * Math.Abs(sine))) / 2;
+                var halfBoundsHeight = ((Width * Math.Abs(sine)) + (Height * Math.Abs(cosine))) / 2;
+                return new(Center.X - halfBoundsWidth, Center.Y - halfBoundsHeight,
+                    Center.X + halfBoundsWidth, Center.Y + halfBoundsHeight);
+            }
+            return new(-Support(new(-1, 0)), -Support(new(0, -1)), Support(new(1, 0)), Support(new(0, 1)));
+        }
+    }
+
+    public bool Contains(PointD world, double tolerance = 0)
+    {
+        var local = ToLocal(world);
+        return Shape.ContainsLocal(local, Width, Height, tolerance);
+    }
+
+    public bool Contains(RoiGeometry child)
+    {
+        var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
+        if (Area &lt;= child.Area + (tolerance * (Width + Height)))
+        {
+            return false;
+        }
+
+        if (Radius &gt; 0)
+        {
+            return child.Radius &gt; 0 ? (Center - child.Center).Length + child.Radius &lt;= Radius + tolerance
+                : child.Outline.All(p =&gt; Contains(p, tolerance));
+        }
+
+        if (Shape.Kind == RoiShapeKind.Rectangle)
+        {
+            var x = new PointD(1, 0).Rotate(Angle);
+            var y = new PointD(0, 1).Rotate(Angle);
+            return child.Support(x) - Dot(Center, x) &lt;= (Width / 2) + tolerance &amp;&amp;
+                child.Support(x * -1) + Dot(Center, x) &lt;= (Width / 2) + tolerance &amp;&amp;
+                child.Support(y) - Dot(Center, y) &lt;= (Height / 2) + tolerance &amp;&amp;
+                child.Support(y * -1) + Dot(Center, y) &lt;= (Height / 2) + tolerance;
+        }
+        var boundary = Outline;
+        if (child.Radius &gt; 0)
+        {
+            return Contains(child.Center, tolerance) &amp;&amp; Enumerable.Range(0, boundary.Length)
+                .All(i =&gt; PolygonMath.Distance(child.Center, boundary[i], boundary[(i + 1) % boundary.Length]) + tolerance &gt;= child.Radius);
+        }
+
+        var childBoundary = child.Outline;
+        return childBoundary.All(p =&gt; Contains(p, tolerance)) &amp;&amp; Enumerable.Range(0, childBoundary.Length)
+            .All(i =&gt; PolygonMath.ContainsSegment(boundary, childBoundary[i], childBoundary[(i + 1) % childBoundary.Length], tolerance));
+    }
+
+    private static double Dot(PointD a, PointD b) =&gt; (a.X * b.X) + (a.Y * b.Y);
+
+    public RoiGeometry Translate(PointD delta) =&gt; WithFrame(Center + delta, Width, Height, Angle);
+
+    public RoiGeometry RotateAround(PointD pivot, double angle) =&gt;
+        WithFrame(pivot + (Center - pivot).Rotate(angle), Width, Height, Angle + angle);
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionGeometry/RoiGeometry.cs</code></p></details><details id="source-aa9114014c2f" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">GeometryTests</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">GeometryTests.cs · 41줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="GeometryTests 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="GeometryTests 코드"><code data-source="../tests/TeachingToolWpf.Core.Tests/GeometryTests.cs" data-kind="full" data-language="csharp">using VisionGeometry;
+
+namespace TeachingToolWpf.Core.Tests;
+
+public sealed class GeometryTests
+{
+    [Fact]
+    public void RotatedContainmentRejectsCornerOutsideDespiteAabbOverlap()
+    {
+        var parent = new RoiGeometry(new PointD(100, 100), 100, 20, 45);
+        var child = new RoiGeometry(new PointD(100, 120), 10, 10, 0);
+        Assert.False(parent.Contains(child));
+        Assert.True(parent.Contains(new RoiGeometry(new PointD(100, 100), 10, 5, 45)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(90)]
+    [InlineData(359.9)]
+    public void LocalWorldRoundTripPreservesLargeCoordinates(double angle)
+    {
+        var rect = new RoiGeometry(new PointD(24576, 131072), 300, 200, angle);
+        var p = new PointD(13.25, -4.5);
+        Assert.True((rect.ToLocal(rect.ToWorld(p)) - p).Length &lt; 1e-8);
+    }
+
+    [Fact]
+    public void ZoomPreservesImagePointUnderCursor()
+    {
+        var view = new ViewportTransform(0.25, new PointD(20, 30));
+        var anchor = new PointD(500, 320);
+        Assert.True((view.ScreenToImage(anchor) - view.ZoomAt(anchor, 2).ScreenToImage(anchor)).Length &lt; 1e-9);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    public void InvalidSizesAreRejected(double width) =&gt;
+        Assert.Throws&lt;ArgumentOutOfRangeException&gt;(() =&gt; new RoiGeometry(new PointD(0, 0), width, 10, 0));
+}</code></pre>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../tests/TeachingToolWpf.Core.Tests/GeometryTests.cs</code></p></details>
+<details><summary>직접 확인: <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="c=(10,10), p=(20,10), θ=90°, t=(3,0)"><semantics><mrow><mrow><mi>c</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow><mo>,</mo><mi>p</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>20</mn><mo>,</mo><mn>10</mn></mrow><mo>)</mo></mrow><mo>,</mo><mi>θ</mi><mo>=</mo><mn>90</mn><mo>°</mo><mo>,</mo><mi>t</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>3</mn><mo>,</mo><mn>0</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">c=(10,10), p=(20,10), θ=90°, t=(3,0)</annotation></semantics></math>의 결과는?</summary><p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p−c=(10,0)"><semantics><mrow><mrow><mi>p</mi><mo>−</mo><mi>c</mi><mo>=</mo><mrow><mo>(</mo><mrow><mn>10</mn><mo>,</mo><mn>0</mn></mrow><mo>)</mo></mrow></mrow></mrow><annotation encoding="text/plain">p−c=(10,0)</annotation></semantics></math>, 회전하면 (0,10), c를 더하면 (10,20), t를 더하면 (13,20)입니다. sin/cos는 부동소수점이라 극히 작은 오차가 있을 수 있습니다. 값이 완전히 같은지 비교하기보다 오차 허용 범위를 정해 테스트합니다.</p>
 </details>
+
+<div class="worked-example"><h3>절댓값과 반너비가 필요한 이유</h3>
+<p>W와 H는 ROI의 원래 너비·높이(px)입니다. 가로 변의 회전 후 가로축 성분은 W cos θ, 세로 변의 회전 후 가로축 성분은 −H sin θ입니다. 바깥 상자의 길이를 구할 때는 방향의 부호가 아니라 두 성분의 길이를 더하므로 절댓값을 씁니다. 전체 너비를 2로 나누면 중심에서 한쪽 끝까지의 반너비입니다.</p>
+<p><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W=100, H=20, θ=90°"><semantics><mrow><mrow><mi>W</mi><mo>=</mo><mn>100</mn><mo>,</mo><mi>H</mi><mo>=</mo><mn>20</mn><mo>,</mo><mi>θ</mi><mo>=</mo><mn>90</mn><mo>°</mo></mrow></mrow><annotation encoding="text/plain">W=100, H=20, θ=90°</annotation></semantics></math>이면 반너비<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="=(100×0+20×1)/2=10"><semantics><mrow><mrow><mo>=</mo><mfrac><mrow><mo>(</mo><mrow><mn>100</mn><mo>×</mo><mn>0</mn><mo>+</mo><mn>20</mn><mo>×</mo><mn>1</mn></mrow><mo>)</mo></mrow><mn>2</mn></mfrac><mo>=</mo><mn>10</mn></mrow></mrow><annotation encoding="text/plain">=(100×0+20×1)/2=10</annotation></semantics></math>, 반높이<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="=(100×1+20×0)/2=50"><semantics><mrow><mrow><mo>=</mo><mfrac><mrow><mo>(</mo><mrow><mn>100</mn><mo>×</mo><mn>1</mn><mo>+</mo><mn>20</mn><mo>×</mo><mn>0</mn></mrow><mo>)</mo></mrow><mn>2</mn></mfrac><mo>=</mo><mn>50</mn></mrow></mrow><annotation encoding="text/plain">=(100×1+20×0)/2=50</annotation></semantics></math>입니다. 전체 상자는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="20×100"><semantics><mrow><mrow><mn>20</mn><mo>×</mo><mn>100</mn></mrow></mrow><annotation encoding="text/plain">20×100</annotation></semantics></math>입니다. 한편 실제 포함 판정은 클릭 점을 역회전한 뒤 중심 기준 x가 −50~50, y가 −10~10인지 확인합니다. 빠른 바깥 상자 검사와 정밀한 도형 검사의 역할을 섞지 마세요.</p></div>
 </section>
-<section><h2>수식이 실제 C#이 되는 자리</h2>
+<section id="reading-7"><h2>수식이 실제 C#이 되는 자리</h2>
 <p>ImageToScreen은 곱한 뒤 더하고, ScreenToImage는 뺀 뒤 나눕니다. ZoomAt은 마우스 아래 원본 좌표를 먼저 구한 후 새 Offset을 역산합니다. <code>with</code>는 기존 값을 바꾸지 않고 일부 필드만 다른 새 값을 만듭니다.</p>
-<details class="code-example" open><summary>ViewportTransform 전체 구현</summary>
-<p class="source">현재 저장소 코드 · 파일 전체 · <a href="../src/VisionGeometry/ViewportTransform.cs">src/VisionGeometry/ViewportTransform.cs</a></p>
-<pre tabindex="0" aria-label="ViewportTransform 전체 구현"><code data-source="../src/VisionGeometry/ViewportTransform.cs" data-kind="full">namespace VisionGeometry;
+<details id="source-5b2ca1d44fde" class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">ViewportTransform 전체 구현</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">ViewportTransform.cs · 39줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="ViewportTransform 전체 구현 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="ViewportTransform 전체 구현 코드"><code data-source="../src/VisionGeometry/ViewportTransform.cs" data-kind="full" data-language="csharp">namespace VisionGeometry;
 
 /// &lt;summary&gt;원본 이미지 좌표와 뷰포트 DIP 좌표를 변환한다. 물리 픽셀/DPI 변환은 호스트가 담당한다.&lt;/summary&gt;
 public readonly record struct ViewportTransform(double Scale, PointD Offset)
@@ -84,7 +465,14 @@ public readonly record struct ViewportTransform(double Scale, PointD Offset)
             (viewHeight - (imageHeight * scale)) / 2));
     }
 }</code></pre>
-</details>
+<p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>src/VisionGeometry/ViewportTransform.cs</code></p></details>
+</section>
+<details class="deep-dive"><summary>찾아보기 · 이 장의 기호와 단위</summary><section class="symbol-guide" id="reading-1"><h2>이 장의 기호를 먼저 읽는 표</h2><p>기호는 이 장 안에서의 뜻입니다. 같은 글자라도 다른 장에서는 다른 양을 가리킬 수 있습니다. 아래첨자는 성분·번호를, 윗줄은 평균을 뜻합니다. 합 기호는 표시한 시작 번호부터 끝 번호까지 항을 모두 더하라는 지시입니다. 절댓값은 부호를 버린 크기, 제곱근은 제곱하면 안의 값이 되는 음이 아닌 수입니다.</p><table class="symbol-table"><thead><tr><th>기호 / 읽는 법</th><th>뜻과 단위</th><th>코드·예시에서 찾기</th></tr></thead><tbody><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="p"><semantics><mrow><mi>p</mi></mrow><annotation encoding="text/plain">p</annotation></semantics></math></td><td>피: 원본 이미지의 점. 가로·세로 두 성분이며 단위는 원본 px</td><td>PointD / imagePoint. 확대해도 같은 부품 주소</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="s"><semantics><mrow><mi>s</mi></mrow><annotation encoding="text/plain">s</annotation></semantics></math></td><td>에스: 뷰포트 안의 화면 점. 단위 DIP</td><td>ImageToScreen 결과 또는 입력 screen</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z"><semantics><mrow><mi>z</mi></mrow><annotation encoding="text/plain">z</annotation></semantics></math></td><td>지: 영상 배율. 원본1px를 화면 몇 DIP로 표시하는가(DIP/px). 양수</td><td>ViewportTransform.Scale. 2이면1px가2DIP</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o"><semantics><mrow><mi>o</mi></mrow><annotation encoding="text/plain">o</annotation></semantics></math></td><td>오: 화면 원점을 민 양. 가로·세로 성분, DIP</td><td>ViewportTransform.Offset. 숫자0과 구별</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="a"><semantics><mrow><mi>a</mi></mrow><annotation encoding="text/plain">a</annotation></semantics></math></td><td>에이: 확대해도 움직이지 않게 고정할 화면 기준점, DIP</td><td>ZoomAt(anchor). 마우스의 화면 위치</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="c"><semantics><mrow><mi>c</mi></mrow><annotation encoding="text/plain">c</annotation></semantics></math></td><td>씨: 회전 중심, 원본 px</td><td>RigidTransform2D의 회전 중심</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="t"><semantics><mrow><mi>t</mi></mrow><annotation encoding="text/plain">t</annotation></semantics></math></td><td>티: 회전 뒤 더하는 이동 벡터, 원본 px</td><td>translation. 길이와 방향이 있는 변화량</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="θ"><semantics><mrow><mi>θ</mi></mrow><annotation encoding="text/plain">θ</annotation></semantics></math></td><td>세타: 회전 각도. 본문 예시는 도, sin/cos 입력은 rad</td><td>RoiGeometry.Angle은 도. Math.Sin은 라디안</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="R"><semantics><mrow><mi>R</mi></mrow><annotation encoding="text/plain">R</annotation></semantics></math></td><td>알: 회전의 두 계산을 묶은 행렬. 단위 없음</td><td>RigidTransform2D.Apply</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x"><semantics><mrow><mi>x</mi></mrow><annotation encoding="text/plain">x</annotation></semantics></math></td><td>엑스: 해당 점의 가로 성분. ROI 포함 검사에서는 중심 기준 로컬 px</td><td>점 전체 p와 그 성분 x를 구별</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="y"><semantics><mrow><mi>y</mi></mrow><annotation encoding="text/plain">y</annotation></semantics></math></td><td>와이: 해당 점의 세로 성분. 이 영상 좌표에서는 아래로 증가</td><td>양의 회전은 화면에서 시계 방향</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="W"><semantics><mrow><mi>W</mi></mrow><annotation encoding="text/plain">W</annotation></semantics></math></td><td>더블유: ROI의 전체 너비, 원본 px</td><td>RoiGeometry.Width</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="H"><semantics><mrow><mi>H</mi></mrow><annotation encoding="text/plain">H</annotation></semantics></math></td><td>에이치: ROI의 전체 높이, 원본 px</td><td>RoiGeometry.Height</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="π"><semantics><mrow><mi>π</mi></mrow><annotation encoding="text/plain">π</annotation></semantics></math></td><td>파이: 원 둘레와 지름의 비. 약3.14159, 단위 없음</td><td>180도는 π rad</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="cos"><semantics><mrow><mi>cos</mi></mrow><annotation encoding="text/plain">cos</annotation></semantics></math></td><td>코사인: 주어진 각도의 가로 방향 기여를 계산. 각도 입력은 rad</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="sin"><semantics><mrow><mi>sin</mi></mrow><annotation encoding="text/plain">sin</annotation></semantics></math></td><td>사인: 주어진 각도의 세로 방향 기여를 계산. 각도 입력은 rad</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="degree"><semantics><mrow><mi>degree</mi></mrow><annotation encoding="text/plain">degree</annotation></semantics></math></td><td>도 단위의 각도 값</td><td>수학 연산</td></tr><tr><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="rad"><semantics><mrow><mi>rad</mi></mrow><annotation encoding="text/plain">rad</annotation></semantics></math></td><td>라디안 단위의 각도 값</td><td>수학 연산</td></tr></tbody></table></section></details>
+<section class="teach-back" aria-label="자기 말로 설명하기" id="reading-8">
+<h2>책을 덮고, 동료에게 설명해 보세요</h2>
+<p>본문을 가리고, 다음 상황의 이유를 자기 말로 설명해 보세요.</p>
+<p><strong>설명할 상황:</strong> 원본 점 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=40"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>40</mn></mrow></mrow><annotation encoding="text/plain">x=40</annotation></semantics></math>, 배율 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="z=2"><semantics><mrow><mrow><mi>z</mi><mo>=</mo><mn>2</mn></mrow></mrow><annotation encoding="text/plain">z=2</annotation></semantics></math>, 화면 이동 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="o=10"><semantics><mrow><mrow><mi>o</mi><mo>=</mo><mn>10</mn></mrow></mrow><annotation encoding="text/plain">o=10</annotation></semantics></math>입니다. 그 점을 클릭하고 그 자리를 고정한 채 배율을 3으로 바꿉니다. 화면 위치와 새 이동량을 구하고, ROI의 원본 x도 고쳐야 하는지 설명하세요.</p>
+<details><summary>설명 예시와 스스로 확인할 기준</summary><p>“화면에서는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="2×40+10=90 DIP"><semantics><mrow><mrow><mn>2</mn><mo>×</mo><mn>40</mn><mo>+</mo><mn>10</mn><mo>=</mo><mn>90</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">2×40+10=90 DIP</annotation></semantics></math>야. 새 배율에서도 90이어야 하니까 이동량을 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="90−3×40=−30 DIP"><semantics><mrow><mrow><mn>90</mn><mo>−</mo><mn>3</mn><mo>×</mo><mn>40</mn><mo>=</mo><mo>−</mo><mn>30</mn><mi mathvariant="normal">DIP</mi></mrow></mrow><annotation encoding="text/plain">90−3×40=−30 DIP</annotation></semantics></math>로 바꿔<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label=". 3×40−30=90"><semantics><mrow><mrow><mo>.</mo><mn>3</mn><mo>×</mo><mn>40</mn><mo>−</mo><mn>30</mn><mo>=</mo><mn>90</mn></mrow></mrow><annotation encoding="text/plain">. 3×40−30=90</annotation></semantics></math>으로 확인할 수 있어. 원본 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=40"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>40</mn></mrow></mrow><annotation encoding="text/plain">x=40</annotation></semantics></math>은 그대로야. 화면을 확대했지 부품을 편집한 것은 아니니까.”</p><p><strong>막혔다면:</strong> ‘곱한 뒤 더했으니’와 ‘새 Offset 식’을 다시 계산하세요. 화면 위치와 원본 위치 옆에 단위를 적어 보세요. 다시 읽은 뒤 예시를 닫고 한 번 더 설명합니다.</p></details>
 </section>
 <nav class="pager" aria-label="이전과 다음 장"><a href="01-image.html">← 01. 이미지는 숫자다</a><a href="03-processing.html">03. 필터·윤곽·마스크 →</a></nav>
 <footer>TeachingToolWpf · 한국어 입문 매뉴얼 · 수치 예제는 교육용이며 실제 성능 측정과 구별합니다.</footer>

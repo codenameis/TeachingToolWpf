@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Rendering;
 using VisionImaging;
 using VisionImaging.Abstractions;
@@ -28,9 +28,8 @@ public partial class RepeatedRoiWindow : Window
         {
             Viewport.DevicePreference = RenderDevicePreference.Software;
         }
-        Model = new(Viewport, image);
+        Model = new(Viewport, new(), image);
         DataContext = Model;
-        Viewport.PointerInput = Model.Input;
         Viewport.InputFailed += ex => Model.Status = ex.Message;
         Viewport.Tiles.Failed += message => Dispatcher.BeginInvoke(() => Model.Status = message);
         Viewport.RendererStatusChanged += status =>
@@ -43,31 +42,24 @@ public partial class RepeatedRoiWindow : Window
             var gpu = metrics.GpuMilliseconds is { } elapsed ? $"{elapsed:F2} ms" : "미측정 (WARP)";
             Model.Performance = $"CPU {metrics.CpuMilliseconds:F2} ms · GPU {gpu} · 최근 프레임 간격 {metrics.FrameIntervalMilliseconds:F2} ms";
         };
-        Viewport.KeyAction = HandleKey;
         PreviewKeyDown += (_, args) =>
         {
             if (Keyboard.FocusedElement is not TextBoxBase)
             {
-                args.Handled = HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                args.Handled = Model.HandleKey(args.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             }
         };
         Closed += (_, _) =>
         {
             _loading.Cancel();
             _loading.Dispose();
+            Model.Dispose();
         };
         Loaded += async (_, _) =>
         {
             try
             {
-                var source = await ImageLoaderHost.Create(System.IO.Path.GetFullPath("artifacts/image-cache"))
-                    .LoadAsync(image, new Progress<string>(text => Model.Status = text), _loading.Token);
-                if (_loading.IsCancellationRequested)
-                {
-                    source.Dispose();
-                    return;
-                }
-                Model.SetSource(source);
+                await Model.LoadImageAsync(ImageLoaderHost.Create(System.IO.Path.GetFullPath("artifacts/image-cache")), _loading.Token);
                 if (Environment.GetCommandLineArgs().Contains("--repeated-roi-benchmark"))
                 {
                     await Diagnostics.RepeatedRoiRun.RunAsync(this, Viewport, Model);
@@ -91,28 +83,4 @@ public partial class RepeatedRoiWindow : Window
         };
     }
 
-    private bool HandleKey(Key key, bool control, bool shift)
-    {
-        if (key == Key.Escape)
-        {
-            Model.Input.Cancel();
-            return true;
-        }
-        if (control && key == Key.Z)
-        {
-            Model.Session.Undo();
-            return true;
-        }
-        if (control && key == Key.Y)
-        {
-            Model.Session.Redo();
-            return true;
-        }
-        if (control && key == Key.A)
-        {
-            Model.Session.Select(null);
-            return true;
-        }
-        return false;
-    }
 }

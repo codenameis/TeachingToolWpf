@@ -1,4 +1,5 @@
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Commands;
+using TeachingToolWpf.ViewModels;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

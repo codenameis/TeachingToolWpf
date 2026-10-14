@@ -18,8 +18,8 @@
                 <Border IsEnabled="{Binding CanUseOrdinaryRoiTools}"><filters:FilterPanel DataContext="{Binding Filters}"/></Border>
                 <StackPanel Visibility="{Binding Properties.HasSingleSelection, Converter={StaticResource BoolVisibility}}">
                     <TextBlock Text="{Binding Properties.ShapeDescription}" FontWeight="SemiBold" Margin="0,12,0,6"/>
-                    <TextBlock Text="그룹 부모 · 자식 관리 전용 (검사 대상 아님)" TextWrapping="Wrap" Margin="0,0,0,12"
-                               Visibility="{Binding Properties.IsGrouping, Converter={StaticResource BoolVisibility}}"/>
+                    <TextBlock Text="{Binding Properties.GroupDescription}" TextWrapping="Wrap" Margin="0,0,0,12"
+                               Visibility="{Binding Properties.IsGroup, Converter={StaticResource BoolVisibility}}"/>
                     <StackPanel Visibility="{Binding Properties.CanChangeType, Converter={StaticResource BoolVisibility}}">
                         <TextBlock Text="ROI 타입" Style="{StaticResource Caption}"/>
                         <ComboBox ItemsSource="{Binding Properties.Types}" SelectedIndex="{Binding Properties.SelectedType}" AutomationProperties.Name="ROI 타입" Margin="0,0,0,12"/>
@@ -33,7 +33,7 @@
                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.SearchHorizontal, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="검색 가로 여유"/>
                         <TextBlock Text="세로 양쪽 여유 (px)" Style="{StaticResource Caption}" Margin="0,12,0,0"/>
                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Properties.SearchVertical, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="검색 세로 여유"/>
-                        <TextBlock Text="ROI 로컬 축 기준으로 양쪽을 확장합니다. 검색 범위는 ROI와 함께 이동·회전합니다. 변경 적용으로 확정하세요." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,9,0,0"/>
+                        <TextBlock Text="타입 선택은 즉시 적용됩니다. ROI 로컬 축 기준으로 양쪽을 확장하며 이동·회전을 따릅니다. 여유 숫자는 변경 적용으로 확정하세요." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,9,0,0"/>
                     </StackPanel>
                     <Border Height="1" Background="{StaticResource Stroke}" Margin="0,24"/>
                     <TextBlock Text="위치와 크기" FontWeight="SemiBold" Margin="0,0,0,16"/>

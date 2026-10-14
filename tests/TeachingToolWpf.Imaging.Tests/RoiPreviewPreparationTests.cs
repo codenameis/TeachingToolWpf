@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using System.Windows.Threading;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Services;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
@@ -263,7 +264,7 @@ public class RoiPreviewPreparationTests
     {
         var gate = new Gate();
         var surface = new Surface();
-        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), gate.Prepare);
+        using var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections(), gate.Prepare);
         Populate(model.Session);
         var id = model.Session.State.Selection.Single();
         var before = model.Session.State;
@@ -293,7 +294,7 @@ public class RoiPreviewPreparationTests
     {
         var gate = new Gate();
         var surface = new Surface();
-        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), gate.Prepare);
+        using var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections(), gate.Prepare);
         Populate(model.Session);
         var before = model.Session.State;
         var bytes = model.Session.HistoryBytes;
@@ -319,7 +320,7 @@ public class RoiPreviewPreparationTests
     public void EscapeAfterMouseUpImmediatelyClearsVisibleTransformBeforePreparationStarts() => OnStaAsync(async () =>
     {
         var surface = new Surface();
-        using var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        using var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections());
         Populate(model.Session);
         model.Session.Select(model.Session.State.Rois.Keys);
         RoiPreviewPreparation.Warm(model.Session.State, default);

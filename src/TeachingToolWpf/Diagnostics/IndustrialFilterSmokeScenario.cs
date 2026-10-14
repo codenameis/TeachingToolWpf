@@ -5,7 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using IndustrialVision.Filters.Gpu;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 
@@ -13,7 +13,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class IndustrialFilterSmokeScenario
 {
-    public static async Task Run(EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(MainWindowViewModel model, Dx12Viewport viewport)
     {
         var filters = model.Filters;
         filters.SelectedFilter = RoiFilterKind.GaussianBlackHatThreshold;

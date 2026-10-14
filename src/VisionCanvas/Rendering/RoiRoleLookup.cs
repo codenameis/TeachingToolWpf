@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using VisionCanvas.Core.Editing;
 
 namespace VisionCanvas.Rendering;
 
@@ -11,36 +11,32 @@ internal sealed class RoiRoleLookup
     // Dictionary의 bucket/entry와 여유를 포함한 보수적 추정. 문서나 ROI 객체는 보관하지 않는다.
     public long EstimatedBytes => (long)_roles.EnsureCapacity(0) * 48;
 
-    public void Update(ImmutableDictionary<Guid, ImmutableArray<Guid>> children)
+    public void Update(DocumentState document)
     {
-        if (_version is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, children))
+        var levels = document.Snapshot.GroupLevels;
+        if (_version is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, levels))
         {
             return;
         }
 
         _roles.Clear();
-        _roles.EnsureCapacity(children.Count + children.Values.Sum(siblings => siblings.Length));
-        foreach (var siblings in children.Values)
-        {
-            foreach (var id in siblings)
-            {
-                _roles[id] = (uint)RoiRole.Child;
-            }
-        }
+        _roles.EnsureCapacity(levels.Count);
         // 중첩 부모는 자식 역할보다 우선한다.
-        foreach (var (id, siblings) in children)
+        foreach (var (id, level) in levels)
         {
-            if (!siblings.IsEmpty)
+            _roles[id] = (uint)(level switch
             {
-                _roles[id] = (uint)RoiRole.Parent;
-            }
+                1 => RoiRole.Parent,
+                2 => RoiRole.Module,
+                _ => RoiRole.Root
+            });
         }
         if (_roles.Count < _roles.EnsureCapacity(0) / 4)
         {
             _roles.TrimExcess();
         }
-        _version = new(children);
+        _version = new(levels);
     }
 
-    public uint Resolve(Guid id) => _roles.GetValueOrDefault(id, (uint)RoiRole.Default);
+    public uint Resolve(Guid id) => _roles.GetValueOrDefault(id, (uint)RoiRole.Child);
 }

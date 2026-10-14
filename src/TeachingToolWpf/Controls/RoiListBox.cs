@@ -4,7 +4,9 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Infrastructure;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 
 namespace TeachingToolWpf.Controls;
 

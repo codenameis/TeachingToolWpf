@@ -10,7 +10,8 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionCanvas.Controls;
 using VisionCanvas.Diagnostics;
@@ -45,7 +46,7 @@ internal static class ShapeTargetSmoke
         public string Verdict { get; init; } = "";
     }
 
-    public static void Attach(Window window, Dx12Viewport viewport, EditorViewModel model,
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model,
         Func<double> cudaInitializationMilliseconds)
     {
         var show = Environment.GetCommandLineArgs().Contains("--shape-target-show");

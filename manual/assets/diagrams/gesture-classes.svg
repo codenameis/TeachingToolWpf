@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="740" viewBox="0 0 640 740" role="img" aria-labelledby="title desc">
+<title id="title">이동 제스처의 구현과 상속</title><desc id="desc">EditGesture는 IGesture를 구현하고 MoveGesture는 EditGesture를 상속한다. 빈 삼각형은 인터페이스 또는 부모 클래스를 향한다.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M2 1 L11 6 L2 11" fill="none" stroke="#486574" stroke-width="1.6"/></marker>
+<marker id="triangle" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M1 1 L13 7 L1 13 Z" fill="white" stroke="#486574" stroke-width="1.4"/></marker>
+<marker id="diamond" viewBox="0 0 16 12" refX="1" refY="6" markerWidth="13" markerHeight="10" orient="auto"><path d="M1 6 L8 1 L15 6 L8 11 Z" fill="#486574"/></marker>
+</defs>
+<style>text {font-family:'Segoe UI','Malgun Gothic',sans-serif;fill:#18303b} .name {font-size:21px;font-weight:700} .member {font-size:18px} .kind {font-size:16px;fill:#426474} .label {font-size:18px;fill:#365562} .edge {fill:none;stroke:#486574;stroke-width:2}</style>
+<rect width="640" height="740" fill="white"/>
+<g class="class-box" data-name="IGesture"><rect x="125" y="15" width="390" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="141" y="42">«interface» · 동작의 약속</text>
+<text class="name" x="141" y="73">IGesture</text>
+<path d="M125 92 H515" stroke="#c2d3da"/>
+<text class="member" x="141" y="122">Move(…)</text>
+<text class="member" x="141" y="147">Complete() / Cancel()</text>
+</g>
+<g class="class-box" data-name="EditGesture"><rect x="125" y="280" width="390" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="141" y="307">«abstract» · 편집 동작의 공통 부분</text>
+<text class="name" x="141" y="338">EditGesture</text>
+<path d="M125 357 H515" stroke="#c2d3da"/>
+<text class="member" x="141" y="387">Editor : EditorSession</text>
+<text class="member" x="141" y="412">InitialViewport : ViewportTransform</text>
+<text class="member" x="141" y="437">Complete() / Cancel()</text>
+</g>
+<g class="class-box" data-name="MoveGesture"><rect x="125" y="555" width="390" height="170" rx="10" fill="#f4f8fa" stroke="#9bb4bf"/>
+<text class="kind" x="141" y="582">구체 클래스 · ROI 이동</text>
+<text class="name" x="141" y="613">MoveGesture</text>
+<path d="M125 632 H515" stroke="#c2d3da"/>
+<text class="member" x="141" y="662">Move(…)</text>
+<text class="member" x="141" y="687">시작 위치로부터 이동량 계산</text>
+</g>
+<path class="edge" d="M320 280 V185" marker-end="url(#triangle)" stroke-dasharray="7 5"/><text class="label" x="341" y="242">구현</text>
+<path class="edge" d="M320 555 V450" marker-end="url(#triangle)"/><text class="label" x="341" y="511">상속</text>
+</svg>

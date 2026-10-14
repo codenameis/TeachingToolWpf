@@ -8,19 +8,20 @@ struct Instance {
 StructuredBuffer<Instance> instances : register(t0);
 StructuredBuffer<uint> roles : register(t1);
 
-// RoiDrawConstants와 동일한 128바이트 배치. 각 줄의 묶음은 16바이트 경계를 유지한다.
+// RoiDrawConstants와 동일한 176바이트 배치. 각 줄의 묶음은 16바이트 경계를 유지한다.
 cbuffer Options : register(b0) {
     float2 clipScale; float imageScale; float searchRangePass;
     float2 screenOrigin; float shadowPass; float summaryOpacity;
     float4 shadowColor;
     float2 rotation; float2 reservedRotation;
-    float4 roleColors[3];
+    float4 roleColors[5];
     float4 roleWidths;
+    float4 extraRoleWidths;
 };
 struct Pixel { float4 position : SV_POSITION; float4 color : COLOR; float2 circleOffset : TEXCOORD0; float2 circleStroke : TEXCOORD1; float strokeDistance : TEXCOORD2; };
 static const uint RectangleEdgeCount = 4;
 static const uint VerticesPerEdge = 6;
-static const uint ParentRole = 2;
+static const uint RootRole = 4;
 static const float2 corners[RectangleEdgeCount] = { float2(-1,-1), float2(1,-1), float2(1,1), float2(-1,1) };
 static const uint cornerIndex[VerticesPerEdge] = { 0,1,2,0,2,3 };
 
@@ -40,7 +41,8 @@ float2 StrokeCorner(uint corner, float2 edgeStart, float2 edgeEnd, float2 halfWi
 
 Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID) {
     Instance roi = instances[instanceIndex];
-    uint role = min(roles[instanceIndex], ParentRole);
+    uint role = min(roles[instanceIndex], RootRole);
+    float strokeWidth = role < 4 ? roleWidths[role] : extraRoleWidths.x;
     Pixel pixel;
     pixel.circleOffset = 0;
     pixel.circleStroke = 0;
@@ -53,7 +55,7 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
             return pixel;
         }
         float radius = length(roi.axisX)*imageScale;
-        float halfWidth = roleWidths[role]*.5;
+        float halfWidth = strokeWidth*.5;
         pixel.circleOffset = corners[cornerIndex[vertexIndex]]*(radius+halfWidth+1);
         pixel.circleStroke = float2(radius, halfWidth);
         screenPosition = ToScreen(roi.center) + pixel.circleOffset;
@@ -83,7 +85,7 @@ Pixel VSMain(uint vertexIndex : SV_VertexID, uint instanceIndex : SV_InstanceID)
         float2 edgeDirection = edgeEnd-edgeStart;
         pixel.strokeDistance = (strokeCorner == 1 || strokeCorner == 2) ? length(edgeDirection) : 0;
         float2 halfWidthNormal = float2(-edgeDirection.y,edgeDirection.x)
-            * (roleWidths[role]*.5/max(length(edgeDirection),.00001));
+            * (strokeWidth*.5/max(length(edgeDirection),.00001));
         screenPosition = StrokeCorner(strokeCorner, edgeStart, edgeEnd, halfWidthNormal);
     }
     pixel.position = float4(screenPosition*clipScale + float2(-1,1),0,1);

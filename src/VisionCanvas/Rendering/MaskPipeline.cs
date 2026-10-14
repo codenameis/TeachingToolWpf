@@ -67,7 +67,7 @@ internal sealed class MaskPipeline : IDisposable
             return;
         }
         var roi = scene.Document.Rois[scene.Document.Selection.Single()];
-        if (scene.Document.IsGroupingRoi(roi.Id))
+        if (scene.Document.IsGroupRoi(roi.Id))
         {
             return;
         }

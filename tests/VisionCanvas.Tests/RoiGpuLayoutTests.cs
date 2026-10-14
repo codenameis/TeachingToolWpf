@@ -26,9 +26,9 @@ public class RoiGpuLayoutTests
     public void DrawPayloadMatchesEveryHlslConstantOffsetAndContainsNoManagedReferences()
     {
         Assert.False(RuntimeHelpers.IsReferenceOrContainsReferences<RoiDrawConstants>());
-        Assert.Equal(128, Marshal.SizeOf<RoiDrawConstants>());
+        Assert.Equal(176, Marshal.SizeOf<RoiDrawConstants>());
         Assert.Equal(RoiDrawConstants.SizeInBytes, Unsafe.SizeOf<RoiDrawConstants>());
-        Assert.Equal(32, RoiDrawConstants.RootConstantCount);
+        Assert.Equal(44, RoiDrawConstants.RootConstantCount);
 
         var offsets = new (string Field, int ByteOffset)[]
         {
@@ -44,7 +44,10 @@ public class RoiGpuLayoutTests
             (nameof(RoiDrawConstants.DefaultColor), 64),
             (nameof(RoiDrawConstants.ChildColor), 80),
             (nameof(RoiDrawConstants.ParentColor), 96),
-            (nameof(RoiDrawConstants.StrokeWidths), 112)
+            (nameof(RoiDrawConstants.ModuleColor), 112),
+            (nameof(RoiDrawConstants.RootColor), 128),
+            (nameof(RoiDrawConstants.StrokeWidths), 144),
+            (nameof(RoiDrawConstants.ExtraStrokeWidths), 160)
         };
         foreach (var (field, byteOffset) in offsets)
         {
@@ -57,7 +60,7 @@ public class RoiGpuLayoutTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public void NamedPayloadPreservesThePriorGpuBytesForEveryDrawPass(bool selected, bool shadow)
+    public void FiveRolePayloadMatchesGpuBytesForEveryDrawPass(bool selected, bool shadow)
     {
         var palette = new RoiStylePalette(
             new(new(.1f, .2f, .3f, .4f), new(.2f, .3f, .4f, .5f), 2),
@@ -72,18 +75,18 @@ public class RoiGpuLayoutTests
         var scene = new RenderScene(state, null, 0, 800, 600, 1.5, new(), Styles: palette);
         var named = new RoiDrawConstants(scene, blockOrigin, transform, selected, shadow ? RoiDrawPass.Shadow : RoiDrawPass.Stroke);
 
-        // 이전 float[32] 계약을 독립적인 기준으로 보존한다. 예약 슬롯도 정확히 0이어야 한다.
+        // HLSL의 5색상/2개 두께 벡터 계약을 독립적으로 확인한다. 예약 슬롯은 0이다.
         var screenOrigin = state.Viewport.ImageToScreen(transform.Apply(blockOrigin));
-        var expected = new float[32]
+        var expected = new float[44]
         {
             (float)(2 / scene.Width), (float)(-2 / scene.Height), (float)state.Viewport.Scale, 0,
             (float)screenOrigin.X, (float)screenOrigin.Y, shadow ? 1 : 0, selected ? 1 : .5f,
             0, 0, 0, .22f,
             (float)transform.Cosine, (float)transform.Sine, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         };
-        for (var role = 0; role < 3; role++)
+        for (var role = 0; role < 5; role++)
         {
             var style = palette.For((RoiRole)role);
             var color = style.StrokeColor(selected);
@@ -92,7 +95,7 @@ public class RoiGpuLayoutTests
             expected[offset + 1] = color.Y;
             expected[offset + 2] = color.Z;
             expected[offset + 3] = color.W;
-            expected[28 + role] = style.StrokeThickness(selected) + (shadow ? selected ? 1.5f : 1 : 0);
+            expected[36 + role] = style.StrokeThickness(selected) + (shadow ? selected ? 1.5f : 1 : 0);
         }
 
         Assert.Equal(MemoryMarshal.AsBytes(expected.AsSpan()).ToArray(), MemoryMarshal.AsBytes(new[] { named }.AsSpan()).ToArray());

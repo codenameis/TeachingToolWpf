@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 
 namespace TeachingToolWpf.Views;
 

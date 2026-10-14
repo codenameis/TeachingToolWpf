@@ -6,6 +6,51 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class PreparedGroupingTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ExistingParentAcceptsDetachedRoiWithoutCreatingAnotherRoi(bool asynchronous, bool nested)
+    {
+        var editor = Create();
+        var root = editor.Add(new(new(400, 400), 200, 200, 0));
+        var parent = nested ? editor.AddChild(root, new(new(400, 400), 100, 100, 25)) : root;
+        var child = editor.AddChild(parent, new(new(400, 400), 10, 10, 0));
+        var detached = editor.Add(new(new(1500, 1500), 40, 30, 60));
+        editor.Select([parent, child, detached]);
+        var before = editor.State;
+        Assert.True(before.SelectionFacts.CanGroup);
+
+        if (asynchronous)
+        {
+            var prepared = await editor.PrepareGroupAsync();
+            Assert.Same(before, editor.State);
+            editor.CommitPrepared(prepared);
+        }
+        else
+        {
+            Assert.Equal(parent, editor.GroupSelection());
+        }
+
+        var after = editor.State;
+        Assert.Equal(before.Rois.Count, after.Rois.Count);
+        Assert.Equal(parent, Assert.Single(after.Selection));
+        Assert.Equal(before.Rois[parent], after.Rois[parent]);
+        Assert.Equal(before.Rois[child], after.Rois[child]);
+        Assert.Equal(before.Rois[detached] with
+        {
+            ParentId = parent
+        }, after.Rois[detached]);
+        Assert.False(after.Rois[parent].Geometry.Contains(after.Rois[detached].Geometry));
+        editor.Undo();
+        AssertDocument(before, editor.State);
+        editor.Redo();
+        AssertDocument(after, editor.State);
+        var next = editor.Add(new(new(1700, 1700), 20, 20, 0));
+        Assert.Equal(before.Rois.Values.Max(roi => roi.Order) + 1, editor.State.Rois[next].Order);
+    }
+
     private static EditorSession Create()
     {
         var editor = new EditorSession();
@@ -23,7 +68,8 @@ public class PreparedGroupingTests
         var editor = Create();
         var parent = editor.Add(new(new(400, 400), 100, 60, 37));
         var outsideChild = editor.AddChild(parent, new(new(900, 600), 80, 80, 63, RoiShape.Circle));
-        editor.Add(new(new(1200, 1100), 140, 100, 51, RoiShape.Triangle));
+        var otherParent = editor.Add(new(new(1200, 1100), 140, 100, 51, RoiShape.Triangle));
+        editor.AddChild(otherParent, new(new(1200, 1100), 10, 10, 0));
         editor.Add(RoiGeometry.Polygon([new(600, 700), new(720, 700), new(660, 750), new(720, 820), new(600, 820)]));
         editor.Select(editor.State.Rois.Keys);
         var before = editor.State;
@@ -77,18 +123,19 @@ public class PreparedGroupingTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task PartialGroupUsesSubtreeBoundsAndPreservesCommonParent(bool asynchronous)
+    public async Task PartialGroupUsesSubtreeBoundsAndPreservesUnrelatedRoots(bool asynchronous)
     {
         var editor = Create();
         var parent = editor.Add(new(new(1000, 1000), 1800, 1800, 0));
-        var left = editor.AddChild(parent, new(new(300, 400), 30, 60, 15));
+        var left = editor.Add(new(new(300, 400), 30, 60, 15));
         var child = editor.AddChild(left, new(new(600, 700), 40, 40, 0, RoiShape.Circle));
-        var right = editor.AddChild(parent, new(new(450, 500), 70, 80, 65, RoiShape.Triangle));
+        var right = editor.Add(new(new(450, 500), 70, 80, 65, RoiShape.Triangle));
+        var rightChild = editor.AddChild(right, new(new(450, 500), 10, 10, 0));
         var unrelated = editor.Add(new(new(1500, 1500), 80, 80, 0));
         editor.Select([left, child, right]);
         var before = editor.State;
         _ = before.Snapshot.Spatial;
-        var expected = new RoiSpatialIndex(new[] { left, child, right }.Select(id => before.Rois[id])).Bounds;
+        var expected = new RoiSpatialIndex(new[] { left, child, right, rightChild }.Select(id => before.Rois[id])).Bounds;
         if (asynchronous)
         {
             editor.CommitPrepared(await editor.PrepareGroupAsync());
@@ -99,7 +146,8 @@ public class PreparedGroupingTests
         }
 
         var group = editor.State.Rois[Assert.Single(editor.State.Selection)];
-        Assert.Equal(parent, group.ParentId);
+        Assert.Null(group.ParentId);
+        Assert.Equal(before.Rois[parent], editor.State.Rois[parent]);
         Assert.Equal(new RoiGeometry(expected.Center, expected.Width + 2, expected.Height + 2, 0), group.Geometry);
         Assert.Equal(group.Id, editor.State.Rois[left].ParentId);
         Assert.Equal(group.Id, editor.State.Rois[right].ParentId);
@@ -116,13 +164,15 @@ public class PreparedGroupingTests
     {
         var editor = Create();
         var parent = editor.Add(new(new(800, 800), 1000, 1000, 0));
-        var first = editor.AddChild(parent, new(new(400, 400), 30, 30, 15));
-        var second = editor.AddChild(parent, new(new(500, 500), 30, 30, 25));
+        var first = editor.Add(new(new(400, 400), 30, 30, 15));
+        var second = editor.Add(new(new(500, 500), 30, 30, 25));
         editor.Select([first, second]);
         var inner = editor.GroupSelection();
-        var third = editor.AddChild(parent, new(new(600, 600), 30, 30, 35));
+        var third = editor.Add(new(new(600, 600), 30, 30, 35));
+        var fourth = editor.AddChild(third, new(new(600, 600), 10, 10, 0));
         editor.Select([inner, third]);
         var outer = editor.GroupSelection();
+        editor.CommitPrepared(await editor.PrepareAttachAsync([outer], parent));
         editor.Select([inner, outer]);
         var before = editor.State;
         var view = before.Viewport.Pan(new(40, 50));
@@ -141,7 +191,8 @@ public class PreparedGroupingTests
         }
 
         var after = editor.State;
-        Assert.Equal(4, after.Rois.Count);
+        Assert.Equal(5, after.Rois.Count);
+        Assert.Equal(third, after.Rois[fourth].ParentId);
         Assert.True(after.Selection.SetEquals([first, second, third]));
         Assert.All(after.Selection, id => Assert.Equal(before.Rois[id] with { ParentId = parent }, after.Rois[id]));
         Assert.Equal(view, after.Viewport);

@@ -69,12 +69,12 @@ public sealed partial class EditorSession
     public Task<PreparedEditorChange> PrepareGroupAsync(CancellationToken token = default)
     {
         var order = _nextOrder;
-        return PrepareChangeAsync("부모 ROI로 그룹화", before => RoiGrouping.Group(before, order + 1, token),
+        return PrepareChangeAsync("부모 ROI로 그룹화", before => RoiGroupEditor.Group(before, order + 1, token),
             token, orderChange: (order, order + 1));
     }
 
     public Task<PreparedEditorChange> PrepareUngroupAsync(CancellationToken token = default)
-        => PrepareChangeAsync("그룹 해제", before => RoiGrouping.Ungroup(before, token), token);
+        => PrepareChangeAsync("그룹 해제", before => RoiGroupEditor.Ungroup(before, token), token);
 
     public Task<PreparedEditorChange> PrepareDeleteAsync(CancellationToken token = default)
         => PrepareChangeAsync("선택 ROI 삭제", before =>
@@ -156,6 +156,11 @@ public sealed partial class EditorSession
             token.ThrowIfCancellationRequested();
             var edit = name is null ? null : new DocumentEdit(name, before, next, cancellationToken: token);
             Warm(next, token);
+            // Reusing a parent changes only relationships and must not consume a new ROI number.
+            if (orderChange is { } order && next.Rois.Count == before.Rois.Count)
+            {
+                orderChange = (order.Before, order.Before);
+            }
             return new PreparedEditorChange(this, revision, epoch, before, next, edit, orderChange);
         }, token);
     }
@@ -171,6 +176,8 @@ public sealed partial class EditorSession
         _ = state.Snapshot.SearchSpatial;
         token.ThrowIfCancellationRequested();
         _ = state.SelectionFacts.HasMultipleRoots;
+        _ = state.SelectionFacts.CanGroup;
+        _ = state.Snapshot.GroupLevels;
         token.ThrowIfCancellationRequested();
         _ = state.SelectedSpatial;
         if (state.SelectionCount != 0)

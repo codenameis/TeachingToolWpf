@@ -2,7 +2,7 @@ using VisionCanvas.Core.Editing;
 using VisionCanvas.Filters.Wpf.ViewModels;
 using VisionCanvas.Imaging.Filters;
 using VisionGeometry;
-using RoiPropertiesViewModel = TeachingToolWpf.Presentation.RoiPropertiesViewModel;
+using RoiPropertiesViewModel = TeachingToolWpf.ViewModels.RoiPropertiesViewModel;
 
 namespace TeachingToolWpf.Imaging.Tests;
 

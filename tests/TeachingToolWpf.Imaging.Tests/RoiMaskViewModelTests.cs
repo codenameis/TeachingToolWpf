@@ -1,4 +1,4 @@
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionGeometry;

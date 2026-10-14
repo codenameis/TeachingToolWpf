@@ -1,0 +1,5 @@
+classDiagram
+direction TB
+Dx12Viewport --> InteractionController : Input
+InteractionController --> IGesture : _activeGesture 0..1
+InteractionController --> EditorSession : editor

@@ -42,7 +42,7 @@ public class RoiPackingReuseTests
         var next = State(Roi(new(new(400, 200), 40, 20, 15)));
         RoiInstance.PackInto(Block(next), 0, next, instances, roles, unique);
         Assert.Single(instances);
-        Assert.Equal((uint)RoiRole.Default, Assert.Single(roles));
+        Assert.Equal((uint)RoiRole.Child, Assert.Single(roles));
         Assert.Equal(expected.Roles, retainedRoles.Values);
         Assert.False(retainedRoles.Refresh(first, 0, before, expected.Instances.Length));
         Assert.Empty(unique);
@@ -164,7 +164,7 @@ public class RoiPackingReuseTests
         Assert.Equal(expected, instances);
         Assert.Equal(expected, RoiInstance.Pack(block, 0));
         Assert.Equal(expected, RoiInstance.PackWithRoles(block, 0, state).Instances);
-        Assert.All(roles, role => Assert.Equal((uint)RoiRole.Default, role));
+        Assert.All(roles, role => Assert.Equal((uint)RoiRole.Child, role));
     }
 
     private static IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)> FailAfter(Roi roi)

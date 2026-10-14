@@ -1,18 +1,67 @@
+using System.Collections.Immutable;
+
 namespace VisionCanvas.Core.Editing;
 
 public static class RoiHierarchy
 {
-    public static IEnumerable<Guid> EffectiveRoots(DocumentState state) => state.Selection.Where(id =>
+    public const int MaximumDepth = 4;
+
+    public static string LevelName(int level) => level switch
     {
-        var parent = state.Rois[id].ParentId;
-        while (parent is { } p)
+        0 => "ROI",
+        1 => "ROI 그룹",
+        2 => "모듈 그룹",
+        3 => "루트 그룹",
+        > 3 => $"초과 계층 ({level + 1}단계)",
+        _ => throw new ArgumentOutOfRangeException(nameof(level))
+    };
+
+    public static int Depth(IReadOnlyDictionary<Guid, Roi> rois, Guid id)
+    {
+        var depth = 1;
+        for (var parent = rois[id].ParentId; parent is { } ancestor; parent = rois[ancestor].ParentId)
         {
-            if (state.Selection.Contains(p))
+            depth++;
+        }
+        return depth;
+    }
+
+    internal static ImmutableDictionary<Guid, int> BuildGroupLevels(IReadOnlyDictionary<Guid, Roi> rois)
+    {
+        var levels = new Dictionary<Guid, int>();
+        foreach (var roi in rois.Values)
+        {
+            var level = roi.IsGroup ? 1 : 0;
+            if (roi.IsGroup)
+            {
+                levels[roi.Id] = Math.Max(levels.GetValueOrDefault(roi.Id), level);
+            }
+            for (var parent = roi.ParentId; parent is { } id; parent = rois[id].ParentId)
+            {
+                level++;
+                if (levels.GetValueOrDefault(id) >= level)
+                {
+                    break;
+                }
+                levels[id] = level;
+            }
+        }
+        return levels.ToImmutableDictionary();
+    }
+
+    public static IEnumerable<Guid> EffectiveRoots(DocumentState state) => EffectiveRoots(state.Rois, state.Selection);
+
+    internal static IEnumerable<Guid> EffectiveRoots(IReadOnlyDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection) => selection.Where(id =>
+    {
+        var parent = rois[id].ParentId;
+        while (parent is { } ancestor)
+        {
+            if (selection.Contains(ancestor))
             {
                 return false;
             }
 
-            parent = state.Rois[p].ParentId;
+            parent = rois[ancestor].ParentId;
         }
         return true;
     });

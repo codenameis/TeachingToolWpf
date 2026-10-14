@@ -5,7 +5,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Interaction;
 using VisionGeometry;
@@ -14,7 +14,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class MaskSmokeScenario
 {
-    public static async Task Run(Window window, EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(Window window, MainWindowViewModel model, Dx12Viewport viewport)
     {
         var editor = model.Session;
         editor.SetViewport(ViewportTransform.Identity);

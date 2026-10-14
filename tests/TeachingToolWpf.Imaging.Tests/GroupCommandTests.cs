@@ -1,7 +1,8 @@
 using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows.Threading;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Services;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
@@ -145,10 +146,10 @@ public class GroupCommandTests
         Assert.Equal(before.Rois.Count + 1, model.Session.State.Rois.Count);
     });
 
-    private static EditorViewModel Create()
+    private static MainWindowViewModel Create()
     {
         var surface = new Surface();
-        var model = new EditorViewModel(surface, new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter());
+        var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections());
         model.Session.InitializeImage(new("test", "test", 10000, 10000), ViewportTransform.Identity);
         model.Session.AddRange(Enumerable.Range(0, 4100).Select(index => new RoiGeometry(
             new(100 + (index % 80 * 40), 100 + (index / 80 * 40)), 20, 20, 0)));

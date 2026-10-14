@@ -5,7 +5,7 @@ namespace VisionCanvas.Rendering;
 
 public enum RoiRole
 {
-    Default = 0, Child = 1, Parent = 2
+    Default = 0, Child = 1, Parent = 2, Module = 3, Root = 4
 }
 
 /// <summary>Immutable display preference. Widths are DIP, independent of image zoom and DPI.</summary>
@@ -68,9 +68,19 @@ public sealed record RoiStrokeStyle
     }
 }
 
-/// <summary>Three independent style slots; future palettes change no ROI geometry or edit history.</summary>
+/// <summary>역할별 표시 설정. ROI 형상과 편집 이력을 변경하지 않는다.</summary>
 public sealed record RoiStylePalette
 {
+    private static readonly RoiStrokeStyle s_moduleDefault = new(new(.35f, .55f, 1, 1), new(.55f, .72f, 1, 1), 1, new(.35f, .55f, 1, 1));
+    private static readonly RoiStrokeStyle s_rootDefault = new(new(1, .65f, .15f, 1), new(1, .85f, .35f, 1), 1, new(1, .65f, .15f, 1));
+    public RoiStrokeStyle Module
+    {
+        get;
+    }
+    public RoiStrokeStyle Root
+    {
+        get;
+    }
     public RoiStrokeStyle Default
     {
         get;
@@ -91,14 +101,17 @@ public sealed record RoiStylePalette
         get;
     } = new(
         new(new(.66f, .73f, .84f, 1), new(.22f, .52f, 1, 1), 1, new(1, .72f, .18f, 1)),
-        new(new(.2f, .8f, .6f, 1), new(.1f, 1, .75f, 1), 1, new(1, .72f, .18f, 1)),
-        new(new(244 / 255f, 114 / 255f, 182 / 255f, 1), new(214 / 255f, 51 / 255f, 132 / 255f, 1), 1, new(1, .72f, .18f, 1)));
+        new(new(.2f, .8f, .6f, 1), new(.1f, 1, .75f, 1), 1, new(.2f, .8f, .6f, 1)),
+        new(new(244 / 255f, 114 / 255f, 182 / 255f, 1), new(214 / 255f, 51 / 255f, 132 / 255f, 1), 1, new(.95f, .45f, .72f, 1)));
 
-    public RoiStylePalette(RoiStrokeStyle defaultStyle, RoiStrokeStyle childStyle, RoiStrokeStyle parentStyle)
+    public RoiStylePalette(RoiStrokeStyle defaultStyle, RoiStrokeStyle childStyle, RoiStrokeStyle parentStyle,
+        RoiStrokeStyle? moduleStyle = null, RoiStrokeStyle? rootStyle = null)
     {
         Default = defaultStyle ?? throw new ArgumentNullException(nameof(defaultStyle));
         Child = childStyle ?? throw new ArgumentNullException(nameof(childStyle));
         Parent = parentStyle ?? throw new ArgumentNullException(nameof(parentStyle));
+        Module = moduleStyle ?? s_moduleDefault;
+        Root = rootStyle ?? s_rootDefault;
     }
 
     public RoiStrokeStyle For(RoiRole role) => role switch
@@ -106,6 +119,8 @@ public sealed record RoiStylePalette
         RoiRole.Default => Default,
         RoiRole.Child => Child,
         RoiRole.Parent => Parent,
+        RoiRole.Module => Module,
+        RoiRole.Root => Root,
         _ => throw new ArgumentOutOfRangeException(nameof(role))
     };
 }
@@ -114,13 +129,19 @@ internal static class RoiStyleRoles
 {
     public static RoiRole Resolve(DocumentState state, Guid id)
     {
-        var roi = state.Rois[id];
         // 명시적으로 연결된 자식 유무가 기준이며 공간 포함이나 그룹 생성 이력으로 추론하지 않는다.
-        if (state.Snapshot.Children.TryGetValue(id, out var children) && !children.IsEmpty)
+        var level = state.Snapshot.GroupLevels.GetValueOrDefault(id);
+        if (level > 0)
         {
-            return RoiRole.Parent;
+            return level switch
+            {
+                1 => RoiRole.Parent,
+                2 => RoiRole.Module,
+                _ => RoiRole.Root
+            };
         }
 
-        return roi.ParentId is not null ? RoiRole.Child : RoiRole.Default;
+        // 기본 ROI는 부모 연결 전에도 자식 스타일을 사용한다. Default는 요약/공통 표시용이다.
+        return RoiRole.Child;
     }
 }

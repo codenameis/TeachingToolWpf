@@ -1,0 +1,17 @@
+sequenceDiagram
+participant I as InteractionController
+participant P as RoiPreviewPreparation
+participant V as EditorViewModel
+participant E as EditorSession
+I->>P: SubmitTranslation / SubmitRotation
+Note over P: one operation, latest request retained
+I->>V: CompletePreview after Up
+alt pending preview exists
+V->>P: FlushAsync
+P->>E: apply latest valid request
+V->>E: PreparePreviewAsync
+V->>E: CommitPrepared after validation
+else small completed preview
+V->>E: CommitPreview
+end
+E-->>V: Changed

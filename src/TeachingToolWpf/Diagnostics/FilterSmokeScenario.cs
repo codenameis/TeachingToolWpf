@@ -1,5 +1,5 @@
 using TeachingToolWpf.Controls;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
@@ -16,7 +16,7 @@ internal static class FilterSmokeScenario
         }
     }
 
-    public static async Task Run(EditorViewModel model, Dx12Viewport viewport)
+    public static async Task Run(MainWindowViewModel model, Dx12Viewport viewport)
     {
         var before = model.Session.State;
         model.Filters.SelectedFilter = RoiFilterKind.Binarize;
@@ -71,7 +71,7 @@ internal static class FilterSmokeScenario
         await MinimapSmokeScenario.Run(model, viewport, "live");
     }
 
-    private static void VerifyThresholdEdit(EditorViewModel model, Dx12Viewport viewport)
+    private static void VerifyThresholdEdit(MainWindowViewModel model, Dx12Viewport viewport)
     {
         var window = System.Windows.Window.GetWindow(viewport);
         var panel = Descendants(window).OfType<VisionCanvas.Filters.Wpf.Controls.FilterPanel>().Single();

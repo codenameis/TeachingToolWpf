@@ -8,7 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionGeometry;
 
@@ -16,7 +16,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static class CrosshairSmokeScenario
 {
-    internal static async Task Run(Window window, EditorViewModel model, Dx12Viewport viewport)
+    internal static async Task Run(Window window, MainWindowViewModel model, Dx12Viewport viewport)
     {
         var settings = model.GuideSettings;
         var originalView = model.Session.State.Viewport;

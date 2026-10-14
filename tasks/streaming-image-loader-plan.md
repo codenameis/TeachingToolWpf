@@ -116,7 +116,7 @@ P0 이후 지원 변형과 native 배포 근거로 재산정한다. 큰 단위�
 | F15 | RawPyramidSource, 캐시 소유/lock helper, 동시성 테스트 (3–4파일) | F10,F12,F14 |
 | F16 | 캐시 예산/회수 정책, manifest 검증, 오류 테스트 (3–5파일) | F15 |
 | F17 | 자체 IImageLoader 구현, 프로젝트 참조, 로더 계약 테스트 (3파일) | F16 |
-| F18 | 중립 파일 version helper, EditorViewModel 호출, 테스트 (3파일) | F17 |
+| F18 | 중립 파일 version helper, MainWindowViewModel 호출, 테스트 (3파일) | F17 |
 | F19 | 기존 synthetic/procedural 소스의 실제 사용 경계, 관련 csproj/테스트 (3–5파일) | F17 |
 | F20 | InspectionNativeRuntime.props, VisionInspection 참조, 호스트 props/검증 (3–5파일) | F18,F19 |
 | F21 | MainWindow 조립, TeachingToolWpf.csproj, 진단 fixture 분리 진입점 (3–4파일) | F20 |

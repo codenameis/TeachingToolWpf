@@ -1,5 +1,6 @@
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
 using VisionCanvas.Core.Editing;

@@ -73,7 +73,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
         var hasSummary = false;
         if (document is not null)
         {
-            lookup?.Update(document.Snapshot.Children);
+            lookup?.Update(document);
         }
         // 최초 업로드는 형상과 역할을 같은 순회로 만든다. 역할만 바뀌면 형상을 다시 계산하지 않는다.
         try
@@ -95,7 +95,7 @@ internal readonly record struct RoiInstance(Vector2 Center, Vector2 AxisX, Vecto
                 var role = lookup?.Resolve(roi.Id) ?? (document is null ? 0 : (uint)RoiStyleRoles.Resolve(document, roi.Id));
                 if (unique.TryGetValue(roi.Geometry, out var index))
                 {
-                    // 같은 윤곽에는 부모 > 자식 > 일반 우선순위를 적용한다.
+                    // 같은 윤곽에는 상위 그룹 역할을 우선 적용한다.
                     if (roles is not null)
                     {
                         for (var i = 0; i < InstanceCount(roi.Geometry); i++)
@@ -177,12 +177,12 @@ internal sealed class RoiRoleCache
     public RoiRoleCache(DocumentState document, uint[] values)
     {
         Values = values;
-        _hierarchyVersion = new(document.Snapshot.Children);
+        _hierarchyVersion = new(document.Snapshot.GroupLevels);
     }
 
     public bool Refresh(RoiSpatialBlock block, double aggregateSize, DocumentState document, int instanceCount, RoiRoleLookup? lookup = null)
     {
-        var version = document.Snapshot.Children;
+        var version = document.Snapshot.GroupLevels;
         if (_hierarchyVersion is { } cached && cached.TryGetTarget(out var previous) && ReferenceEquals(previous, version))
         {
             return false;
@@ -196,11 +196,15 @@ internal sealed class RoiRoleCache
             return true;
         }
 
-        if (version.IsEmpty)
+        if (version.IsEmpty && Values.Length == instanceCount)
         {
-            var defaults = new uint[instanceCount];
-            Array.Fill(defaults, (uint)RoiRole.Default);
-            return RefreshValues(version, defaults, instanceCount);
+            // 계층이 없어져도 실제 ROI와 축소 요약의 역할은 구별한다.
+            var roles = new uint[instanceCount];
+            for (var index = 0; index < roles.Length; index++)
+            {
+                roles[index] = Values[index] == (uint)RoiRole.Default ? (uint)RoiRole.Default : (uint)RoiRole.Child;
+            }
+            return RefreshValues(version, roles, instanceCount);
         }
 
         return RefreshValues(version, RoiInstance.ResolveRoles(block, aggregateSize, document, lookup), instanceCount);
@@ -208,7 +212,7 @@ internal sealed class RoiRoleCache
 
     // 배열 소유권을 받는다. 이미 패킹한 역할을 재사용해 계층을 두 번 순회하지 않는다.
     public bool RefreshPacked(DocumentState document, uint[] values, int instanceCount)
-        => RefreshValues(document.Snapshot.Children, values, instanceCount);
+        => RefreshValues(document.Snapshot.GroupLevels, values, instanceCount);
 
     private bool RefreshValues(object version, uint[] next, int instanceCount)
     {

@@ -1,0 +1,25 @@
+sequenceDiagram
+participant V as Dx12Viewport
+participant I as InteractionController
+participant G as MoveGesture
+participant E as EditorSession
+participant H as Host
+V->>I: Down(screenDip, modifiers)
+I->>G: create after selection
+G->>E: BeginPreview()
+loop pointer moves
+V->>I: Move(screenDip)
+I->>G: Move(screenDip)
+G->>I: PreviewTranslation(delta)
+I->>E: PreviewTranslation(delta), default path
+E-->>H: Changed
+H->>V: Submit(RenderScene with TransformPreview)
+end
+V->>I: Up(final screenDip)
+Note over I: clear active gesture before callbacks
+I->>G: Move(final position)
+I->>G: Complete()
+G->>I: CommitPreview(name)
+I->>E: CommitPreview(name), default path
+E-->>H: Changed
+Note over V: ReleaseCapture after Up returns

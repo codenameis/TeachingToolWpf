@@ -22,7 +22,9 @@
         </StackPanel>
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions>
-            <canvas:Dx12Viewport x:Name="Viewport" AutomationProperties.Name="1억 ROI 테스트 캔버스"/>
+            <canvas:Dx12Viewport x:Name="Viewport" AutomationProperties.Name="1억 ROI 테스트 캔버스"
+                                 Scene="{Binding Scene, Mode=OneWay}" LayoutState="{Binding Layout}"
+                                 PointerInput="{Binding Input}" KeyAction="{Binding KeyHandler}"/>
             <StackPanel Grid.Column="1" Margin="14,0,0,0">
                 <TextBlock Text="{Binding SelectionText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                 <TextBlock Text="행 / 열 (1부터)"/>

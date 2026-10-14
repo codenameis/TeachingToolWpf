@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TeachingToolWpf.Imaging.Matching;
+using TeachingToolWpf.Models;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionGeometry;
 
@@ -147,6 +148,12 @@ public sealed record InspectionRunLog(Guid RunId, DateTimeOffset StartedAt, long
             text += $"\nCUDA 후보 {gpu.Calls}회 · 전송/대기 포함 {Ms(gpu.TotalMilliseconds)}\n{gpu.AdapterName}";
         }
         return ErrorType is null ? text : text + "\n오류 유형: " + ErrorType;
+    }
+
+    public static async Task SaveAsync(IReadOnlyList<InspectionRunLog> runs, string path)
+    {
+        var json = await Task.Run(() => Serialize(runs)).ConfigureAwait(false);
+        await System.IO.File.WriteAllTextAsync(path, json).ConfigureAwait(false);
     }
 
     public static string Serialize(IEnumerable<InspectionRunLog> runs) => JsonSerializer.Serialize(new

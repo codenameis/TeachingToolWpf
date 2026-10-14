@@ -9,6 +9,55 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public class RoiRoleLookupTests
 {
+    [Fact]
+    public async Task IndependentRoiUsesChildStyleBeforeAndAfterParentAttachment()
+    {
+        var editor = new EditorSession();
+        var leaf = editor.Add(new(new(100, 100), 20, 20, 0));
+        var lookup = new RoiRoleLookup();
+        AssertLeaf();
+        var parent = editor.Add(new(new(100, 100), 200, 200, 0));
+        editor.CommitPrepared(await editor.PrepareAttachAsync([leaf], parent));
+        AssertLeaf();
+        Assert.Equal(RoiRole.Parent, RoiStyleRoles.Resolve(editor.State, parent));
+        editor.Undo();
+        Assert.Null(editor.State.Rois[leaf].ParentId);
+        AssertLeaf();
+
+        void AssertLeaf()
+        {
+            lookup.Update(editor.State);
+            Assert.Equal(RoiRole.Child, RoiStyleRoles.Resolve(editor.State, leaf));
+            Assert.Equal((uint)RoiRole.Child, lookup.Resolve(leaf));
+        }
+    }
+
+    [Fact]
+    public void FourHierarchyLevelsUseDistinctCachedRolesAndRestoreAfterUndo()
+    {
+        var editor = new EditorSession();
+        var root = editor.Add(new(new(100, 100), 400, 400, 0));
+        var module = editor.AddChild(root, new(new(100, 100), 300, 300, 0));
+        var group = editor.AddChild(module, new(new(100, 100), 200, 200, 0));
+        var leaf = editor.AddChild(group, new(new(100, 100), 20, 20, 0));
+        var lookup = new RoiRoleLookup();
+        lookup.Update(editor.State);
+        Assert.Equal((uint)RoiRole.Root, lookup.Resolve(root));
+        Assert.Equal((uint)RoiRole.Module, lookup.Resolve(module));
+        Assert.Equal((uint)RoiRole.Parent, lookup.Resolve(group));
+        Assert.Equal((uint)RoiRole.Child, lookup.Resolve(leaf));
+        editor.Undo();
+        lookup.Update(editor.State);
+        Assert.Equal((uint)RoiRole.Module, lookup.Resolve(root));
+        editor.Redo();
+        lookup.Update(editor.State);
+        Assert.Equal((uint)RoiRole.Root, lookup.Resolve(root));
+        var scene = new RenderScene(editor.State, null, 0, 800, 600, 1, new());
+        var constants = new RoiDrawConstants(scene, default, default, false, RoiDrawPass.Stroke);
+        Assert.Equal(scene.RoiStyles.Module.Color, constants.ModuleColor);
+        Assert.Equal(scene.RoiStyles.Root.Color, constants.RootColor);
+    }
+
     [Theory]
     [InlineData(RoiShapeKind.Rectangle)]
     [InlineData(RoiShapeKind.Circle)]
@@ -43,7 +92,7 @@ public class RoiRoleLookupTests
         var cache = new RoiRoleCache();
         foreach (var state in new[] { before, after, before, after, before })
         {
-            lookup.Update(state.Snapshot.Children);
+            lookup.Update(state);
             foreach (var roi in state.Rois.Values)
             {
                 Assert.Equal((uint)RoiStyleRoles.Resolve(state, roi.Id), lookup.Resolve(roi.Id));
@@ -56,10 +105,10 @@ public class RoiRoleLookupTests
             Assert.Equal(expected.Roles, cache.Values);
         }
         Assert.True(lookup.EstimatedBytes > 0);
-        lookup.Update(ImmutableDictionary<Guid, ImmutableArray<Guid>>.Empty);
+        lookup.Update(DocumentState.Empty);
         // Dictionary.TrimExcess는 빈 사전에도 최소 bucket을 남길 수 있다.
         Assert.InRange(lookup.EstimatedBytes, 0, 256);
-        Assert.All(before.Rois.Keys, id => Assert.Equal((uint)RoiRole.Default, lookup.Resolve(id)));
+        Assert.All(before.Rois.Keys, id => Assert.Equal((uint)RoiRole.Child, lookup.Resolve(id)));
     }
 
     [Fact]
@@ -82,7 +131,7 @@ public class RoiRoleLookupTests
             _ => throw new InvalidOperationException("Cached roles must not enumerate geometry."));
         Assert.True(cache.Refresh(noEnumeration, 0, after, original.Length));
         var detached = cache.Values;
-        Assert.All(detached, role => Assert.Equal((uint)RoiRole.Default, role));
+        Assert.All(detached, role => Assert.Equal((uint)RoiRole.Child, role));
         Assert.True(cache.Refresh(noEnumeration, 0, before, original.Length));
         Assert.Same(original, cache.Values);
         Assert.True(cache.Refresh(noEnumeration, 0, after, original.Length));
@@ -121,7 +170,7 @@ public class RoiRoleLookupTests
         var lookup = new RoiRoleLookup();
         var block = before.Snapshot.Spatial.Blocks(before.Snapshot.Spatial.Bounds).Single();
         var cache = new RoiRoleCache(before, RoiInstance.ResolveRoles(block, 0, before));
-        lookup.Update(after.Snapshot.Children);
+        lookup.Update(after);
         cache.Refresh(block, 0, after, cache.Values.Length, lookup);
         return (lookup, cache, [new(before.Snapshot.Children), new(after.Snapshot.Children)]);
     }

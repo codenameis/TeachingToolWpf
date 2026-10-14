@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using TeachingToolWpf.Commands;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Controls;
 using VisionGeometry;
 
@@ -11,7 +13,7 @@ namespace TeachingToolWpf.Diagnostics;
 
 internal static partial class InspectionSmoke
 {
-    private static async Task VerifyStartupAsync(Window window, Dx12Viewport viewport, EditorViewModel model, Func<string, Task> capture)
+    private static async Task VerifyStartupAsync(Window window, Dx12Viewport viewport, MainWindowViewModel model, Func<string, Task> capture)
     {
         await model.InitializeAsync();
         Require(model.Session.State.Image!.Width == 8192, "default startup image");

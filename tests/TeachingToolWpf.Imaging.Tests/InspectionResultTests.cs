@@ -1,7 +1,8 @@
 using System.Collections.Immutable;
 using System.Numerics;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.Tests;
 using VisionCanvas.Core.Editing;

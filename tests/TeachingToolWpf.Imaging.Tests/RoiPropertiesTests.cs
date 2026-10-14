@@ -1,10 +1,64 @@
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
 
 namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class RoiPropertiesTests
 {
+    [Fact]
+    public void TypeSelectionCommitsImmediatelyAndRefreshNeverCreatesHistory()
+    {
+        var editor = new EditorSession();
+        var id = editor.Add(new(new(200, 200), 40, 40, 0));
+        var properties = new RoiPropertiesViewModel(editor);
+        editor.Changed += (_, _) => properties.Refresh();
+        properties.Refresh();
+        properties.Name = "아직 적용하지 않은 이름";
+        properties.X = "invalid";
+        properties.SelectedType = 1;
+        Assert.Equal(new RoiSearchRange(20, 20), editor.State.Rois[id].SearchRange);
+        Assert.NotEqual("아직 적용하지 않은 이름", editor.State.Rois[id].Name);
+        var after = editor.State;
+        var historyBytes = editor.HistoryBytes;
+        properties.Refresh();
+        properties.SelectedType = 1;
+        Assert.Same(after, editor.State);
+        Assert.Equal(historyBytes, editor.HistoryBytes);
+        editor.Undo();
+        Assert.Null(editor.State.Rois[id].SearchRange);
+        Assert.Equal(0, properties.SelectedType);
+        Assert.True(editor.CanRedo);
+        editor.Redo();
+        Assert.Equal(1, properties.SelectedType);
+        properties.SelectedType = 0;
+        Assert.Null(editor.State.Rois[id].SearchRange);
+        editor.Undo();
+        Assert.Equal(new RoiSearchRange(20, 20), editor.State.Rois[id].SearchRange);
+    }
+
+    [Fact]
+    public void SelectionRefreshAndParentTypeChangesLeaveHistoryUntouched()
+    {
+        var editor = new EditorSession();
+        var parent = editor.Add(new(new(200, 200), 100, 100, 0));
+        var child = editor.AddChild(parent, new(new(200, 200), 10, 10, 0));
+        var properties = new RoiPropertiesViewModel(editor);
+        editor.Changed += (_, _) => properties.Refresh();
+        properties.Refresh();
+        properties.SelectedType = 1;
+        editor.Undo();
+        editor.Select([parent]);
+        var before = editor.State;
+        properties.SelectedType = 1;
+        properties.Refresh();
+        Assert.Same(before, editor.State);
+        Assert.True(editor.CanRedo);
+        editor.Select([child]);
+        Assert.Equal(0, properties.SelectedType);
+        editor.Redo();
+        Assert.Equal(1, properties.SelectedType);
+    }
+
     [Fact]
     public void RepeatedCellGeometryUsesTheCommonPropertiesAndHistory()
     {
@@ -49,7 +103,7 @@ public sealed class RoiPropertiesTests
         properties.SearchHorizontal = "0.72";
         properties.SearchVertical = "12.5";
         properties.IsNameVisible = false;
-        Assert.Null(editor.State.Rois[id].SearchRange);
+        Assert.Equal(new RoiSearchRange(20, 20), editor.State.Rois[id].SearchRange);
         properties.Apply();
         Assert.Equal(new RoiSearchRange(.72, 12.5), editor.State.Rois[id].SearchRange);
         Assert.False(editor.State.Rois[id].IsNameVisible);
@@ -74,7 +128,7 @@ public sealed class RoiPropertiesTests
         editor.Select([parent]);
         var properties = new RoiPropertiesViewModel(editor);
         properties.Refresh();
-        Assert.True(properties.IsGrouping);
+        Assert.True(properties.IsGroup);
         Assert.False(properties.CanChangeType);
         properties.Name = "조립 그룹";
         properties.IsNameVisible = false;

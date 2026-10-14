@@ -1,5 +1,21 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-15 부모 버튼 복구·MVVM 폴더:** 초록색 독립 ROI와 별도로 빈 부모 추가/그리기를 제공한다. 부모는 생성 시부터 그룹 역할을 가지며 자식 추가/그리기와 최대4단계를 유지한다. 앱을 Models/Views/ViewModels 및 Commands/Services/Infrastructure로 정리하고 MainWindow의 XAML 시작 경로·namespace·문서 경로를 갱신한다. [ADR-046 후속](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [폴더 안내](../docs/code-guide.md).
+
+- **2026-10-15 기본 ROI 후속:** 기본 그리기·추가는 부모 없는 초록색 ROI이며 연결된 자식과 같은 스타일을 사용한다. 그리기 미리보기·그룹 해제/이력에서도 유지한다. `RoiStyles`와 `MainWindowViewModel`로 타입/파일 이름을 맞추고 기존 DataContext와 서비스 주입을 보존한다. [ADR-046 후속](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [검증](../docs/mvvm-viewport-validation.md).
+
+- **2026-10-14 그룹 버그·MVVM 후속:** 부모 하나와 독립 ROI는 기존 부모에 연결하여 추가 ROI 생성을 막는다. Viewport의 Scene/Input/Layout을 바인딩하고 ViewModel의 구체 컨트롤·파일 창·타이머·검사 구현 생성 의존성을 제거한다. View의 화면/네이티브 수명은 유지한다. [ADR-046](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [검증](../docs/mvvm-viewport-validation.md).
+
+- **2026-10-14 ROI 계층·명명 후속:** 사용자 확정은 RootGroup 포함 최대4단계, 단계별 색상 설정, 자식 **그리기만** 부모 내부 제한, 부모 없는 ROI의 명시적 편입/상위 그룹화, 검색범위 타입 즉시 적용이다. 새 그룹 상속 구조 없이 기존 문서/이력/스냅샷을 확장한다. [ADR-045](../docs/decisions/0045-roi-hierarchy-and-explicit-names.md), [검증](../docs/roi-hierarchy-validation.md). 현재main에서 로컬 수정·검증만 진행한다.
+
+- **2026-10-14 매뉴얼 ROI 애니메이션:**5장에 직접 조작·재생·단계 진행·취소가 가능한 SVG 교육 모형을 둔다. 보이는 위치와 문서/이력, 실제 클래스 경로·발췌를 함께 표시한다. 실제 WPF/GPU 실행과 구별하고 소스 일치·입력/재생 수명·정적 대체 표시를 검증한다. [검증 기록](../docs/beginner-manual-validation.md).
+
+- **2026-10-14 매뉴얼 그림 후속:** 미사용10·11장 안내와 옛 그림/원문을 삭제한다. 클래스 관계를 입력·제스처 상속·문서 구조로 나누고 본문 폭에 맞춰 표시하며 화살표를 문장으로 설명한다. 코드·수식·링크 정적 검증과 실제 브라우저 표시 검증의 한계를 구별한다. [검증 기록](../docs/beginner-manual-validation.md).
+
+- **2026-10-14 매뉴얼 후속 재개:** 리뷰/작업 검증 두 장을 학습 목차에서 제외하고 현재 클래스 관계·마우스 입력·ROI 시퀀스·동기/비동기 확정·NetVips 제거 이후 영상 경로를 보강한다. 수식별 기호/단위, 본문 소스, InputLifecycle 실습을 연결한다. [개편 검증](../docs/beginner-manual-validation.md). 실제 독자의 이해도 평가는 문서 검사와 구별한다.
+
+- **2026-10-14 신입 친화적 코드 우선:** 매뉴얼 후속보다 ROI 마우스 입력·선택·미리보기·확정/취소를 먼저 정리한다. 기존 제스처 타입별 파일 분리, 심볼 Rename, 입력 우선순위와 좌표 단위의 명시로 읽기 흐름을 개선한다. 공개 계약·이력·프로젝트 경계를 유지하고 새 추상 계층은 추가하지 않는다. [변경·원칙별 검토·검증 한계](../docs/input-readability-refactoring.md).
+
 - **2026-10-14 NetVips 제거:** 사용자 요청으로 기본 파일 로더를 자체 스트리밍 코덱으로 전환한다. 앱·샘플·검사·테스트·측정 도구의 패키지 참조 제거, TIFF/PNG/JPEG/WebP 지원·원본·이력 회귀와 새 배포를 검증한다. [ADR-044](../docs/decisions/0044-remove-netvips-dependency.md), [전환 기록](../docs/netvips-removal.md). 기존 결과/캐시 보존, Linux 실실행 보류, 로컬 검증만 진행.
 
 - **2026-10-14 JPEG scanline 후속:** Skia JPEG를 호출자 버퍼로 직접 디코드하고 PNG/TIFF 기존 경로를 보존한다. 자체 로더와8K JPEG2종×각5회 재비교 및 Windows 자체/Skia 메인 앱 ZIP을 제공한다. [측정·제한·검증](../docs/skia-jpeg-scanline.md). 메모리 감소와 자체 대비 속도 열세를 구분하고 기본 로더/원칙 예외/커밋·푸시 없이 진행한다.
@@ -11,6 +27,8 @@
 - **2026-10-13 메모리·성능 검토 후속:** 별도 실험에서 디코드/피라미드/타일/해제의 전용 할당과 RAM 상주량을 구분한다. 컬러 변환의 반복 native 너비 조회만 줄여 독립5회 비교와 픽셀 동등성을 검증한다. 전체 Mat 제거/스트리밍 디코더·SIMD·매핑 창은 후속 후보이며 성과로 표현하지 않는다. [메모리·속도 검토](../docs/pyramid-memory-review.md).
 
 - **2026-10-13 자체 파일 엔진 비교·크로스플랫폼 후속:** 별도 `experiments/PyramidComparison.slnx`에서 순수 .NET 피라미드/타일 캐시와 OpenCV 디코더 어댑터를 구현한다. Windows8K·24K에서 기존 NetVips와 준비 시간·타일 지연·메모리·픽셀을 비교하고 Linux x64 배포물을 생성한다. 생산 경로는 보존하며 Linux 실실행과 초대형 파일 대체의 제한은 [실측](../docs/pyramid-decoder-comparison.md)에 명시한다. 로컬 구현·검증만 진행한다.
+
+- **2026-10-13 파인만 방식 설명 보강:** 신입 독자가 수식과 짧은 설명을 이해하기 어렵다는 후속 피드백에 따라 HTML13페이지의 설명을 고친다. 쉬운 문제·비유, 기호와 단위, 단계별 손계산, 잘못된 계산의 반례, 실제 코드, 장별 자기 설명과 재학습 경로를 연결한다. 기존 MathML·본문 코드·실험과 생산 실행 경로를 보존한다. [검증과 학습 평가의 한계](../docs/beginner-manual-validation.md)를 구별한다.
 
 - **2026-10-13 원격 반영 후속 승인:** 사용자가 현재 프로젝트 변경 전체의 검증 후 커밋·푸시와 main 반영을 요청했다. 이미 main에서 작업 중이며 별도 미병합 브랜치는 없으므로 main의 일반 커밋·푸시로 반영한다. 아래 로컬 작업 선택은 구현 당시 기록이다. [반영 전 검증](todo.md)을 따른다.
 

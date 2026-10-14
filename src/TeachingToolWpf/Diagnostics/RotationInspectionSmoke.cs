@@ -6,7 +6,8 @@ using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Threading;
 using TeachingToolWpf.Imaging.Matching;
-using TeachingToolWpf.Presentation;
+using TeachingToolWpf.Models;
+using TeachingToolWpf.ViewModels;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 
 namespace TeachingToolWpf.Diagnostics;
@@ -14,7 +15,7 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>현재 사용자 ROI를 재현하는 독립 앱 진단. 사용 중인 다른 앱의 상태는 읽거나 변경하지 않는다.</summary>
 internal static class RotationInspectionSmoke
 {
-    public static void Attach(Window window, EditorViewModel editor)
+    public static void Attach(Window window, MainWindowViewModel editor)
     {
         window.Title = "Vision Teaching Studio · 회전 검사 검증";
         window.Loaded += async (_, _) =>

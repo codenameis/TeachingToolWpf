@@ -1,7 +1,7 @@
 <UserControl x:Class="TeachingToolWpf.Views.RoiStylePanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:TeachingToolWpf.Controls">
     <StackPanel>
         <TextBlock Text="ROI 색상과 선 두께" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-        <TextBlock Text="역할과 선택 상태를 따로 설정합니다. 기본 다중 선택 색은 같은 주황색으로 묶어 표시합니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,16"/>
+        <TextBlock Text="4단계 계층의 색상과 선택 상태를 각각 설정합니다. 부모 없는 ROI도 자식 ROI 색상을 사용합니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,16"/>
         <Grid Margin="0,0,0,6">
             <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="82"/></Grid.ColumnDefinitions>
             <TextBlock Text="역할" Style="{StaticResource Caption}"/>
@@ -23,7 +23,7 @@
             </DataTemplate></ItemsControl.ItemTemplate>
         </ItemsControl>
         <TextBlock Text="색상: #RRGGBB 또는 #AARRGGBB · 예: #FFB82E (주황)" Style="{StaticResource Caption}" Margin="0,4,0,8"/>
-        <TextBlock Text="부모는 자식이 있는 ROI, 자식은 부모가 있고 하위 ROI가 없는 영역입니다. 다중 선택 외곽선·회전 핸들은 일반 ROI의 다중 선택 색을 사용합니다." TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondary}" LineHeight="18"/>
+        <TextBlock Text="RootGroup(검사 전체) → ModuleGroup(모듈) → RoiGroup(부모) → Roi(자식), 최대 4단계입니다. 공통 표시는 축소 요약·반복 ROI·다중 선택 외곽선과 핸들에 적용됩니다." TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondary}" LineHeight="18"/>
         <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Foreground="Firebrick" FontSize="11" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"/>
         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
             <Button Content="ROI 표시 적용" Command="{Binding Apply}" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="ROI 표시 설정 적용"/>
