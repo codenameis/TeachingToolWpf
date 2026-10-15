@@ -40,7 +40,6 @@ public sealed class ShapeCandidateRefinementTests
         if (!constrainBudget)
         {
             Assert.Equal(4, serial.Matches.Length);
-            Assert.All(serial.Matches, match => Assert.NotNull(match.Geometry));
         }
         Assert.Equal(2, loader.Sources.Count);
         Assert.All(loader.Sources, source =>
@@ -67,7 +66,6 @@ public sealed class ShapeCandidateRefinementTests
             MaximumAngleDegrees = 0,
             MinimumScale = Scale,
             MaximumScale = Scale,
-            BuildGeometricModel = false
         });
         var scene = new GrayImage(new byte[8192 * 2400], 8192, 2400, 8192);
         var loader = new ObservedLoader(scene);
@@ -94,7 +92,6 @@ public sealed class ShapeCandidateRefinementTests
             ComputeMode = InspectionComputeMode.GpuPreprocessing,
             Verify = false,
             Refine = false,
-            EvaluateGeometry = false
         };
         // 후보 순서는 공간 순서의 반대다. 읽기는 공간 순서, 반환은 원래 후보 순서를 지킨다.
         ShapeMatch[] seeds = [Seed(new(5248, 1200, 0, Scale)), Seed(new(1152, 1200, 0, Scale))];
@@ -144,7 +141,6 @@ public sealed class ShapeCandidateRefinementTests
             ComputeMode = InspectionComputeMode.GpuPreprocessing,
             Verify = false,
             Refine = false,
-            EvaluateGeometry = false
         };
         ShapeMatch[] seeds = [Seed(new(1792, 160, 0)), Seed(new(1280, 160, 0)), Seed(new(768, 160, 0)), Seed(new(256, 160, 0))];
         var run = Task.Run(() => ShapeCandidateRefinement.Run(reader, reference, model, null, options, seeds, default, new(provider)));
@@ -245,7 +241,6 @@ public sealed class ShapeCandidateRefinementTests
         {
             MinimumAngleDegrees = -5,
             MaximumAngleDegrees = 5,
-            BuildGeometricModel = true,
             BuildClutterModel = true
         });
         const int Width = 2049;

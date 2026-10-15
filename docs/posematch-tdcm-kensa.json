@@ -1,0 +1,166 @@
+{
+  "input": {
+    "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\kensa.png",
+    "Name": "kensa.png",
+    "Width": 1024,
+    "Height": 1536,
+    "Version": "2440112:639267703823677870"
+  },
+  "renderer": "DX12 \u00B7 GPU \u00B7 NVIDIA GeForce RTX 3060 Laptop GPU \u00B7 VRAM 5.9 GiB \u00B7 Budget 5.1 GiB \u00B7 Debug: False",
+  "failure": null,
+  "rows": [
+    {
+      "device": "Cpu",
+      "repeat": 0,
+      "commandMs": 1111.4864,
+      "displayedMs": 1676.5737,
+      "log": {
+        "RunId": "67a78154-756e-4d0c-88cd-48a67cf8441e",
+        "StartedTimestamp": 573211213550,
+        "Width": 1024,
+        "Height": 1536,
+        "Device": 0,
+        "PresentationId": "6228d68f-1aed-44ef-bc65-0b69c464842e",
+        "ServiceMilliseconds": 1095.0936,
+        "PublishedMilliseconds": 1104.4871,
+        "CommandMilliseconds": 1109.5587,
+        "PresentedMilliseconds": 1125.9486,
+        "Matches": 1,
+        "Incomplete": false
+      },
+      "MinimumScore": 0.5,
+      "TdcmWindowSize": 512,
+      "TdcmRefinePose": false,
+      "expectedCount": 48,
+      "withinTimeBudget": false,
+      "Status": "PoseMatch-TDCM Cpu \uC11C\uBE44\uC2A4 1095.1 ms \u00B7 \uC77D\uAE30 26.7 \u00B7 \uC138\uC158 \uC900\uBE44 97.3 \u00B7 \uCD94\uB860/\uD6C4\uCC98\uB9AC 961.4 ms \u00B7 \uCC3D 4",
+      "matches": [
+        {
+          "ReferencePoint": {
+            "X": 492,
+            "Y": 1274,
+            "Length": 1365.7012850546785,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.5004255482315899,
+          "Label": "#1 \uC2E0\uB8B0\uB3C4 0.507"
+        }
+      ]
+    },
+    {
+      "device": "Cpu",
+      "repeat": 1,
+      "commandMs": 971.6308,
+      "displayedMs": 994.4416,
+      "log": {
+        "RunId": "13d7647a-724e-4021-96c8-98d2ecedee85",
+        "StartedTimestamp": 573228314073,
+        "Width": 1024,
+        "Height": 1536,
+        "Device": 0,
+        "PresentationId": "e59c3dde-dec8-4bd3-8f99-cf31431f25cb",
+        "ServiceMilliseconds": 965.1188,
+        "PublishedMilliseconds": 968.001,
+        "CommandMilliseconds": 971.1905,
+        "PresentedMilliseconds": 970.7475,
+        "Matches": 1,
+        "Incomplete": false
+      },
+      "MinimumScore": 0.5,
+      "TdcmWindowSize": 512,
+      "TdcmRefinePose": false,
+      "expectedCount": 48,
+      "withinTimeBudget": false,
+      "Status": "PoseMatch-TDCM Cpu \uC11C\uBE44\uC2A4 965.1 ms \u00B7 \uC77D\uAE30 6.6 \u00B7 \uC138\uC158 \uC900\uBE44 0.0 \u00B7 \uCD94\uB860/\uD6C4\uCC98\uB9AC 958.4 ms \u00B7 \uCC3D 4",
+      "matches": [
+        {
+          "ReferencePoint": {
+            "X": 492,
+            "Y": 1274,
+            "Length": 1365.7012850546785,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.5004255482315899,
+          "Label": "#1 \uC2E0\uB8B0\uB3C4 0.507"
+        }
+      ]
+    },
+    {
+      "device": "Cuda",
+      "repeat": 0,
+      "commandMs": 704.3658,
+      "displayedMs": 738.5306,
+      "log": {
+        "RunId": "69463207-baae-4f64-b529-51b9b0ff81d3",
+        "StartedTimestamp": 573238344147,
+        "Width": 1024,
+        "Height": 1536,
+        "Device": 1,
+        "PresentationId": "f1d9b0e0-6217-4934-922e-c0cadc92523a",
+        "ServiceMilliseconds": 699.3378,
+        "PublishedMilliseconds": 701.9856,
+        "CommandMilliseconds": 704.1335,
+        "PresentedMilliseconds": 703.5973,
+        "Matches": 1,
+        "Incomplete": false
+      },
+      "MinimumScore": 0.5,
+      "TdcmWindowSize": 512,
+      "TdcmRefinePose": false,
+      "expectedCount": 48,
+      "withinTimeBudget": false,
+      "Status": "PoseMatch-TDCM Cuda \uC11C\uBE44\uC2A4 699.3 ms \u00B7 \uC77D\uAE30 6.3 \u00B7 \uC138\uC158 \uC900\uBE44 308.0 \u00B7 \uCD94\uB860/\uD6C4\uCC98\uB9AC 384.9 ms \u00B7 \uCC3D 4",
+      "matches": [
+        {
+          "ReferencePoint": {
+            "X": 492,
+            "Y": 1274,
+            "Length": 1365.7012850546785,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.5004692748721629,
+          "Label": "#1 \uC2E0\uB8B0\uB3C4 0.507"
+        }
+      ]
+    },
+    {
+      "device": "Cuda",
+      "repeat": 1,
+      "commandMs": 107.8304,
+      "displayedMs": 123.5279,
+      "log": {
+        "RunId": "9bd02fcd-d8d4-4dd5-b255-028f03539080",
+        "StartedTimestamp": 573245772049,
+        "Width": 1024,
+        "Height": 1536,
+        "Device": 1,
+        "PresentationId": "9e25780d-cd2d-4a60-b527-6e6b976f4cab",
+        "ServiceMilliseconds": 102.8855,
+        "PublishedMilliseconds": 105.5167,
+        "CommandMilliseconds": 107.5075,
+        "PresentedMilliseconds": 107.0569,
+        "Matches": 1,
+        "Incomplete": false
+      },
+      "MinimumScore": 0.5,
+      "TdcmWindowSize": 512,
+      "TdcmRefinePose": false,
+      "expectedCount": 48,
+      "withinTimeBudget": false,
+      "Status": "PoseMatch-TDCM Cuda \uC11C\uBE44\uC2A4 102.9 ms \u00B7 \uC77D\uAE30 6.2 \u00B7 \uC138\uC158 \uC900\uBE44 0.0 \u00B7 \uCD94\uB860/\uD6C4\uCC98\uB9AC 96.6 ms \u00B7 \uCC3D 4",
+      "matches": [
+        {
+          "ReferencePoint": {
+            "X": 492,
+            "Y": 1274,
+            "Length": 1365.7012850546785,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.5004692748721629,
+          "Label": "#1 \uC2E0\uB8B0\uB3C4 0.507"
+        }
+      ]
+    }
+  ],
+  "measurement": "\uBA85\uB839 \uC9C4\uC785\u2192\uD544\uC218 \uB77C\uBCA8 \uC900\uBE44/Present \uC81C\uCD9C/GPU fence. \uBB3C\uB9AC scan-out \uBC0F \uC785\uB825 \uBA54\uC2DC\uC9C0 \uB300\uAE30 \uC81C\uC678. \uC815\uD655\uB3C4 \uD569\uACA9 \uD310\uC815 \uC544\uB2D8."
+}

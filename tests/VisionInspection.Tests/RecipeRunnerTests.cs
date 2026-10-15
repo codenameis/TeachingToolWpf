@@ -8,6 +8,20 @@ namespace VisionInspection.Tests;
 public sealed class RecipeRunnerTests
 {
     [Fact]
+    public async Task RemovedGeometricMethodIsRejectedBeforeOpeningImages()
+    {
+        var result = await new RecipeRunner().RunAsync(new()
+        {
+            Method = "geometric",
+            InspectionImage = "missing.png"
+        }, ".");
+        Assert.Equal("failed", result.Status);
+        Assert.Contains("method", result.Error);
+        Assert.Null(result.InspectionImage);
+        Assert.Empty(result.Matches);
+    }
+
+    [Fact]
     public async Task PrimitiveRecipeReadsOriginalFileAndReturnsFourMeasuredContours()
     {
         var (directory, runner, recipe) = CreateFixture();
@@ -26,7 +40,6 @@ public sealed class RecipeRunnerTests
 
     [Theory]
     [InlineData("paper")]
-    [InlineData("geometric")]
     [InlineData("template")]
     public async Task PatternRecipesTrainAndInspectThroughSharedServices(string method)
     {
@@ -63,10 +76,6 @@ public sealed class RecipeRunnerTests
         Assert.Equal("transformedTeachingRoi", match.ContourSource);
         Assert.Equal(4, match.Contour.Length);
         Assert.NotNull(result.TrainingImage);
-        if (method == "geometric")
-        {
-            Assert.NotNull(match.Geometry);
-        }
     }
 
     [Fact]

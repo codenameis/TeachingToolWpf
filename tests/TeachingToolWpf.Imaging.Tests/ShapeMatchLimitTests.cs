@@ -12,11 +12,9 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class ShapeMatchLimitTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task BothSearchPathsReportOmittedMatchesWithoutConfusingAnExactLimit(bool pyramid, bool geometric)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BothSearchPathsReportOmittedMatchesWithoutConfusingAnExactLimit(bool pyramid)
     {
         var width = pyramid ? 2200 : 1536;
         var height = pyramid ? 1100 : 256;
@@ -40,13 +38,11 @@ public sealed class ShapeMatchLimitTests
         {
             MinimumAngleDegrees = 0,
             MaximumAngleDegrees = 0,
-            BuildGeometricModel = geometric
         }, default);
         var options = new SearchOptions
         {
             MinimumScore = .8,
             MaximumMatches = 1,
-            EvaluateGeometry = geometric
         };
 
         var limited = await service.SearchAsync(image, false, training.Model, null, options, default);

@@ -26,7 +26,7 @@
         </Border>
         <views:SourceBar Grid.Row="1"/>
         <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="212"/><ColumnDefinition Width="*"/><ColumnDefinition Width="264"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="212"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="360" MinWidth="320" MaxWidth="560"/></Grid.ColumnDefinitions>
             <Border BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,1,0"><views:RoiPanel x:Name="Regions"/></Border>
             <Grid Grid.Column="1" Margin="12">
                 <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="38"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -47,7 +47,7 @@
                             <Button Tag="{StaticResource CursorIcon}" Command="{Binding SelectTool}" Style="{StaticResource SelectToolStyle}" ToolTip="선택 · V" AutomationProperties.Name="선택 도구" Margin="0,0,0,6"/>
                             <Button Tag="{StaticResource PanIcon}" Command="{Binding PanTool}" Style="{StaticResource PanToolStyle}" ToolTip="화면 이동 · H · Space+드래그" AutomationProperties.Name="화면 이동 도구" Margin="0,0,0,6"/>
                             <Border Height="1" Background="{StaticResource Stroke}" Margin="10,4,10,10"/>
-                            <Button Tag="{StaticResource DrawIcon}" Command="{Binding DrawTool}" Style="{StaticResource DrawToolStyle}" ToolTip="ROI 그리기 · 부모 없이 생성 · R" AutomationProperties.Name="ROI 그리기 도구" Margin="0,0,0,6"/>
+                            <Button Tag="{StaticResource DrawIcon}" Command="{Binding DrawTool}" Style="{StaticResource DrawToolStyle}" ToolTip="ROI 그리기 · 그룹 선택 시 하위 ROI 생성 · R" AutomationProperties.Name="ROI 그리기 도구" Margin="0,0,0,6"/>
                             <Button Tag="{StaticResource AddIcon}" Command="{Binding AddRoi}" Style="{StaticResource IconButton}" ToolTip="ROI 추가 · 부모 없이 생성" AutomationProperties.Name="ROI 추가"/>
                         </StackPanel>
                     </Border>
@@ -58,7 +58,9 @@
                 </Grid>
                 <views:ViewportToolbar Grid.Row="3"/>
             </Grid>
-            <Border Grid.Column="2" BorderBrush="{StaticResource Stroke}" BorderThickness="1,0,0,0"><views:InspectorPanel/></Border>
+            <GridSplitter Grid.Column="2" Width="5" HorizontalAlignment="Stretch" Background="{StaticResource Stroke}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ShowsPreview="True" AutomationProperties.Name="오른쪽 패널 너비 조절"/>
+            <Border Grid.Column="3" BorderBrush="{StaticResource Stroke}" BorderThickness="1,0,0,0"><views:InspectorPanel/></Border>
         </Grid>
         <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="16,0">
             <DockPanel>

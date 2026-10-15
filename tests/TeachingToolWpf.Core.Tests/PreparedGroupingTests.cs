@@ -14,10 +14,10 @@ public class PreparedGroupingTests
     public async Task ExistingParentAcceptsDetachedRoiWithoutCreatingAnotherRoi(bool asynchronous, bool nested)
     {
         var editor = Create();
-        var root = editor.Add(new(new(400, 400), 200, 200, 0));
+        var root = editor.Add(nested ? new(new(1000, 1000), 1800, 1800, 0) : new(new(400, 400), 200, 200, 0));
         var parent = nested ? editor.AddChild(root, new(new(400, 400), 100, 100, 25)) : root;
         var child = editor.AddChild(parent, new(new(400, 400), 10, 10, 0));
-        var detached = editor.Add(new(new(1500, 1500), 40, 30, 60));
+        var detached = editor.Add(new(nested ? new(700, 600) : new(1500, 1500), 40, 30, 60));
         editor.Select([parent, child, detached]);
         var before = editor.State;
         Assert.True(before.SelectionFacts.CanGroup);
@@ -36,13 +36,17 @@ public class PreparedGroupingTests
         var after = editor.State;
         Assert.Equal(before.Rois.Count, after.Rois.Count);
         Assert.Equal(parent, Assert.Single(after.Selection));
-        Assert.Equal(before.Rois[parent], after.Rois[parent]);
+        Assert.Equal(before.Rois[parent] with
+        {
+            Geometry = after.Rois[parent].Geometry
+        }, after.Rois[parent]);
+        Assert.True(after.Rois[parent].Geometry.Covers(before.Rois[parent].Geometry));
         Assert.Equal(before.Rois[child], after.Rois[child]);
         Assert.Equal(before.Rois[detached] with
         {
             ParentId = parent
         }, after.Rois[detached]);
-        Assert.False(after.Rois[parent].Geometry.Contains(after.Rois[detached].Geometry));
+        Assert.True(after.Rois[parent].Geometry.Covers(after.Rois[detached].Geometry));
         editor.Undo();
         AssertDocument(before, editor.State);
         editor.Redo();
@@ -67,7 +71,7 @@ public class PreparedGroupingTests
     {
         var editor = Create();
         var parent = editor.Add(new(new(400, 400), 100, 60, 37));
-        var outsideChild = editor.AddChild(parent, new(new(900, 600), 80, 80, 63, RoiShape.Circle));
+        var child = editor.AddChild(parent, new(new(400, 400), 40, 40, 63, RoiShape.Circle));
         var otherParent = editor.Add(new(new(1200, 1100), 140, 100, 51, RoiShape.Triangle));
         editor.AddChild(otherParent, new(new(1200, 1100), 10, 10, 0));
         editor.Add(RoiGeometry.Polygon([new(600, 700), new(720, 700), new(660, 750), new(720, 820), new(600, 820)]));
@@ -101,7 +105,7 @@ public class PreparedGroupingTests
         Assert.Null(group.ParentId);
         Assert.Equal(before.Rois.Values.Max(roi => roi.Order) + 1, group.Order);
         Assert.Equal(new RoiGeometry(expectedBounds.Center, expectedBounds.Width + 2, expectedBounds.Height + 2, 0), group.Geometry);
-        Assert.Equal(parent, after.Rois[outsideChild].ParentId);
+        Assert.Equal(parent, after.Rois[child].ParentId);
         Assert.All(before.Rois.Values, roi =>
         {
             Assert.Equal(roi with
@@ -128,7 +132,7 @@ public class PreparedGroupingTests
         var editor = Create();
         var parent = editor.Add(new(new(1000, 1000), 1800, 1800, 0));
         var left = editor.Add(new(new(300, 400), 30, 60, 15));
-        var child = editor.AddChild(left, new(new(600, 700), 40, 40, 0, RoiShape.Circle));
+        var child = editor.AddChild(left, new(new(300, 400), 20, 20, 0, RoiShape.Circle));
         var right = editor.Add(new(new(450, 500), 70, 80, 65, RoiShape.Triangle));
         var rightChild = editor.AddChild(right, new(new(450, 500), 10, 10, 0));
         var unrelated = editor.Add(new(new(1500, 1500), 80, 80, 0));

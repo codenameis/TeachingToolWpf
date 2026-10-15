@@ -7,6 +7,7 @@
 </aside>
 <main id="main"><div class="chapter-heading"><span class="eyebrow">VISIONCANVAS · 실습서</span><h1>05. ROI·선택·Undo/Redo</h1>
 <p>마우스 한 번이 문서의 변경 한 번이 되기까지</p>
+<p>현재 UI에서 주황색 복수 선택은 이동·삭제할 수 있고 회전은 제공하지 않습니다. 실제 그룹 하나와 ROI 하나는 회전할 수 있습니다. 부모 벽에 닿은 드래그는 벽을 따라 미끄러지며 Shift를 누르면 원래 축을 지킵니다. 단일 선택은 바로 게시하고 자손 변환 자료는 실제 드래그에서 준비합니다. <a href="../docs/group-interaction-validation.md">4만 ROI 측정과 검증</a>.</p>
 </div>
 
 <section class="roi-demo" id="roi-drag-lab" aria-labelledby="roi-demo-heading">
@@ -49,7 +50,7 @@
 </div></div>
 <p class="roi-demo-scope">이 그림은 기본 동기 경로의 교육 모형입니다. 실제 WPF·C#·GPU를 실행하지 않습니다. 그림의 한 단위를 가상 화면1DIP로 읽으며 브라우저의 표시 크기와 구별합니다. Shift 축 제한·회전·다중 선택은 생략하고, 이동은 이미지 안으로 제한합니다. 실제 코드의 Shift 분기는 그대로 표시합니다.</p>
 <details><summary>한 단계씩 확인할 결과</summary><p>처음부터 ‘다음 단계’를 세 번 누릅니다. 누르기에서는 확정 중심100·80과 이력0이 유지됩니다. 끌기에서는 보이는 중심112·86으로 바뀌지만 확정 중심은 그대로입니다. 놓기에서는 마지막 포인터를 반영해 중심120·90으로 확정되고 이력1이 됩니다. 끌기 직후 취소하면 중심100·80으로 돌아가며 이력0이 유지됩니다. 이 숫자는 원본 px입니다.</p></details>
-<script type="application/json" id="roi-demo-stages">{"ready": {"title": "준비 · 아직 누르지 않았습니다", "caption": "먼저 그림에서 움직임을 예상해 보세요", "source": "", "explanation": "초록 사각형은 이미 선택된 ROI입니다. 현재 중심은 원본 가로100px·세로80px이고 이 실습에서 추가한 이동 이력은0개입니다.", "chain": "입력 대기 → 아직 이동 제스처 없음", "code": "// 사각형을 누르거나 “다음 단계”를 누르세요.\n// 코드는 현재 단계에 맞춰 이 자리에 표시됩니다."}, "down": {"title": "① 누르기 · 시작 상태를 기억합니다", "caption": "EditGesture 생성자 · BeginPreview가 호출되는 순간", "source": "src/VisionCanvas.Core/Interaction/EditGesture.cs", "explanation": "창이 Down을 전달하고 컨트롤러가 MoveGesture를 만듭니다. 부모인 EditGesture가 시작 뷰포트를 기억하고 BeginPreview로 편집 시작 상태를 보관합니다. 아직 이동 이력은 늘지 않습니다.", "chain": "Dx12Viewport.WndProc → InteractionController.Down / StartGesture → MoveGesture 생성 → EditGesture 생성자 → EditorSession.BeginPreview", "code": "protected EditGesture(InteractionController controller)\n{\n    Controller = controller;\n    Editor = controller.Editor;\n    InitialViewport = Editor.State.Viewport;\n    // 드래그 시작 상태를 한 번 기억하고, 포인터를 놓을 때 하나의 편집으로 확정한다.\n    Editor.BeginPreview();\n}"}, "move": {"title": "② 끌기 · 문서는 두고 보이는 위치만 바꿉니다", "caption": "MoveGesture.Move · 화면 이동을 원본 이동으로 바꾸기", "source": "src/VisionCanvas.Core/Interaction/MoveGesture.cs", "explanation": "시작 포인터에서 얼마나 움직였는지 구한 뒤 배율로 나눕니다. 기본 경로에서는 PreviewTranslation이 EditorSession으로 전달됩니다. 실선은 미리보기, 점선은 아직 확정된 위치입니다.", "chain": "Dx12Viewport.WndProc → InteractionController.Move → MoveGesture.Move → InteractionController.PreviewTranslation → EditorSession.PreviewTranslation", "code": "public override void Move(PointD screen, InputModifiers modifiers)\n{\n    var translationInImage = (screen - dragStartScreen) / InitialViewport.Scale;\n    if ((screen - dragStartScreen).Length \u003c MinimumDragDistanceDip)\n    {\n        translationInImage = new();\n    }\n\n    if (modifiers.HasFlag(InputModifiers.Shift))\n    {\n        translationInImage = Math.Abs(translationInImage.X) > Math.Abs(translationInImage.Y) ? new(translationInImage.X, 0) : new(0, translationInImage.Y);\n    }\n\n    Controller.PreviewTranslation(translationInImage);\n}"}, "up": {"title": "③ 놓기 · 마지막 위치로 한 번 확정합니다", "caption": "InteractionController.Up · 마지막 Move 다음에 Complete", "source": "src/VisionCanvas.Core/Interaction/InteractionController.cs", "explanation": "Up은 마지막 포인터 위치로 Move를 한 번 더 실행하고 Complete를 호출합니다. EditGesture.Complete는 CommitPreview로 연결됩니다. 실제 위치가 달라졌을 때만 이동 이력이1개 늘어납니다.", "chain": "Dx12Viewport.WndProc → InteractionController.Up → MoveGesture.Move(마지막 위치) → EditGesture.Complete → InteractionController.CommitPreview → EditorSession.CommitPreview", "code": "public void Up(PointD screen, InputModifiers modifiers = InputModifiers.None)\n{\n    var active = _activeGesture;\n    // 확정 콜백에서 새 입력이 들어와도 방금 끝난 드래그를 다시 사용하지 않는다.\n    _activeGesture = null;\n    try\n    {\n        active?.Move(screen, modifiers);\n        active?.Complete();\n    }"}, "cancel": {"title": "취소 · 미리보기를 버리고 처음 위치로 돌아갑니다", "caption": "InteractionController.Cancel · 진행 중 동작의 Cancel 호출", "source": "src/VisionCanvas.Core/Interaction/InteractionController.cs", "explanation": "호스트의 취소 요청이 컨트롤러로 들어옵니다. 활성 제스처의 Cancel은 EditGesture.Cancel과 EditorSession.CancelPreview로 이어집니다. 이번 드래그의 확정 이력은 추가되지 않습니다.", "chain": "호스트의 취소 요청 → InteractionController.Cancel → EditGesture.Cancel → EditorSession.CancelPreview", "code": "public void Cancel()\n{\n    var active = _activeGesture;\n    _activeGesture = null;\n    active?.Cancel();\n    _polygonPoints.Clear();\n    _polygonStartImage = null;\n    Show(new());\n}"}}</script>
+<script type="application/json" id="roi-demo-stages">{"ready": {"title": "준비 · 아직 누르지 않았습니다", "caption": "먼저 그림에서 움직임을 예상해 보세요", "source": "", "explanation": "초록 사각형은 이미 선택된 ROI입니다. 현재 중심은 원본 가로100px·세로80px이고 이 실습에서 추가한 이동 이력은0개입니다.", "chain": "입력 대기 → 아직 이동 제스처 없음", "code": "// 사각형을 누르거나 “다음 단계”를 누르세요.\n// 코드는 현재 단계에 맞춰 이 자리에 표시됩니다."}, "down": {"title": "① 누르기 · 시작 상태를 기억합니다", "caption": "EditGesture 생성자 · BeginPreview가 호출되는 순간", "source": "src/VisionCanvas.Core/Interaction/EditGesture.cs", "explanation": "창이 Down을 전달하고 컨트롤러가 MoveGesture를 만듭니다. 부모인 EditGesture가 시작 뷰포트를 기억하고 BeginPreview로 편집 시작 상태를 보관합니다. 아직 이동 이력은 늘지 않습니다.", "chain": "Dx12Viewport.WndProc → InteractionController.Down / StartGesture → MoveGesture 생성 → EditGesture 생성자 → EditorSession.BeginPreview", "code": "protected EditGesture(InteractionController controller)\n{\n    Controller = controller;\n    Editor = controller.Editor;\n    InitialViewport = Editor.State.Viewport;\n    // 드래그 시작 상태를 한 번 기억하고, 포인터를 놓을 때 하나의 편집으로 확정한다.\n    Editor.BeginPreview();\n}"}, "move": {"title": "② 끌기 · 문서는 두고 보이는 위치만 바꿉니다", "caption": "MoveGesture.Move · 화면 이동을 원본 이동으로 바꾸기", "source": "src/VisionCanvas.Core/Interaction/MoveGesture.cs", "explanation": "시작 포인터에서 얼마나 움직였는지 구한 뒤 배율로 나눕니다. 기본 경로에서는 PreviewTranslation이 EditorSession으로 전달됩니다. 실선은 미리보기, 점선은 아직 확정된 위치입니다.", "chain": "Dx12Viewport.WndProc → InteractionController.Move → MoveGesture.Move → InteractionController.PreviewTranslation → EditorSession.PreviewTranslation", "code": "public override void Move(PointD screen, InputModifiers modifiers)\n{\n    var translationInImage = (screen - dragStartScreen) / InitialViewport.Scale;\n    if ((screen - dragStartScreen).Length < MinimumDragDistanceDip)\n    {\n        translationInImage = new();\n    }\n\n    if (modifiers.HasFlag(InputModifiers.Shift))\n    {\n        translationInImage = Math.Abs(translationInImage.X) > Math.Abs(translationInImage.Y) ? new(translationInImage.X, 0) : new(0, translationInImage.Y);\n    }\n\n    var request = (Translation: translationInImage, AllowSlide: !modifiers.HasFlag(InputModifiers.Shift));\n    if (_lastRequest == request)\n    {\n        // 같은 위치의 Mouse Up은 벽 접촉 계산을 반복하지 않고 표시한 결과를 그대로 확정한다.\n        return;\n    }\n    Controller.PreviewTranslation(request.Translation, request.AllowSlide);\n    _lastRequest = request;\n}"}, "up": {"title": "③ 놓기 · 마지막 위치로 한 번 확정합니다", "caption": "InteractionController.Up · 마지막 Move 다음에 Complete", "source": "src/VisionCanvas.Core/Interaction/InteractionController.cs", "explanation": "Up은 마지막 포인터 위치로 Move를 확인한 다음 Complete를 호출합니다. 이미 처리한 동일 위치·Shift 상태는 다시 계산하지 않으므로 벽에서 표시한 위치가 정확히 유지됩니다. 실제 위치가 달라졌을 때만 이동 이력이1개 늘어납니다.", "chain": "Dx12Viewport.WndProc → InteractionController.Up → MoveGesture.Move(마지막 위치) → EditGesture.Complete → InteractionController.CommitPreview → EditorSession.CommitPreview", "code": "public void Up(PointD screen, InputModifiers modifiers = InputModifiers.None)\n{\n    var active = _activeGesture;\n    // 확정 콜백에서 새 입력이 들어와도 방금 끝난 드래그를 다시 사용하지 않는다.\n    _activeGesture = null;\n    try\n    {\n        active?.Move(screen, modifiers);\n        active?.Complete();\n    }"}, "cancel": {"title": "취소 · 미리보기를 버리고 처음 위치로 돌아갑니다", "caption": "InteractionController.Cancel · 진행 중 동작의 Cancel 호출", "source": "src/VisionCanvas.Core/Interaction/InteractionController.cs", "explanation": "호스트의 취소 요청이 컨트롤러로 들어옵니다. 활성 제스처의 Cancel은 EditGesture.Cancel과 EditorSession.CancelPreview로 이어집니다. 이번 드래그의 확정 이력은 추가되지 않습니다.", "chain": "호스트의 취소 요청 → InteractionController.Cancel → EditGesture.Cancel → EditorSession.CancelPreview", "code": "public void Cancel()\n{\n    var active = _activeGesture;\n    _activeGesture = null;\n    active?.Cancel();\n    _polygonPoints.Clear();\n    _polygonStartImage = null;\n    Show(new());\n}"}}</script>
 </section>
 <section class="lesson-start" id="start-here">
 <p class="lesson-label">먼저 이 장면 하나만 생각하세요</p>
@@ -100,6 +101,196 @@ Note over V: ReleaseCapture after Up returns
 <p>같은 위치와 크기의 사각형 두 개라도 ID가 다르면 서로 다른 ROI입니다. 하나를 삭제할 때 다른 것까지 사라지면 안 됩니다. 기하는 위치와 포함 여부를 답하고, ROI는 ID와 속성을 가지며, 문서는 부모 관계와 모음을 관리하고, 편집 세션은 선택·미리보기·이력을 연결합니다.</p>
 <p>불변 스냅샷은 ‘이 시점의 상태를 나중에 몰래 바꾸지 않겠다’는 약속입니다. 매번 영상 픽셀과 ROI 전부를 깊은 복사한다는 뜻은 아닙니다. 바뀌지 않은 데이터는 공유하고 바뀐 부분과 참조만 새로 구성할 수 있습니다. 공유되는 내부 데이터까지 수정 가능하면 이 약속이 깨집니다.</p></div>
 </section>
+<section class="implementation-lesson" id="record-roi-history">
+<h2>실제 ROI 하나로 연결하기: with → 불변 상태 → Undo/Redo</h2>
+<p class="lesson-question">“ROI 이름을 바꿨다가 Undo하면 옛 이름은 어디서 다시 나오나요?” 이 절에서는 도형은 그대로 두고 이름만 바꿉니다. 이동 계산을 잠시 빼면 객체 복사와 이력의 역할을 따로 볼 수 있습니다. <a href="04-design.html#class-and-record">4장의 class·record 비교표</a>를 먼저 읽어도 좋습니다.</p>
+<h3>1. record 선언은 무엇을 만들어 주나요?</h3>
+<p>아래는 실제 <code>Roi</code> 선언입니다. 괄호 안의 <code>Id</code>, <code>Name</code>, <code>Geometry</code> 등은 생성자 인자이면서 컴파일러가 만드는 공개 속성의 이름입니다. 이 record class의 위치 매개변수에는 get/init 속성이 생성됩니다. <code>sealed</code>는 상속을 막으며, <code>init</code>은 생성·초기화 과정에서 설정하도록 제한합니다.</p>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">실제 Roi 선언: 이름과 형상은 ROI 값의 일부</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">DocumentState.cs · 17줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="실제 Roi 선언: 이름과 형상은 ROI 값의 일부 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="실제 Roi 선언: 이름과 형상은 ROI 값의 일부 코드"><code data-language="csharp" data-source="../src/VisionCanvas.Core/Editing/DocumentState.cs" data-kind="excerpt">public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? ParentId, bool IsGroup, long Order)
+{
+    public ImmutableArray&lt;MaskRegion&gt; Masks { get; init; } = [];
+
+    public RoiSearchRange? SearchRange
+    {
+        get; init;
+    }
+
+    public bool IsNameVisible { get; init; } = true;
+
+    public FilterSettings Filter
+    {
+        get;
+        init;
+    } = new(RoiFilterKind.None);
+}</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>이미 만든 ROI에 <code>beforeRoi.Name = "검사 영역";</code>을 실행하는 것은 허용되지 않습니다. 대신 <code>beforeRoi with { Name = "검사 영역" }</code>으로 새 ROI 값을 만듭니다. 여기서 <code>with</code>는 “기존 값을 바탕으로, 중괄호에 쓴 부분만 바꾼 복사본을 달라”는 표현입니다. 원본 변수에 새 값을 대입하는 명령도, 문서에 저장하는 명령도 아닙니다.</p>
+<h3>2. 새 객체와 새 ROI는 같은 말이 아닙니다</h3>
+<p>실습의 <code>beforeRoi</code>는 원본, <code>candidate</code>는 이름을 바꾼 후보입니다. 둘은 메모리에서 다른 객체지만 <code>Id</code>는 같습니다. 따라서 이 프로젝트에서는 <strong>같은 ROI의 서로 다른 편집 상태</strong>입니다. ROI를 하나 더 추가한 것으로 세지 않습니다.</p>
+<table><caption>이름 변경 후보를 만든 직후의 관계</caption><thead><tr><th>관찰 대상</th><th>beforeRoi</th><th>candidate</th></tr></thead><tbody><tr><td>객체 참조</td><td>기존 ROI 객체</td><td>새 ROI 객체</td></tr><tr><td>Id</td><td>기존 ID</td><td>같은 ID</td></tr><tr><td>Name</td><td>ROI 001</td><td>검사 영역</td></tr><tr><td>Geometry</td><td colspan="2">바꾸지 않았으므로 같은 형상 객체를 참조</td></tr><tr><td>현재 문서에 들어 있는 값</td><td>아직 beforeRoi</td><td>후보만 만들었으므로 아직 들어 있지 않음</td></tr></tbody></table>
+<p><code>ReferenceEquals</code>는 “같은 객체를 가리키나?”를 묻고, Roi의 <code>==</code>는 “record 값이 같나?”를 묻습니다. <code>beforeRoi with { }</code>처럼 아무 속성도 바꾸지 않은 복사본은 다른 참조이지만 같은 값으로 비교됩니다. 이름을 바꾼 복사본은 Id가 같아도 record 전체 값은 다릅니다. <strong>도메인의 동일성(Id), 참조 동일성, 값 동등성은 세 가지 질문</strong>입니다.</p>
+<h3>3. 불변은 ‘아무것도 바꿀 수 없다’가 아니라 ‘옛 값을 덮어쓰지 않는다’입니다</h3>
+<p>같은 EditorSession의 <code>State</code>가 새 문서를 가리키도록 바뀔 수 있습니다. 이것과 기존 DocumentState에 보관된 ROI 값을 덮어쓰는 것은 다릅니다. 옛 문서를 가리키는 변수가 있으면 여전히 옛 이름을 읽습니다. 문서의 불변 사전은 새 사전을 만들 때 바뀌지 않은 내부 자료를 공유할 수 있으므로 모든 ROI를 새로 만드는 방식이 아닙니다.</p>
+<p><code>with</code>는 <strong>얕은 복사</strong>입니다. “바깥 ROI 객체는 새로 만들지만 Geometry 같은 내부 참조는 그대로 가져온다”는 뜻입니다. 지금은 이름만 바꾸므로 같은 형상을 공유해도 됩니다. 하지만 record 안에 수정 가능한 <code>List&lt;T&gt;</code>가 있었다면 복사본에서 그 리스트를 수정할 때 원본에서도 같은 변경이 보일 수 있습니다. <code>init</code>은 리스트 참조의 재설정을 제한할 뿐 리스트 내부의 Add까지 막지 않습니다.</p>
+<p>현재 Roi의 Masks는 <code>ImmutableArray&lt;MaskRegion&gt;</code>, 문서의 Rois는 <code>ImmutableDictionary&lt;Guid, Roi&gt;</code>이며 RoiGeometry의 Center 등은 get 전용입니다. 따라서 <code>geometry with { Center = ... }</code>처럼 모든 속성을 마음대로 바꿀 수 있는 것도 아닙니다. 형상 변경은 프로젝트의 기하·변환 API를 사용해야 합니다. 또한 DocumentState 내부에는 지연 계산 캐시가 있습니다. 여기서 불변이라는 말은 <strong>편집 내용의 과거 값이 유지되는 계약</strong>이지 모든 내부 필드가 영원히 쓰이지 않는다는 뜻이 아닙니다.</p>
+<h3>4. 실제 Rename을 안쪽부터 읽으세요</h3>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">EditorSession.Rename: 후보를 문서 편집으로 확정</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">EditorSession.cs · 12줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="EditorSession.Rename: 후보를 문서 편집으로 확정 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="EditorSession.Rename: 후보를 문서 편집으로 확정 코드"><code data-language="csharp" data-source="../src/VisionCanvas.Core/Editing/EditorSession.cs" data-kind="excerpt">    public void Rename(Guid id, string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length &gt; 256)
+        {
+            throw new ArgumentException(&quot;이름은 1–256자여야 합니다.&quot;, nameof(name));
+        }
+
+        Commit(&quot;이름 변경&quot;, State.WithRois(State.Rois.SetItem(id, State.Rois[id] with
+        {
+            Name = name.Trim()
+        }), [id]));
+    }</code></pre>
+<p class="code-copy-status" role="status"></p></details><ol><li><code>State.Rois[id] with { Name = name.Trim() }</code>: 해당 ROI의 새 이름 값을 만듭니다. 앞의 검증은 공백 이름과 256자를 넘는 이름을 거부합니다.</li><li><code>State.Rois.SetItem(id, ...)</code>: 같은 ID 자리에 새 ROI를 넣은 불변 사전을 얻습니다. 기존 사전을 고치지 않습니다.</li><li><code>State.WithRois(..., [id])</code>: 바뀐 ID를 알면서 새 문서 상태와 색인 갱신 정보를 구성합니다. <code>[id]</code>는 변경된 ID 하나를 담는 컬렉션 식입니다.</li><li><code>Commit("이름 변경", ...)</code>: 전후 차이를 이력에 등록한 뒤 현재 상태를 게시합니다. 앞의 세 단계만으로는 이력 확정이 끝나지 않습니다.</li></ol>
+<p>문법을 연습한다고 UI에서 Roi를 직접 복사해 끼워 넣으면 이름 검증·이력·화면 알림을 빠뜨리기 쉽습니다. 앱 기능을 만들 때는 위의 공개 메서드 <code>session.Rename(id, name)</code>을 호출하세요. 문서 데이터는 정보를 알고 있고, 세션은 편집 요청을 조정하며, 이력은 되돌릴 순서를 압니다. 이것이 이 예제에서 책임을 나누는 이유입니다.</p>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">EditorSession.Commit: 이력 등록이 성공한 뒤 게시</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">EditorSession.cs · 22줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="EditorSession.Commit: 이력 등록이 성공한 뒤 게시 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="EditorSession.Commit: 이력 등록이 성공한 뒤 게시 코드"><code data-language="csharp" data-source="../src/VisionCanvas.Core/Editing/EditorSession.cs" data-kind="excerpt">    private void Commit(string name, DocumentState next, bool replacesImage = false)
+    {
+        if (_previewStart is not null)
+        {
+            throw new InvalidOperationException(&quot;진행 중인 편집을 먼저 완료하세요.&quot;);
+        }
+
+        if (!replacesImage &amp;&amp; State.SameContent(next) &amp;&amp; State.Image == next.Image)
+        {
+            return;
+        }
+
+        var edit = new DocumentEdit(name, State, next, replacesImage);
+        if (edit.IsEmpty)
+        {
+            return;
+        }
+
+        // 이력 예산 검사와 Redo 분기 처리가 성공한 뒤에만 새 문서를 게시한다.
+        _history.Push(edit, State, next);
+        Publish(next);
+    }</code></pre>
+<p class="code-copy-status" role="status"></p></details><p><code>DocumentEdit</code> 생성은 “어떤 값이 달라졌는가”를 계산합니다. <code>_history.Push</code>가 예산 검사와 Redo 갈래 처리를 마친 뒤 <code>Publish</code>가 현재 State를 바꾸고 Changed를 알립니다. 동일한 이름을 다시 넣어 실질적인 차이가 없으면 이력 한 건을 추가하지 않습니다. Changed는 새 상태를 읽으라는 알림이며 GPU 표시 완료 알림은 아닙니다.</p>
+<h3>5. Undo는 역산이 아니라 보관한 Before를 복원합니다</h3>
+<p><code>RoiChange</code>는 <code>Id</code>, <code>Before</code>, <code>After</code>를 가진 record입니다. 이름 변경에서 Before는 옛 이름의 ROI, After는 새 이름의 ROI입니다. 추가에서는 Before가 null, 삭제에서는 After가 null입니다. 이 차이를 모은 DocumentEdit은 class이고, 이력 목록과 현재 커서를 관리하는 EditHistory도 class입니다.</p>
+<table><caption>이름 변경 한 건을 시간 순서로 관찰하기</caption><thead><tr><th>행동</th><th>세션이 보여 주는 이름</th><th>이력의 역할</th></tr></thead><tbody><tr><td>처음 ROI 추가</td><td>ROI 001</td><td>추가 이력 존재</td></tr><tr><td>with로 후보만 생성</td><td>ROI 001</td><td>변화 없음</td></tr><tr><td>Rename으로 확정</td><td>검사 영역</td><td>Before → After 차이 한 건 등록</td></tr><tr><td>Undo</td><td>ROI 001</td><td>같은 편집을 역방향으로 적용</td></tr><tr><td>Redo</td><td>검사 영역</td><td>같은 편집을 정방향으로 적용</td></tr><tr><td>Undo 후 다른 이름으로 Rename</td><td>새 검사 영역</td><td>기존 미래의 Redo 갈래를 버리고 새 편집 등록</td></tr></tbody></table>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">DocumentEdit.Apply: forward에 따라 After 또는 Before 선택</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">DocumentEdit.cs · 28줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="DocumentEdit.Apply: forward에 따라 After 또는 Before 선택 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="DocumentEdit.Apply: forward에 따라 After 또는 Before 선택 코드"><code data-language="csharp" data-source="../src/VisionCanvas.Core/Editing/DocumentEdit.cs" data-kind="excerpt">    public DocumentState Apply(DocumentState state, bool forward, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var rois = state.Rois.ToBuilder();
+        foreach (var change in Changes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var value = forward ? change.After : change.Before;
+            if (value is null)
+            {
+                rois.Remove(change.Id);
+            }
+            else
+            {
+                rois[change.Id] = value;
+            }
+        }
+        var ids = Changes.Select(c =&gt; c.Id);
+        var geometry = _refitSpatial ? state.WithRigidRois(rois.ToImmutable(), ids, cancellationToken) : state.WithRois(rois.ToImmutable(), ids);
+        var result = geometry with
+        {
+            Selection = forward ? _afterSelection : _beforeSelection,
+            Image = _changesImage ? (forward ? _afterImage : _beforeImage) : state.Image,
+            Viewport = _changesImage ? (forward ? _afterView : _beforeView) : state.Viewport
+        };
+        cancellationToken.ThrowIfCancellationRequested();
+        return _repeated.Apply(result, forward);
+    }</code></pre>
+<p class="code-copy-status" role="status"></p></details><p><code>forward</code>가 true이면 Redo 방향이므로 After, false이면 Undo 방향이므로 Before를 선택합니다. null이면 그 ID를 제거하고 값이 있으면 그 ID 자리에 복원합니다. 이미지 교체를 되돌리는 경우가 아니면 현재 Viewport를 유지하므로 이름을 Undo했다고 화면 확대까지 예전 값으로 돌아가지 않습니다.</p>
+<p>매번 이 루프가 반드시 실행되는 것은 아닙니다. 현재 EditHistory는 최근 시작·목표 상태 한 쌍을 재사용할 수 있고, HistoryStep이 준비한 결과는 이력 버전과 현재 문서가 맞는지 검증한 뒤 확정합니다. <strong>record나 with 자체에는 이력 저장, Undo 버튼, 충돌 검증 기능이 없습니다.</strong> 이것들은 편집·이력 코드가 함께 구현합니다. 복원 결과는 내용으로 확인하세요. Undo 후 DocumentState가 옛 변수와 반드시 같은 참조라는 보장은 필요하지 않습니다.</p>
+<h3>6. 그대로 실행하고 결과를 설명해 보기</h3>
+<p>아래는 현재 Core 프로젝트를 직접 참조하는 작은 콘솔 실습의 전체 코드입니다. 가짜 EditorSession을 만들거나 이력 알고리즘을 다시 구현하지 않습니다. 도형 하나를 추가하고 후보 생성, 실제 Rename, Undo, Redo, 새 갈래를 순서대로 확인합니다. Require 조건이 틀리면 예외로 종료합니다.</p>
+<details class="code-example">
+<summary><span class="code-language">C#</span><span class="code-title">실제 ROI와 세션으로 확인하는 전체 실습</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">Program.cs · 63줄 · 전체</span><button type="button" data-copy-code hidden aria-label="실제 ROI와 세션으로 확인하는 전체 실습 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="실제 ROI와 세션으로 확인하는 전체 실습 코드"><code data-language="csharp" data-source="labs/RecordsHistory/Program.cs" data-kind="full">using VisionCanvas.Core.Editing;
+using VisionGeometry;
+
+var session = new EditorSession();
+var sameSession = session;
+var roiId = session.Add(new RoiGeometry(new PointD(100, 80), 60, 40, 0));
+var beforeState = session.State;
+var beforeRoi = beforeState.Rois[roiId];
+var originalName = beforeRoi.Name;
+
+// with는 새 값을 만들 뿐 세션에 편집을 요청하지 않습니다.
+var candidate = beforeRoi with { Name = &quot;검사 영역&quot; };
+Require(beforeRoi.Name == originalName, &quot;기존 ROI 이름 보존&quot;);
+Require(candidate.Name == &quot;검사 영역&quot;, &quot;새 ROI 이름만 변경&quot;);
+Require(!ReferenceEquals(beforeRoi, candidate), &quot;새 ROI는 다른 참조&quot;);
+Require(beforeRoi.Id == candidate.Id, &quot;문서에서는 같은 ID의 ROI&quot;);
+Require(ReferenceEquals(beforeRoi.Geometry, candidate.Geometry), &quot;바꾸지 않은 형상은 공유&quot;);
+Require(ReferenceEquals(session.State, beforeState), &quot;with만으로 문서가 바뀌지 않음&quot;);
+
+// 참조가 다른 것과 값이 다른 것은 별개의 질문입니다.
+var sameValue = beforeRoi with { };
+Require(!ReferenceEquals(beforeRoi, sameValue) &amp;&amp; beforeRoi == sameValue,
+    &quot;별도 객체여도 record 값 비교는 같을 수 있음&quot;);
+
+// 실제 공개 편집 API가 검증, 새 문서 생성, 이력 기록, 게시를 수행합니다.
+session.Rename(roiId, &quot;검사 영역&quot;);
+var afterState = session.State;
+var afterRoi = afterState.Rois[roiId];
+Require(ReferenceEquals(session, sameSession), &quot;편집을 관리하는 세션은 같은 객체&quot;);
+Require(!ReferenceEquals(beforeState, afterState), &quot;편집 후 문서는 새 상태&quot;);
+Require(beforeState.Rois[roiId].Name == originalName, &quot;옛 문서에서도 옛 이름 유지&quot;);
+Require(afterRoi.Name == &quot;검사 영역&quot; &amp;&amp; beforeRoi != afterRoi, &quot;이름 변경은 ROI 값의 차이&quot;);
+
+// 실제 DocumentEdit으로 전후 차이를 들여다봅니다. 세션 이력에 다시 넣지는 않습니다.
+var difference = new DocumentEdit(&quot;이름 변경 관찰&quot;, beforeState, afterState);
+Require(difference.Changes.Length == 1, &quot;ROI 하나의 차이를 기록&quot;);
+var change = difference.Changes[0];
+Require(change.Id == roiId &amp;&amp; change.Before == beforeRoi &amp;&amp; change.After == afterRoi,
+    &quot;RoiChange가 ID와 Before/After를 보관&quot;);
+
+session.Undo();
+Require(session.State.Rois[roiId].Name == originalName &amp;&amp; session.CanRedo,
+    &quot;Undo는 이름 변경 전 값을 복원&quot;);
+Require(afterState.Rois[roiId].Name == &quot;검사 영역&quot;, &quot;Undo도 보관한 과거 객체를 덮어쓰지 않음&quot;);
+session.Redo();
+Require(session.State.Rois[roiId].Name == &quot;검사 영역&quot;, &quot;Redo는 변경 후 값을 복원&quot;);
+
+session.Undo();
+session.Rename(roiId, &quot;새 검사 영역&quot;);
+Require(!session.CanRedo, &quot;Undo 뒤 새 편집은 기존 Redo 갈래 제거&quot;);
+session.Rename(roiId, &quot;새 검사 영역&quot;);
+session.Undo();
+Require(session.State.Rois[roiId].Name == originalName, &quot;같은 이름 재설정은 이력 추가 없음&quot;);
+
+static void Require(bool condition, string explanation)
+{
+    if (!condition)
+    {
+        throw new InvalidOperationException(explanation);
+    }
+
+    Console.WriteLine($&quot;PASS: {explanation}&quot;);
+}</code></pre>
+<p class="code-copy-status" role="status"></p></details><details class="code-example">
+<summary><span class="code-language">PowerShell</span><span class="code-title">저장소 루트에서 실행</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
+<div class="code-toolbar"><span class="code-file">실행 명령 · 1줄 · 발췌</span><button type="button" data-copy-code hidden aria-label="저장소 루트에서 실행 코드 복사">복사</button></div>
+<pre tabindex="0" aria-label="저장소 루트에서 실행 코드"><code data-language="powershell">dotnet run --project manual/labs/RecordsHistory/RecordsHistory.csproj -c Release</code></pre>
+<p class="code-copy-status" role="status"></p></details><p>정상 실행이면 18개의 PASS가 나옵니다. 먼저 코드를 펼치지 않고 결과를 예상해 보세요. 새 편집 없이 with만 실행했다면 Undo로 그 후보를 취소할 수 있을까요? 답은 아니요입니다. 후보는 문서나 이력에 들어간 적이 없습니다.</p>
+<aside class="teach-back"><h3>책을 덮고 동료에게 설명하기</h3><ol><li>candidate와 beforeRoi의 Id는 같은데 왜 ReferenceEquals는 false일까요?</li><li>Geometry가 같은 참조인데도 옛 이름은 왜 보존될까요?</li><li>record를 class로 바꾸면 Undo를 구현할 수 없나요?</li><li>드래그의 MouseMove마다 Rename처럼 확정하면 무엇이 달라질까요?</li></ol><details><summary>설명 예시와 막혔을 때 다시 볼 곳</summary><p>① ID는 문서 속 ROI의 번호이고 참조는 메모리 객체의 동일성입니다. with가 새 객체를 만들어도 번호는 유지합니다. ② Name만 바꾸고 공유 Geometry는 수정하지 않으므로 원본 값이 남습니다. 내부 가변 객체를 수정하는 경우와 구별해야 합니다. ③ class로도 불변 상태·명시적 복사·이력을 구현할 수 있습니다. record는 그중 값 비교와 복사 표현을 도와줄 뿐입니다. ④ 작은 움직임마다 편집이 쌓이면 드래그 한 번을 여러 번 Undo해야 하고 비용도 늘어납니다. 현재 이동 미리보기는 공통 변환을 보관하다 확정 시 이력 한 건으로 연결합니다. 모든 제스처의 내부 저장 방식이 같다는 뜻은 아닙니다.</p></details></aside>
+<p><a href="#roi-drag-lab">앞의 ROI 드래그 그림으로 돌아가서 미리보기와 확정을 다시 관찰하기</a> · <a href="#reading-10">그리기와 취소에서는 무엇이 남는지 비교하기</a></p>
+</section>
 <section id="reading-4">
 <h2>드래그 중에는 왜 미리보기를 쓰나</h2>
 <p class="lesson-question">“마우스가 움직일 때마다 ROI 좌표를 확정하면 간단하지 않나요?” 종이에 옮길 위치를 연필로 가볍게 표시하고 손을 놓을 때 확정한다고 생각해 보세요. 드래그 중간의 수많은 위치는 사용자가 결정한 수많은 편집이 아니라, 한 번의 이동을 고르는 과정입니다.</p>
@@ -115,7 +306,7 @@ Note over V: ReleaseCapture after Up returns
 <tr><td>또는 Esc</td><td><math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="x=10"><semantics><mrow><mrow><mi>x</mi><mo>=</mo><mn>10</mn></mrow></mrow><annotation encoding="text/plain">x=10</annotation></semantics></math>으로 복귀</td><td>미리보기 취소</td></tr></tbody></table>
 <p>위 +2,+4,+7은 시작점에서 잰 현재 이동량입니다. 셋을 더해 +13으로 만들면 안 됩니다. Undo 한 번으로 드래그 이전으로 돌아가야 하는 사용자 의미와, 대량 ROI를 매 입력마다 모두 고치지 않으려는 비용 문제가 같은 설계로 연결됩니다.</p></div>
 </section>
-<section class="implementation-lesson" id="reading-9"><h2>입력 우선순위: 클릭 위치만으로 결정하지 않는다</h2><table><thead><tr><th>조건 / 입력</th><th>현재 처리</th><th>초보자가 놓치기 쉬운 이유</th></tr></thead><tbody><tr><td>그리기 도구의 폴리곤 클릭</td><td>기존 초안을 이어서 점 추가/폐합</td><td>일반 Down의 Cancel을 먼저 하면 이전 점이 사라짐</td></tr><tr><td>미니맵 패널 클릭</td><td>그림 안은 MinimapGesture, 바깥 여백은 NoGesture</td><td>영상 ROI 클릭으로 통과시키지 않음</td></tr><tr><td>가운데 버튼 / Pan 도구</td><td>PanGesture</td><td>NavigationOnly보다 먼저 판단해 탐색 허용</td></tr><tr><td>NavigationOnly</td><td>편집 제스처 시작하지 않음</td><td>이동 가능한 화면과 편집 가능한 문서는 다른 권한</td></tr><tr><td>Draw / 유효한 Mask 대상</td><td>DrawGesture / MaskDrawGesture</td><td>마스크는 선택 ROI와 원본 영상의 동일성도 완료 시 검사</td></tr><tr><td>Select, Alt 없음</td><td>회전/resize 핸들 먼저 → 실제 ROI hit</td><td>핸들과 ROI 몸체가 가까워도 핸들 조작이 우선</td></tr><tr><td>Select, Alt 있음</td><td>핸들을 건너뛰고 겹친 후보 순환</td><td>면적·표시 순서 등을 이용하는 실제 코드 확인</td></tr><tr><td>Ctrl 클릭 / Shift 클릭</td><td>토글 선택 / 필요한 경우 선택 추가</td><td>Ctrl 토글은 즉시 이동 제스처를 시작하지 않음</td></tr><tr><td>빈 곳 드래그</td><td>MarqueeGesture로 범위 선택</td><td>화면 선택 상자를 완료 때 원본 영역으로 변환</td></tr><tr><td>더블클릭</td><td>핸들보다 실제 ROI 선택을 우선</td><td>기존 선택이 실제 클릭한 ROI 선택을 가로막지 않게 함</td></tr></tbody></table><p>이 표는 일반·반복 ROI가 공존하는 현재 코드의 읽기 안내입니다. 반복 셀은 일반 사전에 1억 개의 Roi 객체를 넣는 방식이 아닙니다. <code>RepeatedRoiCell</code>은 배치 ID와 셀 번호로 대상을 가리키고, 선택은 압축된 셀 범위를 유지합니다. 클릭 결과가 일반 ROI ID인지 반복 셀인지 먼저 구분해야 합니다.</p><aside class="teach-back"><h3>본문을 가리고 설명하기</h3><p>왜 Alt를 누른 상태에서는 resize 핸들을 먼저 검사하지 않을까요?</p><details><summary>설명 예시와 다시 확인할 지점</summary><p>Alt의 목적은 겹친 실제 ROI를 순환 선택하는 것입니다. 핸들이 먼저 입력을 차지하면 그 기능에 도달할 수 없습니다. UI 의도를 먼저 말하고 StartSelectionGesture의 cycleSelection 분기를 찾으면 됩니다.</p></details></aside></section>
+<section class="implementation-lesson" id="reading-9"><h2>입력 우선순위: 클릭 위치만으로 결정하지 않는다</h2><table><thead><tr><th>조건 / 입력</th><th>현재 처리</th><th>초보자가 놓치기 쉬운 이유</th></tr></thead><tbody><tr><td>그리기 도구의 폴리곤 클릭</td><td>기존 초안을 이어서 점 추가/폐합</td><td>일반 Down의 Cancel을 먼저 하면 이전 점이 사라짐</td></tr><tr><td>미니맵 패널 클릭</td><td>그림 안은 MinimapGesture, 바깥 여백은 NoGesture</td><td>영상 ROI 클릭으로 통과시키지 않음</td></tr><tr><td>가운데 버튼 / Pan 도구</td><td>PanGesture</td><td>NavigationOnly보다 먼저 판단해 탐색 허용</td></tr><tr><td>NavigationOnly</td><td>편집 제스처 시작하지 않음</td><td>이동 가능한 화면과 편집 가능한 문서는 다른 권한</td></tr><tr><td>Draw / 유효한 Mask 대상</td><td>DrawGesture / MaskDrawGesture</td><td>마스크는 선택 ROI와 원본 영상의 동일성도 완료 시 검사</td></tr><tr><td>Select, Alt 없음</td><td>회전/resize 핸들 먼저 → 실제 ROI hit</td><td>핸들과 ROI 몸체가 가까워도 핸들 조작이 우선</td></tr><tr><td>Select, Alt 있음</td><td>핸들을 건너뛰고 겹친 후보 순환</td><td>면적·표시 순서 등을 이용하는 실제 코드 확인</td></tr><tr><td>Ctrl 클릭 / Shift 클릭</td><td>토글 선택 / 필요한 경우 선택 추가</td><td>Ctrl 토글은 즉시 이동 제스처를 시작하지 않음</td></tr><tr><td>빈 곳 드래그</td><td>MarqueeGesture로 범위 선택</td><td>화면 선택 상자를 완료 때 원본 영역으로 변환</td></tr><tr><td>선택 그룹 내부 드래그</td><td>선택 그룹과 자손을 함께 이동</td><td>수정 키가 없으면 내부의 작은 ROI가 선택을 가로채지 않음</td></tr><tr><td>더블클릭</td><td>겹친 계층의 실제 ROI/그룹을 작은 항목부터 순환</td><td>목록으로 돌아가지 않고 내부 그룹을 고름. 독립 ROI와 반복 셀은 실제 hit 선택 유지</td></tr></tbody></table><p>이 표는 일반·반복 ROI가 공존하는 현재 코드의 읽기 안내입니다. 반복 셀은 일반 사전에 1억 개의 Roi 객체를 넣는 방식이 아닙니다. <code>RepeatedRoiCell</code>은 배치 ID와 셀 번호로 대상을 가리키고, 선택은 압축된 셀 범위를 유지합니다. 클릭 결과가 일반 ROI ID인지 반복 셀인지 먼저 구분해야 합니다.</p><aside class="teach-back"><h3>본문을 가리고 설명하기</h3><p>왜 Alt를 누른 상태에서는 resize 핸들을 먼저 검사하지 않을까요?</p><details><summary>설명 예시와 다시 확인할 지점</summary><p>Alt의 목적은 겹친 실제 ROI를 순환 선택하는 것입니다. 핸들이 먼저 입력을 차지하면 그 기능에 도달할 수 없습니다. UI 의도를 먼저 말하고 StartSelectionGesture의 cycleSelection 분기를 찾으면 됩니다.</p></details></aside></section>
 <section class="implementation-lesson" id="reading-10"><h2>그리기와 취소: 화면에 보인 것과 문서에 저장된 것</h2><figure class="diagram" tabindex="0" role="group" aria-label="다이어그램. 가로로 스크롤하여 전체 관계를 읽을 수 있습니다."><img src="assets/diagrams/roi-draw-cancel.svg" alt="새 ROI: 초안 생성, 확정, 취소는 서로 다른 출구。상세 호출 순서는 바로 아래 본문에 설명합니다."><figcaption>새 ROI: 초안 생성, 확정, 취소는 서로 다른 출구 · 위에서 아래로 시간 순서. 화살표는 호출/전달, 세로 점선은 참여 객체의 생존 구간입니다. 모든 화살표가 별도 스레드를 뜻하지 않습니다.</figcaption></figure><details class="code-example">
 <summary><span class="code-language">Mermaid</span><span class="code-title">다이어그램 원문(Mermaid)</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
 <div class="code-toolbar"><span class="code-file">다이어그램 원문 · 18줄</span><button type="button" data-copy-code hidden aria-label="다이어그램 원문(Mermaid) 코드 복사">복사</button></div>
@@ -160,7 +351,7 @@ end
 </section>
 <section id="input-source"><h2>읽은 순서대로 실제 코드를 확인하기</h2><p>아래 코드는 의사 코드가 아니라 현재 파일 전체입니다. 먼저 Down·Up을 읽고, 이어서 EditGesture와 MoveGesture를 읽으세요. 다른 도구의 전체 구현은 같은 Interaction 폴더에 있습니다.</p><details id="source-4d2ad7e7f7bc" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">입력 컨트롤러 전체</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
-<div class="code-toolbar"><span class="code-file">InteractionController.cs · 668줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="입력 컨트롤러 전체 코드 복사">복사</button></div>
+<div class="code-toolbar"><span class="code-file">InteractionController.cs · 690줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="입력 컨트롤러 전체 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="입력 컨트롤러 전체 코드"><code data-source="../src/VisionCanvas.Core/Interaction/InteractionController.cs" data-kind="full" data-language="csharp">using System.Collections.Immutable;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
@@ -171,10 +362,8 @@ namespace VisionCanvas.Core.Interaction;
 
 /// &lt;summary&gt;입력에 맞는 제스처를 선택하고 이동·확정·취소를 전달한다. 문서 변경과 이력은 EditorSession이 소유한다.&lt;/summary&gt;
 public sealed class InteractionController(EditorSession editor, Action&lt;string&gt;? commitPreview = null, Action&lt;IEnumerable&lt;Guid&gt;&gt;? selectRois = null,
-    Action&lt;PointD&gt;? previewTranslation = null, Action&lt;PointD, double&gt;? previewRotation = null, Action&lt;BoundsD, bool&gt;? selectRegion = null) : IViewportInput
+    Action&lt;PointD, bool&gt;? previewTranslation = null, Action&lt;PointD, double&gt;? previewRotation = null, Action&lt;BoundsD, bool&gt;? selectRegion = null) : IViewportInput
 {
-    private const double RotationHandleHitRadiusDip = 10;
-    private const double ResizeHandleHitRadiusDip = 9;
     private const double RoiHitToleranceDip = 3;
     private const double PolygonClosureDistanceDip = 8;
 
@@ -185,6 +374,23 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
     private ImageReference? _polygonStartImage;
     private Guid? _drawParentId;
     private bool _drawAsGroup;
+    private double _handleScale = HandleGeometry.DefaultScale;
+
+    /// &lt;summary&gt;화면 DIP 기준 핸들 크기와 클릭 범위를 함께 조절한다. ROI 형상과 이력은 바꾸지 않는다.&lt;/summary&gt;
+    public double HandleScale
+    {
+        get =&gt; _handleScale;
+        set
+        {
+            HandleGeometry.ValidateScale(value);
+            if (_handleScale == value)
+            {
+                return;
+            }
+            _handleScale = value;
+            Show(Overlay);
+        }
+    }
 
     public Guid? MaskTargetId
     {
@@ -327,15 +533,15 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
 
     internal EditorSession Editor =&gt; editor;
 
-    internal void PreviewTranslation(PointD delta)
+    internal void PreviewTranslation(PointD delta, bool allowSlide)
     {
         if (previewTranslation is null)
         {
-            editor.PreviewTranslation(delta);
+            editor.PreviewTranslation(delta, allowSlide);
         }
         else
         {
-            previewTranslation(delta);
+            previewTranslation(delta, allowSlide);
         }
     }
 
@@ -377,7 +583,10 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
 
     internal void Show(InteractionOverlay overlay)
     {
-        Overlay = overlay;
+        Overlay = overlay.HandleScale == HandleScale ? overlay : overlay with
+        {
+            HandleScale = HandleScale
+        };
         Changed?.Invoke();
     }
 
@@ -484,8 +693,13 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
         }
 
         Cancel();
-        // 더블클릭은 기존 선택 핸들보다 실제 ROI hit를 우선하고 선택만 교체한다.
+        // 계층 안의 더블클릭은 겹친 리프 → 안쪽 그룹 → 바깥 그룹 순서로 선택한다.
         var hit = HitSelectableRoi(screen, modifiers.HasFlag(InputModifiers.Alt));
+        if (!modifiers.HasFlag(InputModifiers.Alt) &amp;&amp; hit.Ordinary is { } ordinary &amp;&amp;
+            (editor.State.Rois[ordinary].ParentId is not null || editor.State.IsGroupRoi(ordinary)))
+        {
+            hit = HitSelectableRoi(screen, cycleSelection: true);
+        }
         if (hit.Repeated is { } repeated)
         {
             editor.SelectRepeated(repeated);
@@ -508,6 +722,13 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
             if (handleGesture is not null)
             {
                 return handleGesture;
+            }
+            // 화면에서 고른 그룹을 내부에서 잡아도 리프가 선택을 빼앗지 않는다.
+            if (modifiers == InputModifiers.None &amp;&amp; state.SelectionCount == 1 &amp;&amp; state.Selection.Count == 1 &amp;&amp;
+                state.Selection.Single() is var selected &amp;&amp; state.IsGroupRoi(selected) &amp;&amp;
+                state.Rois[selected].Geometry.Contains(state.Viewport.ScreenToImage(screen)))
+            {
+                return new MoveGesture(this, screen);
             }
         }
 
@@ -545,11 +766,11 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
 
     private IGesture? StartHandleGesture(DocumentState state, PointD screen)
     {
-        // 단일 반복 셀, 단일 일반 ROI, 다중 선택의 핸들을 순서대로 검사한다.
+        // 회전/크기 핸들은 단일 ROI 또는 단일 그룹을 선택했을 때만 제공한다.
         if (state.SingleRepeatedCell is { } cell)
         {
             var cellGeometry = state.RepeatedRois[cell.BatchId].Geometry(cell.Index);
-            if ((HandleGeometry.RotationHandle(cellGeometry, state.Viewport) - screen).Length &lt; RotationHandleHitRadiusDip)
+            if ((HandleGeometry.RotationHandle(cellGeometry, state.Viewport, HandleScale) - screen).Length &lt; HandleGeometry.RotationHitRadiusDip * HandleScale)
             {
                 return new RotateGesture(this, screen, cellGeometry.Center);
             }
@@ -557,7 +778,7 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
             var handles = HandleGeometry.ResizeHandles(cellGeometry, state.Viewport);
             for (var i = 0; i &lt; handles.Count; i++)
             {
-                if ((handles[i] - screen).Length &lt; ResizeHandleHitRadiusDip)
+                if ((handles[i] - screen).Length &lt; HandleGeometry.ResizeHitRadiusDip * HandleScale)
                 {
                     return new RepeatedResizeGesture(this, cell, cellGeometry, i, screen);
                 }
@@ -566,7 +787,7 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
         else if (state.SelectionCount == 1)
         {
             var selectedRoi = state.Rois[state.Selection.Single()];
-            if ((HandleGeometry.RotationHandle(selectedRoi.Geometry, state.Viewport) - screen).Length &lt; RotationHandleHitRadiusDip)
+            if ((HandleGeometry.RotationHandle(selectedRoi.Geometry, state.Viewport, HandleScale) - screen).Length &lt; HandleGeometry.RotationHitRadiusDip * HandleScale)
             {
                 return new RotateGesture(this, screen, selectedRoi.Geometry.Center);
             }
@@ -574,18 +795,10 @@ public sealed class InteractionController(EditorSession editor, Action&lt;string
             var handles = HandleGeometry.ResizeHandles(selectedRoi.Geometry, state.Viewport);
             for (var i = 0; i &lt; handles.Count; i++)
             {
-                if ((handles[i] - screen).Length &lt; ResizeHandleHitRadiusDip)
+                if ((handles[i] - screen).Length &lt; HandleGeometry.ResizeHitRadiusDip * HandleScale)
                 {
                     return new ResizeGesture(this, selectedRoi, i, screen);
                 }
-            }
-        }
-        else if (state.SelectionCount &gt; 1)
-        {
-            var selectionBounds = SelectionBounds(state);
-            if ((state.Viewport.ImageToScreen(new(selectionBounds.Center.X, selectionBounds.Top)) + new PointD(0, -28) - screen).Length &lt; RotationHandleHitRadiusDip)
-            {
-                return new RotateGesture(this, screen, selectionBounds.Center);
             }
         }
         return null;
@@ -878,13 +1091,15 @@ internal abstract class EditGesture : IGesture
 }</code></pre>
 <p class="code-copy-status" role="status"></p><p class="source">현재 코드 · <code>../src/VisionCanvas.Core/Interaction/EditGesture.cs</code></p></details><details id="source-0ce6a345c0dc" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">이동 제스처 전체</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
-<div class="code-toolbar"><span class="code-file">MoveGesture.cs · 24줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="이동 제스처 전체 코드 복사">복사</button></div>
+<div class="code-toolbar"><span class="code-file">MoveGesture.cs · 33줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="이동 제스처 전체 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="이동 제스처 전체 코드"><code data-source="../src/VisionCanvas.Core/Interaction/MoveGesture.cs" data-kind="full" data-language="csharp">using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
 internal sealed class MoveGesture(InteractionController controller, PointD dragStartScreen) : EditGesture(controller)
 {
+    private (PointD Translation, bool AllowSlide)? _lastRequest;
+
     protected override string Name =&gt; "ROI 이동";
 
     public override void Move(PointD screen, InputModifiers modifiers)
@@ -900,7 +1115,14 @@ internal sealed class MoveGesture(InteractionController controller, PointD dragS
             translationInImage = Math.Abs(translationInImage.X) &gt; Math.Abs(translationInImage.Y) ? new(translationInImage.X, 0) : new(0, translationInImage.Y);
         }
 
-        Controller.PreviewTranslation(translationInImage);
+        var request = (Translation: translationInImage, AllowSlide: !modifiers.HasFlag(InputModifiers.Shift));
+        if (_lastRequest == request)
+        {
+            // 같은 위치의 Mouse Up은 벽 접촉 계산을 반복하지 않고 표시한 결과를 그대로 확정한다.
+            return;
+        }
+        Controller.PreviewTranslation(request.Translation, request.AllowSlide);
+        _lastRequest = request;
     }
 }</code></pre>
 <p class="code-copy-status" role="status"></p><p class="source">현재 코드 · <code>../src/VisionCanvas.Core/Interaction/MoveGesture.cs</code></p></details><details id="source-d804f086648f" class="code-example">
@@ -946,7 +1168,7 @@ internal sealed class RotateGesture(InteractionController controller, PointD dra
 <h2>부모는 겹침으로 정해지지 않는다</h2>
 <p class="lesson-question">“큰 사각형 안에 작은 사각형이 있으니 부모와 자식인가요?” 같은 방 안에 있는 두 파일이 자동으로 같은 폴더 소속이 되는 것은 아닙니다. 공간적으로 들어 있다는 사실과 편집 계층의 소속은 다른 정보입니다. 이 문서는 명시적인 ParentId로 계층을 정합니다.</p>
 
-<p>현재 계층은 <code>ParentId</code>로 명시합니다. 자식이 부모 밖으로 이동해도 관계는 유지됩니다. 부모 삭제는 모든 자손도 삭제하지만, 그룹 해제는 자식을 남기는 다른 명령입니다. 포함 검사 수식과 계층의 관계를 혼동하면 안 됩니다.</p>
+<p>현재 계층은 <code>ParentId</code>로 명시합니다. 부모 안에 있는 일반 ROI, ROI 그룹과 모듈 그룹은 이동·회전·크기를 바꿀 때 상위의 실제 도형 안에 머물러야 합니다. 빠른 이동도 중간 경계에서 멈추며, 오목한 홈을 내부 경로로 돌아가는 이동은 허용합니다. 부모 밖의 독립 리프를 편입하는 것은 기존처럼 허용하고 도형과 위치를 보존합니다. 이 리프를 부모 안으로 이동해 확정한 뒤부터 이탈 제한을 적용합니다. <code>RoiGroupBounds</code>가 이 규칙을 검사합니다. 부모 삭제는 모든 자손도 삭제하지만, 그룹 해제는 그룹 껍질만 없애고 자식을 기존 상위로 연결합니다. 최상위 그룹을 해제하면 자식은 독립합니다. 포함 판정과 계층 연결은 서로 다른 책임입니다.</p>
 <p>부모와 자식을 동시에 선택하고 회전할 때 자식이 두 번 회전하지 않도록 최상위 선택과 자손 집합을 구합니다. 그래서 단순히 ‘선택 개수만큼 foreach로 이동’하면 정답이 아닐 수 있습니다.</p>
 <details class="code-example">
 <summary><span class="code-language">텍스트</span><span class="code-title">부모는 겹침으로 정해지지 않는다</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
@@ -958,7 +1180,7 @@ internal sealed class RotateGesture(InteractionController controller, PointD dra
 선택={A,B} → 실제 변환 대상은 A,B,C,D 각각 한 번</code></pre>
 <p class="code-copy-status" role="status"></p></details><details id="source-4e7c4f552c04" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">RoiHierarchy</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
-<div class="code-toolbar"><span class="code-file">RoiHierarchy.cs · 102줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RoiHierarchy 코드 복사">복사</button></div>
+<div class="code-toolbar"><span class="code-file">RoiHierarchy.cs · 110줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RoiHierarchy 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="RoiHierarchy 코드"><code data-source="../src/VisionCanvas.Core/Editing/RoiHierarchy.cs" data-kind="full" data-language="csharp">using System.Collections.Immutable;
 
 namespace VisionCanvas.Core.Editing;
@@ -1040,7 +1262,15 @@ public static class RoiHierarchy
                 continue;
             }
 
-            foreach (var child in children.GetValueOrDefault(id, []))
+            var descendants = children.GetValueOrDefault(id, []);
+            if (!descendants.IsEmpty)
+            {
+                // 자식 수를 이미 알고 있으므로 큰 그룹에서 큐와 집합의 반복 확장을 피한다.
+                var pending = queue.Count + descendants.Length;
+                queue.EnsureCapacity(pending);
+                result.EnsureCapacity(result.Count + pending);
+            }
+            foreach (var child in descendants)
             {
                 queue.Enqueue(child);
             }
@@ -1063,7 +1293,7 @@ public static class RoiHierarchy
 }</code></pre>
 <p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionCanvas.Core/Editing/RoiHierarchy.cs</code></p></details><details id="source-23f9f581f57c" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">명시적 계층 회귀</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
-<div class="code-toolbar"><span class="code-file">ExplicitHierarchyTests.cs · 187줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="명시적 계층 회귀 코드 복사">복사</button></div>
+<div class="code-toolbar"><span class="code-file">ExplicitHierarchyTests.cs · 189줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="명시적 계층 회귀 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="명시적 계층 회귀 코드"><code data-source="../tests/TeachingToolWpf.Core.Tests/ExplicitHierarchyTests.cs" data-kind="full" data-language="csharp">using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionGeometry;
@@ -1073,11 +1303,11 @@ namespace TeachingToolWpf.Core.Tests;
 public class ExplicitHierarchyTests
 {
     [Fact]
-    public void OutsideDescendantStillConstrainsParentAtImageEdge()
+    public void DescendantAtParentEdgePreservesImageAndParentBounds()
     {
         var editor = new EditorSession();
         editor.InitializeImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);
-        var parent = editor.Add(new(new(100, 100), 20, 20, 0));
+        var parent = editor.Add(new(new(500, 500), 1000, 1000, 0));
         var child = editor.AddChild(parent, new(new(990, 500), 20, 20, 0));
         editor.Select([parent]);
         var before = editor.State;
@@ -1128,9 +1358,9 @@ public class ExplicitHierarchyTests
         var editor = new EditorSession();
         editor.AddRange(new RoiCreation[]
         {
-            new(new(new(100, 100), 10, 10, 0)),
-            new(new(new(300, 300), 10, 10, 0), 0),
-            new(new(new(500, 500), 10, 10, 0), 1)
+            new(new(new(100, 100), 100, 100, 0)),
+            new(new(new(100, 100), 10, 10, 0), 0),
+            new(new(new(100, 100), 5, 5, 0), 1)
         });
         var rois = editor.State.Rois.Values.OrderBy(r =&gt; r.Order).ToArray();
         Assert.Equal(rois[0].Id, rois[1].ParentId);
@@ -1201,17 +1431,19 @@ public class ExplicitHierarchyTests
     }
 
     [Fact]
-    public void ExplicitChildOutsideParentFollowsParentAndRestoresThroughHistory()
+    public void ContainedLeafFollowsNestedGroupsAndRestoresThroughHistory()
     {
         var editor = new EditorSession();
-        var parent = editor.Add(new(new(100, 100), 20, 20, 0));
+        var parent = editor.Add(new(new(100, 100), 500, 500, 0));
         var child = editor.AddChild(parent, new(new(300, 300), 10, 10, 0));
-        var leaf = editor.AddChild(child, new(new(400, 400), 5, 5, 0));
+        var leaf = editor.AddChild(child, new(new(300, 300), 5, 5, 0));
+        Assert.True(editor.State.Rois[parent].Geometry.Covers(editor.State.Rois[child].Geometry));
+        Assert.True(editor.State.Rois[child].Geometry.Covers(editor.State.Rois[leaf].Geometry));
         editor.Select([parent, leaf]);
         var before = editor.State;
         editor.TranslateSelection(new(20, 30));
         Assert.Equal(new PointD(320, 330), editor.State.Rois[child].Geometry.Center);
-        Assert.Equal(new PointD(420, 430), editor.State.Rois[leaf].Geometry.Center);
+        Assert.Equal(new PointD(320, 330), editor.State.Rois[leaf].Geometry.Center);
         editor.DeleteSelection();
         Assert.Empty(editor.State.Rois);
         editor.Undo();
@@ -1525,7 +1757,7 @@ E--&gt;&gt;V: Changed
 </code></pre>
 <p class="code-copy-status" role="status"></p></details><p>9장의 작은 호스트는 <code>new InteractionController(session)</code>로 기본 동기 경로를 사용합니다. 메인 앱은 생성자에 <code>CompletePreview</code>, <code>CompleteSelection</code>, <code>SubmitTranslation</code>, <code>SubmitRotation</code>, <code>CompleteRegionSelection</code>을 주입합니다. 같은 입력 계약을 사용하지만 큰 선택의 준비 작업을 UI 스레드에서 모두 계산하지 않도록 연결한 것입니다.</p><p>핵심은 “비동기니까 언제 끝나도 된다”가 아닙니다. Up이 먼저 도착해도 마지막 포인터 요청을 먼저 적용해야 하므로 <code>FlushAsync</code>가 필요합니다. 준비된 결과는 원래 문서와 드래그 세대가 아직 유효할 때만 게시합니다. Escape는 제스처가 이미 끝났더라도 세션 미리보기·대기 준비·편집 취소 토큰을 함께 취소합니다. <code>IsDragging</code>이 거짓이라는 사실만으로 비동기 편집까지 완료됐다고 판단하면 안 됩니다.</p><details id="source-f7aea683d2a0" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">메인 앱 편집 준비와 확정: 전체 파일</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
-<div class="code-toolbar"><span class="code-file">MainWindowViewModel.Editing.cs · 171줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="메인 앱 편집 준비와 확정: 전체 파일 코드 복사">복사</button></div>
+<div class="code-toolbar"><span class="code-file">MainWindowViewModel.Editing.cs · 173줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="메인 앱 편집 준비와 확정: 전체 파일 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="메인 앱 편집 준비와 확정: 전체 파일 코드"><code data-source="../src/TeachingToolWpf/ViewModels/MainWindowViewModel.Editing.cs" data-kind="full" data-language="csharp">using TeachingToolWpf.Commands;
 using TeachingToolWpf.Models;
 using VisionCanvas.Core.Editing;
@@ -1644,7 +1876,9 @@ public sealed partial class MainWindowViewModel
 
     private void CompleteSelection(IEnumerable&lt;Guid&gt; ids)
     {
-        if (Session.State.Rois.Count &lt;= SynchronousSelectionDocumentLimit)
+        // 단일 선택은 자손 변환 자료가 필요 없다. 실제 드래그에서 기존 preview worker가 준비한다.
+        if (Session.State.Rois.Count &lt;= SynchronousSelectionDocumentLimit ||
+            (ids.TryGetNonEnumeratedCount(out var count) &amp;&amp; count &lt;= 1))
         {
             Session.Select(ids);
             return;
@@ -1678,7 +1912,7 @@ public sealed partial class MainWindowViewModel
 
         Session.AddRepeatedGrid(new(10001, 10001, pitch, new(image.Width / 2d, image.Height / 2d)));
         SetTool(VisionCanvas.Core.Interaction.EditorTool.Select);
-        Status = "현재 이미지 중심에 100,020,001개 추가 · 영역 선택 / Ctrl+C·V / 이동·회전 / Ctrl+Z";
+        Status = "현재 이미지 중심에 100,020,001개 추가 · 영역 선택 / Ctrl+C·V / 이동·개별 회전 / Ctrl+Z";
     }
 
     // UI 이벤트의 오류를 알리면서도 진단·종료 코드가 완료를 기다릴 수 있도록 Task를 보관한다.
@@ -2093,7 +2327,7 @@ public sealed class DocumentEdit
         _refitSpatial = after.Snapshot.IsRigidUpdate &amp;&amp; ReferenceEquals(after.Snapshot.PreviousRois, before.Rois);
         IEnumerable&lt;Guid&gt; candidates = ReferenceEquals(before.Rois, after.Rois) ? [] :
             ReferenceEquals(before.Rois, after.Snapshot.PreviousRois) ? after.Snapshot.ChangedIds : before.Rois.Keys.Union(after.Rois.Keys);
-        var changes = ImmutableArray.CreateBuilder&lt;RoiChange&gt;();
+        var changes = ImmutableArray.CreateBuilder&lt;RoiChange&gt;(candidates.TryGetNonEnumeratedCount(out var count) ? count : 0);
         var estimatedBytes = 256L;
         foreach (var id in candidates)
         {
@@ -2112,7 +2346,7 @@ public sealed class DocumentEdit
             estimatedBytes += ((old?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? old.Geometry.Shape.Vertices.Length : 0)
                 + (next?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? next.Geometry.Shape.Vertices.Length : 0)) * 16L;
         }
-        Changes = changes.ToImmutable();
+        Changes = changes.Count == changes.Capacity ? changes.MoveToImmutable() : changes.ToImmutable();
         _beforeSelection = before.Selection;
         _afterSelection = after.Selection;
         _beforeImage = before.Image;

@@ -9,10 +9,8 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class PyramidMatchingIntegrationTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ShapeExclusionRejectsMaskedTargetsAfterOriginalPyramidRefinement(bool geometric)
+    [Fact]
+    public async Task ShapeExclusionRejectsMaskedTargetsAfterOriginalPyramidRefinement()
     {
         var scene = SyntheticScene.Create(800, 300, new MatchPose(160, 150, 0, 4), new MatchPose(620, 150, 0, 4));
         var loader = new Loader(scene);
@@ -23,12 +21,11 @@ public sealed class PyramidMatchingIntegrationTests
         {
             MinimumAngleDegrees = 0,
             MaximumAngleDegrees = 0,
-            BuildGeometricModel = geometric,
             BuildClutterModel = true
         }, default);
         Assert.True(trained.Model.Levels.Length >= 3);
         var exclusion = new RoiExclusion(new(new(400, 150), 800, 300, 0), [new(MaskShape.Rectangle, new(0, 0, .4, 1))]);
-        var options = new SearchOptions { EvaluateGeometry = geometric, ClutterWeight = 1 };
+        var options = new SearchOptions { ClutterWeight = 1 };
         var baseline = await service.SearchAsync(image, false, trained.Model, null, options, default);
         Assert.Equal(2, baseline.Matches.Length);
         var result = await service.SearchAsync(image, false, trained.Model, null, options, default, exclusion);
@@ -85,10 +82,8 @@ public sealed class PyramidMatchingIntegrationTests
         await Assert.ThrowsAsync<ArgumentException>(() => shapeService.TrainAsync(image, false, roi, new(), default, full));
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task PaperPipelinePreservesRotatedScaledTargetsAndGeometryFallback(bool geometric)
+    [Fact]
+    public async Task PaperPipelinePreservesRotatedScaledTargets()
     {
         MatchPose[] expected = [new(100, 100, 0), new(256.3, 256.7, .23, 1.1), new(510.7, 385.2, -.21, .9)];
         var scene = SyntheticScene.Create(641, 517, expected);
@@ -98,7 +93,6 @@ public sealed class PyramidMatchingIntegrationTests
         var classic = new ShapeMatchingService(loader, () => null);
         var trained = await paper.TrainAsync(image, false, new(new(100, 100), 96, 96, 0), new()
         {
-            BuildGeometricModel = geometric,
             BuildClutterModel = true,
             MinimumAngleDegrees = -30,
             MaximumAngleDegrees = 30,
@@ -107,7 +101,7 @@ public sealed class PyramidMatchingIntegrationTests
             MaximumScale = 1.1,
             ScaleStep = .1
         }, default);
-        var options = new SearchOptions { MaximumParallelism = 4, EvaluateGeometry = geometric, ClutterWeight = 1 };
+        var options = new SearchOptions { MaximumParallelism = 4, ClutterWeight = 1 };
         var output = await paper.SearchAsync(image, false, trained.Model, null, options, default);
         var phases = Assert.IsType<ShapeSearchPhases>(output.Phases);
         Assert.InRange(phases.SourceOpenMilliseconds + phases.CoarseSearchMilliseconds + phases.OriginalRefinementMilliseconds +
@@ -120,12 +114,6 @@ public sealed class PyramidMatchingIntegrationTests
             var match = Assert.Single(output.Matches.Where(match => Math.Abs(match.Pose.X - target.X) < 1 && Math.Abs(match.Pose.Y - target.Y) < 1));
             Assert.InRange(Math.Abs(match.Pose.Angle - target.Angle), 0, .03);
             Assert.InRange(Math.Abs(match.Pose.Scale - target.Scale), 0, .025);
-        }
-        if (geometric)
-        {
-            var unchanged = await classic.SearchAsync(image, false, trained.Model, null, options, default);
-            Assert.Equal(unchanged.Matches.ToArray(), output.Matches.ToArray());
-            Assert.Equal(unchanged.Windows, output.Windows);
         }
     }
 
@@ -207,59 +195,6 @@ public sealed class PyramidMatchingIntegrationTests
         Assert.False(limited.Truncated);
         Assert.True(region.Contains(new PointD(Assert.Single(limited.Matches).Pose.X, limited.Matches[0].Pose.Y)));
         Assert.Equal(3, loader.Disposed);
-    }
-
-    [Fact]
-    public async Task LargeImageMeasuresAndAppliesGeometryLimitsAtOriginalResolution()
-    {
-        var target = new MatchPose(1517.3, 591.7, 3.4 * Math.PI / 180, 10);
-        var scene = SyntheticScene.Create(2049, 1153, new MatchPose(650, 520, 0, 10), target);
-        var loader = new Loader(scene);
-        var service = new ShapeMatchingService(loader, () => null);
-        var reference = new ImageReference("fixture", "fixture", scene.Width, scene.Height);
-        var trained = await service.TrainAsync(reference, false, new(new(650, 520), 512, 512, 0),
-            new()
-            {
-                MinimumAngleDegrees = -10,
-                MaximumAngleDegrees = 10,
-                AngleStepDegrees = 10
-            }, default);
-        Assert.Equal(4, trained.Model.Levels.Length);
-        var region = RoiGeometry.Create(RoiShapeKind.Circle, new(target.X, target.Y), 2, 2);
-        var options = new SearchOptions
-        {
-            MinimumCoverage = .8,
-            MaximumFitErrorPixels = 1,
-            MaximumClutterRatio = .2
-        };
-        var result = await service.SearchAsync(reference, false, trained.Model, region, options, default);
-        Assert.False(result.Truncated);
-        var match = Assert.Single(result.Matches);
-        var geometry = Assert.IsType<GeometricMatchQuality>(match.Geometry);
-        Assert.Equal(trained.Model.Levels[0].Features.Length, geometry.ModelFeatures);
-        Assert.InRange(geometry.Coverage, .8, 1);
-        Assert.InRange(geometry.FitErrorPixels, .01, 1);
-        Assert.InRange(geometry.ClutterRatio, 0, .2);
-        Assert.True(geometry.SceneEdges > geometry.ModelFeatures);
-        Assert.InRange(Math.Abs(match.Pose.X - target.X), 0, .5);
-        Assert.InRange(Math.Abs(match.Pose.Y - target.Y), 0, .5);
-
-        // 같은 후보를 원본 잔차로 거부한다. 축소 후보의 통과를 최종 합격으로 취급하지 않는다.
-        var rejected = await service.SearchAsync(reference, false, trained.Model, region,
-            options with
-            {
-                MaximumFitErrorPixels = .000001
-            }, default);
-        Assert.False(rejected.Truncated);
-        Assert.Empty(rejected.Matches);
-        var unevaluated = await service.SearchAsync(reference, false, trained.Model, region,
-            options with
-            {
-                EvaluateGeometry = false
-            }, default);
-        Assert.False(unevaluated.Truncated);
-        Assert.Null(Assert.Single(unevaluated.Matches).Geometry);
-        Assert.Equal(4, loader.Disposed);
     }
 
     private sealed class Loader(GrayImage image) : IImageLoader

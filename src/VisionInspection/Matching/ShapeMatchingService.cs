@@ -67,7 +67,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             options = options with
             {
                 PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels),
-                UseFineDetailValidation = pipeline == ShapeSearchPipeline.Paper && !options.BuildGeometricModel
+                UseFineDetailValidation = pipeline == ShapeSearchPipeline.Paper
             };
             var timer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
@@ -107,7 +107,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             using var preprocessor = options.ComputeMode == InspectionComputeMode.GpuPreprocessing
                 ? new SerializedImagePreprocessor(createGpuPreprocessor?.Invoke() ??
                     throw new InvalidOperationException("GPU 전처리 구현이 등록되지 않았습니다.")) : null;
-            var paper = pipeline == ShapeSearchPipeline.Paper && !model.Options.BuildGeometricModel;
+            var paper = pipeline == ShapeSearchPipeline.Paper;
             var matcher = new ShapeMatcher(preprocessor, preprocessor?.CandidateScorer, paper);
             var readTimer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);

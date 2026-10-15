@@ -15,6 +15,23 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiStyleSettingsTests
 {
     [Fact]
+    public void HandleScaleAppliesImmediatelyAndResetRestoresDefault() => OnSta(() =>
+    {
+        var settings = new RoiStyleSettingsViewModel();
+        var changes = 0;
+        settings.Changed += () => changes++;
+        Assert.Equal(1, settings.HandleScale);
+        settings.HandleScale = 2;
+        Assert.Equal(1, changes);
+        settings.HandleScale = 2;
+        settings.Apply.Execute(null);
+        Assert.Equal(1, changes);
+        settings.Reset.Execute(null);
+        Assert.Equal(1, settings.HandleScale);
+        Assert.Equal(2, changes);
+    });
+
+    [Fact]
     public void AllHierarchyColorsAreDistinctAndModuleRootSettingsAreAtomic() => OnSta(() =>
     {
         var settings = new RoiStyleSettingsViewModel();
@@ -180,6 +197,12 @@ public class RoiStyleSettingsTests
             Assert.Equal(bytes, model.Session.HistoryBytes);
             Assert.Equal(undo, model.Session.CanUndo);
             Assert.Equal(redo, model.Session.CanRedo);
+            model.StyleSettings.HandleScale = 2;
+            Assert.Equal(2, model.Input.HandleScale);
+            Assert.Equal(2, model.Scene.Overlay.HandleScale);
+            Assert.Same(before, model.Session.State);
+            Assert.Equal(bytes, model.Session.HistoryBytes);
+            Assert.Equal(redo, model.Session.CanRedo);
         }
         finally
         {
@@ -188,6 +211,7 @@ public class RoiStyleSettingsTests
         var afterDispose = sceneChanges;
         model.StyleSettings.Reset.Execute(null);
         Assert.Equal(afterDispose, sceneChanges);
+        Assert.Equal(2, model.Input.HandleScale);
     });
 
     private static void AssertSwatch(Brush brush, Vector4 color)

@@ -1,0 +1,65 @@
+- banner:
+  - img
+  - text: WATCH 처음 쓰는 이상 감시 화면 체험용 데모
+  - link "관제실형 보기 ↗":
+    - /url: 01-control-room.html
+- main:
+  - navigation "설정 진행 단계":
+    - button "1 영상 고르기 어디를 지켜볼까요?":
+      - text: "1"
+      - strong: 영상 고르기
+      - text: 어디를 지켜볼까요?
+    - button "2 정상 모습 알려주기 평소 모습을 기억해요" [disabled]:
+      - text: "2"
+      - strong: 정상 모습 알려주기
+      - text: 평소 모습을 기억해요
+    - button "3 감시하고 확인하기 달라진 순간을 알려드려요" [disabled]:
+      - text: "3"
+      - strong: 감시하고 확인하기
+      - text: 달라진 순간을 알려드려요
+  - paragraph: FIRST, YOUR CAMERA
+  - heading "어떤 영상을 지켜볼까요?" [level=1]
+  - paragraph: 영상과 감시할 곳만 골라주세요. 어려운 설정은 필요하지 않아요.
+  - button "처음이라면, 30초 안내 ↗"
+  - region "선택한 영상":
+    - img
+    - text: 제품 검사 라인 미리보기
+    - img "제품 검사 라인 합성 영상"
+    - text: CAM 01 / SAMPLE 합성 영상 · 실제 검사 아님 점선 안의 모습을 살펴볼 거예요 아직 감시를 시작하지 않았어요 가운데 영역
+  - img
+  - strong: 화면 전체를 감시하지 않아도 괜찮아요
+  - paragraph: 제품이 지나가는 곳만 고르면, 주변 사람이나 배경 변화에 덜 영향을 받아요.
+  - complementary "현재 단계의 작업":
+    - paragraph: STEP 01
+    - heading "지켜볼 곳을 골라주세요" [level=2]
+    - paragraph: 두 가지 예시로 화면을 체험할 수 있어요.
+    - button "제품 검사 라인 정상 제품 사이에 다른 제품이 나타나요" [pressed]:
+      - img
+      - strong: 제품 검사 라인
+      - text: 정상 제품 사이에 다른 제품이 나타나요
+    - button "물류 이동 통로 평소와 다른 모습이나 움직임이 보여요":
+      - img
+      - strong: 물류 이동 통로
+      - text: 평소와 다른 모습이나 움직임이 보여요
+    - strong: 어디까지 살펴볼까요?
+    - text: 감시 영역
+    - button "가운데 영역" [pressed]
+    - button "화면 전체"
+    - paragraph: 선택한 영역이 왼쪽 영상에 표시돼요. 이 데모에서는 미리 정한 영역을 사용해요.
+    - button "이 영상으로 계속":
+      - text: 이 영상으로 계속
+      - img
+  - article:
+    - text: "01"
+    - heading "평소 모습을 기억해요" [level=2]
+    - paragraph: 정상 예시와 비교해 달라진 정도를 살펴봐요.
+  - article:
+    - text: "02"
+    - heading "짧은 이상도 알려드려요" [level=2]
+    - paragraph: 제품 하나의 변화와 이어지는 움직임을 구분해요.
+  - article:
+    - text: "03"
+    - heading "마지막 확인은 사람이 해요" [level=2]
+    - paragraph: 이상 후보의 근거를 보고 확인 결과를 남겨요.
+  - paragraph: 합성 영상과 모의 상태로 만든 UI 시안입니다. 카메라 연결·실제 AI 학습·검사는 포함하지 않습니다.
+  - paragraph: 02 / 안내형 구성 · 새로고침하면 처음부터

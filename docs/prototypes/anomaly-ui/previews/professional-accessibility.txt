@@ -1,0 +1,123 @@
+- banner:
+  - img
+  - text: WATCH 이상 감시 워크스페이스 INTERACTIVE DEMO 10. 16. 01:53:20
+  - link "쉬운 화면 보기 ↗":
+    - /url: 02-guided-monitor.html
+  - text: 운영
+- complementary "화면 탐색":
+  - navigation "주 메뉴":
+    - button "실시간 감시":
+      - img
+      - text: 실시간 감시
+    - button "이벤트 기록 2":
+      - img
+      - text: 이벤트 기록 2
+    - button "정상 기준":
+      - img
+      - text: 정상 기준
+    - button "알람 설정":
+      - img
+      - text: 알람 설정
+  - paragraph: CAMERAS / 04
+  - searchbox "카메라 찾기"
+  - button "제품 검사 라인" [pressed]
+  - button "물류 이동 통로"
+  - button "포장 출구"
+  - button "작업장 출입구"
+  - text: 브라우저 데모 실행 중
+  - paragraph: 합성 영상 · 모의 점수
+  - paragraph: 실제 카메라·AI 연결 없음
+  - paragraph: 01 / 관제실형 구성
+- main:
+  - paragraph: 한빛테크 / 제1공장
+  - heading "실시간 모니터링" [level=1]
+  - paragraph: 영상과 이벤트를 함께 보며, 확인이 필요한 순간에 집중하세요.
+  - button "화면 안내"
+  - button "감시 일시정지":
+    - img
+    - text: 감시 일시정지
+  - region "실시간 감시 화면":
+    - text: 4개 샘플 감시 중
+    - button "1분할":
+      - img
+      - text: 1분할
+    - button "4분할" [pressed]:
+      - img
+      - text: 4분할
+    - article:
+      - button "제품 검사 라인 선택":
+        - img
+        - text: 제품 검사 라인 CAM 01
+      - img "제품 검사 라인 합성 영상"
+      - text: CAM 01 / SIMULATED FEED 합성 영상 이상 예시 외관 · MODEL A 점수
+      - strong: "92"
+    - article:
+      - button "물류 이동 통로 선택":
+        - img
+        - text: 물류 이동 통로 CAM 02
+      - img "물류 이동 통로 합성 영상"
+      - text: CAM 02 / SIMULATED FEED 합성 영상 이상 예시 움직임 · MODEL B 점수
+      - strong: "86"
+    - article:
+      - button "포장 출구 선택":
+        - img
+        - text: 포장 출구 CAM 03
+      - img "포장 출구 합성 영상"
+      - text: CAM 03 / SIMULATED FEED 합성 영상 정상 예시 외관 · MODEL A 점수
+      - strong: "27"
+    - article:
+      - button "작업장 출입구 선택":
+        - img
+        - text: 작업장 출입구 CAM 04
+      - img "작업장 출입구 합성 영상"
+      - text: CAM 04 / SIMULATED FEED 합성 영상 정상 예시 움직임 · MODEL B 점수
+      - strong: "30"
+    - region "모의 이벤트 타임라인":
+      - heading "이벤트 타임라인" [level=2]
+      - text: 범위
+      - combobox "범위":
+        - option "최근 15분" [selected]
+        - option "최근 1시간"
+      - button "01:52:40 정상과 다른 제품 외관"
+      - button "01:49:20 평소와 다른 움직임"
+      - button "01:44:50 정상과 다른 제품 외관"
+      - text: 01:38 01:42 01:45 01:49 01:53
+      - paragraph: 표시된 지점을 누르면 해당 모의 이벤트를 확인합니다.
+    - paragraph:
+      - strong: 이상 상황을 만들어보세요
+      - text: 실제 AI 검사 대신 알람 흐름을 체험합니다.
+    - button "제품 하나 이상"
+    - button "움직임 이상 구간"
+    - complementary "이벤트 확인":
+      - heading "확인할 이벤트" [level=2]
+      - text: 미확인 2
+      - button "미확인" [pressed]
+      - button "전체 기록"
+      - button "정상과 다른 제품 외관 CAM 01 · 미확인 01:52":
+        - img
+        - strong: 정상과 다른 제품 외관
+        - text: CAM 01 · 미확인
+        - time: 01:52
+      - button "평소와 다른 움직임 CAM 02 · 미확인 01:49":
+        - img
+        - strong: 평소와 다른 움직임
+        - text: CAM 02 · 미확인
+        - time: 01:49
+      - paragraph: EVENT 001 / 모의 이벤트
+      - heading "정상과 다른 제품 외관" [level=3]
+      - paragraph: 제품의 오른쪽 모서리가 정상 예시와 다릅니다. 짧게 나타난 단일 대상도 확인합니다.
+      - text: 모의 이상 점수
+      - strong: 92 / 100
+      - text: 관찰 구간
+      - strong: 0.4 초
+      - button "이벤트 확인 완료":
+        - img
+        - text: 이벤트 확인 완료
+      - button "정상 상황으로 기록"
+      - paragraph: 확인 처리는 기록만 변경하며, 정상 기준을 자동 학습하지 않습니다.
+  - text: "모든 영상·점수·이벤트는 합성 데모입니다. 새로고침하면 초기 상태로 돌아갑니다. 구성 참고:"
+  - link "AXIS":
+    - /url: https://help.axis.com/en-US/axis-camera-station-pro
+  - text: ·
+  - link "Milestone":
+    - /url: https://doc.milestonesys.com/xprotect/xprotect-smart-client/2025r3/en/using-the-alarm-list

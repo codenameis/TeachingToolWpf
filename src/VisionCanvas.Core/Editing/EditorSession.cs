@@ -70,11 +70,16 @@ public sealed partial class EditorSession
         var order = _nextOrder + 1;
         var roi = new Roi(Guid.NewGuid(), $"ROI {order:000}", geometry, parentId, isGroup, order);
         var name = isGroup ? "부모 ROI 추가" : parentId is null ? "ROI 추가" : "자식 ROI 추가";
-        Commit(name, State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
+        var next = State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
         {
             Selection = [roi.Id],
             RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
-        });
+        };
+        if (parentId is { } parent)
+        {
+            RoiGroupBounds.Validate(next, [parent], State);
+        }
+        Commit(name, next);
         _nextOrder = order;
         return roi.Id;
     }
@@ -108,7 +113,9 @@ public sealed partial class EditorSession
             rois.Add(roi.Id, roi);
             added.Add(roi.Id);
         }
-        Commit("ROI 일괄 추가", State.WithRois(rois.ToImmutable(), added));
+        var next = State.WithRois(rois.ToImmutable(), added);
+        RoiGroupBounds.Validate(next, added);
+        Commit("ROI 일괄 추가", next);
         _nextOrder = order;
     }
 
@@ -261,7 +268,7 @@ public sealed partial class EditorSession
     public void RotateSelection(double delta, PointD pivot)
     {
         var selection = State.TransformSelection;
-        var transform = new RigidTransform2D(pivot, selection.RotationLimits(pivot).Clamp(delta));
+        var transform = new RigidTransform2D(pivot, selection.ConstrainRotation(pivot, delta));
         Commit("ROI 회전", selection.Apply(transform) with
         {
             Viewport = State.Viewport
@@ -315,7 +322,7 @@ public sealed partial class EditorSession
         _previewStart = State;
     }
 
-    public void PreviewTranslation(PointD delta)
+    public void PreviewTranslation(PointD delta, bool allowSlide = true)
     {
         var before = RequirePreviewStart();
         if (delta == default && _transformSelection is null)
@@ -324,7 +331,8 @@ public sealed partial class EditorSession
         }
 
         _transformSelection ??= before.TransformSelection;
-        SetTransformPreview(new(default, 0, _transformSelection.Constrain(delta)));
+        var previous = TransformPreview is { Transform.AngleDegrees: 0 } preview ? preview.Transform.Translation : default;
+        SetTransformPreview(new(default, 0, _transformSelection.Constrain(delta, previous, allowSlide)));
     }
 
     public void PreviewRotation(PointD pivot, double degrees)
@@ -336,7 +344,7 @@ public sealed partial class EditorSession
         }
 
         _transformSelection ??= before.TransformSelection;
-        var constrainedDegrees = _transformSelection.RotationLimits(pivot).Clamp(degrees);
+        var constrainedDegrees = _transformSelection.ConstrainRotation(pivot, degrees);
         SetTransformPreview(new(pivot, constrainedDegrees));
     }
 
@@ -389,7 +397,7 @@ public sealed partial class EditorSession
         var next = State;
         if (preview is not null)
         {
-            next = preview.Selection.Apply(preview.Transform) with
+            next = preview.Selection.ApplyPreview(preview.Transform) with
             {
                 Viewport = State.Viewport
             };

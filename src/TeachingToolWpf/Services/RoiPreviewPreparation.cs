@@ -16,7 +16,7 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
 
     public bool HasPending => _pending is not null;
 
-    public void SubmitTranslation(PointD delta) => Submit(new(delta, 0, false));
+    public void SubmitTranslation(PointD delta, bool allowSlide = true) => Submit(new(delta, 0, false, allowSlide));
 
     public void SubmitRotation(PointD pivot, double degrees) => Submit(new(pivot, degrees, true));
 
@@ -178,7 +178,7 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         }
         else
         {
-            session.PreviewTranslation(request.Point);
+            session.PreviewTranslation(request.Point, request.AllowSlide);
         }
     }
 
@@ -220,7 +220,7 @@ internal sealed class RoiPreviewPreparation(EditorSession session, Action<Except
         _workerGate.Dispose();
     }
 
-    private readonly record struct Request(PointD Point, double Degrees, bool IsRotation)
+    private readonly record struct Request(PointD Point, double Degrees, bool IsRotation, bool AllowSlide = true)
     {
         public bool IsIdentity => IsRotation ? Degrees == 0 : Point == default;
     }

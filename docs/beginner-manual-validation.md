@@ -1,5 +1,16 @@
 # 신입용 가독성 정리와 HTML 매뉴얼 검증
 
+## 2026-10-15 후속: class·record와 실제 ROI 이력 연결
+
+4장에 class / record class / readonly record struct 비교를 추가했다. 5장에서는 기존 ROI의 이름을 바꾸는 하나의 사례로 후보 생성, 불변 문서 교체, 변경 차이 기록, Undo/Redo와 새 갈래를 설명한다. Id·참조·값의 차이, init과 깊은 불변성의 차이, 내부 자료 공유·지연 캐시·이력 상태 쌍 재사용을 명시했다. record를 불변성·속도·Undo의 자동 보장으로 표현하지 않는다. 새 코드창 6개(실제 소스 5개와 실행 명령)는 기존 접기·색상·복사를 사용한다.
+
+- PASS: `manual/labs/RecordsHistory` Release 빌드 경고 0/오류 0, 실제 Core API를 호출하는 확인 18개. 후보만 생성했을 때 문서 유지, 별도 참조와 같은 ID/값, 형상 공유, 옛 문서 보존, RoiChange 전후 차이, Undo/Redo, 새 편집의 Redo 제거, 동일 이름 재설정의 무이력을 확인했다.
+- PASS: 새 소스 블록 5개가 현재 파일의 전체/연속 발췌와 일치. HTML 11개·로컬 참조 303개 정적 구조/ID/링크 확인. 코드창 81개의 기본 접힘·접근성 마크업 및 색상 처리 전후 문자 보존, 복사 성공/실패와 펼치기 동작을 DOM 대역으로 확인했다.
+- 환경: 최초 .NET CLI의 telemetry 레지스트리 접근과 빌드 서버 연결이 제한되어 `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_CLI_USE_MSBUILD_SERVER=0`, `--disable-build-servers -m:1`로 빌드하고 `--no-build`로 실행했다. 정책·프로젝트 설정 완화 없이 성공했다.
+- NOT_RUN: 실제 브라우저 표시·보조공학·인쇄와 신입 독자 평가. 기존 file URL 도구 제한을 우회하지 않았다. 이전 55개 발췌의 최신성 전체 재검증 및 전체 앱 회귀/FPS는 이번 범위 밖이다. 제품 C#·CSS·JS·의존성은 변경하지 않았다.
+
+검증 도구: 무시 대상 `artifacts/manual-refactor/check_records_lesson.py`, 기존 `verify_manual.py`와 `check_code_windows.cjs`. 제품 설계 변경이 아닌 학습 설명이므로 새 ADR은 만들지 않았다. SOLID 검토: SRP는 비교 설명/편집 흐름/실행 실습을 구분했다. OCP·LSP·ISP·DIP는 제품 계약 변경 없이 기존 Core의 공개 API를 호출한다. GRASP 검토: Information Expert는 실제 ROI/문서/이력 소유자를 기준으로 설명했다. Creator·Controller는 실제 EditorSession의 생성/확정 경로를 사용한다. Low Coupling·High Cohesion은 독립 콘솔 실습 하나로 제한했다. Polymorphism·Pure Fabrication·Indirection·Protected Variations는 제품 변형 지점·이력 서비스·주입 경계를 변경하지 않는다. 원칙 예외는 없다.
+
 ## 2026-10-14 후속: 직접 조작하는 ROI 드래그 그림
 
 5장 앞에 SVG 사각형의 직접 드래그와 자동 재생·일시정지·한 단계 진행·Escape 취소·초기화를 추가했다. 확정 중심, 미리보기 이동량, 보이는 중심과 이력 수를 표시한다. 단계별로 클래스 호출 경로와 실제 C# 발췌4개를 갱신한다. 기본 동기 경로의 교육 모형이며 실제 C#/WPF/GPU를 실행하는 것으로 표현하지 않는다. 2배 가상 DIP 화면·선택 사각형1개·이미지 경계 제한을 명시하고 Shift/다중 선택 등 생략 범위를 설명했다.

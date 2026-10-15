@@ -7,7 +7,7 @@ public sealed class VerificationCandidateSchedulerTests
     [Fact]
     public void CandidatesWithinBudgetKeepTheirExactOrder()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var candidates = new[] { Candidate(10), Candidate(10.1), Candidate(80) };
         Assert.Equal(candidates, VerificationCandidateScheduler.Select(candidates, model, 3, default));
     }
@@ -15,7 +15,7 @@ public sealed class VerificationCandidateSchedulerTests
     [Fact]
     public void DifferentPositionsRotationsAndScalesReceiveBudgetBeforeNearDuplicates()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var candidates = new[]
         {
             Candidate(100),
@@ -32,7 +32,7 @@ public sealed class VerificationCandidateSchedulerTests
     [Fact]
     public void DeferredNearPosesArePreservedForRemainingBudget()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var candidates = new[] { Candidate(10), Candidate(10.1), Candidate(10.2), Candidate(80), Candidate(80.1) };
         var original = candidates.ToArray();
         var selected = VerificationCandidateScheduler.Select(candidates, model, 4, default);
@@ -74,7 +74,7 @@ public sealed class VerificationCandidateSchedulerTests
     [Fact]
     public void NearbyPosesAcrossCellBoundaryDoNotConsumeFirstPassTwice()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var candidates = new[] { Candidate(99.9), Candidate(100.1), Candidate(160) };
         Assert.Equal(new[] { candidates[0], candidates[2] }, VerificationCandidateScheduler.Select(candidates, model, 2, default));
     }
@@ -82,22 +82,19 @@ public sealed class VerificationCandidateSchedulerTests
     [Fact]
     public void CancellationIsObservedBeforeScheduling()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         Assert.Throws<OperationCanceledException>(() => VerificationCandidateScheduler.Select([Candidate(100)], model, 1, cancellation.Token));
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void StandardBudgetFindsFortyRepeatedPatternsWithoutRelaxingAcceptance(bool geometric)
+    [Fact]
+    public void StandardBudgetFindsFortyRepeatedPatternsWithoutRelaxingAcceptance()
     {
         var training = SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0));
         var model = ShapeTrainer.Train(training, new(ReadOnlyMemory<byte>.Empty, new(48, 48)),
             new()
             {
-                BuildGeometricModel = geometric,
                 BuildClutterModel = true
             });
         var image = RepeatTile(training, 8, 5);
@@ -127,15 +124,15 @@ public sealed class VerificationCandidateSchedulerTests
     [Fact]
     public void StandardBudgetPreservesOccludedPoseWithRefinementEnabled()
     {
-        var model = RobustGeometricScene.Train();
-        var scenario = RobustGeometricScene.PositiveScenarios.Single(scenario => scenario.Name == "right-quarter-occlusion");
-        var result = new ShapeMatcher().Search(RobustGeometricScene.Create(scenario), model, new()
+        var model = RobustShapeScene.Train();
+        var scenario = RobustShapeScene.PositiveScenarios.Single(scenario => scenario.Name == "right-quarter-occlusion");
+        var result = new ShapeMatcher().Search(RobustShapeScene.Create(scenario), model, new()
         {
             ClutterWeight = 1
         });
         var match = Assert.Single(result.Matches);
-        Assert.InRange(RobustGeometricScene.PositionError(match.Pose), 0, .75);
-        Assert.InRange(RobustGeometricScene.AngleErrorDegrees(match.Pose, RobustGeometricScene.ExpectedPose(scenario)), 0, 1.5);
+        Assert.InRange(RobustShapeScene.PositionError(match.Pose), 0, .75);
+        Assert.InRange(RobustShapeScene.AngleErrorDegrees(match.Pose, RobustShapeScene.ExpectedPose(scenario)), 0, 1.5);
         Assert.InRange(Math.Abs(match.Pose.Scale - scenario.Scale), 0, .025);
     }
 

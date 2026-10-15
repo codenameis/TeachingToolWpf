@@ -1,0 +1,6 @@
+<!-- WPF 앱의 시작점이다. x:Class는 이 XAML과 App.xaml.cs의 App 클래스를 연결한다.
+     StartupUri로 창을 자동 생성하지 않고, App.xaml.cs에서 필요한 객체를 먼저 연결한다. -->
+<Application x:Class="VisionCanvas.MvvmSample.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+</Application>

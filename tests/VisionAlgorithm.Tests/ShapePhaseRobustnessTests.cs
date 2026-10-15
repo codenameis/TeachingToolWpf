@@ -8,7 +8,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
     [Fact]
     public void CleanRotationScaleAndSubpixelPhaseKeepTheKnownPose()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var failures = new List<string>();
         foreach (var degrees in new[] { 0.3, 7.3, 22.4, 44.7, 67.1, 89.8, 137.2, 179.3 })
         {
@@ -28,7 +28,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
     [Fact]
     public void MildPixelNoiseAndImageBoundaryKeepTheKnownPose()
     {
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var failures = new List<string>();
         foreach (var degrees in new[] { 13.4, 44.7, 89.8 })
         {
@@ -58,6 +58,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
             var model = ShapeTrainer.Train(CreateWire(96, 96, new(48, 48, 0), thickness),
                 new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()
                 {
+                    BuildClutterModel = true,
                     MinimumAngleDegrees = -180,
                     MaximumAngleDegrees = 180,
                     AngleStepDegrees = 5
@@ -86,6 +87,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
             var model = ShapeTrainer.Train(SyntheticScene.Create(97, 95, trainingPose),
                 new(ReadOnlyMemory<byte>.Empty, new(trainingPose.X, trainingPose.Y), trainingPose.Angle), new()
                 {
+                    BuildClutterModel = true,
                     MinimumAngleDegrees = -180,
                     MaximumAngleDegrees = 180,
                     AngleStepDegrees = 5,
@@ -113,7 +115,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         const int Rows = 8;
         const int Width = TileSize * Columns;
         const int Height = TileSize * Rows;
-        var model = RobustGeometricScene.Train();
+        var model = RobustShapeScene.Train();
         var pixels = new byte[Width * Height];
         var expected = new List<MatchPose>();
         var random = new Random(68123);
@@ -168,17 +170,13 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
     }
 
     [Theory]
-    [InlineData(false, false, 1)]
-    [InlineData(false, true, 1)]
-    [InlineData(true, false, 1)]
-    [InlineData(true, true, 1)]
-    [InlineData(false, false, .5)]
-    [InlineData(false, true, .5)]
-    [InlineData(true, false, .5)]
-    [InlineData(true, true, .5)]
-    public void CorrelatedNoiseDoesNotRejectUnchangedTargetGeometry(bool rotated, bool geometry, double contrast)
+    [InlineData(false, 1)]
+    [InlineData(true, 1)]
+    [InlineData(false, .5)]
+    [InlineData(true, .5)]
+    public void CorrelatedNoiseDoesNotRejectUnchangedTargetGeometry(bool rotated, double contrast)
     {
-        var model = TrainBlockNoiseModel(geometry);
+        var model = TrainBlockNoiseModel();
         var pose = new MatchPose(320, 320, rotated ? 17 * Math.PI / 180 : 0, rotated ? .9 : 1);
         var scene = rotated ? CreateBlockNoiseTile(3072, 1024, 17, .9) : CreateBlockNoiseTile(1024, 3072, 0, 1);
         if (contrast != 1)
@@ -192,19 +190,17 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         }
         var gradient = GradientImage.Create(scene, 8, default);
         var trueScore = ContinuousVerifier.Score(gradient, model, pose);
-        var trueClutter = GeometricQualityEvaluator.EvaluateClutter(gradient, model, pose, 3, default);
+        var trueClutter = ClutterEvaluator.EvaluateClutter(gradient, model, pose, 3, default);
         var matcher = new ShapeMatcher();
         var directionOnly = matcher.RefineCandidate(scene, model, pose, 1, new()
         {
             ClutterWeight = 0,
-            EvaluateGeometry = geometry
         });
         var scored = matcher.RefineCandidate(scene, model, pose, 1, new()
         {
             ClutterWeight = 1,
-            EvaluateGeometry = geometry
         });
-        var message = $"correlated-noise rotated={rotated}, geometry={geometry}, contrast={contrast}: true-direction={trueScore}, true-clutter={trueClutter}, " +
+        var message = $"correlated-noise rotated={rotated}, contrast={contrast}: true-direction={trueScore}, true-clutter={trueClutter}, " +
             $"direction-only={directionOnly.Matches.Length}, final={scored.Matches.Length}, " +
             $"refined-direction={directionOnly.Matches.FirstOrDefault()?.DirectionScore}, refined-clutter={directionOnly.Matches.FirstOrDefault()?.ClutterRatio}";
         output.WriteLine(message);
@@ -212,20 +208,18 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         Assert.True(SameTarget(scored.Matches[0].Pose, pose), $"{message}; actual={scored.Matches[0].Pose}");
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void NoiseRobustnessStillPenalizesAdditionalStrongContour(bool geometry)
+    [Fact]
+    public void NoiseRobustnessStillPenalizesAdditionalStrongContour()
     {
-        var model = TrainBlockNoiseModel(geometry);
+        var model = TrainBlockNoiseModel();
         var pose = new MatchPose(320, 320, 0);
         var clean = GradientImage.Create(CreateBlockNoiseTile(1024, 3072, 0, 1), 8, default);
         var extra = GradientImage.Create(CreateBlockNoiseTile(1024, 3072, 0, 1, extraContour: true), 8, default);
         var cleanScore = ContinuousVerifier.Score(clean, model, pose).Score;
         var extraScore = ContinuousVerifier.Score(extra, model, pose).Score;
-        var cleanClutter = GeometricQualityEvaluator.EvaluateClutter(clean, model, pose, 3, default);
-        var extraClutter = GeometricQualityEvaluator.EvaluateClutter(extra, model, pose, 3, default);
-        output.WriteLine($"geometry={geometry}: clean direction={cleanScore}, clutter={cleanClutter}; extra direction={extraScore}, clutter={extraClutter}");
+        var cleanClutter = ClutterEvaluator.EvaluateClutter(clean, model, pose, 3, default);
+        var extraClutter = ClutterEvaluator.EvaluateClutter(extra, model, pose, 3, default);
+        output.WriteLine($"clean direction={cleanScore}, clutter={cleanClutter}; extra direction={extraScore}, clutter={extraClutter}");
         Assert.True(extraClutter.EnergyRatio > cleanClutter.EnergyRatio + .05);
         Assert.True(extraScore * (1 - extraClutter.EnergyRatio) < (cleanScore * (1 - cleanClutter.EnergyRatio)) - .05);
     }
@@ -233,15 +227,14 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
     [Fact]
     public void IdenticalNoisyTrainingImageKeepsItsEntireContourExplained()
     {
-        var model = TrainBlockNoiseModel(true);
+        var model = TrainBlockNoiseModel();
         var scene = CreateBlockNoiseTile(1024, 1024, 0, 1);
         var pose = new MatchPose(320, 320, 0);
         var gradient = GradientImage.Create(scene, 8, default);
-        var clutter = GeometricQualityEvaluator.EvaluateClutter(gradient, model, pose, 3, default);
+        var clutter = ClutterEvaluator.EvaluateClutter(gradient, model, pose, 3, default);
         var result = new ShapeMatcher().RefineCandidate(scene, model, pose, 1, new()
         {
             ClutterWeight = 1,
-            MaximumClutterRatio = .05,
             Refine = false
         });
         output.WriteLine($"identical training pixels: clutter={clutter}, matches={result.Matches.Length}");
@@ -290,7 +283,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         {
             var scene = CreateLocalContrastScene(intensity);
             var gradient = GradientImage.Create(scene, 8, default);
-            var clutter = GeometricQualityEvaluator.EvaluateClutter(gradient, model, new(128, 128, 0), 3, default);
+            var clutter = ClutterEvaluator.EvaluateClutter(gradient, model, new(128, 128, 0), 3, default);
             output.WriteLine($"localized intensity={intensity}: clutter={clutter}");
             if (ratios.Count > 0)
             {
@@ -309,8 +302,8 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         var defect = GradientImage.Create(CreateLocalContrastScene(115), 8, default);
         var moreDefects = GradientImage.Create(CreateLocalContrastScene(115, brightPatch: true), 8, default);
         var pose = new MatchPose(128, 128, 0);
-        var before = GeometricQualityEvaluator.EvaluateClutter(defect, model, pose, 3, default);
-        var after = GeometricQualityEvaluator.EvaluateClutter(moreDefects, model, pose, 3, default);
+        var before = ClutterEvaluator.EvaluateClutter(defect, model, pose, 3, default);
+        var after = ClutterEvaluator.EvaluateClutter(moreDefects, model, pose, 3, default);
         output.WriteLine($"existing defect={before}; additional bright patch={after}");
         Assert.True(before.EnergyRatio > .1);
         Assert.True(after.EnergyRatio >= before.EnergyRatio - 1e-10,
@@ -330,8 +323,8 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         var pose = new MatchPose(128, 128, 0);
         var baseline = GradientImage.Create(CreateLocalContrastScene(115), 8, default);
         var outside = GradientImage.Create(CreateLocalContrastScene(115, brightPatch: true), 8, default);
-        var before = GeometricQualityEvaluator.EvaluateClutter(baseline, model, pose, 3, default);
-        var after = GeometricQualityEvaluator.EvaluateClutter(outside, model, pose, 3, default);
+        var before = ClutterEvaluator.EvaluateClutter(baseline, model, pose, 3, default);
+        var after = ClutterEvaluator.EvaluateClutter(outside, model, pose, 3, default);
         output.WriteLine($"masked hole: baseline={before}; bright outside-mask patch={after}");
         Assert.Equal(before, after);
     }
@@ -353,8 +346,8 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         var missingReference = GradientImage.Create(CreateBoundaryContrastScene(null, 110, 115), 8, default);
         var outsideReference = GradientImage.Create(CreateBoundaryContrastScene(28, 250, 115), 8, default);
         var pose = new MatchPose(128, 128, 0);
-        var before = GeometricQualityEvaluator.EvaluateClutter(missingReference, model, pose, 3, default);
-        var after = GeometricQualityEvaluator.EvaluateClutter(outsideReference, model, pose, 3, default);
+        var before = ClutterEvaluator.EvaluateClutter(missingReference, model, pose, 3, default);
+        var after = ClutterEvaluator.EvaluateClutter(outsideReference, model, pose, 3, default);
         output.WriteLine($"no valid reference={before}; nearby reference edge outside actual mask={after}");
         Assert.Equal(before.SceneEdges, after.SceneEdges);
         Assert.Equal(before.Ratio, after.Ratio, 10);
@@ -370,7 +363,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
             BuildClutterModel = true
         });
 
-    private static ShapeModel TrainBlockNoiseModel(bool geometry)
+    private static ShapeModel TrainBlockNoiseModel()
     {
         const int Size = 640;
         var mask = new byte[Size * Size];
@@ -387,7 +380,6 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
             MinimumScale = .85,
             MaximumScale = 1.15,
             ScaleStep = .05,
-            BuildGeometricModel = geometry,
             BuildClutterModel = true
         });
     }
@@ -405,14 +397,14 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         var positionError = nearest is null ? double.PositiveInfinity : Distance(nearest.Pose, expected);
         var message = $"{name}: matches={result.Matches.Length} position-error={positionError}";
         var passed = nearest is not null && Distance(nearest.Pose, expected) <= .75 &&
-            RobustGeometricScene.AngleErrorDegrees(nearest.Pose, expected) <= 1.5 &&
+            RobustShapeScene.AngleErrorDegrees(nearest.Pose, expected) <= 1.5 &&
             Math.Abs(nearest.Pose.Scale - expected.Scale) <= .025 && result.Matches.Length == 1;
         if (!passed)
         {
             var direct = matcher.RefineCandidate(scene, model, expected, 1, options);
             var gradient = GradientImage.Create(scene, 8, default);
             var trueScore = ContinuousVerifier.Score(gradient, model, expected);
-            var trueClutter = GeometricQualityEvaluator.EvaluateClutter(gradient, model, expected, 3, default);
+            var trueClutter = ClutterEvaluator.EvaluateClutter(gradient, model, expected, 3, default);
             message += $" true-direction={trueScore.Score:F6} true-clutter={trueClutter.Ratio:F6} direct={direct.Matches.Length}";
             message += $" diagnostics={result.Diagnostics}";
             failures.Add(message);
@@ -424,7 +416,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         => Math.Sqrt(Math.Pow(left.X - right.X, 2) + Math.Pow(left.Y - right.Y, 2));
 
     private static bool SameTarget(MatchPose actual, MatchPose expected)
-        => Distance(actual, expected) <= .75 && RobustGeometricScene.AngleErrorDegrees(actual, expected) <= 1.5 &&
+        => Distance(actual, expected) <= .75 && RobustShapeScene.AngleErrorDegrees(actual, expected) <= 1.5 &&
             Math.Abs(actual.Scale - expected.Scale) <= .025;
 
     private static GrayImage CreateDistractor(int size, MatchPose pose)

@@ -1,0 +1,114 @@
+[
+  {
+    "kind": "native-window",
+    "backend": "TorchSharp",
+    "device": "Cuda",
+    "size": 224,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 777.6994,
+    "firstMilliseconds": 1254.6296,
+    "warmMilliseconds": [
+      9.9928,
+      9.2883,
+      11.5953
+    ],
+    "matches": 1,
+    "maximumHeadDifference": 7.739663124084473E-05,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 6.0063111312521045,
+    "errorPixels": 0.5160156871153326,
+    "nearest": {
+      "X": 44.53846153846154,
+      "Y": 94.76923076923077,
+      "Width": 26.679370880126953,
+      "Height": 28.047094345092773,
+      "AngleDegrees": 56.006311131252104,
+      "Score": 0.64555776
+    }
+  },
+  {
+    "kind": "native-window",
+    "backend": "TorchSharp",
+    "device": "Cuda",
+    "size": 256,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 777.6994,
+    "firstMilliseconds": 454.158,
+    "warmMilliseconds": [
+      10.3993,
+      11.5413,
+      12.3093
+    ],
+    "matches": 1,
+    "maximumHeadDifference": 0.0003986358642578125,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 6.771575077112345,
+    "errorPixels": 0.5160156871153326,
+    "nearest": {
+      "X": 44.53846153846154,
+      "Y": 94.76923076923077,
+      "Width": 26.60421371459961,
+      "Height": 28.135231018066406,
+      "AngleDegrees": 56.771575077112345,
+      "Score": 0.6494629
+    }
+  },
+  {
+    "kind": "native-window",
+    "backend": "TorchSharp",
+    "device": "Cuda",
+    "size": 512,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 777.6994,
+    "firstMilliseconds": 500.4666,
+    "warmMilliseconds": [
+      37.8324,
+      41.3991,
+      38.3543
+    ],
+    "matches": 2,
+    "maximumHeadDifference": 0.001393437385559082,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 25.583748528648684,
+    "errorPixels": 1.4006446928309673,
+    "nearest": {
+      "X": 43.791666666666664,
+      "Y": 94.29166666666667,
+      "Width": 26.35563087463379,
+      "Height": 29.12522315979004,
+      "AngleDegrees": 75.58374852864868,
+      "Score": 0.7600783
+    }
+  },
+  {
+    "kind": "native-window",
+    "backend": "TorchSharp",
+    "device": "Cuda",
+    "size": 1024,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 777.6994,
+    "firstMilliseconds": 726.8498,
+    "warmMilliseconds": [
+      132.3344,
+      120.7093,
+      133.8669
+    ],
+    "matches": 2,
+    "maximumHeadDifference": 0.010767459869384766,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 9.958411950776757,
+    "errorPixels": 1.2311681584144143,
+    "nearest": {
+      "X": 44.111111111111114,
+      "Y": 94.14814814814815,
+      "Width": 27.425312042236328,
+      "Height": 28.98159408569336,
+      "AngleDegrees": 59.95841195077676,
+      "Score": 0.8368872
+    }
+  }
+]

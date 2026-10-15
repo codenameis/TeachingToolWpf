@@ -44,12 +44,12 @@ internal sealed partial class ScenePainter
             _mesh.Outline(white, geometry.Outline.Select(view.ImageToScreen).ToArray(), scene.RoiStyles.Default.StrokeThickness(true), color);
             foreach (var point in HandleGeometry.ResizeHandles(geometry, view))
             {
-                Handle(white, point, 6, color);
+                Handle(white, point, scene.Overlay.HandleScale, color);
             }
 
-            var rotation = HandleGeometry.RotationHandle(geometry, view);
+            var rotation = HandleGeometry.RotationHandle(geometry, view, scene.Overlay.HandleScale);
             _mesh.Line(white, (corners[0] + corners[1]) / 2, rotation, 1, color);
-            RotationHandle(white, rotation, color);
+            RotationHandle(white, rotation, color, scene.Overlay.HandleScale);
         }
         if (summary)
         {

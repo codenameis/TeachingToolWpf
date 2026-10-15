@@ -16,7 +16,6 @@ public sealed class ShapeSearchPolicyTests
         var model = ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
             new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()
             {
-                BuildGeometricModel = false,
                 BuildClutterModel = contourModel
             });
         var service = new ShapeMatchingService(new ImageLoader(System.IO.Path.GetTempPath()), () => null);
@@ -25,7 +24,6 @@ public sealed class ShapeSearchPolicyTests
             new()
             {
                 ClutterWeight = 1,
-                EvaluateGeometry = false,
                 Verify = verify
             }, CancellationToken.None));
     }

@@ -126,7 +126,7 @@ internal static class ShapeTargetSmoke
                     InspectionSha256 = Hash(typeof(ShapeMatchingService).Assembly.Location)
                 };
                 var matching = model.Matching;
-                foreach (var method in paperLatency ? new[] { PatternMatchingMethod.Shape } : new[] { PatternMatchingMethod.Shape, PatternMatchingMethod.GeometricShape })
+                foreach (var method in new[] { PatternMatchingMethod.Shape })
                 {
                     matching.Method = method;
                     await WaitForVisualQuietAsync();
@@ -153,12 +153,7 @@ internal static class ShapeTargetSmoke
                         matching.MinimumSupport,
                         matching.ClutterWeight,
                         matching.Refine,
-                        matching.GeometricTolerancePixels,
-                        matching.MinimumCoverage,
-                        matching.LimitClutter,
-                        matching.MaximumClutterRatio,
-                        matching.LimitFitError,
-                        matching.MaximumFitErrorPixels,
+                        matching.ClutterTolerancePixels,
                         matching.SearchTimeoutSeconds,
                         matching.UseSelection
                     });
@@ -302,7 +297,7 @@ internal static class ShapeTargetSmoke
                         Timing = "실제 VM 명령 호출 직전부터 await 완료까지의 wall. 최초 GPU 명령에는 장치 준비를 포함한다. ServiceMilliseconds/ReadMilliseconds는 앱이 표시한 0.1 ms 정밀도의 수치다. Training/초기 화면 로딩은 별도이며 사전 검사는 없다. 명령 완료는 최종 화면 Present 완료를 뜻하지 않는다.",
                         VisualQuietPolicy = "각 명령 전 공개 TileReady/HasReady 및 renderer metrics 통지의 750 ms 정지 관찰. GPU fence idle 보장은 아니며 렌더러/파일 캐시/검사 작업을 중지하지 않는다. 측정 중 화면 캡처·UI 자동화 탐색·로그 직렬화 없음.",
                         RunOrder = paperLatency ? "논문 CPU 최초+반복3 → CUDA 최초+반복3. 사전 검사 없음." :
-                            "논문 CPU 최초+반복3, GPU 최초+반복3 → 기하 CPU 최초+반복3, GPU 최초+반복3. 프로세스 최초 검사는 첫 행이며 나머지는 모드별 최초다.",
+                            "논문 CPU 최초+반복3, GPU 최초+반복3. 프로세스 최초 검사는 첫 행이며 나머지는 모드별 최초다.",
                         StartupAndVisualQuietMilliseconds = startupMilliseconds,
                         Input = input,
                         Runtime = runtime,

@@ -1,5 +1,39 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-16 검사 패널 정리:** 작업별 탭과 하단 실행 영역으로 기본 작업의 스크롤을 줄이고 Warning의 원인·해결 설정을 표시한다. 기존 모델/설정/판정은 유지한다. [ADR-057](../docs/decisions/0057-inspection-sidebar-workflow.md), [실제 WPF 검증](../docs/inspection-sidebar.md). 사용자 승인으로 현재 프로젝트 변경 전체를 커밋·푸시하고 이후 같은 정확도 조건에서 성능을 측정한다.
+
+- **2026-10-16 CPU 정확도 우선:** Chamfer의 추가 윤곽 오검출을 재현하고 원본 양방향 검증·거리 단위를 보정한다. 같은 점수와 검색 조건에서 제한 영역의 누락/오검출·위치/각도/배율을 확인한 후, 결과를 보존하는 버퍼/pose 재사용만 적용한다. 기존125/80ms 목표는 유지하되 정확도보다 앞세우지 않는다. [ADR-056](../docs/decisions/0056-cpu-matching-accuracy-first.md), [검증·범위](../docs/cpu-matching-accuracy.md). 로컬 작업만 진행한다.
+
+- **2026-10-16 CPU 매칭 WPF 연결:** 세 CPU 방식을 기존 선택/학습/검사에 추가하고 독립 모델·검색 파라미터와 원본 ROI 좌표를 유지한다. Kensa 원본 및 알려진 회전 변환을 같은 점수로 비교하며 오검출·표시 지연을 포함해 기록한다. [ADR-055](../docs/decisions/0055-cpu-matchers-in-wpf.md), [사용법·검증](../docs/cpu-matching-wpf.md). 로컬 작업만 진행한다.
+
+- **2026-10-15 CPU 매칭 3종:** 독립 LINE-2D/Sub-NCC/Directional Chamfer 프로젝트, 제한 영역·보정 영역 CPU 검사, 공통 PNG/정답 데이터와 OpenCV 비교 도구. 기존 WPF/PoseMatch는 유지한다. [ADR-054](../docs/decisions/0054-independent-cpu-template-matchers.md), [구현·실측](../docs/cpu-template-matching.md). 로컬 작업만 진행한다.
+
+- **2026-10-15 TorchSharp:** 공식 모델의 C# 정의와 CPU/CUDA 미세학습·가중치 저장/불러오기, 앱 엔진 선택을 구현한다. ONNX와 같은 전처리·전체 탐색·점수0.5에서 Kensa/8K 위치·각도·누락 및 표시 시간을 비교한다. 정확도와 성능 실패를 유지하며 합성 학습을 현장 합격으로 대신하지 않는다. [ADR-053](../docs/decisions/0053-torchsharp-training-and-inference.md), [검증·사용법](../docs/posematch-tdcm-torchsharp.md). 로컬 작업만 진행한다.
+
+- **2026-10-15 2카메라 모델 샘플:** 내장8K 이미지2개·계층 ROI/그룹·ROI별 알고리즘 설정을 로딩한다. 공유 EditorView, 독립 문서/이력, Core의 문서 준비·공통 이미지 소유권 API를 사용한다. 실제 알고리즘/외부 모델 파일/카메라 수집은 제외한다. [사용법](../samples/VisionCanvas.MvvmSample/README.md), [검증](../docs/visioncanvas-mvvm-sample.md). 로컬 수정·검증만 진행한다.
+
+- **2026-10-15 ROI 편집 핸들 크기:** 설정에서 사각·회전 핸들을 50~300%로 조절하고 표시·클릭 범위·회전 간격을 함께 반영한다. 기본 100%, ROI 형상·이력은 유지한다. [사용법·검증·원칙 검토](../docs/roi-handle-size.md). 로컬 작업만 진행한다.
+
+- **2026-10-15 순수 Canvas MVVM 샘플:** `samples/VisionCanvas.MvvmSample`을 별도로 만들고 이미지/ROI/통합 이력만 제공한다. 진단은 테스트 프로젝트에 분리하며 ImageCoordinator를 Canvas로 옮겨 두 앱이 공유한다. [범위·명령](visioncanvas-mvvm-sample.md), [ADR-052](../docs/decisions/0052-minimal-mvvm-canvas-sample.md), [검증·원칙 검토](../docs/visioncanvas-mvvm-sample.md). 로컬 수정·검증만 진행한다.
+
+- **2026-10-15 PoseMatch CUDA:** 전체 PoseMatch 탐색을 유지한다는 사용자 확정에 따라 CPU/CUDA ONNX, 명시적 세션 재사용, FP32 계산 결합과 RTX3060 실측을 추가한다. 신뢰도 후보 개수와 정밀 정확도를 구별하고 CPU125ms/CUDA80ms의 미달을 유지한다. [검증·미완료 범위](../docs/posematch-tdcm-cuda.md). 로컬 작업만 진행한다.
+
+- **2026-10-15 매뉴얼 class·record:** 4장 타입 비교 → 5장 실제 ROI Rename/with/불변 문서/Undo·Redo → Core를 참조하는 RecordsHistory 실습으로 연결한다. 제품 코드는 유지하며 [검증](../docs/beginner-manual-validation.md)의 로컬 실행·정적 문서 확인 범위를 따른다.
+
+- **2026-10-15 PoseMatch-TDCM:** 공식 MIT 가중치의 ONNX 변환·출력 대조 → 독립 C# 라이브러리 → VisionAlgorithm 프로젝트 참조 → 원본 검사 서비스와 독립 앱 모드 → 주요 창/학습 크기 벤치마크. 원본 ROI18~2048px를 내부36×36으로 정규화하며 큰 원본은 겹치는 창으로 검사한다. [ADR-051](../docs/decisions/0051-posematch-tdcm.md), [검증](../docs/posematch-tdcm.md). 딥러닝 금지의 과거 결정은 이 모드에 한해 사용자 요청으로 대체한다.
+
+- **2026-10-15 기존 그룹 확장·지연 분석:** 바깥 독립 ROI를 편입할 때 기존 그룹을 확장하고, 상위 경계를 넘으면 원자적으로 거부한다. 필요 시 부모 테두리를 사각형으로 전환할 수 있다는 사용자 답변을 반영한다. 처음 변환 준비와 확정 GC를 측정하고 불변 자료·Undo/Redo를 유지하며 할당을 줄인다. [ADR-050](../docs/decisions/0050-group-expansion-and-preparation-allocations.md), [결과](../docs/group-expansion-validation.md). 이전 외부 편입 시 부모 형상 유지 규칙을 대체한다. 로컬 작업만 진행한다.
+
+- **2026-10-15 복수 선택·슬라이딩·대량 입력:** 주황색 복수 선택 회전 제거, 실제 부모 벽을 따르는 슬라이딩, Shift/빠른 입력/정확한 Up 확정·통합 이력 보존. 단일 선택 즉시 게시와 큰 그룹 BVH 배치 재사용을 같은4만 ROI 조건으로 비교한다. [ADR-049](../docs/decisions/0049-roi-sliding-and-group-interaction.md), [실측·검증](../docs/group-interaction-validation.md). 엄격한60FPS 미달을 유지하며 로컬 작업만 진행한다.
+
+- **2026-10-15 자체 기하 패턴 제거:** 논문 기반/OpenCV 두 방식만 유지하고 자체 기하의 UI·상태·품질 게이트·CLI·전용 테스트/측정 경로를 제거한다. 공통 윤곽 감점·원본 입력·CUDA·취소·마스크·회전 검사는 보존한다. [검증·호환성 변경](../docs/geometric-matching-removal.md). 이전 자체 기하 확장 계획은 이력이다.
+
+- **2026-10-15 ROI 이탈·빠른 입력·중첩 선택:** 일반 리프도 부모 안에서 편집하고 이동/회전 경로의 첫 경계에서 멈춘다. 밖에 있는 독립 ROI 편입은 사용자 답변에 따라 유지하며 안에서 이동을 확정한 이후부터 제한한다. 더블클릭으로 실제 계층의 겹친 ROI/그룹을 순환하고 선택 그룹 내부 드래그를 유지한다. 폴리곤 부모 자동 추가도 실제 내부에 배치한다. [ADR-048](../docs/decisions/0048-roi-boundary-motion-and-nested-selection.md), [재현·검증](../docs/roi-boundary-motion-validation.md). 로컬 수정·검증만 진행한다.
+
+- **2026-10-15 전체 View·그룹 경계:** 앱 View11개/공통 FilterPanel의 책임을 검토하고 반복 창의 조립·초기화 상태·진단을 분리한다. ROI 그룹/모듈 그룹은 이동·회전·크기 변경 시 상위 실제 도형 안에 유지하고 그룹 해제로 풀 수 있다. 일반 리프 자유 편집과4단계/색상/이력은 유지한다. ROI 추가/그리기는 선택 그룹에 연결하거나 독립 생성하는 하나의 명령으로 통합하고 부모 버튼은 유지한다. [ADR-047](../docs/decisions/0047-view-responsibilities-and-group-bounds.md), [검증·View 유지 이유](../docs/views-mvvm-and-group-bounds.md). 아래의 이전 그룹 자유 편집·별도 자식 버튼 설명을 대체하며 로컬 검증만 진행한다.
+
+- **2026-10-15 MainWindow 책임 재검토:** 서비스 조립/해제는 App, 진단 분기는 Diagnostics, 초기화 명령/오류와 성능 문구는 VM으로 분리한다. View에는 실제 UI 연결·포커스·창 표시만 남긴다. `WpfTextRasterizer`는 `TextRasterizer`로 직접 변경하며 렌더 STA와 픽셀 계약을 유지한다. 초기화 실패/재시도·표시 상태·실제 앱 수명을 확인한다. [ADR-046](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [검증](../docs/mvvm-viewport-validation.md). 로컬 수정·검증만 진행한다.
+
 - **2026-10-15 부모 버튼 복구·MVVM 폴더:** 초록색 독립 ROI와 별도로 빈 부모 추가/그리기를 제공한다. 부모는 생성 시부터 그룹 역할을 가지며 자식 추가/그리기와 최대4단계를 유지한다. 앱을 Models/Views/ViewModels 및 Commands/Services/Infrastructure로 정리하고 MainWindow의 XAML 시작 경로·namespace·문서 경로를 갱신한다. [ADR-046 후속](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [폴더 안내](../docs/code-guide.md).
 
 - **2026-10-15 기본 ROI 후속:** 기본 그리기·추가는 부모 없는 초록색 ROI이며 연결된 자식과 같은 스타일을 사용한다. 그리기 미리보기·그룹 해제/이력에서도 유지한다. `RoiStyles`와 `MainWindowViewModel`로 타입/파일 이름을 맞추고 기존 DataContext와 서비스 주입을 보존한다. [ADR-046 후속](../docs/decisions/0046-parent-reuse-and-mvvm-viewport.md), [검증](../docs/mvvm-viewport-validation.md).

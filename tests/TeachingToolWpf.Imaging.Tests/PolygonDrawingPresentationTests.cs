@@ -14,6 +14,30 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class PolygonDrawingPresentationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LeafAndMultipleSelectionsCreateIndependentRois(bool multiple) => OnSta(() =>
+    {
+        using var surface = new Surface();
+        using var model = CreateModel(surface);
+        LoadImage(model);
+        var parent = model.Session.AddParent(new(new(100, 100), 100, 100, 0));
+        var leaf = model.Session.Add(new(new(500, 500), 20, 20, 0));
+        model.Session.Select(multiple ? [parent, leaf] : [leaf]);
+        model.AddRoi.Execute(null);
+        var created = model.Session.State.Rois[model.Session.State.Selection.Single()];
+        Assert.Null(created.ParentId);
+        Assert.False(created.IsGroup);
+        Assert.Equal(3, model.Session.State.Rois.Count);
+        model.Session.Select([parent]);
+        Assert.True(model.HandleKey(System.Windows.Input.Key.R, false, false));
+        Assert.Equal(parent, model.Input.DrawParentId);
+        model.Input.Cancel();
+        model.Session.Select([]);
+        model.DrawTool.Execute(null);
+        Assert.Null(model.Input.DrawParentId);
+    });
+    [Theory]
     [InlineData(RoiShapeKind.Rectangle, false)]
     [InlineData(RoiShapeKind.Circle, false)]
     [InlineData(RoiShapeKind.Triangle, false)]
@@ -54,9 +78,10 @@ public class PolygonDrawingPresentationTests
         model.Session.Redo();
         Assert.Equal(group, model.Session.State.Rois[group.Id]);
         model.SelectedShape = RoiShapeKind.Rectangle;
-        model.AddChildRoi.Execute(null);
+        model.AddRoi.Execute(null);
         var child = model.Session.State.Rois[model.Session.State.Selection.Single()];
         Assert.Equal(group.Id, child.ParentId);
+        Assert.True(group.Geometry.Covers(child.Geometry));
         Assert.False(child.IsGroup);
         Assert.Equal(2, model.Session.State.Rois.Count);
     });
@@ -80,10 +105,11 @@ public class PolygonDrawingPresentationTests
         model.Input.Up(new(110, 110));
         var leaf = Assert.Single(model.Session.State.Rois).Value;
         Assert.False(leaf.IsGroup);
+        var group = model.Session.AddParent(new(new(100, 100), 200, 200, 0));
         model.DrawParentRoi.Execute(null);
-        model.DrawChildRoi.Execute(null);
+        model.DrawTool.Execute(null);
         Assert.False(model.Input.DrawAsGroup);
-        Assert.Equal(leaf.Id, model.Input.DrawParentId);
+        Assert.Equal(group, model.Input.DrawParentId);
         model.DrawParentRoi.Execute(null);
         Assert.Null(model.Input.DrawParentId);
         Assert.True(model.Input.DrawAsGroup);
@@ -97,11 +123,12 @@ public class PolygonDrawingPresentationTests
         using var surface = new Surface();
         using var model = CreateModel(surface);
         LoadImage(model);
-        var parent = model.Session.Add(new(new(100, 100), 200, 200, 0));
+        var parent = child ? model.Session.AddParent(new(new(100, 100), 200, 200, 0))
+            : model.Session.Add(new(new(100, 100), 200, 200, 0));
         model.SelectedShape = RoiShapeKind.Polygon;
         var before = model.Session.State;
         var bytes = model.Session.HistoryBytes;
-        var command = child ? model.AddChildRoi : model.AddRoi;
+        var command = model.AddRoi;
         Assert.True(command.CanExecute(null));
         command.Execute(null);
 
@@ -168,9 +195,11 @@ public class PolygonDrawingPresentationTests
         Assert.False(parent.IsGroup);
         Assert.Equal(RoiRole.Child, RoiStyleRoles.Resolve(model.Scene!.Document, parent.Id));
         Assert.True(model.IsSelect);
-        model.AddChildRoi.Execute(null);
+        model.AddParentRoi.Execute(null);
+        var group = model.Session.State.Selection.Single();
+        model.AddRoi.Execute(null);
         var child = model.Session.State.Rois[model.Session.State.Selection.Single()];
-        Assert.Equal(parent.Id, child.ParentId);
+        Assert.Equal(group, child.ParentId);
         Assert.Equal(kind, child.Geometry.Shape.Kind);
     });
 
@@ -178,15 +207,16 @@ public class PolygonDrawingPresentationTests
     [InlineData(RoiShapeKind.Rectangle)]
     [InlineData(RoiShapeKind.Circle)]
     [InlineData(RoiShapeKind.Triangle)]
-    public void DefaultDrawButtonCreatesIndependentLeafAfterChildDrawMode(RoiShapeKind kind) => OnSta(() =>
+    public void ClearingParentSelectionRestoresIndependentDrawing(RoiShapeKind kind) => OnSta(() =>
     {
         using var surface = new Surface();
         using var model = CreateModel(surface);
         LoadImage(model);
-        var parent = model.Session.Add(new(new(500, 500), 100, 100, 0));
-        model.DrawChildRoi.Execute(null);
+        var parent = model.Session.AddParent(new(new(500, 500), 100, 100, 0));
+        model.DrawTool.Execute(null);
         Assert.Equal(parent, model.Input.DrawParentId);
         model.SelectedShape = kind;
+        model.Session.Select([]);
         model.DrawTool.Execute(null);
         Assert.Null(model.Input.DrawParentId);
         model.Input.Down(new(10, 10));
@@ -204,16 +234,16 @@ public class PolygonDrawingPresentationTests
     });
 
     [Fact]
-    public void PolygonAddRequiresImageAndChildRequiresOneParent() => OnSta(() =>
+    public void UnifiedPolygonCreationRequiresAnImageButNotAParent() => OnSta(() =>
     {
         using var surface = new Surface();
         using var model = CreateModel(surface);
         model.SelectedShape = RoiShapeKind.Polygon;
         Assert.False(model.AddRoi.CanExecute(null));
-        Assert.False(model.AddChildRoi.CanExecute(null));
+        Assert.False(model.DrawTool.CanExecute(null));
         LoadImage(model);
         Assert.True(model.AddRoi.CanExecute(null));
-        Assert.False(model.AddChildRoi.CanExecute(null));
+        Assert.True(model.DrawTool.CanExecute(null));
     });
 
     private static MainWindowViewModel CreateModel(Surface surface) => new(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new TestLoader(),

@@ -28,7 +28,6 @@ internal static class InspectionSpeedBenchmark
                 MinimumAngleDegrees = -180,
                 MaximumAngleDegrees = 180,
                 AngleStepDegrees = 10,
-                BuildGeometricModel = false,
                 BuildClutterModel = true
             }, cancellation.Token);
             ShapeSearchOutput? cpu = null;
@@ -38,7 +37,6 @@ internal static class InspectionSpeedBenchmark
                 {
                     MaximumMatches = 1000,
                     MaximumCandidates = width > 8192 ? 8192 : 2048,
-                    EvaluateGeometry = false,
                     ClutterWeight = 1,
                     MaximumParallelism = parallelism,
                     ComputeMode = mode

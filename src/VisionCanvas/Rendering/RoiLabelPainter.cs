@@ -35,6 +35,7 @@ internal sealed class RoiLabelPainter
             !ReferenceEquals(_previous.Transform?.Selection, scene.Transform?.Selection) ||
             transform.AngleDegrees != priorTransform.AngleDegrees || transform.Pivot != priorTransform.Pivot ||
             _previous.Width != scene.Width || _previous.Height != scene.Height || _previous.Dpi != scene.Dpi ||
+            _previous.Overlay.HandleScale != scene.Overlay.HandleScale ||
             Math.Abs(offset.X) > 64 || Math.Abs(offset.Y) > 64 || moved.Length * scene.Document.Viewport.Scale > 64)
         {
             Rebuild(scene);
@@ -49,7 +50,7 @@ internal sealed class RoiLabelPainter
                 continue;
             }
 
-            var anchor = ClampAnchor(Anchor(geometry, scene.Document.Viewport, label.Selected && scene.Document.SelectionCount == 1), scene.Width, scene.Height);
+            var anchor = ClampAnchor(Anchor(geometry, scene.Document.Viewport, label.Selected && scene.Document.SelectionCount == 1, scene.Overlay.HandleScale), scene.Width, scene.Height);
             var texture = label.Selected && scene.Document.SelectionCount == 1 ? immediate(label.Text) : rasterize(label.Text);
             if (texture is null)
             {
@@ -122,7 +123,7 @@ internal sealed class RoiLabelPainter
                     continue;
                 }
 
-                var anchor = ClampAnchor(Anchor(geometry, view, selected && state.SelectionCount == 1), scene.Width, scene.Height);
+                var anchor = ClampAnchor(Anchor(geometry, view, selected && state.SelectionCount == 1, scene.Overlay.HandleScale), scene.Width, scene.Height);
                 var estimatedLength = roi.Name.Length + (children.ContainsKey(roi.Id) ? 12 : 0) + (selected ? 14 : 0);
                 var estimate = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + Math.Min(430, (estimatedLength * 12) + 12)), anchor.Y + 24);
                 if (Intersects(estimate))
@@ -138,11 +139,11 @@ internal sealed class RoiLabelPainter
         }
     }
 
-    private static PointD Anchor(RoiGeometry geometry, ViewportTransform view, bool singleSelection)
+    private static PointD Anchor(RoiGeometry geometry, ViewportTransform view, bool singleSelection, double handleScale)
     {
         var bounds = geometry.Bounds;
         var corner = view.ImageToScreen(new(bounds.Left, bounds.Top));
-        var top = singleSelection ? Math.Min(corner.Y, HandleGeometry.RotationHandle(geometry, view).Y - 8) : corner.Y;
+        var top = singleSelection ? Math.Min(corner.Y, HandleGeometry.RotationHandle(geometry, view, handleScale).Y - (8 * handleScale)) : corner.Y;
         return new(corner.X, top - 30);
     }
 

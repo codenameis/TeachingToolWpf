@@ -48,7 +48,8 @@ public sealed class InspectionLimitDecisionTests
 
         var reason = InspectionDecision.Evaluate(output).Reason;
 
-        Assert.Equal(truncated, reason.Contains("후보 예산 초과", StringComparison.Ordinal));
+        Assert.Equal(truncated, reason.Contains("일부 후보를 확인하지 못했습니다", StringComparison.Ordinal));
+        Assert.Equal(truncated, reason.Contains("최대 후보 수를 늘리거나 검색 ROI를 줄이세요", StringComparison.Ordinal));
         Assert.Equal(matchLimitExceeded, reason.Contains("추가 검출 결과", StringComparison.Ordinal));
         Assert.Equal(matchLimitExceeded, reason.Contains("최대 결과 수를 늘려", StringComparison.Ordinal));
     }
@@ -87,7 +88,8 @@ public sealed class InspectionLimitDecisionTests
         var decision = InspectionDecision.Evaluate(output);
 
         Assert.Equal(InspectionVerdict.Warning, decision.Verdict);
-        Assert.Equal(truncated, decision.Reason.Contains("검색 예산 초과", StringComparison.Ordinal));
+        Assert.Equal(truncated, decision.Reason.Contains("일부 후보를 확인하지 못했습니다", StringComparison.Ordinal));
+        Assert.Equal(truncated, decision.Reason.Contains("후보 예산·형상 검증 후보 수를 늘리거나 검색 ROI를 줄이세요", StringComparison.Ordinal));
         Assert.Equal(matchLimitExceeded, decision.Reason.Contains("추가 검출 결과", StringComparison.Ordinal));
     }
 }

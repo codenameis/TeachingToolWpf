@@ -1,0 +1,117 @@
+[
+  {
+    "Name": "blurred-dim-two",
+    "Template": "template.png",
+    "Image": "blurred-dim-two.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 0.75,
+      "MaximumScale": 1.25,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 124.7,
+        "Y": 142.3,
+        "AngleDegrees": -23.4,
+        "Scale": 1.05,
+        "Score": 1
+      },
+      {
+        "X": 369.2,
+        "Y": 345.8,
+        "AngleDegrees": 12.7,
+        "Scale": 0.95,
+        "Score": 1
+      }
+    ],
+    "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+    "GroundTruthComplete": true,
+    "Split": "AccuracyValidation",
+    "Centers": null
+  },
+  {
+    "Name": "smaller-rotated",
+    "Template": "template.png",
+    "Image": "smaller-rotated.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 0.75,
+      "MaximumScale": 1.25,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 131.4,
+        "Y": 124.8,
+        "AngleDegrees": 11.4,
+        "Scale": 0.8,
+        "Score": 1
+      }
+    ],
+    "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+    "GroundTruthComplete": true,
+    "Split": "AccuracyValidation",
+    "Centers": null
+  },
+  {
+    "Name": "8k-local-two",
+    "Template": "template.png",
+    "Image": "8k-local-two.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 0.75,
+      "MaximumScale": 1.25,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": {
+        "X": 5888,
+        "Y": 3968,
+        "Width": 512,
+        "Height": 512
+      }
+    },
+    "Expected": [
+      {
+        "X": 6020.4,
+        "Y": 4050.7,
+        "AngleDegrees": 7.6,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 6200.6,
+        "Y": 4270.2,
+        "AngleDegrees": -8.4,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+    "GroundTruthComplete": true,
+    "Split": "AccuracyValidation",
+    "Centers": null
+  }
+]

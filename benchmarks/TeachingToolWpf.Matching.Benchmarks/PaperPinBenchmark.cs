@@ -20,12 +20,10 @@ internal static class PaperPinBenchmark
             MinimumAngleDegrees = -180,
             MaximumAngleDegrees = 180,
             AngleStepDegrees = 10,
-            BuildGeometricModel = false
         };
         var searchOptions = new SearchOptions
         {
             MaximumMatches = 1000,
-            EvaluateGeometry = false
         };
         var loader = new CountingImageLoader(new ImageLoader(Path.GetFullPath("artifacts/matching-benchmark-cache")));
         var service = new ShapeMatchingService(loader, () => null);

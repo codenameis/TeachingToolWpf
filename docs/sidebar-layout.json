@@ -1,0 +1,101 @@
+{
+  "failure": null,
+  "measurements": [
+    {
+      "Width": 1440,
+      "Height": 880,
+      "Method": 1,
+      "ActualHeight": 579.3333333333334,
+      "ScrollableHeight": 0,
+      "ButtonY": 537.3333333333333
+    },
+    {
+      "Width": 1440,
+      "Height": 880,
+      "Method": 0,
+      "ActualHeight": 579.3333333333334,
+      "ScrollableHeight": 0,
+      "ButtonY": 537.3333333333333
+    },
+    {
+      "Width": 1440,
+      "Height": 880,
+      "Method": 3,
+      "ActualHeight": 579.3333333333334,
+      "ScrollableHeight": 0,
+      "ButtonY": 537.3333333333333
+    },
+    {
+      "Width": 1440,
+      "Height": 880,
+      "Method": 4,
+      "ActualHeight": 579.3333333333334,
+      "ScrollableHeight": 0,
+      "ButtonY": 537.3333333333333
+    },
+    {
+      "Width": 1440,
+      "Height": 880,
+      "Method": 5,
+      "ActualHeight": 579.3333333333334,
+      "ScrollableHeight": 0,
+      "ButtonY": 537.3333333333333
+    },
+    {
+      "Width": 1440,
+      "Height": 880,
+      "Method": 6,
+      "ActualHeight": 579.3333333333334,
+      "ScrollableHeight": 0,
+      "ButtonY": 537.3333333333333
+    },
+    {
+      "Width": 1180,
+      "Height": 680,
+      "Method": 1,
+      "ActualHeight": 379.3333333333333,
+      "ScrollableHeight": 111.33333333333334,
+      "ButtonY": 337.3333333333333
+    },
+    {
+      "Width": 1180,
+      "Height": 680,
+      "Method": 0,
+      "ActualHeight": 379.3333333333333,
+      "ScrollableHeight": 111.33333333333334,
+      "ButtonY": 337.3333333333333
+    },
+    {
+      "Width": 1180,
+      "Height": 680,
+      "Method": 3,
+      "ActualHeight": 379.3333333333333,
+      "ScrollableHeight": 111.33333333333334,
+      "ButtonY": 337.3333333333333
+    },
+    {
+      "Width": 1180,
+      "Height": 680,
+      "Method": 4,
+      "ActualHeight": 379.3333333333333,
+      "ScrollableHeight": 174.00000000000003,
+      "ButtonY": 337.3333333333333
+    },
+    {
+      "Width": 1180,
+      "Height": 680,
+      "Method": 5,
+      "ActualHeight": 379.3333333333333,
+      "ScrollableHeight": 174.00000000000003,
+      "ButtonY": 337.3333333333333
+    },
+    {
+      "Width": 1180,
+      "Height": 680,
+      "Method": 6,
+      "ActualHeight": 379.3333333333333,
+      "ScrollableHeight": 174.00000000000003,
+      "ButtonY": 337.3333333333333
+    }
+  ]
+}

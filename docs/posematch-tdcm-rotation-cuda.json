@@ -1,0 +1,274 @@
+[
+  {
+    "device": "Cuda",
+    "turns": 0,
+    "refine": false,
+    "elapsed": 337.3053,
+    "expectedX": 45,
+    "expectedY": 95,
+    "expectedAngle": 50,
+    "positionError": 1.4006446928309673,
+    "angleError": 25.583694755265014,
+    "expectedCount": 1,
+    "actualCount": 2,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 43.791666666666664,
+          "Y": 94.29166666666667,
+          "Width": 26.355623245239258,
+          "Height": 29.125219345092773,
+          "AngleDegrees": 75.58369475526506,
+          "Score": 0.7600781
+        },
+        {
+          "X": 132,
+          "Y": 95,
+          "Width": 23.71219825744629,
+          "Height": 31.041484832763672,
+          "AngleDegrees": -171.8950873102662,
+          "Score": 0.6561857
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 0,
+    "refine": true,
+    "elapsed": 87.7077,
+    "expectedX": 45,
+    "expectedY": 95,
+    "expectedAngle": 50,
+    "positionError": 1.4006446928309673,
+    "angleError": 4.5836947552650145,
+    "expectedCount": 1,
+    "actualCount": 2,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 43.791666666666664,
+          "Y": 94.29166666666667,
+          "Width": 30.675623245239258,
+          "Height": 31.285219345092774,
+          "AngleDegrees": 54.583694755265014,
+          "Score": 0.7600781
+        },
+        {
+          "X": 132,
+          "Y": 95,
+          "Width": 23.71219825744629,
+          "Height": 31.041484832763672,
+          "AngleDegrees": -167.3950873102662,
+          "Score": 0.6561857
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 1,
+    "refine": false,
+    "elapsed": 31.1675,
+    "expectedX": 416,
+    "expectedY": 45,
+    "expectedAngle": 140,
+    "positionError": 1.3038404810405249,
+    "angleError": 55.61916987717598,
+    "expectedCount": 1,
+    "actualCount": 2,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 416.7,
+          "Y": 43.9,
+          "Width": 28.889925003051758,
+          "Height": 31.856775283813477,
+          "AngleDegrees": -164.38083012282405,
+          "Score": 0.8584054
+        },
+        {
+          "X": 414.9,
+          "Y": 131.1,
+          "Width": 22.421619415283203,
+          "Height": 31.37020492553711,
+          "AngleDegrees": -81.77272881520206,
+          "Score": 0.6748325
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 1,
+    "refine": true,
+    "elapsed": 84.105,
+    "expectedX": 416,
+    "expectedY": 45,
+    "expectedAngle": 140,
+    "positionError": 1.3038404810405249,
+    "angleError": 4.619169877175864,
+    "expectedCount": 1,
+    "actualCount": 2,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 416.7,
+          "Y": 43.9,
+          "Width": 31.049925003051758,
+          "Height": 30.77677528381348,
+          "AngleDegrees": 144.61916987717598,
+          "Score": 0.8584054
+        },
+        {
+          "X": 414.9,
+          "Y": 131.1,
+          "Width": 22.421619415283203,
+          "Height": 31.37020492553711,
+          "AngleDegrees": -73.27272881520207,
+          "Score": 0.6748325
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 2,
+    "refine": false,
+    "elapsed": 29.8521,
+    "expectedX": 466,
+    "expectedY": 416,
+    "expectedAngle": 230,
+    "positionError": 1.1916958038395644,
+    "angleError": 16.01812760336918,
+    "expectedCount": 1,
+    "actualCount": 1,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 466.7083333333333,
+          "Y": 416.9583333333333,
+          "Width": 27.802804946899414,
+          "Height": 28.648836135864258,
+          "AngleDegrees": -113.98187239663079,
+          "Score": 0.81890875
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 2,
+    "refine": true,
+    "elapsed": 47.692,
+    "expectedX": 466,
+    "expectedY": 416,
+    "expectedAngle": 230,
+    "positionError": 1.1916958038395644,
+    "angleError": 2.51812760336918,
+    "expectedCount": 1,
+    "actualCount": 1,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 466.7083333333333,
+          "Y": 416.9583333333333,
+          "Width": 31.042804946899412,
+          "Height": 31.348836135864257,
+          "AngleDegrees": -127.48187239663082,
+          "Score": 0.81890875
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 3,
+    "refine": false,
+    "elapsed": 31.0065,
+    "expectedX": 95,
+    "expectedY": 466,
+    "expectedAngle": 320,
+    "positionError": 1.2525529485370548,
+    "angleError": 7.267521176539049,
+    "expectedCount": 1,
+    "actualCount": 2,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 95,
+          "Y": 379.70588235294116,
+          "Width": 22.72197151184082,
+          "Height": 30.782970428466797,
+          "AngleDegrees": 94.29935214193343,
+          "Score": 0.72805655
+        },
+        {
+          "X": 94.46666666666667,
+          "Y": 467.1333333333333,
+          "Width": 27.451330184936523,
+          "Height": 30.88948631286621,
+          "AngleDegrees": -32.73247882346098,
+          "Score": 0.7122497
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  },
+  {
+    "device": "Cuda",
+    "turns": 3,
+    "refine": true,
+    "elapsed": 68.1834,
+    "expectedX": 95,
+    "expectedY": 466,
+    "expectedAngle": 320,
+    "positionError": 1.2525529485370548,
+    "angleError": 4.767521176539049,
+    "expectedCount": 1,
+    "actualCount": 2,
+    "acceptance": false,
+    "output": {
+      "Matches": [
+        {
+          "X": 95,
+          "Y": 379.70588235294116,
+          "Width": 22.72197151184082,
+          "Height": 30.782970428466797,
+          "AngleDegrees": 105.29935214193347,
+          "Score": 0.72805655
+        },
+        {
+          "X": 94.46666666666667,
+          "Y": 467.1333333333333,
+          "Width": 30.691330184936522,
+          "Height": 30.88948631286621,
+          "AngleDegrees": -35.23247882346095,
+          "Score": 0.7122497
+        }
+      ],
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false
+    }
+  }
+]

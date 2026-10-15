@@ -6,6 +6,10 @@ namespace VisionCanvas.Core.Editing;
 /// <summary>Prepared immutable values; only the originating session may publish them once.</summary>
 public sealed class PreparedEditorChange
 {
+    internal bool RestoresViewport
+    {
+        get;
+    }
     internal EditorSession Owner
     {
         get;
@@ -48,7 +52,7 @@ public sealed class PreparedEditorChange
     }
 
     internal PreparedEditorChange(EditorSession owner, long revision, long previewEpoch, DocumentState before, DocumentState state,
-        DocumentEdit? edit, (long Before, long After)? orderChange = null)
+        DocumentEdit? edit, (long Before, long After)? orderChange = null, bool restoresViewport = false)
     {
         Owner = owner;
         Revision = revision;
@@ -57,6 +61,7 @@ public sealed class PreparedEditorChange
         State = state;
         Edit = edit;
         OrderChange = orderChange;
+        RestoresViewport = restoresViewport;
     }
 }
 
@@ -124,7 +129,7 @@ public sealed partial class EditorSession
         => PrepareChangeAsync("ROI 회전", before =>
         {
             var selection = before.TransformSelection;
-            var transform = new RigidTransform2D(pivot, selection.RotationLimits(pivot).Clamp(delta));
+            var transform = new RigidTransform2D(pivot, selection.ConstrainRotation(pivot, delta));
             var next = selection.Apply(transform, token);
             return next;
         }, token);
@@ -134,7 +139,7 @@ public sealed partial class EditorSession
         var before = _previewStart ?? throw new InvalidOperationException("편집 preview가 시작되지 않았습니다.");
         var transform = TransformPreview;
         var displayed = State;
-        return PrepareChangeAsync(name, _ => transform is { } move ? move.Selection.Apply(move.Transform, token) : displayed,
+        return PrepareChangeAsync(name, _ => transform is { } move ? move.Selection.ApplyPreview(move.Transform, token) : displayed,
             token, before);
     }
 
@@ -156,7 +161,7 @@ public sealed partial class EditorSession
             token.ThrowIfCancellationRequested();
             var edit = name is null ? null : new DocumentEdit(name, before, next, cancellationToken: token);
             Warm(next, token);
-            // Reusing a parent changes only relationships and must not consume a new ROI number.
+            // Reusing and expanding a parent must not consume a new ROI number.
             if (orderChange is { } order && next.Rois.Count == before.Rois.Count)
             {
                 orderChange = (order.Before, order.Before);
@@ -198,13 +203,24 @@ public sealed partial class EditorSession
         token.ThrowIfCancellationRequested();
     }
 
-    public void CommitPrepared(PreparedEditorChange prepared)
+    /// <summary>원본 교체 등 되돌리기 어려운 작업을 시작하기 전에 준비 결과의 유효성을 확인한다.</summary>
+    public void ValidatePrepared(PreparedEditorChange prepared)
     {
+        ArgumentNullException.ThrowIfNull(prepared);
         if (!ReferenceEquals(prepared.Owner, this) || prepared.Consumed || prepared.Revision != _mutationRevision || prepared.PreviewEpoch != _previewEpoch ||
             (prepared.OrderChange is { } expectedOrder && expectedOrder.Before != _nextOrder))
         {
             throw new InvalidOperationException("편집 준비 중 문서가 변경되었습니다. 다시 시도하세요.");
         }
+        if (prepared.Edit is { } edit)
+        {
+            _history.ValidateBudget(edit);
+        }
+    }
+
+    public void CommitPrepared(PreparedEditorChange prepared)
+    {
+        ValidatePrepared(prepared);
 
         if (prepared.Edit is { IsEmpty: false } edit)
         {
@@ -224,7 +240,7 @@ public sealed partial class EditorSession
         _previewEpoch++;
         Publish(prepared.State with
         {
-            Viewport = State.Viewport
+            Viewport = prepared.RestoresViewport ? prepared.State.Viewport : State.Viewport
         });
         if (hadPreview)
         {

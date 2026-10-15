@@ -1,0 +1,403 @@
+{
+  "Boundary": "CPU Find only; 5 warm repeats. Before already includes accuracy correction. Exact double matches and evaluation counts compared.",
+  "Performance": [
+    {
+      "Name": "kensa-four-parts",
+      "Method": "Line2D",
+      "BeforeMedianMs": 130.0729,
+      "AfterMedianMs": 138.0286,
+      "BeforeMedianAllocatedBytes": 42802688,
+      "AfterMedianAllocatedBytes": 36966456,
+      "ExactMatchesEqual": true,
+      "EvaluationsEqual": true
+    },
+    {
+      "Name": "kensa-four-parts",
+      "Method": "SubNcc",
+      "BeforeMedianMs": 149.7368,
+      "AfterMedianMs": 138.045,
+      "BeforeMedianAllocatedBytes": 28709200,
+      "AfterMedianAllocatedBytes": 13601680,
+      "ExactMatchesEqual": true,
+      "EvaluationsEqual": true
+    },
+    {
+      "Name": "kensa-four-parts",
+      "Method": "DirectionalChamfer",
+      "BeforeMedianMs": 240.3619,
+      "AfterMedianMs": 226.5107,
+      "BeforeMedianAllocatedBytes": 34890696,
+      "AfterMedianAllocatedBytes": 31907056,
+      "ExactMatchesEqual": true,
+      "EvaluationsEqual": true
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "Line2D",
+      "BeforeMedianMs": 24.3197,
+      "AfterMedianMs": 23.0492,
+      "BeforeMedianAllocatedBytes": 8228656,
+      "AfterMedianAllocatedBytes": 7477088,
+      "ExactMatchesEqual": true,
+      "EvaluationsEqual": true
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "SubNcc",
+      "BeforeMedianMs": 17.2919,
+      "AfterMedianMs": 16.4376,
+      "BeforeMedianAllocatedBytes": 5916592,
+      "AfterMedianAllocatedBytes": 4607880,
+      "ExactMatchesEqual": true,
+      "EvaluationsEqual": true
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "DirectionalChamfer",
+      "BeforeMedianMs": 56.6541,
+      "AfterMedianMs": 53.2949,
+      "BeforeMedianAllocatedBytes": 8134672,
+      "AfterMedianAllocatedBytes": 7559120,
+      "ExactMatchesEqual": true,
+      "EvaluationsEqual": true
+    }
+  ],
+  "ExistingRegressionEquality": [
+    {
+      "Name": "local-zero",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-zero",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-zero",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-noise",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-noise",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-noise",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-scale",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-scale",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "local-scale",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "negative",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "negative",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "negative",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "multiple",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "multiple",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "multiple",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-two",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-two",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-two",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "Line2D",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "SubNcc",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "DirectionalChamfer",
+      "FoundEqual": true,
+      "EvaluationsEqual": true,
+      "Passed": true
+    }
+  ]
+}

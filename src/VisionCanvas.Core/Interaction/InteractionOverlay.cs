@@ -1,10 +1,13 @@
 using System.Collections.Immutable;
+using VisionCanvas.Core.Geometry;
 using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
 public sealed record InteractionOverlay(Guid? Hover = null, RoiGeometry? Draft = null, BoundsD? Marquee = null, ImmutableArray<PointD> PolygonPoints = default)
 {
+    public double HandleScale { get; init; } = HandleGeometry.DefaultScale;
+
     public bool DraftIsGroup
     {
         get; init;

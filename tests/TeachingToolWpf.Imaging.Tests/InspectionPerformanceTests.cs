@@ -67,8 +67,8 @@ public sealed class InspectionPerformanceTests
         model.MaximumParallelism = 3;
         model.SearchTimeoutSeconds = 12;
         model.SpeedProfile = InspectionSpeedProfile.Precise;
-        model.Method = PatternMatchingMethod.GeometricShape;
-        Assert.Equal(defaultParallelism, model.MaximumParallelism);
+        model.Method = PatternMatchingMethod.OpenCvTemplate;
+        Assert.Equal(1, model.MaximumParallelism);
         Assert.Equal(0, model.SearchTimeoutSeconds);
         model.Method = PatternMatchingMethod.Shape;
         Assert.Equal(3, model.MaximumParallelism);

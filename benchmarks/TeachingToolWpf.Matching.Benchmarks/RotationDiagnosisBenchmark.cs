@@ -27,14 +27,12 @@ internal static class RotationDiagnosisBenchmark
                     MaximumAngleDegrees = wide ? 180 : 10,
                     AngleStepDegrees = 10,
                     MinimumFeatureContrastRatio = contrast,
-                    BuildGeometricModel = false,
                     BuildClutterModel = true
                 };
                 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
                 var trained = await service.TrainAsync(image, false, roi, training, timeout.Token);
                 var options = new SearchOptions
                 {
-                    EvaluateGeometry = false,
                     ClutterWeight = 1,
                     MaximumMatches = 256,
                     MaximumParallelism = Math.Clamp(Environment.ProcessorCount, 1, 16)

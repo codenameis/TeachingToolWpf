@@ -8,6 +8,35 @@ namespace TeachingToolWpf.Core.Tests;
 public class TransformPreparationTests
 {
     [Fact]
+    public async Task LargePartialGroupEditPreservesStationaryQueriesAndHistory()
+    {
+        var editor = new EditorSession();
+        var fixture = new List<RoiCreation> { new(new(new(3000, 3000), 4500, 4500, 0)) };
+        fixture.AddRange(Enumerable.Range(0, 5000).Select(i => new RoiCreation(new(
+            new(1000 + (i % 100 * 20), 1000 + (i / 100 * 20)), 10, 10, i % 45), 0)));
+        editor.AddRange(fixture);
+        var group = editor.State.Rois.Values.Single(roi => roi.ParentId is null).Id;
+        var stationary = editor.Add(new(new(7000, 7000), 50, 50, 0));
+        editor.Select([group]);
+        var before = editor.State;
+        editor.CommitPrepared(await editor.PrepareRotationAsync(20, new(3000, 3000)));
+        var after = editor.State;
+        var rebuilt = new RoiSpatialIndex(after.Rois.Values);
+        Assert.Equal(before.Rois[stationary], after.Rois[stationary]);
+        foreach (var roi in after.Rois.Values.Where((_, i) => i % 19 == 0).Append(after.Rois[stationary]))
+        {
+            Assert.Equal(rebuilt.HitTest(roi.Geometry.Center, 0)?.Id, after.Snapshot.Spatial.HitTest(roi.Geometry.Center, 0)?.Id);
+            Assert.Equal(rebuilt.Intersecting(roi.Geometry.Bounds).Select(r => r.Id).Order(),
+                after.Snapshot.Spatial.Intersecting(roi.Geometry.Bounds).Select(r => r.Id).Order());
+        }
+        editor.Undo();
+        Assert.Equal(before.Rois, editor.State.Rois);
+        editor.Redo();
+        Assert.Equal(after.Rois, editor.State.Rois);
+        Assert.Equal(stationary, editor.State.Snapshot.Spatial.HitTest(new(7000, 7000), 0)!.Id);
+    }
+
+    [Fact]
     public async Task PreparedGroupWarmsMovingAndStationarySearchBoundariesBeforePublication()
     {
         var editor = Create();
@@ -151,7 +180,7 @@ public class TransformPreparationTests
         PointD? rotationPivot = null;
         double? rotationDegrees = null;
         var input = new InteractionController(editor,
-            previewTranslation: delta => translation = delta,
+            previewTranslation: (delta, _) => translation = delta,
             previewRotation: (pivot, degrees) =>
         {
             rotationPivot = pivot;

@@ -33,10 +33,12 @@ public class SpatialSubsetTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
+    [InlineData(3)]
     public void SelectedAndTransformIndexesMatchRebuildForEmptyWholeAndPartialSelection(int selectionMode)
     {
         var originals = Grid();
-        var selected = originals.Where(roi => selectionMode == 1 || (selectionMode == 2 && roi.Order % 3 != 1))
+        var selected = originals.Where(roi => selectionMode == 1 || (selectionMode == 2 && roi.Order % 3 != 1) ||
+            (selectionMode == 3 && roi != originals[^1]))
             .Select(roi => roi.Id).ToImmutableHashSet();
         var state = State(originals, selected);
         var spatial = state.Snapshot.Spatial;

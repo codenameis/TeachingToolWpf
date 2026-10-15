@@ -1,0 +1,1143 @@
+{
+  "Runtime": ".NET 10.0.13",
+  "CpuThreads": 12,
+  "Timing": "CPU Find includes ROI copy, pyramid, features, search, refinement; excludes PNG decode/UI; sequential",
+  "Rows": [
+    {
+      "Name": "blurred-dim-two",
+      "Method": "Line2D",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 8.0702,
+      "FirstMs": 309.9376,
+      "WarmMs": [
+        222.2591,
+        105.4179,
+        80.9461
+      ],
+      "AllocatedBytes": [
+        58721544,
+        58706816,
+        58682200,
+        58682192
+      ],
+      "MedianMs": 105.4179,
+      "Expected": [
+        {
+          "X": 124.7,
+          "Y": 142.3,
+          "AngleDegrees": -23.4,
+          "Scale": 1.05,
+          "Score": 1
+        },
+        {
+          "X": 369.2,
+          "Y": 345.8,
+          "AngleDegrees": 12.7,
+          "Scale": 0.95,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 124.77258212242741,
+          "Y": 142.29679060825544,
+          "AngleDegrees": -23.103760687338536,
+          "Scale": 1.0499999999999998,
+          "Score": 0.8772226510487233
+        },
+        {
+          "X": 369.33241991855306,
+          "Y": 345.830353191654,
+          "AngleDegrees": 12.612423109908036,
+          "Scale": 0.9499999999999998,
+          "Score": 0.830954238866777
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.07265304323589662,
+        0.13585415368396317
+      ],
+      "AngleErrors": [
+        0.29623931266144155,
+        0.08757689009200931
+      ],
+      "ScaleErrors": [
+        2.220446049250313E-16,
+        1.1102230246251565E-16
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 733203,
+      "ImageSha256": "5F0850153F28AD28849936F36FFE443AA489DE03609429372F10F91F70718F1E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "blurred-dim-two",
+      "Method": "SubNcc",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.2906,
+      "FirstMs": 1488.8872,
+      "WarmMs": [
+        1179.2894,
+        1156.0072,
+        1153.729
+      ],
+      "AllocatedBytes": [
+        232436368,
+        232693688,
+        232620640,
+        232580848
+      ],
+      "MedianMs": 1156.0072,
+      "Expected": [
+        {
+          "X": 124.7,
+          "Y": 142.3,
+          "AngleDegrees": -23.4,
+          "Scale": 1.05,
+          "Score": 1
+        },
+        {
+          "X": 369.2,
+          "Y": 345.8,
+          "AngleDegrees": 12.7,
+          "Scale": 0.95,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 124.75,
+          "Y": 142.25,
+          "AngleDegrees": -23.5,
+          "Scale": 1.05,
+          "Score": 0.8403184530038792
+        },
+        {
+          "X": 369.25,
+          "Y": 345.75,
+          "AngleDegrees": 12.625,
+          "Scale": 0.9499999999999998,
+          "Score": 0.816712473756854
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.07071067811866079,
+        0.07071067811867082
+      ],
+      "AngleErrors": [
+        0.10000000000002274,
+        0.07500000000004547
+      ],
+      "ScaleErrors": [
+        0,
+        1.1102230246251565E-16
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 759758,
+      "ImageSha256": "5F0850153F28AD28849936F36FFE443AA489DE03609429372F10F91F70718F1E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "blurred-dim-two",
+      "Method": "DirectionalChamfer",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.4352,
+      "FirstMs": 586.6021,
+      "WarmMs": [
+        423.7344,
+        422.6538,
+        424.0361
+      ],
+      "AllocatedBytes": [
+        49411144,
+        49411000,
+        49426792,
+        49411000
+      ],
+      "MedianMs": 423.7344,
+      "Expected": [
+        {
+          "X": 124.7,
+          "Y": 142.3,
+          "AngleDegrees": -23.4,
+          "Scale": 1.05,
+          "Score": 1
+        },
+        {
+          "X": 369.2,
+          "Y": 345.8,
+          "AngleDegrees": 12.7,
+          "Scale": 0.95,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 124.77258212242741,
+          "Y": 142.29679060825544,
+          "AngleDegrees": -23.103760687338536,
+          "Scale": 1.05,
+          "Score": 0.7985805855773604
+        },
+        {
+          "X": 369.3324177488779,
+          "Y": 345.83037175451875,
+          "AngleDegrees": 12.612388722797277,
+          "Scale": 0.9499999999999998,
+          "Score": 0.7674113757045032
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.07265304323589662,
+        0.13585618753093492
+      ],
+      "AngleErrors": [
+        0.29623931266144155,
+        0.08761127720276818
+      ],
+      "ScaleErrors": [
+        0,
+        1.1102230246251565E-16
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 724823,
+      "ImageSha256": "5F0850153F28AD28849936F36FFE443AA489DE03609429372F10F91F70718F1E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "blurred-dim-two",
+      "Method": "OpenCvFixed",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.1433,
+      "FirstMs": 32.159,
+      "WarmMs": [
+        23.8392,
+        24.7213,
+        23.1072
+      ],
+      "AllocatedBytes": [
+        291320,
+        274096,
+        274096,
+        274096
+      ],
+      "MedianMs": 23.8392,
+      "Expected": [
+        {
+          "X": 124.7,
+          "Y": 142.3,
+          "AngleDegrees": -23.4,
+          "Scale": 1.05,
+          "Score": 1
+        },
+        {
+          "X": 369.2,
+          "Y": 345.8,
+          "AngleDegrees": 12.7,
+          "Scale": 0.95,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 2,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "5F0850153F28AD28849936F36FFE443AA489DE03609429372F10F91F70718F1E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "blurred-dim-two",
+      "Method": "OpenCvRotated",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0018,
+      "FirstMs": 165.6028,
+      "WarmMs": [
+        169.2312,
+        163.5438,
+        160.0555
+      ],
+      "AllocatedBytes": [
+        313320,
+        313264,
+        313320,
+        313264
+      ],
+      "MedianMs": 163.5438,
+      "Expected": [
+        {
+          "X": 124.7,
+          "Y": 142.3,
+          "AngleDegrees": -23.4,
+          "Scale": 1.05,
+          "Score": 1
+        },
+        {
+          "X": 369.2,
+          "Y": 345.8,
+          "AngleDegrees": 12.7,
+          "Scale": 0.95,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 2,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "5F0850153F28AD28849936F36FFE443AA489DE03609429372F10F91F70718F1E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "smaller-rotated",
+      "Method": "Line2D",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.271,
+      "FirstMs": 26.5093,
+      "WarmMs": [
+        30.0711,
+        26.125,
+        29.3032
+      ],
+      "AllocatedBytes": [
+        16134280,
+        16134224,
+        16134224,
+        16134224
+      ],
+      "MedianMs": 29.3032,
+      "Expected": [
+        {
+          "X": 131.4,
+          "Y": 124.8,
+          "AngleDegrees": 11.4,
+          "Scale": 0.8,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 131.51133271455333,
+          "Y": 124.76817020422077,
+          "AngleDegrees": 11.553612410686014,
+          "Scale": 0.8,
+          "Score": 0.7923761252231447
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.11579339026542179
+      ],
+      "AngleErrors": [
+        0.15361241068603704
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 188412,
+      "ImageSha256": "A4C964FDB3A6F1CC60DFE8E24F79BA2DBAD0CB286A2A3866928F67731692BC03",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "smaller-rotated",
+      "Method": "SubNcc",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0628,
+      "FirstMs": 142.3567,
+      "WarmMs": [
+        138.2904,
+        139.2254,
+        138.8691
+      ],
+      "AllocatedBytes": [
+        32903784,
+        32948376,
+        32945792,
+        32945280
+      ],
+      "MedianMs": 138.8691,
+      "Expected": [
+        {
+          "X": 131.4,
+          "Y": 124.8,
+          "AngleDegrees": 11.4,
+          "Scale": 0.8,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 131.5,
+          "Y": 124.75,
+          "AngleDegrees": 11.25,
+          "Scale": 0.8,
+          "Score": 0.8774782076282988
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.11180339887498314
+      ],
+      "AngleErrors": [
+        0.14999999999997726
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 181762,
+      "ImageSha256": "A4C964FDB3A6F1CC60DFE8E24F79BA2DBAD0CB286A2A3866928F67731692BC03",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "smaller-rotated",
+      "Method": "DirectionalChamfer",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.4086,
+      "FirstMs": 118.8865,
+      "WarmMs": [
+        123.0712,
+        117.9662,
+        117.3463
+      ],
+      "AllocatedBytes": [
+        15347192,
+        15339128,
+        15339128,
+        15339128
+      ],
+      "MedianMs": 117.9662,
+      "Expected": [
+        {
+          "X": 131.4,
+          "Y": 124.8,
+          "AngleDegrees": 11.4,
+          "Scale": 0.8,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 131.51128778393038,
+          "Y": 124.76816106239626,
+          "AngleDegrees": 11.553475158206084,
+          "Scale": 0.8,
+          "Score": 0.7585865606255201
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.11575270536738848
+      ],
+      "AngleErrors": [
+        0.15347515820610624
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 198102,
+      "ImageSha256": "A4C964FDB3A6F1CC60DFE8E24F79BA2DBAD0CB286A2A3866928F67731692BC03",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "smaller-rotated",
+      "Method": "OpenCvFixed",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 5.5823,
+      "WarmMs": [
+        5.3939,
+        5.2054,
+        5.179
+      ],
+      "AllocatedBytes": [
+        77544,
+        77488,
+        77488,
+        77488
+      ],
+      "MedianMs": 5.2054,
+      "Expected": [
+        {
+          "X": 131.4,
+          "Y": 124.8,
+          "AngleDegrees": 11.4,
+          "Scale": 0.8,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "A4C964FDB3A6F1CC60DFE8E24F79BA2DBAD0CB286A2A3866928F67731692BC03",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "smaller-rotated",
+      "Method": "OpenCvRotated",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0015,
+      "FirstMs": 27.5251,
+      "WarmMs": [
+        26.7973,
+        27.3272,
+        27.7629
+      ],
+      "AllocatedBytes": [
+        116712,
+        116656,
+        116656,
+        116656
+      ],
+      "MedianMs": 27.3272,
+      "Expected": [
+        {
+          "X": 131.4,
+          "Y": 124.8,
+          "AngleDegrees": 11.4,
+          "Scale": 0.8,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "A4C964FDB3A6F1CC60DFE8E24F79BA2DBAD0CB286A2A3866928F67731692BC03",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "8k-local-two",
+      "Method": "Line2D",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": {
+          "X": 5888,
+          "Y": 3968,
+          "Width": 512,
+          "Height": 512
+        }
+      },
+      "TrainMs": 0.2078,
+      "FirstMs": 58.574,
+      "WarmMs": [
+        58.1998,
+        57.9749,
+        61.8737
+      ],
+      "AllocatedBytes": [
+        54759272,
+        54759216,
+        54759216,
+        54759216
+      ],
+      "MedianMs": 58.1998,
+      "Expected": [
+        {
+          "X": 6020.4,
+          "Y": 4050.7,
+          "AngleDegrees": 7.6,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 6200.6,
+          "Y": 4270.2,
+          "AngleDegrees": -8.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 6200.615184995118,
+          "Y": 4270.183027272683,
+          "AngleDegrees": -8.276196683671628,
+          "Scale": 0.9999999999999999,
+          "Score": 0.8980256165892381
+        },
+        {
+          "X": 6020.412985423574,
+          "Y": 4050.69535600811,
+          "AngleDegrees": 7.929020829880528,
+          "Scale": 0.9999999999999999,
+          "Score": 0.8963944795644951
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.013790862412709127,
+        0.022774054301078355
+      ],
+      "AngleErrors": [
+        0.3290208298805055,
+        0.12380331632834896
+      ],
+      "ScaleErrors": [
+        1.1102230246251565E-16,
+        1.1102230246251565E-16
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 713793,
+      "ImageSha256": "9F6770E689F21F828FF8D81F266820832A915293D1AD89864B1DA3130F5B2EBD",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "8k-local-two",
+      "Method": "SubNcc",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": {
+          "X": 5888,
+          "Y": 3968,
+          "Width": 512,
+          "Height": 512
+        }
+      },
+      "TrainMs": 0.9634,
+      "FirstMs": 449.4947,
+      "WarmMs": [
+        445.7257,
+        446.6079,
+        446.363
+      ],
+      "AllocatedBytes": [
+        42906632,
+        42906576,
+        42906576,
+        42906576
+      ],
+      "MedianMs": 446.363,
+      "Expected": [
+        {
+          "X": 6020.4,
+          "Y": 4050.7,
+          "AngleDegrees": 7.6,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 6200.6,
+          "Y": 4270.2,
+          "AngleDegrees": -8.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 6020.5,
+          "Y": 4050.75,
+          "AngleDegrees": 7.5,
+          "Scale": 1,
+          "Score": 0.9215417816204644
+        },
+        {
+          "X": 6200.5,
+          "Y": 4270.25,
+          "AngleDegrees": -8.375,
+          "Scale": 1,
+          "Score": 0.9201830538902614
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.11180339887539623,
+        0.11180339887539623
+      ],
+      "AngleErrors": [
+        0.10000000000002274,
+        0.024999999999977263
+      ],
+      "ScaleErrors": [
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 703093,
+      "ImageSha256": "9F6770E689F21F828FF8D81F266820832A915293D1AD89864B1DA3130F5B2EBD",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "8k-local-two",
+      "Method": "DirectionalChamfer",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": {
+          "X": 5888,
+          "Y": 3968,
+          "Width": 512,
+          "Height": 512
+        }
+      },
+      "TrainMs": 0.2435,
+      "FirstMs": 450.8856,
+      "WarmMs": [
+        433.1952,
+        436.9698,
+        432.4408
+      ],
+      "AllocatedBytes": [
+        51378816,
+        51378760,
+        51378760,
+        51378760
+      ],
+      "MedianMs": 433.1952,
+      "Expected": [
+        {
+          "X": 6020.4,
+          "Y": 4050.7,
+          "AngleDegrees": 7.6,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 6200.6,
+          "Y": 4270.2,
+          "AngleDegrees": -8.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 6020.412985423574,
+          "Y": 4050.69535600811,
+          "AngleDegrees": 7.929020829880528,
+          "Scale": 0.9999999999999999,
+          "Score": 0.8348769909337485
+        },
+        {
+          "X": 6200.615151758793,
+          "Y": 4270.183029063479,
+          "AngleDegrees": -8.276192523875125,
+          "Scale": 0.9999999999999999,
+          "Score": 0.831656150683792
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.013790862412709127,
+        0.022750571001931386
+      ],
+      "AngleErrors": [
+        0.3290208298805055,
+        0.12380747612485266
+      ],
+      "ScaleErrors": [
+        1.1102230246251565E-16,
+        1.1102230246251565E-16
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 739068,
+      "ImageSha256": "9F6770E689F21F828FF8D81F266820832A915293D1AD89864B1DA3130F5B2EBD",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "8k-local-two",
+      "Method": "OpenCvFixed",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": {
+          "X": 5888,
+          "Y": 3968,
+          "Width": 512,
+          "Height": 512
+        }
+      },
+      "TrainMs": 0.0009,
+      "FirstMs": 29.3246,
+      "WarmMs": [
+        24.2653,
+        21.1479,
+        21.048
+      ],
+      "AllocatedBytes": [
+        798520,
+        798464,
+        798464,
+        798464
+      ],
+      "MedianMs": 21.1479,
+      "Expected": [
+        {
+          "X": 6020.4,
+          "Y": 4050.7,
+          "AngleDegrees": 7.6,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 6200.6,
+          "Y": 4270.2,
+          "AngleDegrees": -8.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 2,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "9F6770E689F21F828FF8D81F266820832A915293D1AD89864B1DA3130F5B2EBD",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "8k-local-two",
+      "Method": "OpenCvRotated",
+      "Labels": "Known synthetic transform of original Kensa crop; generated after correction. 8K case searches only the explicit 512x512 region.",
+      "GroundTruthComplete": true,
+      "Split": "AccuracyValidation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.75,
+        "MaximumScale": 1.25,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": {
+          "X": 5888,
+          "Y": 3968,
+          "Width": 512,
+          "Height": 512
+        }
+      },
+      "TrainMs": 0.0014,
+      "FirstMs": 153.9532,
+      "WarmMs": [
+        147.2645,
+        149.6063,
+        151.4246
+      ],
+      "AllocatedBytes": [
+        837688,
+        837632,
+        837632,
+        837632
+      ],
+      "MedianMs": 149.6063,
+      "Expected": [
+        {
+          "X": 6020.4,
+          "Y": 4050.7,
+          "AngleDegrees": 7.6,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 6200.6,
+          "Y": 4270.2,
+          "AngleDegrees": -8.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 2,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "9F6770E689F21F828FF8D81F266820832A915293D1AD89864B1DA3130F5B2EBD",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    }
+  ]
+}

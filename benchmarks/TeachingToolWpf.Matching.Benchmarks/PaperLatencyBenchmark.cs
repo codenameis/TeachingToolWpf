@@ -28,7 +28,6 @@ internal static class PaperLatencyBenchmark
             MinimumAngleDegrees = -180,
             MaximumAngleDegrees = 180,
             AngleStepDegrees = 10,
-            BuildGeometricModel = false,
             BuildClutterModel = true
         };
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));
@@ -47,7 +46,6 @@ internal static class PaperLatencyBenchmark
                 var options = new SearchOptions
                 {
                     MaximumMatches = 256,
-                    EvaluateGeometry = false,
                     ClutterWeight = 1,
                     MaximumParallelism = Math.Clamp(Environment.ProcessorCount, 1, 16),
                     ComputeMode = backend

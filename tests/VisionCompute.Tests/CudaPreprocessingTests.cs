@@ -71,7 +71,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
         };
         Assert.Equal(expectedSearch, Assert.Single(gpu.Search(prepared, model, gpuOptions).Matches));
         Assert.Equal(expectedRefinement, Assert.Single(gpu.RefineCandidate(scene, model, new(102, 87, .1), .9, gpuOptions).Matches));
-        Assert.NotNull(expectedSearch.Geometry);
+        Assert.NotNull(expectedSearch.ClutterRatio);
     }
 
     [Theory]
@@ -121,6 +121,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
         return ShapeTrainer.Train(training, new(mask, new(48, 48)),
             new()
             {
+                BuildClutterModel = true,
                 MinimumAngleDegrees = -15,
                 MaximumAngleDegrees = 15,
                 AngleStepDegrees = 5

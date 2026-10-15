@@ -39,7 +39,7 @@ public sealed partial class ShapeMatchingViewModel
                 try
                 {
                     ActiveRotationAcceptance?.Validate();
-                    ActiveShapeState.Training.ToOptions(IsGeometricMethod).Validate();
+                    ActiveShapeState.Training.ToOptions().Validate();
                 }
                 catch (ArgumentException error)
                 {
@@ -48,7 +48,22 @@ public sealed partial class ShapeMatchingViewModel
             }
             try
             {
-                (IsShapeMethod ? CreateShapeSearchOptions() : CreateTemplateSearchOptions()).Validate();
+                if (IsCpuMethod)
+                {
+                    CreateCpuOptions().Validate();
+                    if (MaximumMatches > 1000)
+                    {
+                        return "앱의 최대 결과 수는 1~1000입니다.";
+                    }
+                }
+                else if (IsTdcmMethod)
+                {
+                    CreateTdcmOptions().Validate();
+                }
+                else
+                {
+                    (IsShapeMethod ? CreateShapeSearchOptions() : CreateTemplateSearchOptions()).Validate();
+                }
             }
             catch (ArgumentException error)
             {

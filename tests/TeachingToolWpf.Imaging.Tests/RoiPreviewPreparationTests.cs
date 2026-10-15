@@ -14,6 +14,52 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiPreviewPreparationTests
 {
     [Fact]
+    public void LatestColdTranslationPreservesShiftAxisLock() => OnStaAsync(async () =>
+    {
+        var session = Create();
+        var parent = session.AddParent(new(new(500, 500), 200, 200, 37));
+        var child = session.AddChild(parent, new(new(500, 500), 20, 20, 37));
+        var gate = new Gate();
+        using var coordinator = new RoiPreviewPreparation(session, ex => throw new Xunit.Sdk.XunitException(ex.Message), prepare: gate.Prepare);
+        session.BeginPreview();
+        coordinator.SubmitTranslation(new(300, 20));
+        await gate.Started.Task;
+        coordinator.SubmitTranslation(new(300, 0), allowSlide: false);
+        var flushed = coordinator.FlushAsync(default);
+        gate.Release.SetResult();
+        await flushed;
+        var shown = session.TransformPreview!.Geometry(session.State.Rois[child]);
+        Assert.Equal(500, shown.Center.Y);
+        Assert.True(session.State.Rois[parent].Geometry.Covers(shown));
+    });
+
+    [Fact]
+    public void ColdPreparationClampsLatestLargePointerAndCommitKeepsThePreview() => OnStaAsync(async () =>
+    {
+        var session = Create();
+        session.Select([]);
+        var parent = session.AddParent(new(new(500, 500), 300, 100, 0));
+        var child = session.AddChild(parent, new(new(500, 500), 250, 60, 0));
+        var before = session.State;
+        var gate = new Gate();
+        using var coordinator = new RoiPreviewPreparation(session, ex => throw new Xunit.Sdk.XunitException(ex.Message), prepare: gate.Prepare);
+        session.BeginPreview();
+        coordinator.SubmitRotation(new(500, 500), 20);
+        await gate.Started.Task;
+        coordinator.SubmitRotation(new(500, 500), 180);
+        var flushed = coordinator.FlushAsync(default);
+        gate.Release.SetResult();
+        await flushed;
+        Assert.InRange(session.TransformPreview!.Transform.AngleDegrees, 0.1, 15);
+        var shown = session.TransformPreview.Geometry(before.Rois[child]);
+        session.CommitPrepared(await session.PreparePreviewAsync("rotate"));
+        Assert.Equal(shown, session.State.Rois[child].Geometry);
+        Assert.True(session.State.Rois[parent].Geometry.Covers(shown));
+        session.Undo();
+        Assert.Equal(before.Rois, session.State.Rois);
+    });
+
+    [Fact]
     public void ColdRequestsUseOneWorkerAndApplyOnlyLatestPointerOnOwnerThread() => OnStaAsync(async () =>
     {
         var session = Create();

@@ -1,0 +1,503 @@
+[
+  {
+    "Name": "local-zero",
+    "Template": "part-template.png",
+    "Image": "local-zero.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 133.25,
+        "Y": 117.75,
+        "AngleDegrees": 0,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "local-rotation",
+    "Template": "part-template.png",
+    "Image": "local-rotation.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 142.25,
+        "Y": 121.75,
+        "AngleDegrees": 17,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "local-upside-down",
+    "Template": "part-template.png",
+    "Image": "local-upside-down.png",
+    "Options": {
+      "MinimumAngle": -180,
+      "MaximumAngle": 180,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 125.25,
+        "Y": 137.75,
+        "AngleDegrees": 179,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "local-noise",
+    "Template": "part-template.png",
+    "Image": "local-noise.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 139.25,
+        "Y": 118.75,
+        "AngleDegrees": -13,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "local-occlusion",
+    "Template": "part-template.png",
+    "Image": "local-occlusion.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 130.25,
+        "Y": 122.75,
+        "AngleDegrees": 12,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "local-scale",
+    "Template": "part-template.png",
+    "Image": "local-scale.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 0.9,
+      "MaximumScale": 1.1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 134.25,
+        "Y": 119.75,
+        "AngleDegrees": -11,
+        "Scale": 1.1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "negative",
+    "Template": "part-template.png",
+    "Image": "negative.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "multiple",
+    "Template": "part-template.png",
+    "Image": "multiple.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 120.25,
+        "Y": 110.75,
+        "AngleDegrees": 13,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 380.25,
+        "Y": 130.75,
+        "AngleDegrees": -17,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 250.25,
+        "Y": 380.75,
+        "AngleDegrees": 7,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "alignment-wide",
+    "Template": "part-template.png",
+    "Image": "alignment-wide.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 28.799999999999997,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 723.25,
+        "Y": 628.75,
+        "AngleDegrees": 23,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "text-rotation",
+    "Template": "text-template.png",
+    "Image": "text-rotation.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 14.399999999999999,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 128.25,
+        "Y": 130.75,
+        "AngleDegrees": -16,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "kensa-component-rotation",
+    "Template": "kensa-component-template.png",
+    "Image": "kensa-component-rotation.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 139.25,
+        "Y": 128.75,
+        "AngleDegrees": 14,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "kensa-18v-rotation",
+    "Template": "kensa-18v-template.png",
+    "Image": "kensa-18v-rotation.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 7.199999999999999,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 65.25,
+        "Y": 63.75,
+        "AngleDegrees": -12,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Development"
+  },
+  {
+    "Name": "kensa-18v-original",
+    "Template": "kensa-18v-template.png",
+    "Image": "kensa-18v-original.png",
+    "Options": {
+      "MinimumAngle": -20,
+      "MaximumAngle": 20,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 8,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 8,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 44,
+        "Y": 50.5,
+        "AngleDegrees": 0,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Known template crop; other possible instances unverified",
+    "GroundTruthComplete": false,
+    "Split": "Development"
+  },
+  {
+    "Name": "validation-oblique",
+    "Template": "validation-template.png",
+    "Image": "validation-oblique.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 36.6,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 138.6,
+        "Y": 126.2,
+        "AngleDegrees": -24.4,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Validation"
+  },
+  {
+    "Name": "validation-two",
+    "Template": "validation-template.png",
+    "Image": "validation-two.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 36.6,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 130.6,
+        "Y": 117.2,
+        "AngleDegrees": 6.8,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 360.4,
+        "Y": 372.7,
+        "AngleDegrees": -21.6,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Validation"
+  },
+  {
+    "Name": "validation-negative",
+    "Template": "validation-template.png",
+    "Image": "validation-negative.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 16,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 36.6,
+      "Region": null
+    },
+    "Expected": [],
+    "Labels": "Synthetic known transform; no real-scene recall claim",
+    "GroundTruthComplete": true,
+    "Split": "Validation"
+  }
+]

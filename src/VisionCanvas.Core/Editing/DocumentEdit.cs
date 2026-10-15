@@ -47,7 +47,7 @@ public sealed class DocumentEdit
         _refitSpatial = after.Snapshot.IsRigidUpdate && ReferenceEquals(after.Snapshot.PreviousRois, before.Rois);
         IEnumerable<Guid> candidates = ReferenceEquals(before.Rois, after.Rois) ? [] :
             ReferenceEquals(before.Rois, after.Snapshot.PreviousRois) ? after.Snapshot.ChangedIds : before.Rois.Keys.Union(after.Rois.Keys);
-        var changes = ImmutableArray.CreateBuilder<RoiChange>();
+        var changes = ImmutableArray.CreateBuilder<RoiChange>(candidates.TryGetNonEnumeratedCount(out var count) ? count : 0);
         var estimatedBytes = 256L;
         foreach (var id in candidates)
         {
@@ -66,7 +66,7 @@ public sealed class DocumentEdit
             estimatedBytes += ((old?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? old.Geometry.Shape.Vertices.Length : 0)
                 + (next?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? next.Geometry.Shape.Vertices.Length : 0)) * 16L;
         }
-        Changes = changes.ToImmutable();
+        Changes = changes.Count == changes.Capacity ? changes.MoveToImmutable() : changes.ToImmutable();
         _beforeSelection = before.Selection;
         _afterSelection = after.Selection;
         _beforeImage = before.Image;

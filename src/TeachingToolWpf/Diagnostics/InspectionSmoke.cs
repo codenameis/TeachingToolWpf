@@ -107,6 +107,8 @@ internal static partial class InspectionSmoke
                 model.Session.Select([model.Session.State.Rois.Keys.Single()]);
                 var methodSelector = Descendants(panel).OfType<ComboBox>().Single(box =>
                     System.Windows.Automation.AutomationProperties.GetName(box) == "매칭 방식");
+                Require(methodSelector.Items.Count == 3, "paper, OpenCV and PoseMatch-TDCM pattern modes");
+                Require(!Descendants(panel).OfType<Expander>().Any(item => item.Header?.ToString()?.Contains("기하 검증") == true), "removed geometric quality controls are absent");
                 methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.OpenCvTemplate);
                 Require(matching.Method == PatternMatchingMethod.OpenCvTemplate && !checkbox.IsEnabled, "OpenCV method selector disables unsupported features");
                 matching.MinimumScore = .98;
@@ -117,6 +119,14 @@ internal static partial class InspectionSmoke
                 Log(matching.Status);
                 await Capture("inspection-opencv");
                 WindowCapture.Save(window, viewport, "artifacts/inspection-opencv.png", "artifacts/inspection-opencv-app.png");
+                methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.PoseMatchTdcm);
+                await Invoke(matching.Train);
+                Require(matching.HasModel && matching.ModelSummary.Contains("PoseMatch-TDCM"), "TDCM original ROI training");
+                await Invoke(matching.Search);
+                Require(matching.Verdict is InspectionVerdict.Review or InspectionVerdict.Warning, "TDCM real ONNX inference completes without pretending quality OK");
+                Require(matching.Status.Contains("추론/후처리"), "TDCM measured inference timing");
+                Log(matching.Status);
+                await Capture("inspection-tdcm");
                 methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.Shape);
                 matching.MinimumScore = .72;
                 Require(matching.Model is not null, "switching methods preserves shape model");
@@ -128,7 +138,6 @@ internal static partial class InspectionSmoke
                 await Capture("inspection-no-match");
                 Require(PixelCounts("artifacts/inspection-no-match.png", InspectionResultPresentation.Color(InspectionVerdict.Fail)) > 100, "NG search boundary/banner pixels");
                 await VerifyBoundariesAsync(window, viewport, model, Capture, Invoke);
-                await VerifyGeometricQualityAsync(window, viewport, model, Capture, Invoke);
                 await VerifyPrimitiveControlsAsync(window, viewport, model, Capture);
                 Require(renderErrors.Count == 0, string.Join(Environment.NewLine, renderErrors));
                 Log($"PASS: file training/search, 2 poses, feature toggle ({off}→{on}), selection, navigation, four GPU colors, actual no-match, no renderer errors");

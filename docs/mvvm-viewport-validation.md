@@ -4,6 +4,37 @@
 
 ## 확인한 문제와 변경
 
+### 2026-10-15 MainWindow 코드 비하인드 재검토
+
+기존 ROI/영상/렌더 동작과 자원 해제 순서를 유지한다. MainWindow에 섞여 있던 서비스 생성/해제는 App, 실행 진단 선택은 DiagnosticStartup, 초기화 명령의 오류 경계와 성능 표시 문구는 VM으로 옮겼다. View는 UI 연결만 담당하며 남긴 코드별 근거는 [ADR-046](decisions/0046-parent-reuse-and-mvvm-viewport.md#view에-남기는-코드와-이유)에 적었다. StartupUri 대신 App이 생성 → 주입/Bind → 진단 또는 일반 초기화 연결 → Show를 수행한다. 설정창·UI 타이머·포커스 판별을 VM으로 옮기는 중계 계층은 추가하지 않았다.
+
+`WpfTextRasterizer` 두 partial 파일은 `TextRasterizer`로 변경했다. WPF/STA 구현과 ITextRasterizer/ITextBatchRasterizer 계약, 독립/atlas 글자 픽셀과 버퍼 소유권은 유지한다. 외부 프로젝트가 구체 타입을 직접 사용하면 새 이름으로 소스 수정이 필요하다.
+
+- PASS: 앱 297개(새 초기화 성공/오류·재시도/성능 상태 4개 포함), Canvas 235개, 실패/skip0. `artifacts/main-window-mvvm-{app,canvas}-tests.log`. VM 검증은 Window 없이 대역 서비스로 수행하며 GPU 미측정을 0ms로 표시하지 않는지와 문서 불변을 확인했다.
+- PASS: 앱 및 솔루션 Release 빌드0경고/0오류. `artifacts/main-window-mvvm-build.log`, `artifacts/main-window-mvvm-solution-build.log`. 솔루션 빌드에 샘플/도구의 타입 참조도 포함한다.
+- PASS: RTX3060 Laptop GPU/debug 및 강제 WARP 전체 앱 smoke, 두 프로세스 모두 종료0. 부모/독립/자식 버튼·실제 입력·Undo/Redo·설정창 재열기·교차선·표시 글자·도형·검색범위·필터·8K 라이브·재시작/종료 확인. `artifacts/main-window-mvvm-20261015/{gpu,warp}/artifacts/smoke.log`. WARP 표시와 선택형 필터 CUDA는 독립적이다.
+- PASS: 변경 C# 공백 적용·스타일/import 검사 및 `git diff --check`. `artifacts/main-window-mvvm-{whitespace,style}.log`. 매뉴얼11개/로컬 참조298개·코드 발췌55개 일치.4장의 VM 조립 설명도 App 조립/VM 조정으로 수정했다.
+- NOT_RUN: 별도 PC, 현장 영상, 대량 편집60FPS 재측정, 모든 진단 플래그의 개별 실행. 진단 선택 분기는 기존 순서/인자를 보존했다. 이번 테스트 범위는 앱/Canvas이며 다른 프로젝트의 이전 전체 테스트 결과와 구별한다. 커밋·푸시 없음.
+
+| 원칙 | 이번 변경 검토 |
+|---|---|
+| SRP | View의 UI 연결, VM의 상태/명령, App의 조립/종료, Diagnostics의 실행 선택 분리 |
+| OCP | 기존 영상·검사·텍스트 계약을 유지하며 새 구현 분기를 VM에 추가하지 않음 |
+| LSP | 이미지 소유권·실패/재시도 및 글자 atlas 픽셀/뷰포트 수명 회귀 통과 |
+| ISP | VM에 Window/Dispatcher/타이머/CUDA 종료용 계약을 추가하지 않음 |
+| DIP | 구현 서비스는 App에서 주입. VM은 컨트롤·GPU 구현체를 생성하지 않음 |
+| Information Expert | UI 포커스/스레드는 View, 성능 표시 상태는 VM, 서비스 수명은 생성한 App이 관리 |
+| Creator | App이 검사/필터 구현과 VM을 조립하며 렌더러의 HWND/자원 소유자는 그대로 유지 |
+| Controller | View 이벤트는 VM 명령/메서드에 전달. ROI 업무 규칙은 기존 세션에 유지 |
+| Low Coupling | MainWindow에서 구체 검사·로더·CUDA 생성 의존성 제거 |
+| High Cohesion | 설정창 표시와 UI 링크만 View에, 구현체 생성/해제는 같은 App 조립 지점에 배치 |
+| Polymorphism | 기존 표시/원본/검사/텍스트 인터페이스 사용. 단일 호출용 추상 계층은 추가하지 않음 |
+| Pure Fabrication | 기존 AsyncCommand 오류 경계를 재사용하며 새 서비스 로케이터나 메시지 버스 없음 |
+| Indirection | App의 주입과 기존 Scene/Input/Layout 바인딩으로 역할 연결 |
+| Protected Variations | Dispatcher/STA와 native 자원 해제 순서 보존. 텍스트 타입 Rename의 외부 소스 영향은 명시 |
+
+원칙 예외 없음. 새 I/O/외부 전송·권한 경계나 hot path 자료 복사는 추가하지 않았다.
+
 ### 2026-10-15 부모 버튼 복구·MVVM 폴더 구조
 
 독립 ROI 버튼 수정 때 사라진 `부모 추가/부모 그리기`를 별도 명령으로 복구했다. `EditorSession.AddParent`가 자식 없는 그룹 하나를 생성하고, 생성 즉시 부모 스타일을 사용한다. 그리기 미리보기도 부모 색상을 사용하며 폴리곤·일반 도형·Undo/Redo를 유지한다. 기존 초록색 독립 ROI와 선택 부모의 자식 명령도 유지한다. DrawAsGroup과 DrawParentId는 동시에 활성화되지 않는다.

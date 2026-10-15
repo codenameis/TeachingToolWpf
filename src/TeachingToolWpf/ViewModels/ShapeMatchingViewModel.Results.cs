@@ -1,19 +1,26 @@
 using System.Collections.Immutable;
-using TeachingToolWpf.Models;
 
 namespace TeachingToolWpf.ViewModels;
 
 public sealed partial class ShapeMatchingViewModel
 {
-    private string? _paperResultSummary;
+    private string? _resultSummary;
     public ImmutableArray<string> ResultRows { get; private set; } = [];
-    public bool HasResultRows => Method == PatternMatchingMethod.Shape && !ResultRows.IsEmpty;
-    public string ResultSummary => HasResultRows ? _paperResultSummary ?? "" : Results;
+    public bool HasResultRows => !ResultRows.IsEmpty;
+    public string ResultSummary => HasResultRows ? _resultSummary ?? "" : Results;
 
     private void ResetResultRows()
     {
         ResultRows = [];
-        _paperResultSummary = null;
+        _resultSummary = null;
+        _inspectionNotice = null;
+    }
+
+    private void SetResultDetails(string summary, IEnumerable<string> rows)
+    {
+        _resultSummary = summary;
+        ResultRows = rows.ToImmutableArray();
+        Results = summary + "\n\n" + string.Join("\n\n", ResultRows);
     }
 
     private void NotifyResultRows()

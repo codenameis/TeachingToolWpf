@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CpuMatching.Core/CpuMatching.Core.csproj" />
+    <Project Path="src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
+    <Project Path="src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
+    <Project Path="src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CpuMatching.Tests/CpuMatching.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/CpuMatching.Evaluation/CpuMatching.Evaluation.csproj" />
+  </Folder>
+</Solution>

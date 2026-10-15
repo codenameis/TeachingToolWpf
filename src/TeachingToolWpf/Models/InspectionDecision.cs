@@ -21,7 +21,7 @@ public sealed record InspectionDecision(InspectionVerdict Verdict, string Reason
         var warnings = new List<string>();
         if (output.Truncated)
         {
-            warnings.Add("후보 예산 초과 · OpenCV 검색 불완전");
+            warnings.Add("일부 후보를 확인하지 못했습니다. 상세 설정에서 최대 후보 수를 늘리거나 검색 ROI를 줄이세요.");
         }
         if (output.MatchLimitExceeded)
         {
@@ -45,7 +45,7 @@ public sealed record InspectionDecision(InspectionVerdict Verdict, string Reason
         var warnings = new List<string>();
         if (output.Truncated)
         {
-            warnings.Add("검색 예산 초과 · 일부 후보를 확인하지 못했습니다.");
+            warnings.Add("일부 후보를 확인하지 못했습니다. 상세 설정의 후보 예산·형상 검증 후보 수를 늘리거나 검색 ROI를 줄이세요.");
         }
         if (output.MatchLimitExceeded)
         {
@@ -61,7 +61,7 @@ public sealed record InspectionDecision(InspectionVerdict Verdict, string Reason
         }
         if (output.Matches.IsEmpty)
         {
-            return new(InspectionVerdict.Fail, "설정 점수·지지율·기하 검증 조건을 만족하는 패턴이 없습니다.");
+            return new(InspectionVerdict.Fail, "설정 점수·지지율 조건을 만족하는 패턴이 없습니다.");
         }
         var decisions = output.Matches.Select(match => Evaluate(match, rotation, referenceAngle)).ToArray();
         var failed = decisions.Count(value => value.Verdict == InspectionVerdict.Fail);
@@ -76,10 +76,6 @@ public sealed record InspectionDecision(InspectionVerdict Verdict, string Reason
 
     public static InspectionDecision Evaluate(ShapeMatch match, RotationAcceptance? rotation = null, double referenceAngle = 0)
     {
-        if (match.Geometry is { } geometry && (geometry.MatchedFeatures == 0 || !double.IsFinite(geometry.FitErrorPixels)))
-        {
-            return new(InspectionVerdict.Review, "실제 윤곽 대응의 위치 오차를 측정할 수 없습니다. 검출 위치를 확인하세요.");
-        }
         if (!match.Refinement.AngleObservable)
         {
             return new(InspectionVerdict.Review, "회전각을 확정하기 어려운 패턴입니다. 위치·방향을 확인하세요.");

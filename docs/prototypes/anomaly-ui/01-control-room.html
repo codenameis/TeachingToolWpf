@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WATCH — 관제실형 이상 감시</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101416; --surface:#191e21; --raised:#20272b; --line:#343d42; --text:#edf2f3; --muted:#a3b0b7; --accent:#8fe0bd; --accent-bg:#223b33; --alert:#ffad9e; --alert-bg:#412a29; --yellow:#f3d38d; --radius:8px; }
+    * { box-sizing:border-box; } body { margin:0; font:14px/1.55 "Segoe UI","Malgun Gothic",sans-serif; background:var(--bg); color:var(--text); }
+    button,input,select { font:inherit; } button,a,input,select { -webkit-tap-highlight-color:transparent; } button { cursor:pointer; color:inherit; background:none; border:0; } button:disabled { cursor:not-allowed; opacity:.45; }
+    a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; } button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+    button:hover:not(:disabled) { filter:brightness(1.15); } h1,h2,h3,p { margin:0; } h1 { font-size:25px; font-weight:650; letter-spacing:-1px; } h2 { font-size:15px; font-weight:600; } h3 { font-size:14px; } small,.muted { color:var(--muted); } [hidden] { display:none!important; }
+    .icon { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; } .sprite { position:absolute; width:0; height:0; }
+    .topbar { height:66px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 24px; gap:16px; background:#171c1f; }
+    .brand { display:flex; align-items:center; gap:12px; font-size:20px; font-weight:750; letter-spacing:2px; } .brand-mark { color:var(--accent); width:29px; height:29px; } .brand small { font-size:12px; letter-spacing:0; font-weight:400; border-left:1px solid var(--line); padding-left:16px; }
+    .top-actions,.row { display:flex; align-items:center; gap:12px; } .demo { font-size:11px; color:var(--yellow); border:1px solid #655739; padding:4px 9px; border-radius:4px; letter-spacing:.5px; } .avatar { width:30px; height:30px; border-radius:50%; background:#354248; display:grid; place-items:center; font-size:11px; }
+    .app { display:grid; grid-template-columns:204px minmax(0,1fr); min-height:calc(100vh - 66px); } .sidebar { border-right:1px solid var(--line); padding:25px 14px 20px; display:flex; flex-direction:column; gap:25px; background:#151a1d; }
+    .nav-item { width:100%; display:flex; align-items:center; gap:12px; padding:12px; border-radius:6px; color:var(--muted); text-align:left; margin:3px 0; }
+    .nav-item.active { background:var(--accent-bg); color:var(--accent); } .nav-item .count { margin-left:auto; background:#8fe0bd; color:#152d23; border-radius:4px; font-size:10px; min-width:18px; text-align:center; }
+    .eyebrow { font-size:10px; letter-spacing:1.5px; font-weight:650; color:var(--muted); } .side-label { margin:0 12px 12px; } .search { width:100%; border:1px solid var(--line); background:var(--bg); color:var(--text); padding:9px 10px; border-radius:5px; margin-bottom:10px; font-size:12px; }
+    .camera-link { display:flex; gap:9px; align-items:center; width:100%; padding:11px 10px; text-align:left; font-size:12px; border-radius:5px; color:var(--muted); } .camera-link.selected { background:var(--raised); color:var(--text); } .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+    .system { margin-top:auto; border-top:1px solid var(--line); padding:20px 10px 0; font-size:11px; color:var(--muted); } .system p { margin-top:8px; } .system .row { gap:8px; color:var(--accent); }
+    main { padding:27px 28px 16px; min-width:0; } .page-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:23px; } .breadcrumb { font-size:11px; color:var(--muted); margin-bottom:7px; } .sub { color:var(--muted); font-size:12px; margin-top:6px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:36px; padding:8px 13px; border-radius:5px; border:1px solid var(--line); background:var(--raised); font-size:12px; font-weight:550; white-space:nowrap; } .btn.primary { background:var(--accent); border-color:var(--accent); color:#132a21; } .btn.danger { background:var(--alert-bg); color:var(--alert); border-color:#76504a; } .btn.full { width:100%; } .btn.quiet { background:transparent; }
+    .workspace { display:grid; grid-template-columns:minmax(0,1fr) 292px; gap:20px; align-items:start; } .monitor { min-width:0; } .monitor-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; font-size:12px; }
+    .segmented { display:flex; padding:3px; border:1px solid var(--line); border-radius:5px; gap:3px; } .segmented button { padding:4px 9px; border-radius:3px; color:var(--muted); display:flex; align-items:center; gap:5px; font-size:11px; } .segmented button[aria-pressed=true] { background:#34413e; color:var(--accent); }
+    .feeds { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } .feed { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; } .feed.selected { border-color:var(--accent); } .feed.alerting { border-color:#ce7f70; }
+    .feed-select { width:100%; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; } .feed-name { display:flex; align-items:center; gap:8px; } .feed-id { font-size:9px; color:var(--muted); font-family:monospace; } .pill { border-radius:4px; padding:3px 7px; font-size:10px; color:var(--accent); background:var(--accent-bg); white-space:nowrap; } .pill.alert { color:var(--alert); background:var(--alert-bg); } .pill.paused { color:var(--yellow); background:#3b3424; }
+    .scene-wrap { position:relative; aspect-ratio:16/9; overflow:hidden; background:#242e30; } .scene-wrap canvas { display:block; width:100%; height:100%; } .scene-label { position:absolute; top:10px; left:10px; font:10px/1.4 monospace; color:#e7eeec; background:#102020b8; padding:4px 6px; border-radius:2px; } .synthetic { position:absolute; right:9px; bottom:8px; background:#102020bd; color:#d9e4e2; font-size:9px; padding:2px 5px; border-radius:2px; }
+    .feed-footer { padding:9px 12px; display:flex; justify-content:space-between; align-items:center; gap:9px; font-size:10px; color:var(--muted); } .score { display:flex; align-items:center; gap:7px; } .score-meter { width:40px; height:3px; background:#3b474b; border-radius:3px; overflow:hidden; } .score-meter i { display:block; background:var(--accent); width:18%; height:100%; }
+    .feeds.single { grid-template-columns:1fr; } .feeds.single .feed:not(.selected) { display:none; } .feeds.single .scene-wrap { max-height:440px; aspect-ratio:16/8; }
+    .timeline { margin-top:17px; padding:16px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); } .timeline-head { display:flex; align-items:center; justify-content:space-between; font-size:11px; gap:8px; } .timeline-head label { display:flex; align-items:center; gap:8px; } select { border:1px solid var(--line); border-radius:4px; color:var(--text); background:var(--raised); padding:4px 8px; font-size:11px; }
+    .timeline-track { margin-top:22px; height:30px; position:relative; border-top:1px solid #4a585e; background:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),#354044 calc(10% - 1px),#354044 10%); } .track-line { position:absolute; height:5px; top:11px; left:0; right:0; background:#33594c; border-radius:2px; } .event-marker { position:absolute; top:3px; width:12px; height:22px; background:var(--alert); border:2px solid #1a2023; border-radius:4px; } .event-marker:hover { transform:scaleY(1.2); } .time-labels { display:flex; justify-content:space-between; font:9px monospace; color:var(--muted); margin-top:8px; }
+    .demo-tools { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; padding:13px 14px; border:1px dashed #48544b; border-radius:6px; background:#19211e; } .demo-tools p { font-size:11px; color:var(--muted); } .demo-tools strong { display:block; color:var(--text); font-size:12px; margin-bottom:2px; }
+    .events-panel { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; } .panel-title { display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid var(--line); } .filter-row { display:flex; gap:6px; padding:12px 14px 4px; } .filter-row button { padding:4px 8px; border-radius:4px; color:var(--muted); font-size:11px; } .filter-row button[aria-pressed=true] { color:var(--text); background:#354047; }
+    .event-list { padding:9px; max-height:260px; overflow:auto; } .event-button { text-align:left; display:flex; width:100%; gap:10px; padding:12px 9px; border-radius:5px; border:1px solid transparent; } .event-button.selected { background:#382a29; border-color:#6e4d47; } .event-symbol { width:28px; height:28px; border-radius:5px; background:var(--alert-bg); color:var(--alert); display:grid; place-items:center; flex-shrink:0; } .event-button.reviewed .event-symbol { color:var(--muted); background:#303a3f; } .event-button strong { font-size:12px; display:block; font-weight:550; } .event-button small { display:block; font-size:10px; margin-top:4px; } .event-button time { font-size:10px; color:var(--muted); margin-left:auto; white-space:nowrap; }
+    .event-detail { border-top:1px solid var(--line); padding:16px; } .detail-label { font-size:10px; color:var(--alert); margin-bottom:6px; letter-spacing:.6px; } .event-detail h3 { font-size:16px; font-weight:600; margin-bottom:8px; } .event-detail p { font-size:11px; color:var(--muted); line-height:1.8; } .detail-stats { display:flex; justify-content:space-between; margin:16px 0; background:var(--bg); border-radius:5px; padding:12px; } .detail-stats span { font-size:10px; color:var(--muted); display:block; } .detail-stats strong { display:block; font:20px/1.4 monospace; margin-top:3px; } .detail-stats strong small { font-size:11px; }
+    .detail-actions { display:grid; gap:8px; } .note { margin-top:10px!important; font-size:10px!important; } .empty { color:var(--muted); padding:28px 15px; font-size:12px; text-align:center; }
+    .page-footer { display:flex; justify-content:space-between; gap:16px; padding-top:19px; font-size:10px; color:var(--muted); } .page-footer a { color:var(--muted); }
+    .content-panel { padding:24px; border:1px solid var(--line); border-radius:8px; background:var(--surface); } .content-panel p { color:var(--muted); margin:8px 0 20px; } .table-scroll { overflow:auto; } table { width:100%; border-collapse:collapse; font-size:12px; } th { color:var(--muted); text-align:left; font-weight:400; } td,th { padding:13px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+    .model-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; } .model { padding:20px; border:1px solid var(--line); border-radius:6px; } .model h3 { margin:10px 0; } .model p { font-size:12px; } .model dl { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px; } .model dt { color:var(--muted); } .model dd { margin:0; text-align:right; }
+    dialog { background:var(--surface); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:24px; width:min(480px,calc(100% - 32px)); } dialog::backdrop { background:#030708b8; } .dialog-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; } .close { width:32px; height:32px; border:1px solid var(--line); border-radius:4px; } dialog p { font-size:12px; color:var(--muted); margin-bottom:18px; } .field { display:grid; gap:8px; margin:18px 0; } .field input { width:100%; padding:10px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:5px; } .field small { font-size:11px; } .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); max-width:calc(100% - 32px); background:#d9f4e6; color:#153929; padding:12px 20px; border-radius:7px; box-shadow:0 8px 30px #0006; z-index:20; font-size:12px; }
+    @media(min-width:1700px) { main { padding:32px 40px; } .workspace { grid-template-columns:minmax(0,1fr) 330px; } .scene-wrap { aspect-ratio:16/8; } }
+    @media(max-width:1200px) { .app { grid-template-columns:170px minmax(0,1fr); } main { padding:22px 18px; } .workspace { grid-template-columns:minmax(0,1fr) 260px; gap:14px; } .top-actions .date { display:none; } .demo-tools { flex-wrap:wrap; } }
+    @media(max-width:1000px) { .workspace { grid-template-columns:1fr; } .events-panel { display:grid; grid-template-columns:1fr 1fr; } .panel-title { grid-column:1/-1; } .filter-row { grid-column:1; } .event-list { grid-column:1; } .event-detail { grid-column:2; grid-row:2/4; border-left:1px solid var(--line); border-top:0; } .page-head { align-items:flex-start; } }
+    @media(max-width:680px) { .topbar { padding:12px 16px; height:auto; flex-wrap:wrap; } .brand small,.avatar,.top-actions .date { display:none; } .top-actions { gap:10px; font-size:11px; } .app { display:block; } .sidebar { padding:7px 10px; border-right:0; border-bottom:1px solid var(--line); } .sidebar nav { display:flex; } .nav-item { justify-content:center; padding:10px 6px; gap:5px; font-size:11px; } .sidebar .camera-section,.system { display:none; } .nav-item .icon { width:16px; } main { padding:20px 12px; } .page-head { flex-wrap:wrap; margin-bottom:20px; } h1 { font-size:23px; } .feeds { grid-template-columns:1fr; } .events-panel { display:block; } .event-detail { border-left:0; border-top:1px solid var(--line); } .page-footer { flex-direction:column; } .model-grid { grid-template-columns:1fr; } .demo-tools .row { flex-wrap:wrap; } .content-panel { padding:16px; } .feed-footer { font-size:11px; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; } }
+  </style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true"><defs>
+  <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path d="M5 17h14l-2-4V9a5 5 0 0 0-10 0v4l-2 4Zm5 3h4"/></symbol>
+  <symbol id="layers" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/></symbol>
+  <symbol id="settings" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></symbol>
+  <symbol id="camera" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="3"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Zm0 6v5m0 3v.1"/></symbol>
+  <symbol id="expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+</defs></svg>
+<header class="topbar">
+  <div class="brand"><svg class="icon brand-mark"><use href="#eye"/></svg> WATCH <small>이상 감시 워크스페이스</small></div>
+  <div class="top-actions"><span class="demo">INTERACTIVE DEMO</span><span class="muted date" id="clock">2026.10.16</span><a href="02-guided-monitor.html">쉬운 화면 보기 ↗</a><span class="avatar" aria-label="운영자">운영</span></div>
+</header>
+<div class="app">
+  <aside class="sidebar" aria-label="화면 탐색">
+    <nav aria-label="주 메뉴">
+      <button class="nav-item active" data-view="live" aria-current="page"><svg class="icon"><use href="#grid"/></svg>실시간 감시</button>
+      <button class="nav-item" data-view="events"><svg class="icon"><use href="#bell"/></svg>이벤트 기록 <span class="count" id="navCount">2</span></button>
+      <button class="nav-item" data-view="models"><svg class="icon"><use href="#layers"/></svg>정상 기준</button>
+      <button class="nav-item" id="settingsNav"><svg class="icon"><use href="#settings"/></svg>알람 설정</button>
+    </nav>
+    <section class="camera-section"><p class="eyebrow side-label">CAMERAS / 04</p><input class="search" id="cameraSearch" type="search" aria-label="카메라 찾기" placeholder="카메라 이름으로 찾기"><div id="cameraList"></div></section>
+    <div class="system"><div class="row"><span class="dot"></span>브라우저 데모 실행 중</div><p>합성 영상 · 모의 점수</p><p>실제 카메라·AI 연결 없음</p><p>01 / 관제실형 구성</p></div>
+  </aside>
+  <main>
+    <div class="page-head"><div><p class="breadcrumb">한빛테크 &nbsp;/&nbsp; 제1공장</p><h1 id="pageTitle">실시간 모니터링</h1><p class="sub" id="pageSubtitle">영상과 이벤트를 함께 보며, 확인이 필요한 순간에 집중하세요.</p></div><div class="row"><button class="btn" id="showGuide">화면 안내</button><button class="btn primary" id="toggleMonitoring"><svg class="icon"><use href="#pause"/></svg><span>감시 일시정지</span></button></div></div>
+    <section id="liveView" aria-label="실시간 감시 화면">
+      <div class="workspace">
+        <div class="monitor">
+          <div class="monitor-toolbar"><div class="row"><span class="dot" id="monitorDot"></span><span id="monitorState">4개 샘플 감시 중</span></div><div class="segmented" aria-label="영상 배치"><button data-layout="single" aria-pressed="false"><svg class="icon"><use href="#expand"/></svg>1분할</button><button data-layout="grid" aria-pressed="true"><svg class="icon"><use href="#grid"/></svg>4분할</button></div></div>
+          <div class="feeds" id="feeds"></div>
+          <section class="timeline" aria-label="모의 이벤트 타임라인"><div class="timeline-head"><h2>이벤트 타임라인</h2><label>범위 <select id="timelineRange"><option value="15">최근 15분</option><option value="60">최근 1시간</option></select></label></div><div class="timeline-track"><div class="track-line"></div><div id="timelineEvents"></div></div><div class="time-labels" id="timeLabels"></div><p class="sub">표시된 지점을 누르면 해당 모의 이벤트를 확인합니다.</p></section>
+          <div class="demo-tools"><p><strong>이상 상황을 만들어보세요</strong>실제 AI 검사 대신 알람 흐름을 체험합니다.</p><div class="row"><button class="btn" id="injectAppearance">제품 하나 이상</button><button class="btn" id="injectMotion">움직임 이상 구간</button></div></div>
+        </div>
+        <aside class="events-panel" aria-label="이벤트 확인"><div class="panel-title"><h2>확인할 이벤트</h2><span class="pill alert" id="pendingCount">미확인 2</span></div><div class="filter-row"><button data-filter="pending" aria-pressed="true">미확인</button><button data-filter="all" aria-pressed="false">전체 기록</button></div><div class="event-list" id="eventList"></div><div class="event-detail" id="eventDetail"></div></aside>
+      </div>
+    </section>
+    <section id="eventsView" class="content-panel" hidden><h2>이벤트 기록</h2><p>선택한 기록의 근거와 처리 상태를 확인할 수 있습니다. 이 기록은 현재 탭에서만 유지됩니다.</p><div class="table-scroll"><table><thead><tr><th>발생 시각</th><th>카메라</th><th>이상 유형</th><th>모의 점수</th><th>처리 상태</th><th>동작</th></tr></thead><tbody id="eventTable"></tbody></table></div></section>
+    <section id="modelsView" class="content-panel" hidden><h2>카메라별 정상 기준</h2><p>장소와 제품에 맞는 정상 모습을 따로 보관합니다. 아래 기준은 UI 설명용 예시입니다.</p><div class="model-grid"><article class="model"><span class="pill">예시 기준 · 준비됨</span><h3>제품 외관 · MODEL A</h3><p>정상 제품의 모양·색·표면과 비교합니다. 잠깐 지나가는 한 개의 이상도 확인 대상으로 표시합니다.</p><dl><dt>연결 샘플</dt><dd>CAM 01 / 03</dd><dt>정상 예시</dt><dd>240장 (모의)</dd><dt>기준 버전</dt><dd>v1.2</dd></dl></article><article class="model"><span class="pill">예시 기준 · 준비됨</span><h3>장면과 움직임 · MODEL B</h3><p>평소의 외관·이동 패턴과 비교합니다. 구간의 점수와 지속 여부를 함께 살펴봅니다.</p><dl><dt>연결 샘플</dt><dd>CAM 02 / 04</dd><dt>정상 예시</dt><dd>30분 (모의)</dd><dt>기준 버전</dt><dd>v1.0</dd></dl></article></div><p class="note">이벤트를 정상으로 확인해도 정상 기준에 자동으로 추가하지 않습니다.</p></section>
+    <footer class="page-footer"><span>모든 영상·점수·이벤트는 합성 데모입니다. 새로고침하면 초기 상태로 돌아갑니다.</span><span>구성 참고: <a href="https://help.axis.com/en-US/axis-camera-station-pro" target="_blank" rel="noreferrer">AXIS</a> · <a href="https://doc.milestonesys.com/xprotect/xprotect-smart-client/2025r3/en/using-the-alarm-list" target="_blank" rel="noreferrer">Milestone</a></span></footer>
+  </main>
+</div>
+<dialog id="settingsDialog" aria-labelledby="settingsTitle"><form id="settingsForm"><div class="dialog-title"><h2 id="settingsTitle">모의 알람 설정</h2><button type="button" class="close" data-close="settingsDialog" aria-label="알람 설정 닫기">✕</button></div><p>테스트 이벤트의 점수가 이 기준 이상일 때 알람을 만듭니다. 점수는 불량 확률이 아닙니다.</p><label class="field">이상 점수 기준 <input id="threshold" type="number" min="1" max="100" value="75" required><small>제품 예시 92점 / 움직임 예시 86점 · 1~100</small></label><p>단일 제품은 지속 시간을 요구하지 않습니다. 움직임 예시는 지속 구간을 확인한 결과로 표시합니다.</p><button class="btn primary full" type="submit">현재 탭에 적용</button></form></dialog>
+<dialog id="guideDialog" aria-labelledby="guideTitle"><div class="dialog-title"><h2 id="guideTitle">관제실형 화면을 읽는 순서</h2><button class="close" data-close="guideDialog" aria-label="화면 안내 닫기">✕</button></div><p>① 왼쪽에서 카메라를 고릅니다.<br>② 중앙 영상에서 이상 위치를 봅니다.<br>③ 오른쪽 이벤트의 근거를 확인합니다.<br>④ 확인 처리 또는 정상 상황으로 기록합니다.</p><p>상용 관제 도구에서 공통으로 보이는 카메라 목록·다중 영상·이벤트·타임라인을 재구성했습니다. 사용량 순위를 의미하지 않습니다.</p><button class="btn primary full" data-close="guideDialog">화면으로 돌아가기</button></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+<script id="scene-engine">
+// 두 HTML이 각각 독립 실행되도록 같은 합성 영상 렌더러를 포함합니다.
+function createDemoScene(canvas, initialType = 'product', seed = 0) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = 960;
+  canvas.height = 540;
+  let type = initialType, alarm = false, alarmKind = 'appearance', paused = false, region = true, frame = 0, last = 0, running = true;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function polygon(points, color) {
+    ctx.fillStyle = color; ctx.beginPath();
+    points.forEach(([x,y], i) => i ? ctx.lineTo(x,y) : ctx.moveTo(x,y)); ctx.closePath(); ctx.fill();
+  }
+  function box(x,y,w,h,bad) {
+    ctx.fillStyle='#0e161b55'; ctx.fillRect(x+9,y+14,w,h);
+    const face=ctx.createLinearGradient(x,y,x+w,y+h); face.addColorStop(0,'#cdbb96'); face.addColorStop(1,'#a58e69');
+    ctx.fillStyle=face; ctx.fillRect(x,y,w,h); ctx.strokeStyle='#867453'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#dbcdae'; ctx.fillRect(x+w*.43,y,14,h); ctx.fillStyle='#eee9dc'; ctx.fillRect(x+14,y+15,w*.44,26);
+    ctx.fillStyle='#5d655f'; for(let i=0;i<9;i++) ctx.fillRect(x+19+i*3,y+21,1,13);
+    ctx.font='9px monospace'; ctx.fillText('HB / 2026',x+15,y+h-14);
+    if(bad) { polygon([[x+w-38,y],[x+w,y],[x+w,y+45],[x+w-20,y+31],[x+w-32,y+12]],'#3e332a'); ctx.strokeStyle='#fb9c88'; ctx.lineWidth=3; ctx.strokeRect(x-10,y-10,w+20,h+20); ctx.fillStyle='#fca48f'; ctx.fillRect(x-10,y-38,115,25); ctx.fillStyle='#2d1b15'; ctx.font='bold 13px "Malgun Gothic",sans-serif'; ctx.fillText('외관 이상 · 예시',x-3,y-21); }
+  }
+  function product() {
+    ctx.fillStyle='#626e6b'; ctx.fillRect(0,0,960,540);
+    for(let y=0;y<540;y+=90){ctx.strokeStyle='#8d989233';ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(960,y);ctx.stroke();}
+    ctx.fillStyle='#283535';ctx.fillRect(0,120,960,310); ctx.fillStyle='#2d4040';ctx.fillRect(0,140,960,270);
+    const speed=alarm&&alarmKind==='motion'?2.8:1;
+    const shift=(frame*1.25*speed)%27;
+    for(let x=-27+shift;x<960;x+=27){ const g=ctx.createLinearGradient(x,0,x+20,0); g.addColorStop(0,'#495959');g.addColorStop(.5,'#83938e');g.addColorStop(1,'#3b4b4c');ctx.fillStyle=g;ctx.fillRect(x,145,20,260); }
+    ctx.fillStyle='#aeb7aa';ctx.fillRect(0,113,960,13);ctx.fillRect(0,424,960,14);ctx.fillStyle='#475958';ctx.fillRect(0,128,960,9);ctx.fillRect(0,410,960,10);
+    for(let x=20;x<960;x+=110){ctx.fillStyle='#303e3c';ctx.beginPath();ctx.arc(x,119,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(x,431,3,0,Math.PI*2);ctx.fill();}
+    for(let i=-1;i<5;i++){const x=((i*235+frame*.6*speed+seed*61)%1175)-100;box(x,220,139,100,alarm&&alarmKind==='appearance'&&i===2);}
+    if(alarm&&alarmKind==='motion'){ctx.strokeStyle='#ffb39b';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(365,345);ctx.lineTo(580,345);ctx.lineTo(560,330);ctx.moveTo(580,345);ctx.lineTo(560,360);ctx.stroke();ctx.fillStyle='#ffd4c3';ctx.font='14px "Malgun Gothic",sans-serif';ctx.fillText('이동 속도 변화 · 예시',370,377);}
+    ctx.fillStyle='#d9b95c';ctx.fillRect(0,72,960,6);ctx.fillRect(0,478,960,6);ctx.fillStyle='#374745';ctx.fillRect(730,15,140,40);ctx.fillStyle='#cad4c8';ctx.font='15px monospace';ctx.fillText('INSPECTION 01',741,40);
+    if(region){ctx.strokeStyle='#90e4c4aa';ctx.lineWidth=2;ctx.setLineDash([12,8]);ctx.strokeRect(310,159,330,234);ctx.setLineDash([]);ctx.fillStyle='#b4edce';ctx.font='12px "Malgun Gothic",sans-serif';ctx.fillText('감시 영역',320,181);}
+  }
+  function person(x,y,s,bad,index) {
+    ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle='#14232255';ctx.beginPath();ctx.ellipse(5,13,22,9,.1,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#283943';ctx.lineWidth=11;ctx.lineCap='round';const stride=Math.sin(frame*.055+index)*8;ctx.beginPath();ctx.moveTo(-6,-8);ctx.lineTo(-9+stride,16);ctx.moveTo(6,-8);ctx.lineTo(9-stride,16);ctx.stroke();ctx.fillStyle=index%2?'#4b6163':'#687c78';ctx.fillRect(-14,-45,28,38);ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(-13,-39);ctx.lineTo(-20,-14+stride);ctx.moveTo(13,-39);ctx.lineTo(20,-14-stride);ctx.stroke();ctx.fillStyle='#c4b49c';ctx.beginPath();ctx.arc(0,-55,11,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=bad?'#ffaf99':'#a7d8c190';ctx.lineWidth=1.4;ctx.strokeRect(-29,-75,58,105);if(bad){ctx.fillStyle='#faaa93';ctx.fillRect(-30,-99,106,20);ctx.fillStyle='#30251d';ctx.font='12px "Malgun Gothic",sans-serif';ctx.fillText('이동 이상 · 예시',-25,-85);}ctx.restore();
+  }
+  function hallway() {
+    ctx.fillStyle='#86918b';ctx.fillRect(0,0,960,540);polygon([[0,0],[960,0],[690,170],[280,170]],'#afbab1');polygon([[0,0],[280,170],[280,540],[0,540]],'#a4aea4');polygon([[960,0],[690,170],[690,540],[960,540]],'#6f807b');polygon([[280,170],[690,170],[960,540],[0,540]],'#a9b1a5');
+    ctx.strokeStyle='#77857b';ctx.lineWidth=2;for(let i=0;i<7;i++){const y=170+i*i*10;ctx.beginPath();ctx.moveTo(280-(y-170)*.76,y);ctx.lineTo(690+(y-170)*.73,y);ctx.stroke();}for(let i=0;i<8;i++){ctx.beginPath();ctx.moveTo(300+i*50,170);ctx.lineTo(-200+i*210,540);ctx.stroke();}
+    polygon([[35,83],[184,164],[184,365],[35,338]],'#475d58');polygon([[55,111],[166,174],[166,343],[55,323]],'#697e71');polygon([[778,115],[897,45],[897,337],[778,363]],'#405652');polygon([[791,136],[880,86],[880,319],[791,343]],'#61786d');
+    ctx.fillStyle='#526a5c';ctx.fillRect(393,86,176,85);ctx.fillStyle='#c6d5b7';ctx.fillRect(450,107,64,22);ctx.fillStyle='#426044';ctx.font='14px monospace';ctx.fillText('EXIT',463,123);
+    for(let i=0;i<4;i++){const d=((frame*(alarm&&alarmKind==='motion'&&i===2?1.4:.45)+i*105+seed*35)%330)/330;const s=.45+d*.8;const x=350+i*55+Math.sin(i*2)*d*130;person(x,205+d*270,s,alarm&&alarmKind==='motion'&&i===2,i);}
+    if(alarm&&alarmKind==='appearance')box(545,350,110,80,true);
+    if(region){ctx.strokeStyle='#9ce3c9aa';ctx.setLineDash([12,8]);ctx.lineWidth=2;ctx.strokeRect(290,185,410,295);ctx.setLineDash([]);}
+  }
+  function paint() {
+      ctx.clearRect(0,0,960,540);type==='product'?product():hallway();
+      const shade=ctx.createRadialGradient(480,270,100,480,270,640);shade.addColorStop(0,'#0b151000');shade.addColorStop(1,'#1020185e');ctx.fillStyle=shade;ctx.fillRect(0,0,960,540);
+      ctx.fillStyle='#18282012';for(let y=0;y<540;y+=4)ctx.fillRect(0,y,960,1);
+  }
+  function draw(now) {
+    if(!running) return;
+    if(now-last>80){last=now;if(!paused&&!reduced)frame++;paint();}
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+  return { setType(value){type=value;alarm=false;frame=0;paint();}, setAlarm(value,kind='appearance'){if(alarm===value&&alarmKind===kind)return;alarm=value;alarmKind=kind;paint();}, setPaused(value){paused=value;}, setRegion(value){region=value;paint();}, destroy(){running=false;} };
+}
+</script>
+<script>
+  const cameras = [
+    {id:1,name:'제품 검사 라인',type:'product',zone:'외관 · MODEL A'},
+    {id:2,name:'물류 이동 통로',type:'hallway',zone:'움직임 · MODEL B'},
+    {id:3,name:'포장 출구',type:'product',zone:'외관 · MODEL A'},
+    {id:4,name:'작업장 출입구',type:'hallway',zone:'움직임 · MODEL B'}
+  ];
+  const boot = Date.now();
+  const events = [
+    {id:1,camera:1,type:'appearance',score:92,time:boot-40000,status:'pending'},
+    {id:2,camera:2,type:'motion',score:86,time:boot-240000,status:'pending'},
+    {id:3,camera:3,type:'appearance',score:79,time:boot-510000,status:'checked'}
+  ];
+  let selectedCamera=1,selectedEvent=1,monitoring=true,eventFilter='pending',nextId=4,threshold=75,toastTimer;
+  const scenes = new Map();
+  const $ = id => document.getElementById(id);
+  const timeText = value => new Date(value).toLocaleTimeString('ko-KR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const eventName = item => item.type==='appearance'?'정상과 다른 제품 외관':'평소와 다른 움직임';
+  const statusText = item => ({pending:'미확인',checked:'확인 완료',normal:'정상 상황으로 기록'})[item.status];
+  function toast(message){ $('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3500); }
+  function renderCameras(){
+    const query=$('cameraSearch').value.trim();
+    $('cameraList').innerHTML=cameras.filter(c=>c.name.includes(query)).map(c=>`<button class="camera-link ${c.id===selectedCamera?'selected':''}" data-camera="${c.id}" aria-pressed="${c.id===selectedCamera}"><span class="dot"></span>${c.name}</button>`).join('')||'<p class="empty">일치하는 카메라가 없습니다.</p>';
+  }
+  function setupFeeds(){
+    $('feeds').innerHTML=cameras.map(c=>`<article class="feed ${c.id===1?'selected':''}" id="feed${c.id}"><button class="feed-select" data-camera="${c.id}" aria-label="${c.name} 선택"><span class="feed-name"><svg class="icon"><use href="#camera"/></svg>${c.name}</span><span class="feed-id">CAM 0${c.id}</span></button><div class="scene-wrap"><canvas id="canvas${c.id}" role="img" aria-label="${c.name} 합성 영상"></canvas><span class="scene-label">CAM 0${c.id} / SIMULATED FEED</span><span class="synthetic">합성 영상</span></div><div class="feed-footer"><span class="pill" id="feedStatus${c.id}">정상 예시</span><span>${c.zone}</span><span class="score">점수 <strong id="score${c.id}">18</strong><span class="score-meter"><i id="bar${c.id}"></i></span></span></div></article>`).join('');
+    cameras.forEach(c=>scenes.set(c.id,createDemoScene($('canvas'+c.id),c.type,c.id)));
+  }
+  function selectCamera(id){selectedCamera=id;document.querySelectorAll('.feed').forEach(el=>el.classList.toggle('selected',el.id==='feed'+id));renderCameras();}
+  function refreshFeedStatus(){
+    cameras.forEach(c=>{
+      const pending=events.find(e=>e.camera===c.id&&e.status==='pending');
+      const label=$('feedStatus'+c.id);label.className='pill'+(!monitoring?' paused':pending?' alert':'');
+      label.textContent=!monitoring?'검사 일시정지':pending?'이상 예시':'정상 예시';
+      $('feed'+c.id).classList.toggle('alerting',!!pending&&monitoring);
+      $('score'+c.id).textContent=monitoring?(pending?pending.score:18+c.id*3):'—';
+      const bar=$('bar'+c.id);bar.style.width=monitoring?(pending?pending.score:18+c.id*3)+'%':'0';bar.style.background=pending?'var(--alert)':'var(--accent)';
+      scenes.get(c.id).setAlarm(!!pending,pending?.type);scenes.get(c.id).setPaused(!monitoring);
+    });
+  }
+  function renderEvents(){
+    const pending=events.filter(e=>e.status==='pending').length;
+    $('pendingCount').textContent='미확인 '+pending;$('navCount').textContent=pending;
+    const visible=events.filter(e=>eventFilter==='all'||e.status==='pending');
+    $('eventList').innerHTML=visible.map(e=>`<button class="event-button ${e.id===selectedEvent?'selected':''} ${e.status!=='pending'?'reviewed':''}" data-event="${e.id}"><span class="event-symbol"><svg class="icon"><use href="#${e.status==='pending'?'alert':'check'}"/></svg></span><span><strong>${eventName(e)}</strong><small>CAM 0${e.camera} · ${statusText(e)}</small></span><time>${timeText(e.time).slice(0,5)}</time></button>`).join('')||'<div class="empty">✓ 미확인 이벤트가 없습니다.<br>아래 버튼으로 이상 상황을 만들어보세요.</div>';
+    const item=events.find(e=>e.id===selectedEvent);
+    if(item){$('eventDetail').innerHTML=`<p class="detail-label">EVENT ${String(item.id).padStart(3,'0')} / 모의 이벤트</p><h3>${eventName(item)}</h3><p>${item.type==='appearance'?'제품의 오른쪽 모서리가 정상 예시와 다릅니다. 짧게 나타난 단일 대상도 확인합니다.':'통로의 이동 속도가 정상 예시와 다릅니다. 연속된 구간에서 변화가 관찰되었습니다.'}</p><div class="detail-stats"><div><span>모의 이상 점수</span><strong>${item.score}<small> / 100</small></strong></div><div><span>관찰 구간</span><strong>${item.type==='appearance'?'0.4':'3.2'}<small> 초</small></strong></div></div><div class="detail-actions"><button class="btn primary full" id="ackEvent" ${item.status!=='pending'?'disabled':''}><svg class="icon"><use href="#check"/></svg>${item.status==='pending'?'이벤트 확인 완료':statusText(item)}</button><button class="btn quiet full" id="normalEvent" ${item.status!=='pending'?'disabled':''}>정상 상황으로 기록</button></div><p class="note">확인 처리는 기록만 변경하며, 정상 기준을 자동 학습하지 않습니다.</p>`;}
+    $('eventTable').innerHTML=events.map(e=>`<tr><td>${timeText(e.time)}</td><td>${cameras[e.camera-1].name}</td><td>${eventName(e)}</td><td>${e.score}</td><td>${statusText(e)}</td><td><button class="btn quiet" data-event="${e.id}">상세 보기</button></td></tr>`).join('');
+    renderTimeline();refreshFeedStatus();
+  }
+  function renderTimeline(){
+    const now=Date.now(),duration=Number($('timelineRange').value)*60000;
+    $('timelineEvents').innerHTML=events.filter(e=>now-e.time<duration).map(e=>`<button class="event-marker" data-event="${e.id}" style="left:calc(${Math.min(98,Math.max(1,100-(now-e.time)/duration*100))}% - 6px)" aria-label="${timeText(e.time)} ${eventName(e)}" title="${timeText(e.time)} ${eventName(e)}"></button>`).join('');
+    $('timeLabels').innerHTML=[1,.75,.5,.25,0].map(n=>`<span>${timeText(now-duration*n).slice(0,5)}</span>`).join('');
+  }
+  function showView(view){
+    ['live','events','models'].forEach(key=>$(key+'View').hidden=key!==view);
+    document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+    $('pageTitle').textContent=({live:'실시간 모니터링',events:'이벤트 기록',models:'정상 기준 관리'})[view];
+    $('pageSubtitle').textContent=({live:'영상과 이벤트를 함께 보며, 확인이 필요한 순간에 집중하세요.',events:'발생한 이상과 운영자의 확인 결과를 한곳에 남깁니다.',models:'어떤 정상 모습과 비교하는지 카메라별로 확인합니다.'})[view];
+  }
+  function inject(type){
+    if(!monitoring){toast('감시를 다시 시작한 후 이상 상황을 만들어주세요.');return;}
+    const score=type==='appearance'?92:86;
+    if(score<threshold){toast(`모의 점수 ${score}점이 현재 알람 기준 ${threshold}점보다 낮습니다.`);return;}
+    const item={id:nextId++,camera:type==='appearance'?1:2,type,score,time:Date.now(),status:'pending'};
+    events.unshift(item);if(events.length>50)events.pop();selectedEvent=item.id;selectCamera(item.camera);eventFilter='pending';syncFilter();renderEvents();toast('새 모의 이벤트가 발생했습니다. 오른쪽에서 확인하세요.');
+  }
+  function syncFilter(){document.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.filter===eventFilter));}
+  document.addEventListener('click',event=>{
+    const camera=event.target.closest('[data-camera]');if(camera){selectCamera(Number(camera.dataset.camera));showView('live');}
+    const item=event.target.closest('[data-event]');if(item){selectedEvent=Number(item.dataset.event);const selected=events.find(e=>e.id===selectedEvent);selectCamera(selected.camera);showView('live');renderEvents();}
+    const nav=event.target.closest('[data-view]');if(nav)showView(nav.dataset.view);
+    const layout=event.target.closest('[data-layout]');if(layout){$('feeds').classList.toggle('single',layout.dataset.layout==='single');document.querySelectorAll('[data-layout]').forEach(b=>b.setAttribute('aria-pressed',b===layout));}
+    const filter=event.target.closest('[data-filter]');if(filter){eventFilter=filter.dataset.filter;syncFilter();renderEvents();}
+    const close=event.target.closest('[data-close]');if(close)$(close.dataset.close).close();
+    const action=event.target.closest('#ackEvent,#normalEvent');if(action){events.find(e=>e.id===selectedEvent).status=action.id==='ackEvent'?'checked':'normal';renderEvents();toast(action.id==='ackEvent'?'이벤트를 확인 처리했습니다.':'정상 상황으로 기록했습니다. 정상 기준은 바뀌지 않습니다.');}
+  });
+  $('toggleMonitoring').addEventListener('click',()=>{monitoring=!monitoring;$('toggleMonitoring').querySelector('span').textContent=monitoring?'감시 일시정지':'감시 다시 시작';$('monitorState').textContent=monitoring?'4개 샘플 감시 중':'검사 일시정지 · 마지막 화면 유지';$('monitorDot').style.background=monitoring?'var(--accent)':'var(--yellow)';$('injectAppearance').disabled=!monitoring;$('injectMotion').disabled=!monitoring;refreshFeedStatus();});
+  $('injectAppearance').addEventListener('click',()=>inject('appearance'));$('injectMotion').addEventListener('click',()=>inject('motion'));
+  $('cameraSearch').addEventListener('input',renderCameras);$('timelineRange').addEventListener('change',renderTimeline);
+  $('settingsNav').addEventListener('click',()=>$('settingsDialog').showModal());$('showGuide').addEventListener('click',()=>$('guideDialog').showModal());
+  $('settingsForm').addEventListener('submit',event=>{event.preventDefault();threshold=Number($('threshold').value);$('settingsDialog').close();toast(`알람 기준을 ${threshold}점으로 적용했습니다.`);});
+  function clock(){ $('clock').textContent=new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul',hour12:false,month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  setupFeeds();renderCameras();renderEvents();clock();setInterval(clock,1000);setInterval(renderTimeline,30000);
+  document.addEventListener('visibilitychange',()=>scenes.forEach(scene=>scene.setPaused(document.hidden||!monitoring)));
+</script>
+</body>
+</html>

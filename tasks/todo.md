@@ -1,5 +1,156 @@
 # 단계별 작업 목록
 
+## 2026-10-16 검사 패널 정리
+
+- [x] PASS: 전체 프로젝트 체크포인트 승인. 솔루션 Release0경고0오류, 전체 테스트의 옛 경고 문자열4건 갱신 후 프로젝트별 합계1318 PASS/skip0. 사용자 승인 범위는 현재 프로젝트 변경 전체 커밋·푸시다.
+
+- [x] PASS: 검사/영역/필터 및 기본/상세 설정/결과/로그 분리, 폭 조절과 하단 검사·취소 고정. 기존 편집 바인딩 보존.
+- [x] PASS: 원인·조치 안내와 기존 Warning/Review/NG 구분. 숨겨진 탭의 숫자 오류 실행 차단 유지. 관련62개 테스트 통과.
+- [x] PASS: 실제 WPF6방식·두 창 크기, 기본 높이 스크롤0, Kensa4개/출력 상한 경고·결과 목록. [화면·원시 측정·원칙 검토](../docs/inspection-sidebar.md).
+- [ ] NOT_RUN: 최종 대화형 키보드 검증은 사용자 Esc로 중단. 다른 DPI/실사용 검증은 별도.
+- [ ] FAIL: 전체 포맷 검사는 기존 파일 공백/줄바꿈 위반. 변경 파일의 좁은 검사는 PASS.
+
+## 2026-10-16 라이브 이상 감지 HTML UI 비교
+
+- [x] PASS: 독립 관제실형/안내형 HTML 2개. 합성 제품·통로 영상, 외관/시간 구간의 모의 알람, 확인·정상 기록, 일시정지, 안내형 정상 기준 준비·연결 끊김/복구. [사용법·구성 근거](../docs/prototypes/anomaly-ui/README.md).
+- [x] PASS: 실제 Edge UI52개 확인 항목,320/768/1024/1440px 가로 넘침 없음, 콘솔/런타임 오류0건. [결과](../docs/prototypes/anomaly-ui/previews/verification.json). 화면 캡처 확인, 로컬 파일만 추가·검증.
+- [ ] NOT_RUN: 실제 CCTV 연결·AI 학습/추론·정확도·WPF 통합·8K/60FPS. UI 체험 시안이며 이번 구현 범위에 포함하지 않음.
+
+## 2026-10-16 CPU 매칭 정확도 우선 보정
+
+- [x] PASS: Chamfer의 조밀한 무관 윤곽 오검출 재현(수정 전 체크무늬0.8517), 원본 양방향 검증과0.6~1px 거리 단위 보정. 점수0.75·검색/후보 조건 유지. [ADR-056](../docs/decisions/0056-cpu-matching-accuracy-first.md).
+- [x] PASS: Kensa 제한 영역4/4·음성0/0, 기존 합성15장+수정 후 추가3장과 알려진18V 대상.8K 실제 PNG의512×512 국소 검사2/2. 위치1px·각도1°·배율0.03, 누락/오검출·잘림 기준 확인. [증거·데이터·원칙 검토](../docs/cpu-matching-accuracy.md).
+- [x] PASS: 불변 전체 crop/응답 버퍼/제한된 pose 캐시 재사용. 기존16장×3방식 및 Kensa2장×3방식의 결과·평가 횟수 정확히 동일. Sub-NCC Kensa 할당27.38→12.97MiB, 보편적 속도 개선 주장 없음.
+- [x] PASS: CPU8+WPF 관련58=66개 회귀, 독립 솔루션/WPF Release0경고0오류, 실제 WPF6조건×3방식×3회=54회 정확도·표시 확인. 변경 파일 포맷/스타일 검사 통과.
+- [ ] FAIL: 검사 입력→표시 CPU125ms. WPF 표시 대기가 이전 기록보다 증가했으며 원인은 별도 프로파일링 필요. 전체 포맷 검사는 기존 다른 파일 위반으로 실패.
+- [ ] NOT_RUN: 현장 전수 정답·다른 촬영/가림,8K 전체 검색,물리 클릭→scan-out·저사양PC. 로컬 수정·검증만, 커밋/푸시 없음.
+
+## 2026-10-16 CPU 매칭 3종 WPF 연결
+
+- [x] PASS: 기존 매칭 선택에3종 추가, 독립 모델/설정·원본 ROI 학습·검색 범위·회전/배율/점수/후보/결과/시간 제한, 좌표/경계 표시·단계별 로그와 JSON 저장. [ADR-055](../docs/decisions/0055-cpu-matchers-in-wpf.md).
+- [x] PASS: 앱 관련58개+CPU7개=65개 회귀, Release0경고/0오류. 작은 검색 도형의 원본 좌표, 회전 학습, 취소/불완전/오래된 응답 폐기 검증.
+- [x] PASS: 실제 WPF Kensa 원본18V/부품·crop 회전2장·179° 합성,5조건×3방식×3회. 알려진 대상 위치1px·각도1° 기준 및 결과 렌더 완료 기록. 원본 Kensa는 전수 정답 아님. [사용법·실측·원칙 검토](../docs/cpu-matching-wpf.md).
+- [x] 후속 수정: 최초 원본 부품 Chamfer8개 중 추가4곳 오검출은 위 정확도 보정으로4개가 되었다. 최초 실패 기록/화면은 보존한다. 검사 표시125ms는 여전히 FAIL.
+- [ ] NOT_RUN:8K 전체(현재2Mpx 예산으로 명시적 거부), 정밀 전수 현장 정답, 물리 클릭→scan-out. 전체 포맷 검사는 기존 파일 공백 위반으로 FAIL, 새 CPU 파일 검사는 PASS. 로컬 작업만, 커밋/푸시 없음.
+
+## 2026-10-15 독립 CPU 매칭 3종
+
+- [x] PASS: CpuMatching.Line2D/SubNcc/DirectionalChamfer와 중립 Core, 독립 솔루션·CLI, 검색 ROI/원본 pose/회전/균일 배율/취소·상한.
+- [x] PASS: 방향 맵 각도 양자화의 원본 경계 보정, 작은 문자 NCC 전체 표본, 크기에 따른 Chamfer 거리 비용. 고정0.75 점수 유지.
+- [x] PASS: 회귀7개 및 Release 빌드0경고/0오류. 공통16장×5방법×4회 측정, 정답 완전 합성15장(개발12+별도3)에서 새3종 각각15/15. 원본 Kensa 한 장의 알려진 대상 검증은 현장 precision/recall과 구별.
+- [x] PASS: PNG/템플릿/정답/원시 결과/재현 코드 제공. [전체 실측·사용법·원칙 검토](../docs/cpu-template-matching.md).
+- [ ] NOT_RUN: 현장 전수 데이터 검증,8K 전체 탐색,검사 버튼125ms. 앱 UI 연결은2026-10-16 후속 완료. FDCM/LINE-2D 원문 가속 전체 재현은 미완료. OpenCV 대비 일반적 우위는 미확정. 커밋/푸시 없음.
+
+## 2026-10-15 TorchSharp C# 학습·추론
+
+- [x] PASS: 공식 C# 모델과 가중치, CPU/CUDA 추론·미세학습·가중치 저장/재로딩. 독립 공급자를 App에서 주입하고 ONNX/전체 탐색 유지. [ADR-053](../docs/decisions/0053-torchsharp-training-and-inference.md).
+- [x] PASS: 배경 불균형 loss 수정. 분리된 합성 검증 양성0/8→8/8, 음성 오검출0, 위치 최대0.752px. CPU/CUDA 각400step 실행. 각도 최대44.931°는 FAIL이며 기본 가중치로 승격하지 않음.
+- [x] PASS: 실제 Kensa/8K × ONNX/TorchSharp × CPU/CUDA ×5회, 총40회 비교. 같은 프로세스의 CUDA 공급자 전환과 앱 외부 가중치 로딩 확인. [전체 결과·사용법·원칙 검토](../docs/posematch-tdcm-torchsharp.md).
+- [x] PASS: TorchSharp5/PoseMatch11/앱 모드·평가35, 총51개 회귀 및 Release 빌드0경고/0오류.
+- [ ] FAIL: 두 엔진 모두 Kensa28/48·8K110/256 및 위치/각도 미달. 8K 표시 반복 중앙값 TorchSharp CPU11652.55/CUDA1276.84ms, ONNX CPU10216.82/CUDA893.12ms.125/80ms 목표 미달.
+- [ ] NOT_RUN: 현장 정밀 라벨을 사용한 미세학습·독립 현장 검증,18V 작은 ROI. 로컬 수정·검증만 수행, 커밋/푸시 없음.
+
+## 2026-10-15 PoseMatch 정확도 우선 후속
+
+- [x] PASS: 학습36×36 축소의 단일 지점 aliasing 재현·면적 표본화 수정. 수정 전 회귀2개 FAIL, 수정 후 PoseMatch10개·앱 매칭/평가35개 PASS, Release0경고/0오류.
+- [x] PASS: 점수0.5와 전체 신경망 탐색 유지, 실제 Kensa/8K CPU·CUDA 각2회 비교. 정답 일대일 대응과 누락·오검출·중복·위치/각도 오차 기록. [검증·원칙 검토](../docs/posematch-tdcm-accuracy.md).
+- [ ] FAIL: Kensa28/48(이전1),8K110/256(이전23). 위치·각도 기준 미달이며 검출 완료가 아니다.
+- [ ] NOT_RUN: Kensa 정밀 정답 라벨,18V 작은 ROI, 수정 후 임의 회전 정확도. 로컬 작업만 수행, 커밋/푸시 없음.
+
+## 2026-10-15 MVVM 샘플 2카메라 모델
+
+- [x] PASS: 내장 모델 로딩, 독립8K 이미지2개, ROI/그룹14개, 리프 알고리즘 설정10개, 카메라별 편집/Undo/Redo, 한국어 주석.
+- [x] PASS: 샘플17개. 실제 두 네이티브 화면을 RTX3060/WARP에서 확인하고 ROI 목록/설정 바인딩·삭제/Undo·종료 검증. [사용법](../samples/VisionCanvas.MvvmSample/README.md), [검증·원칙 검토](../docs/visioncanvas-mvvm-sample.md).
+- [x] PASS: 최종 Release 회귀 Core385/Canvas241/앱·이미징281/샘플17, 총924개. 경고를 오류로 처리하고 변경 파일 포맷 확인.
+- [ ] 범위 밖: 실제 알고리즘 실행, 외부 모델 파일 입출력, 카메라 SDK/수집, 두 카메라 전체 트랜잭션과60FPS 보장.
+
+## 2026-10-15 ROI 편집 핸들 크기 설정
+
+- [x] PASS: 설정 슬라이더 50~300%, 기본 100%. 사각·회전 핸들과 클릭 범위·회전 간격·이름표를 함께 조절하며 문서/Undo/Redo 보존.
+- [x] PASS: Core385/Canvas241/설정·VM25개, Release0경고·0오류. 실제 WPF 바인딩과 RTX3060/DX12 debug 전체 앱 진단 종료0. [사용법·검증·원칙 검토](../docs/roi-handle-size.md).
+- [ ] NOT_RUN: 별도PC/다중 DPI·60FPS 재측정. 실행 중 표시 설정으로 유지하며 로컬 수정·검증만 진행.
+
+## 2026-10-15 진단 없는 VisionCanvas MVVM 샘플
+
+- [x] PASS: 독립 WPF 프로젝트, App 조립·XAML 바인딩·VM 상태/명령·파일 선택 경계. 기존 Core 도메인 재사용, 진단/검사 실행 분기 없음.
+- [x] PASS: ImageCoordinator를 Canvas.Presentation으로 이동해 두 앱 공유, 기존 이미지 이력7개 통과.
+- [x] PASS: VM 동작/실패·취소, 실제 RTX3060/WARP의8K 및24,576×8,192 파일·ROI 입력·이력·바인딩·종료 확인. [범위·증거·원칙 검토](../docs/visioncanvas-mvvm-sample.md).
+- [x] PASS: 새 샘플10개, 기존 Canvas235개·앱280개 회귀. 새 샘플 Release 경고를 오류로 처리하는 빌드/검증과 종료 보호 변이 검사 통과.
+- [x] PASS: 초보자용 한국어 주석·읽기 순서 추가. C#7개 코드 토큰과 XAML/csproj3개 내용의 전후 동일성, Release 빌드·기존 VM8개 확인. 동작 변경·새 테스트 없음.
+- [ ] NOT_RUN: 대량ROI60FPS·실시간 카메라·별도 저사양PC. 로컬 작업만 진행, 커밋/푸시 없음.
+
+## 2026-10-15 PoseMatch 전체 탐색 CUDA 후속
+
+- [x] PASS: CPU/CUDA 장치 선택과 RTX3060 실제 CUDA 커널 프로파일, 세션 재사용/안전한 해제, 최근20회 명령→게시→Present/fence 로그/JSON.
+- [x] PASS: FP32 head 결합과 같은 크기 정규화 중복 제거. 공식 PyTorch 출력 대조 및 CPU 회귀. 전통적 후보 검색으로 변경하지 않음.
+- [x] PASS: 창224~1024, 원본 ROI36~2048 계열,8K 앱 최초/반복 및 Kensa 부품 검사 측정. [재현·결과](../docs/posematch-tdcm-cuda.md).
+- [ ] FAIL: CPU125ms/CUDA80ms와 검출 정확도. 기본 설정의8K 출력23/256, 신뢰도0.2의256후보도 위치·각도 오차가 남음. 명암 보정/FP16 실험의 미달을 숨기지 않음.
+- [ ] NOT_RUN: 18V 텍스트 현장 검출률, 제품180° 회전 NG의 정확도 수용 시험, Linux 실제 실행. 로컬 변경만, 커밋·푸시 없음.
+
+## 2026-10-15 매뉴얼 class·record와 ROI 이력
+
+- [x] PASS: 4장 class/record class/readonly record struct 비교, 5장 실제 Rename → with → 불변 문서 → Before/After → Undo/Redo 설명과 접힌 코드 예제.
+- [x] PASS: RecordsHistory Release 빌드 0경고/0오류, 실제 Core 호출 확인 18개, 새 발췌 5개 일치, HTML 11개/참조 303개, 코드창 81개 구조·색상 문자 보존과 DOM 대역 동작 확인. [상세](../docs/beginner-manual-validation.md).
+- [ ] NOT_RUN: 실제 브라우저·인쇄·독자 이해도 평가. 제품 코드 변경 없음. 로컬 수정·검증만 수행.
+
+## 2026-10-15 PoseMatch-TDCM C#·ONNX 추가
+
+- [x] PASS: 독립 PoseMatch.Tdcm 프로젝트, VisionAlgorithm의 ProjectReference/Gray8 어댑터, 포함된 공식 MIT 가중치, 재현 가능한 변환 스크립트/해시/고지.
+- [x] PASS: PyTorch/ONNX 다섯 head와 C# 실제 추론 대조. 위치/각도·독립 X/Y배율, 선택형 명암 보정, 취소/수명/예산/타일 경계 테스트.
+- [x] PASS: 앱 독립 모드/모델/설정·원본 ROI 등록·검색·결과 표시. 실제 WPF 모드 선택/ONNX 검사/DX12 smoke 통과. 기존 삭제 기하 값2는 계속 거부.
+- [x] PASS: 원본 ROI 최대2048² 입력,36~2048 크기 계열과224~1024 추론 창 벤치마크. 전체 회귀1,252개 통과. [검증·수치](../docs/posematch-tdcm.md).
+- [ ] FAIL: CPU8K125ms. 큰 ROI도 서비스445~569ms, 위치 오차20~64px 조건이 있어 현장 정밀 검사 합격으로 처리하지 않는다. 작은 ROI8K 전체 탐색은 수십~백여 초다.
+- [ ] NOT_RUN: ONNX CUDA, Linux 실제 실행, 현장 Kensa18V 검출률/제품 회전 NG. 현재 신경망 결과는 사용자 확인이며 자동 OK/NG가 아니다. 커밋·푸시 없음.
+
+## 2026-10-15 기존 그룹 확장·최초 준비와 확정 GC
+
+- [x] PASS: 기존 그룹에 바깥 독립 ROI 편입 시 부모만 확장. 필요 시 사각형 전환 승인 반영. 상위 모듈/루트·이미지 경계를 넘으면 문서·선택·이력·Redo를 그대로 유지하며 거부. 추가 ROI/번호 없음.
+- [x] PASS: 최초69.7ms의 변환 준비 대기, 확정25.6ms의 GC9.219ms 중첩과 별도 최초 패킹 비용 분석. 기존 공간 색인·집합/큐 용량·이력 버퍼 소유권·refit 변경 목록을 개선. 원칙 예외 없음.
+- [x] PASS: Core371개/전체1,247개, Release0경고·0오류, GPU/debug와 WARP 실제 그룹 확장·경계·이력·입력·색상 회귀. 변경 C# 스타일·매뉴얼52개 원문/4개 실습 검사. [결과·실패 기록](../docs/group-expansion-validation.md).
+- [x] PASS: 같은4만 ROI 시나리오에서 두 최종 실행의 확정 구간 할당31MB→약25MB(18~20% 감소), 각48회 계층 선택과 전체 형상/선택 Undo/Redo 검증.
+- [ ] FAIL: 엄격한60FPS 및 최초/확정 스파이크 해결. 새 프로세스 간 지연 편차가 남아 최초 최대67.36/107.38ms, 준비 후 최대34.03/56.87ms. 좋은 실행만 선택하지 않고 [두 실행 결과](../docs/group-expansion-results.json)를 보존.
+- [ ] NOT_RUN: WARP 동일 부하 성능·다른PC/현장 영상. 기존 검사 매뉴얼3개 원문 불일치는 별도 범위. 로컬 작업만 진행, 커밋·푸시 없음.
+
+## 2026-10-15 복수 선택 회전 제거·벽 슬라이딩·4만 ROI 입력
+
+- [x] PASS: 주황색 복수 선택 회전 핸들/회전·초기화 명령 제거. 단일 ROI·실제 그룹 회전과 다중 이동/복사/삭제·통합 이력 유지.
+- [x] PASS: 실제 벽 접선 슬라이딩, Shift 축 제한, 여러 부모/이미지 경계, 빠른 입력의 금지 구간 통과 방지, 동일 Mouse Up의 정확한 preview/commit, 밖 포인터의 유효 접선 이동.
+- [x] PASS: 단일 선택 즉시 게시·변환 자료 지연 준비, 큰 단일 그룹의 BVH 경계 재사용. 전체 재구축 질의·이력과 동등성 확인.
+- [x] PASS: 전체 회귀1,231개와 후속 Core359개(추가1개 포함, 현재 합1,232개). Release0경고/0오류, GPU/debug·WARP 실제 계층 입력/픽셀·GPU 전체 앱 회귀. [검증](../docs/group-interaction-validation.md).
+- [x] PASS: 같은4만 ROI 조건의 전후/반복 측정. 최종 선택 완료 평균1.90ms, 이동/회전 확정 중앙값141.5/149.1ms. 전체 ROI Undo/Redo와48회 계층 선택 정확성 유지.
+- [ ] FAIL: 엄격한60FPS. 준비 후 활성 구간 약59.96~60.10FPS지만 최대 프레임25.61ms, 최초 실행 최대69.7ms. 평균 수치로16.67ms 예산 달성을 선언하지 않는다.
+- [ ] NOT_RUN: WARP 동일 부하60FPS, 별도PC/현장 영상. 별도 검사 매뉴얼 원문3개의 현재 소스 불일치는 이번 ROI 수정 범위 밖으로 보존. 커밋·푸시 없음.
+
+## 2026-10-15 자체 기하 패턴 제거
+
+- [x] UI/모드 상태/전용 판정·API/CLI/샘플/전용 테스트 및 측정 분기 제거. 논문 공통 윤곽 계산과 ROI/일반 도형 기능 보존.
+- [x] PASS: 전체 Release0경고/0오류, 1,228개 회귀(Core357/앱277/Algorithm194/Canvas235/Compute52/Inspection113), RTX3060 실제 패널 두 방식·기하 패널 부재·논문/OpenCV256핀·CUDA·다각형/일반 도형 검사. [기록](../docs/geometric-matching-removal.md).
+- [ ] NOT_RUN: 별도PC/Linux/현장 영상 및 125/80ms 목표 재수용. 로컬 수정·검증만 수행.
+
+## 2026-10-15 ROI 이탈·빠른 입력·중첩 선택
+
+- [x] PASS: 일반 ROI 이탈·오목 부모 홈 건너뛰기·금지 회전 구간 도약5개 재현 후 수정. 연속 이동/회전의 첫 경계, 미리보기/확정·지연 준비·이력 일치.
+- [x] PASS: 사용자 확정대로 부모 밖 독립 리프 편입과 원래 도형/번호 보존. 안으로 이동 확정 후 이탈 제한. 그룹 승격/깊이/이력 유지.
+- [x] PASS: 실제 계층 더블클릭 순환·선택 그룹 내부 드래그·Ctrl 선택, 오목 폴리곤 부모 자동 ROI 배치.
+- [x] PASS: 전체1,298개(Core349·앱302·Canvas235·Algorithm249·Compute52·Inspection111), Release 빌드0경고/0오류. GPU/debug·WARP 실제 계층 입력과 GPU 전체 앱 회귀 종료0. [상세 기록](../docs/roi-boundary-motion-validation.md).
+- [ ] NOT_RUN: 대량 그룹 편집60FPS·별도PC·현장 영상. 로컬 작업만 수행, 커밋·푸시 없음.
+
+## 2026-10-15 전체 View MVVM·그룹 경계·ROI 버튼 통합
+
+- [x] PASS: View11개와 공통 FilterPanel 확인. 반복 창의 조립/로딩 상태/진단 분리, 패턴 패널의 버튼·오류 표시를 VM/바인딩으로 통일. 남긴 UI 코드의 이유와 SOLID5/GRASP9 기록.
+- [x] PASS: ROI 그룹/모듈 그룹의 상위 실제 도형 포함 제한. 이동·회전 미리보기/확정/준비된 편집·핸들/숫자 크기 변경·상위 축소·그룹 승격/편입과 언그룹/Undo/Redo. 리프 자유 편집 유지.
+- [x] PASS: ROI 추가/그리기 통합, 선택 그룹에 연결/그 외 독립 생성, 부모 버튼 유지. 네 도형·키·이력 회귀.
+- [x] PASS: 전체1,281개(Core333·앱301·Canvas235·Algorithm249·Compute52·Inspection111), Release 빌드0경고/0오류, 변경 C# 스타일 검사. GPU 실제 그룹 드래그 제한/숫자 resize/언그룹, GPU/WARP 앱 회귀, 검사 패널 실제 숫자 입력 회귀. [상세 검증](../docs/views-mvvm-and-group-bounds.md).
+- [x] PASS: 반복 ROI 창 WARP/8192²/100,020,001셀 초기화·개별 편집/이력·취소·정상 종료. 매뉴얼55개 본문 소스 일치·HTML11개/참조298개·diff 검사.
+- [ ] NOT_RUN: 별도PC/현장 영상/대량 그룹 편집60FPS. 로컬 작업만 수행, 커밋·푸시 없음.
+
+## 2026-10-15 MainWindow 책임 재검토·TextRasterizer
+
+- [x] PASS: View의 서비스 조립/해제를 App, 진단 분기를 Diagnostics, 초기화 명령/오류·성능 문구를 VM으로 이동. UI 이벤트/포커스/설정창/타이머를 View에 남기는 이유 기록.
+- [x] PASS: WpfTextRasterizer → TextRasterizer 및 두 partial 파일·사용처 변경. WPF/STA/픽셀·atlas 계약 유지.
+- [x] PASS: 앱297개·Canvas235개, 솔루션 Release 빌드0경고/0오류, GPU/debug 및 WARP 전체 앱 smoke/정상 종료. [검증·원칙 검토](../docs/mvvm-viewport-validation.md).
+- [ ] NOT_RUN: 별도PC/현장 영상/대량 편집60FPS. 로컬 수정·검증만 진행, 커밋·푸시 없음.
+
 ## 2026-10-15 부모 버튼 복구·MVVM 폴더 구조
 
 - [x] PASS: 독립 ROI/부모 그룹/선택 부모의 자식 버튼을 각각 제공. 빈 부모도 생성 즉시 부모 색상, 네 도형·미리보기·명령 전환·Undo/Redo 검증.

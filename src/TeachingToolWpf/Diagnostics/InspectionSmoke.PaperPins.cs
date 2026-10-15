@@ -21,7 +21,7 @@ internal static partial class InspectionSmoke
         matching.MinimumScore = .72;
         matching.UseSelection = false;
         await invoke(matching.Train);
-        Require(matching.Model?.Options.BuildGeometricModel == false, "single-pin paper shape model");
+        Require(matching.Model is not null, "single-pin paper shape model");
         var pinModel = matching.Model;
 
         matching.MaximumMatches = 16;

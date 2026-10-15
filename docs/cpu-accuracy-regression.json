@@ -1,0 +1,5566 @@
+{
+  "Runtime": ".NET 10.0.13",
+  "CpuThreads": 12,
+  "Timing": "CPU Find includes ROI copy, pyramid, features, search, refinement; excludes PNG decode/UI; sequential",
+  "Rows": [
+    {
+      "Name": "local-zero",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 8.3262,
+      "FirstMs": 73.9432,
+      "WarmMs": [
+        17.0226,
+        16.8643,
+        19.31
+      ],
+      "AllocatedBytes": [
+        12871424,
+        12851368,
+        12851368,
+        12851368
+      ],
+      "MedianMs": 17.0226,
+      "Expected": [
+        {
+          "X": 133.25,
+          "Y": 117.75,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 133.25903616441212,
+          "Y": 117.74134464056655,
+          "AngleDegrees": -0.0011931128018431991,
+          "Scale": 1,
+          "Score": 0.9875313912767292
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.012512694122573628
+      ],
+      "AngleErrors": [
+        0.0011931128018431991
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 30392,
+      "ImageSha256": "607019409D8B4BE36A16301F6F9AEBF96A1F15B5C72DF450B8FE0E2126602EA5",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-zero",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.3355,
+      "FirstMs": 125.2819,
+      "WarmMs": [
+        109.9246,
+        124.0032,
+        107.819
+      ],
+      "AllocatedBytes": [
+        1702112,
+        1701640,
+        1701640,
+        1701640
+      ],
+      "MedianMs": 109.9246,
+      "Expected": [
+        {
+          "X": 133.25,
+          "Y": 117.75,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 133.5,
+          "Y": 117.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9866275580825059
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 29852,
+      "ImageSha256": "607019409D8B4BE36A16301F6F9AEBF96A1F15B5C72DF450B8FE0E2126602EA5",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-zero",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.7336,
+      "FirstMs": 111.4092,
+      "WarmMs": [
+        94.0437,
+        94.0777,
+        95.5901
+      ],
+      "AllocatedBytes": [
+        11730584,
+        11721032,
+        11721032,
+        11721032
+      ],
+      "MedianMs": 94.0777,
+      "Expected": [
+        {
+          "X": 133.25,
+          "Y": 117.75,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 133.25903616441212,
+          "Y": 117.74134464056655,
+          "AngleDegrees": -0.0011931128018431991,
+          "Scale": 1,
+          "Score": 0.9418885253449766
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.012512694122573628
+      ],
+      "AngleErrors": [
+        0.0011931128018431991
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32051,
+      "ImageSha256": "607019409D8B4BE36A16301F6F9AEBF96A1F15B5C72DF450B8FE0E2126602EA5",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-zero",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0808,
+      "FirstMs": 9.5025,
+      "WarmMs": [
+        1.2045,
+        1.1627,
+        1.1442
+      ],
+      "AllocatedBytes": [
+        89904,
+        72568,
+        72568,
+        72568
+      ],
+      "MedianMs": 1.1627,
+      "Expected": [
+        {
+          "X": 133.25,
+          "Y": 117.75,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 133.5,
+          "Y": 117.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.986984372138977
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "607019409D8B4BE36A16301F6F9AEBF96A1F15B5C72DF450B8FE0E2126602EA5",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-zero",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0008,
+      "FirstMs": 18.8911,
+      "WarmMs": [
+        18.3784,
+        18.2453,
+        17.9669
+      ],
+      "AllocatedBytes": [
+        124720,
+        124664,
+        124664,
+        124664
+      ],
+      "MedianMs": 18.2453,
+      "Expected": [
+        {
+          "X": 133.25,
+          "Y": 117.75,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 133.5,
+          "Y": 117.5,
+          "AngleDegrees": -1.5,
+          "Scale": 1,
+          "Score": 0.9875795841217041
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        1.5
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "607019409D8B4BE36A16301F6F9AEBF96A1F15B5C72DF450B8FE0E2126602EA5",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.2624,
+      "FirstMs": 20.098,
+      "WarmMs": [
+        18.0502,
+        18.425,
+        18.9242
+      ],
+      "AllocatedBytes": [
+        12949120,
+        12951768,
+        12949064,
+        12949064
+      ],
+      "MedianMs": 18.425,
+      "Expected": [
+        {
+          "X": 142.25,
+          "Y": 121.75,
+          "AngleDegrees": 17,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 142.25535971160312,
+          "Y": 121.75193031141185,
+          "AngleDegrees": 17.00094888536421,
+          "Scale": 1,
+          "Score": 0.9726457750363959
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.0056967192852862905
+      ],
+      "AngleErrors": [
+        0.0009488853642096728
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 31007,
+      "ImageSha256": "717778F4A39350F6F1C8C66D6CF5552DD52D699F823A6D50257C997A09CDDA33",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0291,
+      "FirstMs": 154.3877,
+      "WarmMs": [
+        22.7653,
+        21.8502,
+        21.1425
+      ],
+      "AllocatedBytes": [
+        2542840,
+        2542784,
+        2542784,
+        2542784
+      ],
+      "MedianMs": 21.8502,
+      "Expected": [
+        {
+          "X": 142.25,
+          "Y": 121.75,
+          "AngleDegrees": 17,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 142.25,
+          "Y": 121.75,
+          "AngleDegrees": 16.875,
+          "Scale": 1,
+          "Score": 0.9865243925986199
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0.125
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 30192,
+      "ImageSha256": "717778F4A39350F6F1C8C66D6CF5552DD52D699F823A6D50257C997A09CDDA33",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.333,
+      "FirstMs": 104.3535,
+      "WarmMs": [
+        96.0192,
+        87.6416,
+        73.5786
+      ],
+      "AllocatedBytes": [
+        11922760,
+        11922704,
+        11922704,
+        11930808
+      ],
+      "MedianMs": 87.6416,
+      "Expected": [
+        {
+          "X": 142.25,
+          "Y": 121.75,
+          "AngleDegrees": 17,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 142.2553597240185,
+          "Y": 121.75193031866624,
+          "AngleDegrees": 17.00094846242564,
+          "Scale": 1,
+          "Score": 0.8915639868842494
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.005696733424306589
+      ],
+      "AngleErrors": [
+        0.000948462425640173
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32391,
+      "ImageSha256": "717778F4A39350F6F1C8C66D6CF5552DD52D699F823A6D50257C997A09CDDA33",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 1.6759,
+      "WarmMs": [
+        1.1795,
+        1.1453,
+        1.1361
+      ],
+      "AllocatedBytes": [
+        71816,
+        71760,
+        71760,
+        71760
+      ],
+      "MedianMs": 1.1453,
+      "Expected": [
+        {
+          "X": 142.25,
+          "Y": 121.75,
+          "AngleDegrees": 17,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "717778F4A39350F6F1C8C66D6CF5552DD52D699F823A6D50257C997A09CDDA33",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-rotation",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0009,
+      "FirstMs": 18.1374,
+      "WarmMs": [
+        17.6312,
+        17.8815,
+        17.6381
+      ],
+      "AllocatedBytes": [
+        124432,
+        124376,
+        124376,
+        124376
+      ],
+      "MedianMs": 17.6381,
+      "Expected": [
+        {
+          "X": 142.25,
+          "Y": 121.75,
+          "AngleDegrees": 17,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 142.5,
+          "Y": 121.5,
+          "AngleDegrees": 17,
+          "Scale": 1,
+          "Score": 0.9892917275428772
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "717778F4A39350F6F1C8C66D6CF5552DD52D699F823A6D50257C997A09CDDA33",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -180,
+        "MaximumAngle": 180,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1568,
+      "FirstMs": 61.55,
+      "WarmMs": [
+        67.4146,
+        63.8329,
+        68.9008
+      ],
+      "AllocatedBytes": [
+        15128536,
+        15130552,
+        15125896,
+        15125896
+      ],
+      "MedianMs": 67.4146,
+      "Expected": [
+        {
+          "X": 125.25,
+          "Y": 137.75,
+          "AngleDegrees": 179,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 125.2537589820125,
+          "Y": 137.74671963031722,
+          "AngleDegrees": 178.98704350894775,
+          "Scale": 1,
+          "Score": 0.9841829650514047
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.004989065145497903
+      ],
+      "AngleErrors": [
+        0.012956491052250385
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 164517,
+      "ImageSha256": "50DC7961703DCF14677E944DDCA0FB26665AC54512CF08B01D2C3844BB434851",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -180,
+        "MaximumAngle": 180,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0437,
+      "FirstMs": 121.6712,
+      "WarmMs": [
+        106.7482,
+        104.0623,
+        103.4813
+      ],
+      "AllocatedBytes": [
+        11429488,
+        11429432,
+        11429432,
+        11429432
+      ],
+      "MedianMs": 104.0623,
+      "Expected": [
+        {
+          "X": 125.25,
+          "Y": 137.75,
+          "AngleDegrees": 179,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 125.25,
+          "Y": 137.75,
+          "AngleDegrees": 179.125,
+          "Scale": 1,
+          "Score": 0.9864694131364357
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0.125
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 159652,
+      "ImageSha256": "50DC7961703DCF14677E944DDCA0FB26665AC54512CF08B01D2C3844BB434851",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -180,
+        "MaximumAngle": 180,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1544,
+      "FirstMs": 109.8505,
+      "WarmMs": [
+        105.2606,
+        116.4922,
+        130.7356
+      ],
+      "AllocatedBytes": [
+        14145776,
+        14132968,
+        14132600,
+        14140768
+      ],
+      "MedianMs": 116.4922,
+      "Expected": [
+        {
+          "X": 125.25,
+          "Y": 137.75,
+          "AngleDegrees": 179,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 125.2537589820125,
+          "Y": 137.74671963031722,
+          "AngleDegrees": 178.9870435089477,
+          "Scale": 1,
+          "Score": 0.941724059902926
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.004989065145497903
+      ],
+      "AngleErrors": [
+        0.012956491052364072
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 172167,
+      "ImageSha256": "50DC7961703DCF14677E944DDCA0FB26665AC54512CF08B01D2C3844BB434851",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -180,
+        "MaximumAngle": 180,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 2.1506,
+      "WarmMs": [
+        2.1656,
+        5.5332,
+        2.66
+      ],
+      "AllocatedBytes": [
+        71816,
+        71760,
+        71760,
+        71760
+      ],
+      "MedianMs": 2.66,
+      "Expected": [
+        {
+          "X": 125.25,
+          "Y": 137.75,
+          "AngleDegrees": 179,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "50DC7961703DCF14677E944DDCA0FB26665AC54512CF08B01D2C3844BB434851",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-upside-down",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -180,
+        "MaximumAngle": 180,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0026,
+      "FirstMs": 92.1722,
+      "WarmMs": [
+        89.9413,
+        92.9631,
+        98.3513
+      ],
+      "AllocatedBytes": [
+        140976,
+        140920,
+        140920,
+        140920
+      ],
+      "MedianMs": 92.9631,
+      "Expected": [
+        {
+          "X": 125.25,
+          "Y": 137.75,
+          "AngleDegrees": 179,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 125,
+          "Y": 138,
+          "AngleDegrees": -180,
+          "Scale": 1,
+          "Score": 0.9813529253005981
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        1
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "50DC7961703DCF14677E944DDCA0FB26665AC54512CF08B01D2C3844BB434851",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-noise",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 2.5855,
+      "FirstMs": 57.5709,
+      "WarmMs": [
+        18.1358,
+        19.9804,
+        23.508
+      ],
+      "AllocatedBytes": [
+        12882016,
+        12881960,
+        12881960,
+        12881960
+      ],
+      "MedianMs": 19.9804,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 118.75,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.2483783491735,
+          "Y": 118.75604519479162,
+          "AngleDegrees": -12.986664658909717,
+          "Scale": 1,
+          "Score": 0.9651958827165436
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.006258924146512818
+      ],
+      "AngleErrors": [
+        0.013335341090282782
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 30392,
+      "ImageSha256": "0E4FDA2145051F2FFFF6CA57B6D906F74D7F4DF4EC0E5FE25A418E8C72FCF866",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-noise",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0379,
+      "FirstMs": 76.4745,
+      "WarmMs": [
+        66.9968,
+        112.1983,
+        74.1174
+      ],
+      "AllocatedBytes": [
+        5065880,
+        5065824,
+        5065824,
+        5065824
+      ],
+      "MedianMs": 74.1174,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 118.75,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.25,
+          "Y": 118.75,
+          "AngleDegrees": -12.875,
+          "Scale": 1,
+          "Score": 0.9849279722964015
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0.125
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32274,
+      "ImageSha256": "0E4FDA2145051F2FFFF6CA57B6D906F74D7F4DF4EC0E5FE25A418E8C72FCF866",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-noise",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1201,
+      "FirstMs": 126.9895,
+      "WarmMs": [
+        125.5589,
+        118.2441,
+        110.0299
+      ],
+      "AllocatedBytes": [
+        11974296,
+        11982216,
+        11974240,
+        11974240
+      ],
+      "MedianMs": 118.2441,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 118.75,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.24867750709976,
+          "Y": 118.75680727269177,
+          "AngleDegrees": -12.99007061778832,
+          "Scale": 1,
+          "Score": 0.8748642119472606
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.006934547495789309
+      ],
+      "AngleErrors": [
+        0.009929382211680604
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32885,
+      "ImageSha256": "0E4FDA2145051F2FFFF6CA57B6D906F74D7F4DF4EC0E5FE25A418E8C72FCF866",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-noise",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0023,
+      "FirstMs": 4.1644,
+      "WarmMs": [
+        2.42,
+        2.2773,
+        2.4629
+      ],
+      "AllocatedBytes": [
+        71816,
+        71760,
+        71760,
+        71760
+      ],
+      "MedianMs": 2.42,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 118.75,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "0E4FDA2145051F2FFFF6CA57B6D906F74D7F4DF4EC0E5FE25A418E8C72FCF866",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-noise",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 41.5426,
+      "WarmMs": [
+        33.7047,
+        41.897,
+        37.3947
+      ],
+      "AllocatedBytes": [
+        124432,
+        124376,
+        124376,
+        124376
+      ],
+      "MedianMs": 37.3947,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 118.75,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.5,
+          "Y": 118.5,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 0.9846712350845337
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "0E4FDA2145051F2FFFF6CA57B6D906F74D7F4DF4EC0E5FE25A418E8C72FCF866",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1789,
+      "FirstMs": 17.0408,
+      "WarmMs": [
+        20.8219,
+        16.0409,
+        15.0467
+      ],
+      "AllocatedBytes": [
+        12917072,
+        12917016,
+        12917016,
+        12922176
+      ],
+      "MedianMs": 16.0409,
+      "Expected": [
+        {
+          "X": 130.25,
+          "Y": 122.75,
+          "AngleDegrees": 12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 130.33320667503273,
+          "Y": 122.72905488844347,
+          "AngleDegrees": 11.75821357743996,
+          "Scale": 1,
+          "Score": 0.9180253556697946
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.08580238031731574
+      ],
+      "AngleErrors": [
+        0.24178642256003968
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 30882,
+      "ImageSha256": "19DBBCBBB5120C10F2D91631AC48A6BA8B965C13A647233243F112C2AA4F9616",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.9119,
+      "FirstMs": 44.3072,
+      "WarmMs": [
+        32.087,
+        35.6247,
+        34.028
+      ],
+      "AllocatedBytes": [
+        2234256,
+        2234200,
+        2234200,
+        2234200
+      ],
+      "MedianMs": 34.028,
+      "Expected": [
+        {
+          "X": 130.25,
+          "Y": 122.75,
+          "AngleDegrees": 12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 130.25,
+          "Y": 122.75,
+          "AngleDegrees": 11.875,
+          "Scale": 1,
+          "Score": 0.9578270332999358
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0.125
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 30192,
+      "ImageSha256": "19DBBCBBB5120C10F2D91631AC48A6BA8B965C13A647233243F112C2AA4F9616",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1191,
+      "FirstMs": 95.0464,
+      "WarmMs": [
+        89.2133,
+        91.5224,
+        91.0765
+      ],
+      "AllocatedBytes": [
+        11918800,
+        11918744,
+        11923584,
+        11926720
+      ],
+      "MedianMs": 91.0765,
+      "Expected": [
+        {
+          "X": 130.25,
+          "Y": 122.75,
+          "AngleDegrees": 12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 130.3330982191969,
+          "Y": 122.72973670289112,
+          "AngleDegrees": 11.753380461764777,
+          "Scale": 1,
+          "Score": 0.8402558174614929
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.08553312366223198
+      ],
+      "AngleErrors": [
+        0.24661953823522254
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32541,
+      "ImageSha256": "19DBBCBBB5120C10F2D91631AC48A6BA8B965C13A647233243F112C2AA4F9616",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0007,
+      "FirstMs": 2.4809,
+      "WarmMs": [
+        1.9354,
+        1.9113,
+        1.9751
+      ],
+      "AllocatedBytes": [
+        72624,
+        72568,
+        72568,
+        72568
+      ],
+      "MedianMs": 1.9354,
+      "Expected": [
+        {
+          "X": 130.25,
+          "Y": 122.75,
+          "AngleDegrees": 12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 131.5,
+          "Y": 123.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.7796120047569275
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        1.4577379737113252
+      ],
+      "AngleErrors": [
+        12
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "19DBBCBBB5120C10F2D91631AC48A6BA8B965C13A647233243F112C2AA4F9616",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-occlusion",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0015,
+      "FirstMs": 30.5144,
+      "WarmMs": [
+        30.1585,
+        28.0083,
+        35.6129
+      ],
+      "AllocatedBytes": [
+        124720,
+        124664,
+        124664,
+        124664
+      ],
+      "MedianMs": 30.1585,
+      "Expected": [
+        {
+          "X": 130.25,
+          "Y": 122.75,
+          "AngleDegrees": 12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 130.5,
+          "Y": 122.5,
+          "AngleDegrees": 12.5,
+          "Scale": 1,
+          "Score": 0.9647538065910339
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0.5
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "19DBBCBBB5120C10F2D91631AC48A6BA8B965C13A647233243F112C2AA4F9616",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-scale",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.9,
+        "MaximumScale": 1.1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.132,
+      "FirstMs": 27.0136,
+      "WarmMs": [
+        22.6714,
+        19.8772,
+        21.894
+      ],
+      "AllocatedBytes": [
+        13841664,
+        13848552,
+        13841608,
+        13842816
+      ],
+      "MedianMs": 21.894,
+      "Expected": [
+        {
+          "X": 134.25,
+          "Y": 119.75,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 134.25087190669603,
+          "Y": 119.75144908493796,
+          "AngleDegrees": -10.991722644985657,
+          "Scale": 1.1,
+          "Score": 0.9675409727373172
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.0016911736883036866
+      ],
+      "AngleErrors": [
+        0.008277355014342902
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 125703,
+      "ImageSha256": "9E3843A8392621D3649AB8F8918F503B48D4A5B932D2A6FE366A41A2FBC56FB0",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-scale",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.9,
+        "MaximumScale": 1.1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0391,
+      "FirstMs": 110.4075,
+      "WarmMs": [
+        112.6927,
+        127.2957,
+        120.0183
+      ],
+      "AllocatedBytes": [
+        7129064,
+        7128928,
+        7128664,
+        7128664
+      ],
+      "MedianMs": 120.0183,
+      "Expected": [
+        {
+          "X": 134.25,
+          "Y": 119.75,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 134.25,
+          "Y": 119.75,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 0.988995973496184
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 122123,
+      "ImageSha256": "9E3843A8392621D3649AB8F8918F503B48D4A5B932D2A6FE366A41A2FBC56FB0",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-scale",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.9,
+        "MaximumScale": 1.1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.124,
+      "FirstMs": 124.8087,
+      "WarmMs": [
+        116.5933,
+        116.4811,
+        118.8776
+      ],
+      "AllocatedBytes": [
+        12986064,
+        12980128,
+        12978096,
+        12978096
+      ],
+      "MedianMs": 116.5933,
+      "Expected": [
+        {
+          "X": 134.25,
+          "Y": 119.75,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 134.25087190667875,
+          "Y": 119.75144908493257,
+          "AngleDegrees": -10.991722644497031,
+          "Scale": 1.1,
+          "Score": 0.8850187450749839
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.001691173674779622
+      ],
+      "AngleErrors": [
+        0.00827735550296893
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 134507,
+      "ImageSha256": "9E3843A8392621D3649AB8F8918F503B48D4A5B932D2A6FE366A41A2FBC56FB0",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-scale",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.9,
+        "MaximumScale": 1.1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0014,
+      "FirstMs": 4.9002,
+      "WarmMs": [
+        3.8494,
+        3.4006,
+        3.3972
+      ],
+      "AllocatedBytes": [
+        75368,
+        75312,
+        75312,
+        75312
+      ],
+      "MedianMs": 3.4006,
+      "Expected": [
+        {
+          "X": 134.25,
+          "Y": 119.75,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 134,
+          "Y": 119,
+          "AngleDegrees": 0,
+          "Scale": 1.1,
+          "Score": 0.7921369075775146
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.7905694150420949
+      ],
+      "AngleErrors": [
+        11
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "9E3843A8392621D3649AB8F8918F503B48D4A5B932D2A6FE366A41A2FBC56FB0",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "local-scale",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 0.9,
+        "MaximumScale": 1.1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0009,
+      "FirstMs": 46.7264,
+      "WarmMs": [
+        51.7471,
+        47.1628,
+        53.9166
+      ],
+      "AllocatedBytes": [
+        144760,
+        144704,
+        144704,
+        144704
+      ],
+      "MedianMs": 51.7471,
+      "Expected": [
+        {
+          "X": 134.25,
+          "Y": 119.75,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 134.5,
+          "Y": 119.5,
+          "AngleDegrees": -11,
+          "Scale": 1.1,
+          "Score": 0.9906494617462158
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "9E3843A8392621D3649AB8F8918F503B48D4A5B932D2A6FE366A41A2FBC56FB0",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "negative",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1166,
+      "FirstMs": 15.1434,
+      "WarmMs": [
+        17.5846,
+        20.0504,
+        14.4746
+      ],
+      "AllocatedBytes": [
+        12756960,
+        12759480,
+        12756904,
+        12756904
+      ],
+      "MedianMs": 17.5846,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 29677,
+      "ImageSha256": "85DA7B17F2B467D8CC92FF99360DC2D7B20239806258710B3F43CC23E59631A4",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "negative",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0375,
+      "FirstMs": 56.1447,
+      "WarmMs": [
+        55.0961,
+        51.7361,
+        44.3294
+      ],
+      "AllocatedBytes": [
+        4536880,
+        4536824,
+        4536824,
+        4536824
+      ],
+      "MedianMs": 51.7361,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32124,
+      "ImageSha256": "85DA7B17F2B467D8CC92FF99360DC2D7B20239806258710B3F43CC23E59631A4",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "negative",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1119,
+      "FirstMs": 89.4282,
+      "WarmMs": [
+        88.8272,
+        91.736,
+        84.8671
+      ],
+      "AllocatedBytes": [
+        11805144,
+        11813224,
+        11805088,
+        11805088
+      ],
+      "MedianMs": 88.8272,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 31855,
+      "ImageSha256": "85DA7B17F2B467D8CC92FF99360DC2D7B20239806258710B3F43CC23E59631A4",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "negative",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0011,
+      "FirstMs": 2.2735,
+      "WarmMs": [
+        1.85,
+        1.7076,
+        1.6892
+      ],
+      "AllocatedBytes": [
+        69776,
+        69720,
+        69720,
+        69720
+      ],
+      "MedianMs": 1.7076,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "85DA7B17F2B467D8CC92FF99360DC2D7B20239806258710B3F43CC23E59631A4",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "negative",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0011,
+      "FirstMs": 11.3323,
+      "WarmMs": [
+        10.271,
+        11.139,
+        11.3224
+      ],
+      "AllocatedBytes": [
+        76304,
+        76248,
+        76248,
+        76248
+      ],
+      "MedianMs": 11.139,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "85DA7B17F2B467D8CC92FF99360DC2D7B20239806258710B3F43CC23E59631A4",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "multiple",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1322,
+      "FirstMs": 60.4356,
+      "WarmMs": [
+        52.6786,
+        65.5337,
+        72.4247
+      ],
+      "AllocatedBytes": [
+        49819904,
+        49819848,
+        49819848,
+        49819848
+      ],
+      "MedianMs": 65.5337,
+      "Expected": [
+        {
+          "X": 120.25,
+          "Y": 110.75,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 380.25,
+          "Y": 130.75,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 250.25,
+          "Y": 380.75,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 250.25547159837666,
+          "Y": 380.7458173907447,
+          "AngleDegrees": 6.962345363157397,
+          "Scale": 1,
+          "Score": 0.9712235713552793
+        },
+        {
+          "X": 380.2441546759433,
+          "Y": 130.75159471310914,
+          "AngleDegrees": -17.005244878422104,
+          "Scale": 1,
+          "Score": 0.9690260241086663
+        },
+        {
+          "X": 120.24883731529765,
+          "Y": 110.748376358262,
+          "AngleDegrees": 13.038656415062405,
+          "Scale": 1,
+          "Score": 0.966952160485515
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.001997009817310105,
+        0.006058953971442776,
+        0.006887133582109021
+      ],
+      "AngleErrors": [
+        0.03865641506240536,
+        0.005244878422104193,
+        0.037654636842603395
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 118943,
+      "ImageSha256": "735F3E2FD052DB97F587E6572970C9FB88EF3A51D1B9DBF47D337C4D515BD4E2",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "multiple",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0339,
+      "FirstMs": 477.5568,
+      "WarmMs": [
+        353.6868,
+        360.5511,
+        429.1159
+      ],
+      "AllocatedBytes": [
+        39965608,
+        39965552,
+        39965552,
+        39965552
+      ],
+      "MedianMs": 360.5511,
+      "Expected": [
+        {
+          "X": 120.25,
+          "Y": 110.75,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 380.25,
+          "Y": 130.75,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 250.25,
+          "Y": 380.75,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 380.25,
+          "Y": 130.75,
+          "AngleDegrees": -16.875,
+          "Scale": 1,
+          "Score": 0.9851577457525733
+        },
+        {
+          "X": 120.25,
+          "Y": 110.75,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 0.984839484086312
+        },
+        {
+          "X": 250.25,
+          "Y": 380.75,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 0.98431560965528
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0,
+        0,
+        0
+      ],
+      "AngleErrors": [
+        0,
+        0.125,
+        0
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 146573,
+      "ImageSha256": "735F3E2FD052DB97F587E6572970C9FB88EF3A51D1B9DBF47D337C4D515BD4E2",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "multiple",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1113,
+      "FirstMs": 363.5264,
+      "WarmMs": [
+        315.3533,
+        294.1168,
+        314.6926
+      ],
+      "AllocatedBytes": [
+        45078744,
+        45086728,
+        45078688,
+        45086760
+      ],
+      "MedianMs": 314.6926,
+      "Expected": [
+        {
+          "X": 120.25,
+          "Y": 110.75,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 380.25,
+          "Y": 130.75,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 250.25,
+          "Y": 380.75,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 250.25547159837666,
+          "Y": 380.7458173907447,
+          "AngleDegrees": 6.962345363157397,
+          "Scale": 1,
+          "Score": 0.8913272272256482
+        },
+        {
+          "X": 380.24415467553575,
+          "Y": 130.75159471303718,
+          "AngleDegrees": -17.005244864898827,
+          "Scale": 1,
+          "Score": 0.8871847588676243
+        },
+        {
+          "X": 120.24883731476282,
+          "Y": 110.74837635788342,
+          "AngleDegrees": 13.038656435453731,
+          "Scale": 1,
+          "Score": 0.877089908709983
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.001997010436500971,
+        0.006058954345699038,
+        0.006887133582109021
+      ],
+      "AngleErrors": [
+        0.03865643545373132,
+        0.005244864898827473,
+        0.037654636842603395
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 121061,
+      "ImageSha256": "735F3E2FD052DB97F587E6572970C9FB88EF3A51D1B9DBF47D337C4D515BD4E2",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "multiple",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0018,
+      "FirstMs": 7.1758,
+      "WarmMs": [
+        7.1021,
+        5.9464,
+        10.9997
+      ],
+      "AllocatedBytes": [
+        272184,
+        272128,
+        272128,
+        272128
+      ],
+      "MedianMs": 7.1021,
+      "Expected": [
+        {
+          "X": 120.25,
+          "Y": 110.75,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 380.25,
+          "Y": 130.75,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 250.25,
+          "Y": 380.75,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 250.5,
+          "Y": 380.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.8533940315246582
+        }
+      ],
+      "Missing": 2,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        7
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "735F3E2FD052DB97F587E6572970C9FB88EF3A51D1B9DBF47D337C4D515BD4E2",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "multiple",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0016,
+      "FirstMs": 118.9853,
+      "WarmMs": [
+        101.7567,
+        82.1778,
+        80.7172
+      ],
+      "AllocatedBytes": [
+        416568,
+        416512,
+        416512,
+        416512
+      ],
+      "MedianMs": 82.1778,
+      "Expected": [
+        {
+          "X": 120.25,
+          "Y": 110.75,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 380.25,
+          "Y": 130.75,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 250.25,
+          "Y": 380.75,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 250.5,
+          "Y": 380.5,
+          "AngleDegrees": 7,
+          "Scale": 1,
+          "Score": 0.9849718809127808
+        },
+        {
+          "X": 120.5,
+          "Y": 110.5,
+          "AngleDegrees": 13,
+          "Scale": 1,
+          "Score": 0.984798789024353
+        },
+        {
+          "X": 380.5,
+          "Y": 130.5,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 0.9842541813850403
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738,
+        0.3535533905932738,
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0,
+        0,
+        0
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "735F3E2FD052DB97F587E6572970C9FB88EF3A51D1B9DBF47D337C4D515BD4E2",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0856,
+      "FirstMs": 139.2636,
+      "WarmMs": [
+        142.3304,
+        136.9886,
+        128.4369
+      ],
+      "AllocatedBytes": [
+        195969424,
+        195966944,
+        195966944,
+        195966944
+      ],
+      "MedianMs": 136.9886,
+      "Expected": [
+        {
+          "X": 723.25,
+          "Y": 628.75,
+          "AngleDegrees": 23,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 723.2516542521884,
+          "Y": 628.7539345203029,
+          "AngleDegrees": 22.954025568479665,
+          "Scale": 1,
+          "Score": 0.9830078958558541
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.004268137804307337
+      ],
+      "AngleErrors": [
+        0.0459744315203352
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 460812,
+      "ImageSha256": "2602B1C5E888FB3A94E3849C86C85652069848214DC9A02E771677E25729C2CD",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0398,
+      "FirstMs": 216.8941,
+      "WarmMs": [
+        225.9723,
+        215.0274,
+        217.9025
+      ],
+      "AllocatedBytes": [
+        3341976,
+        3341920,
+        3341920,
+        3341920
+      ],
+      "MedianMs": 217.9025,
+      "Expected": [
+        {
+          "X": 723.25,
+          "Y": 628.75,
+          "AngleDegrees": 23,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 723.25,
+          "Y": 628.75,
+          "AngleDegrees": 23.125,
+          "Scale": 1,
+          "Score": 0.987158602629698
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0.125
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 460272,
+      "ImageSha256": "2602B1C5E888FB3A94E3849C86C85652069848214DC9A02E771677E25729C2CD",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.1131,
+      "FirstMs": 1148.3884,
+      "WarmMs": [
+        1208.318,
+        1123.37,
+        1140.0775
+      ],
+      "AllocatedBytes": [
+        175203688,
+        175211768,
+        175211800,
+        175203632
+      ],
+      "MedianMs": 1140.0775,
+      "Expected": [
+        {
+          "X": 723.25,
+          "Y": 628.75,
+          "AngleDegrees": 23,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 723.2516542521884,
+          "Y": 628.7539345203029,
+          "AngleDegrees": 22.954025568479665,
+          "Scale": 1,
+          "Score": 0.923954975551929
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.004268137804307337
+      ],
+      "AngleErrors": [
+        0.0459744315203352
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 462471,
+      "ImageSha256": "2602B1C5E888FB3A94E3849C86C85652069848214DC9A02E771677E25729C2CD",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0018,
+      "FirstMs": 21.6357,
+      "WarmMs": [
+        24.845,
+        23.5672,
+        16.2302
+      ],
+      "AllocatedBytes": [
+        1054856,
+        1054800,
+        1054800,
+        1059552
+      ],
+      "MedianMs": 23.5672,
+      "Expected": [
+        {
+          "X": 723.25,
+          "Y": 628.75,
+          "AngleDegrees": 23,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "2602B1C5E888FB3A94E3849C86C85652069848214DC9A02E771677E25729C2CD",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "alignment-wide",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 28.799999999999997,
+        "Region": null
+      },
+      "TrainMs": 0.0009,
+      "FirstMs": 127.2284,
+      "WarmMs": [
+        126.0724,
+        127.7546,
+        124.5888
+      ],
+      "AllocatedBytes": [
+        1107192,
+        1107192,
+        1107136,
+        1112304
+      ],
+      "MedianMs": 126.0724,
+      "Expected": [
+        {
+          "X": 723.25,
+          "Y": 628.75,
+          "AngleDegrees": 23,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 723,
+          "Y": 629,
+          "AngleDegrees": 23,
+          "Scale": 1,
+          "Score": 0.9896566867828369
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "2602B1C5E888FB3A94E3849C86C85652069848214DC9A02E771677E25729C2CD",
+      "TemplateSha256": "3412778B48B187E7C6477F178EE6CB5A7906A1F5FB8FACD90B13FB9624F834B8"
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 14.399999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0768,
+      "FirstMs": 17.9326,
+      "WarmMs": [
+        13.0574,
+        12.906,
+        13.3917
+      ],
+      "AllocatedBytes": [
+        12231992,
+        12233872,
+        12231936,
+        12231936
+      ],
+      "MedianMs": 13.0574,
+      "Expected": [
+        {
+          "X": 128.25,
+          "Y": 130.75,
+          "AngleDegrees": -16,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 128.21583755809235,
+          "Y": 130.73997725613432,
+          "AngleDegrees": -16.262849355675144,
+          "Scale": 1,
+          "Score": 0.939170074195025
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.035602357108634915
+      ],
+      "AngleErrors": [
+        0.26284935567514367
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 116738,
+      "ImageSha256": "8BC09039A57BB3B1B3D4D411B32604B9C215A4B28735FBE0C941D216D834D16F",
+      "TemplateSha256": "EF723EDF4229E34A359BA4736839569DF669AD236E73D7D9C2E0AECDFDBFAD53"
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 14.399999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0286,
+      "FirstMs": 64.7589,
+      "WarmMs": [
+        63.557,
+        60.8356,
+        67.8604
+      ],
+      "AllocatedBytes": [
+        2158064,
+        2158008,
+        2158008,
+        2158008
+      ],
+      "MedianMs": 63.557,
+      "Expected": [
+        {
+          "X": 128.25,
+          "Y": 130.75,
+          "AngleDegrees": -16,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 128.25,
+          "Y": 130.75,
+          "AngleDegrees": -17,
+          "Scale": 1,
+          "Score": 0.9516767714743519
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        1
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 118353,
+      "ImageSha256": "8BC09039A57BB3B1B3D4D411B32604B9C215A4B28735FBE0C941D216D834D16F",
+      "TemplateSha256": "EF723EDF4229E34A359BA4736839569DF669AD236E73D7D9C2E0AECDFDBFAD53"
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 14.399999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.1057,
+      "FirstMs": 98.6944,
+      "WarmMs": [
+        102.1027,
+        107.4957,
+        97.2224
+      ],
+      "AllocatedBytes": [
+        11634080,
+        11642000,
+        11642128,
+        11634024
+      ],
+      "MedianMs": 102.1027,
+      "Expected": [
+        {
+          "X": 128.25,
+          "Y": 130.75,
+          "AngleDegrees": -16,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 128.21583755840157,
+          "Y": 130.73997725658293,
+          "AngleDegrees": -16.262849347826773,
+          "Scale": 1,
+          "Score": 0.8620203963944555
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.03560235668562146
+      ],
+      "AngleErrors": [
+        0.26284934782677283
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 124083,
+      "ImageSha256": "8BC09039A57BB3B1B3D4D411B32604B9C215A4B28735FBE0C941D216D834D16F",
+      "TemplateSha256": "EF723EDF4229E34A359BA4736839569DF669AD236E73D7D9C2E0AECDFDBFAD53"
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 14.399999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0017,
+      "FirstMs": 1.5575,
+      "WarmMs": [
+        1.2753,
+        1.2676,
+        1.2688
+      ],
+      "AllocatedBytes": [
+        70664,
+        70608,
+        70608,
+        70608
+      ],
+      "MedianMs": 1.2688,
+      "Expected": [
+        {
+          "X": 128.25,
+          "Y": 130.75,
+          "AngleDegrees": -16,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "8BC09039A57BB3B1B3D4D411B32604B9C215A4B28735FBE0C941D216D834D16F",
+      "TemplateSha256": "EF723EDF4229E34A359BA4736839569DF669AD236E73D7D9C2E0AECDFDBFAD53"
+    },
+    {
+      "Name": "text-rotation",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 14.399999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 18.0783,
+      "WarmMs": [
+        16.2327,
+        16.2614,
+        17.5649
+      ],
+      "AllocatedBytes": [
+        122368,
+        122312,
+        122312,
+        122312
+      ],
+      "MedianMs": 16.2614,
+      "Expected": [
+        {
+          "X": 128.25,
+          "Y": 130.75,
+          "AngleDegrees": -16,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 128,
+          "Y": 130.5,
+          "AngleDegrees": -17.5,
+          "Scale": 1,
+          "Score": 0.957058310508728
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        1.5
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "8BC09039A57BB3B1B3D4D411B32604B9C215A4B28735FBE0C941D216D834D16F",
+      "TemplateSha256": "EF723EDF4229E34A359BA4736839569DF669AD236E73D7D9C2E0AECDFDBFAD53"
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.1582,
+      "FirstMs": 17.4869,
+      "WarmMs": [
+        13.4708,
+        13.7291,
+        14.0247
+      ],
+      "AllocatedBytes": [
+        13516560,
+        13510960,
+        13510960,
+        13510960
+      ],
+      "MedianMs": 13.7291,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 128.75,
+          "AngleDegrees": 14,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.29128232336174,
+          "Y": 128.80139931414294,
+          "AngleDegrees": 14.218249410046951,
+          "Scale": 1,
+          "Score": 0.9114577281074746
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.06592510687521205
+      ],
+      "AngleErrors": [
+        0.2182494100469512
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 31347,
+      "ImageSha256": "818AF0DAF4A3F415E1921B25ADD4EB605E2D4B6423A3819B867B4C04928541A8",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0352,
+      "FirstMs": 23.2648,
+      "WarmMs": [
+        21.6228,
+        19.8032,
+        20.2168
+      ],
+      "AllocatedBytes": [
+        2145848,
+        2145792,
+        2145792,
+        2153288
+      ],
+      "MedianMs": 20.2168,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 128.75,
+          "AngleDegrees": 14,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.25,
+          "Y": 128.75,
+          "AngleDegrees": 14,
+          "Scale": 1,
+          "Score": 0.9299191197604971
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 29212,
+      "ImageSha256": "818AF0DAF4A3F415E1921B25ADD4EB605E2D4B6423A3819B867B4C04928541A8",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.2819,
+      "FirstMs": 79.037,
+      "WarmMs": [
+        78.3109,
+        79.0035,
+        78.444
+      ],
+      "AllocatedBytes": [
+        12759392,
+        12751424,
+        12759208,
+        12759528
+      ],
+      "MedianMs": 78.444,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 128.75,
+          "AngleDegrees": 14,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 139.29128232336174,
+          "Y": 128.80139931414294,
+          "AngleDegrees": 14.218249410046951,
+          "Scale": 1,
+          "Score": 0.830285583932944
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.06592510687521205
+      ],
+      "AngleErrors": [
+        0.2182494100469512
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 32284,
+      "ImageSha256": "818AF0DAF4A3F415E1921B25ADD4EB605E2D4B6423A3819B867B4C04928541A8",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0008,
+      "FirstMs": 0.9007,
+      "WarmMs": [
+        0.8509,
+        0.8407,
+        0.7968
+      ],
+      "AllocatedBytes": [
+        72104,
+        72048,
+        72048,
+        72048
+      ],
+      "MedianMs": 0.8407,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 128.75,
+          "AngleDegrees": 14,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "818AF0DAF4A3F415E1921B25ADD4EB605E2D4B6423A3819B867B4C04928541A8",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-component-rotation",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 6.1914,
+      "WarmMs": [
+        5.5525,
+        5.8144,
+        5.5351
+      ],
+      "AllocatedBytes": [
+        78632,
+        78576,
+        78576,
+        78576
+      ],
+      "MedianMs": 5.5525,
+      "Expected": [
+        {
+          "X": 139.25,
+          "Y": 128.75,
+          "AngleDegrees": 14,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "818AF0DAF4A3F415E1921B25ADD4EB605E2D4B6423A3819B867B4C04928541A8",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 7.199999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0266,
+      "FirstMs": 27.485,
+      "WarmMs": [
+        26.6968,
+        26.4909,
+        26.7847
+      ],
+      "AllocatedBytes": [
+        2525488,
+        2525432,
+        2525432,
+        2525432
+      ],
+      "MedianMs": 26.6968,
+      "Expected": [
+        {
+          "X": 65.25,
+          "Y": 63.75,
+          "AngleDegrees": -12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 65.2848593766049,
+          "Y": 63.654673217192034,
+          "AngleDegrees": -11.5,
+          "Scale": 1,
+          "Score": 0.8868072477466089
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.1015005992977348
+      ],
+      "AngleErrors": [
+        0.5
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 115193,
+      "ImageSha256": "673CA9B3372A93432EDA421496622D5861CFA790D515A4304E3C6762AA9C74A9",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 7.199999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0062,
+      "FirstMs": 110.4088,
+      "WarmMs": [
+        111.6711,
+        112.3686,
+        110.2576
+      ],
+      "AllocatedBytes": [
+        273976,
+        273920,
+        273920,
+        273920
+      ],
+      "MedianMs": 111.6711,
+      "Expected": [
+        {
+          "X": 65.25,
+          "Y": 63.75,
+          "AngleDegrees": -12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 65.25,
+          "Y": 63.75,
+          "AngleDegrees": -13,
+          "Scale": 1,
+          "Score": 0.9209373875451179
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        1
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 115193,
+      "ImageSha256": "673CA9B3372A93432EDA421496622D5861CFA790D515A4304E3C6762AA9C74A9",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 7.199999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0339,
+      "FirstMs": 37.5071,
+      "WarmMs": [
+        37.0497,
+        36.4146,
+        36.1018
+      ],
+      "AllocatedBytes": [
+        2545688,
+        2545632,
+        2545632,
+        2545632
+      ],
+      "MedianMs": 36.4146,
+      "Expected": [
+        {
+          "X": 65.25,
+          "Y": 63.75,
+          "AngleDegrees": -12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 65.34558005403957,
+          "Y": 63.65168646315615,
+          "AngleDegrees": -11.634244337140672,
+          "Scale": 1,
+          "Score": 0.7641838260010315
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.1371170968805644
+      ],
+      "AngleErrors": [
+        0.36575566285932837
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 115193,
+      "ImageSha256": "673CA9B3372A93432EDA421496622D5861CFA790D515A4304E3C6762AA9C74A9",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 7.199999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0009,
+      "FirstMs": 0.3502,
+      "WarmMs": [
+        0.2133,
+        0.2119,
+        0.1946
+      ],
+      "AllocatedBytes": [
+        20592,
+        20536,
+        20536,
+        20536
+      ],
+      "MedianMs": 0.2119,
+      "Expected": [
+        {
+          "X": 65.25,
+          "Y": 63.75,
+          "AngleDegrees": -12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "673CA9B3372A93432EDA421496622D5861CFA790D515A4304E3C6762AA9C74A9",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-rotation",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 7.199999999999999,
+        "Region": null
+      },
+      "TrainMs": 0.0012,
+      "FirstMs": 4.6785,
+      "WarmMs": [
+        4.5113,
+        4.1282,
+        4.1462
+      ],
+      "AllocatedBytes": [
+        73496,
+        73440,
+        73440,
+        73440
+      ],
+      "MedianMs": 4.1462,
+      "Expected": [
+        {
+          "X": 65.25,
+          "Y": 63.75,
+          "AngleDegrees": -12,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 65.5,
+          "Y": 64,
+          "AngleDegrees": -13.5,
+          "Scale": 1,
+          "Score": 0.9426807165145874
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        1.5
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "673CA9B3372A93432EDA421496622D5861CFA790D515A4304E3C6762AA9C74A9",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "Line2D",
+      "Labels": "Known template crop; other possible instances unverified",
+      "GroundTruthComplete": false,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -20,
+        "MaximumAngle": 20,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 8,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 8,
+        "Region": null
+      },
+      "TrainMs": 0.0248,
+      "FirstMs": 19.7463,
+      "WarmMs": [
+        19.1446,
+        19.064,
+        20.7847
+      ],
+      "AllocatedBytes": [
+        2462504,
+        2462448,
+        2462448,
+        2462448
+      ],
+      "MedianMs": 19.1446,
+      "Expected": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9878891731992606
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 68257,
+      "ImageSha256": "9B524CB2402F5D2A5825C07D82DEB54B13CB54BA8EA079BF5E959F20501EFDF5",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "SubNcc",
+      "Labels": "Known template crop; other possible instances unverified",
+      "GroundTruthComplete": false,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -20,
+        "MaximumAngle": 20,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 8,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 8,
+        "Region": null
+      },
+      "TrainMs": 0.005,
+      "FirstMs": 59.18,
+      "WarmMs": [
+        58.5014,
+        58.1963,
+        57.3711
+      ],
+      "AllocatedBytes": [
+        287480,
+        287424,
+        287424,
+        287424
+      ],
+      "MedianMs": 58.1963,
+      "Expected": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9999999999999996
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 61200,
+      "ImageSha256": "9B524CB2402F5D2A5825C07D82DEB54B13CB54BA8EA079BF5E959F20501EFDF5",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "DirectionalChamfer",
+      "Labels": "Known template crop; other possible instances unverified",
+      "GroundTruthComplete": false,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -20,
+        "MaximumAngle": 20,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 8,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 8,
+        "Region": null
+      },
+      "TrainMs": 0.0369,
+      "FirstMs": 23.3963,
+      "WarmMs": [
+        23.5022,
+        24.5027,
+        22.8805
+      ],
+      "AllocatedBytes": [
+        2056072,
+        2056016,
+        2056016,
+        2056016
+      ],
+      "MedianMs": 23.5022,
+      "Expected": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9103257721689391
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 62805,
+      "ImageSha256": "9B524CB2402F5D2A5825C07D82DEB54B13CB54BA8EA079BF5E959F20501EFDF5",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "OpenCvFixed",
+      "Labels": "Known template crop; other possible instances unverified",
+      "GroundTruthComplete": false,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -20,
+        "MaximumAngle": 20,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 8,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 8,
+        "Region": null
+      },
+      "TrainMs": 0.0014,
+      "FirstMs": 0.6678,
+      "WarmMs": [
+        0.4511,
+        0.3905,
+        0.3883
+      ],
+      "AllocatedBytes": [
+        28032,
+        27976,
+        27976,
+        27976
+      ],
+      "MedianMs": 0.3905,
+      "Expected": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9999998211860657
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "9B524CB2402F5D2A5825C07D82DEB54B13CB54BA8EA079BF5E959F20501EFDF5",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "kensa-18v-original",
+      "Method": "OpenCvRotated",
+      "Labels": "Known template crop; other possible instances unverified",
+      "GroundTruthComplete": false,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -20,
+        "MaximumAngle": 20,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 8,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 8,
+        "Region": null
+      },
+      "TrainMs": 0.0014,
+      "FirstMs": 23.313,
+      "WarmMs": [
+        22.8869,
+        22.6271,
+        22.4122
+      ],
+      "AllocatedBytes": [
+        434704,
+        434648,
+        434648,
+        434648
+      ],
+      "MedianMs": 22.6271,
+      "Expected": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 44,
+          "Y": 50.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9999998211860657
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0
+      ],
+      "AngleErrors": [
+        0
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "9B524CB2402F5D2A5825C07D82DEB54B13CB54BA8EA079BF5E959F20501EFDF5",
+      "TemplateSha256": "262E4E22F8ADE63D69DD076072D66BA46810C808BECD56E05BA26A6C06556CBE"
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.1673,
+      "FirstMs": 15.2017,
+      "WarmMs": [
+        12.486,
+        14.1446,
+        12.5309
+      ],
+      "AllocatedBytes": [
+        13241664,
+        13241608,
+        13241608,
+        13241608
+      ],
+      "MedianMs": 12.5309,
+      "Expected": [
+        {
+          "X": 138.6,
+          "Y": 126.2,
+          "AngleDegrees": -24.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 138.59856739965915,
+          "Y": 126.19386715033828,
+          "AngleDegrees": -24.367845748714785,
+          "Scale": 1,
+          "Score": 0.973383298502226
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.006297951151757184
+      ],
+      "AngleErrors": [
+        0.032154251285192004
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 29852,
+      "ImageSha256": "158629117075C028ED393B9F630055E7001224E91104511F3050B7074544DC68",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0279,
+      "FirstMs": 19.1526,
+      "WarmMs": [
+        19.2204,
+        18.9167,
+        19.5326
+      ],
+      "AllocatedBytes": [
+        3553616,
+        3553560,
+        3553560,
+        3553560
+      ],
+      "MedianMs": 19.2204,
+      "Expected": [
+        {
+          "X": 138.6,
+          "Y": 126.2,
+          "AngleDegrees": -24.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 138.5,
+          "Y": 126.25,
+          "AngleDegrees": -24.25,
+          "Scale": 1,
+          "Score": 0.9820293605172928
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.11180339887498314
+      ],
+      "AngleErrors": [
+        0.14999999999997726
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 29602,
+      "ImageSha256": "158629117075C028ED393B9F630055E7001224E91104511F3050B7074544DC68",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.1358,
+      "FirstMs": 81.8838,
+      "WarmMs": [
+        80.8043,
+        79.9766,
+        80.5627
+      ],
+      "AllocatedBytes": [
+        12805128,
+        12805072,
+        12805072,
+        12805072
+      ],
+      "MedianMs": 80.5627,
+      "Expected": [
+        {
+          "X": 138.6,
+          "Y": 126.2,
+          "AngleDegrees": -24.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 138.59856736695937,
+          "Y": 126.19386710269808,
+          "AngleDegrees": -24.36784459257683,
+          "Scale": 1,
+          "Score": 0.9076088689191659
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.006298004981343919
+      ],
+      "AngleErrors": [
+        0.03215540742314715
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 33897,
+      "ImageSha256": "158629117075C028ED393B9F630055E7001224E91104511F3050B7074544DC68",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0015,
+      "FirstMs": 1.4519,
+      "WarmMs": [
+        1.3063,
+        1.3671,
+        1.3123
+      ],
+      "AllocatedBytes": [
+        73968,
+        73912,
+        73912,
+        73912
+      ],
+      "MedianMs": 1.3123,
+      "Expected": [
+        {
+          "X": 138.6,
+          "Y": 126.2,
+          "AngleDegrees": -24.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "158629117075C028ED393B9F630055E7001224E91104511F3050B7074544DC68",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-oblique",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0011,
+      "FirstMs": 22.8722,
+      "WarmMs": [
+        22.5142,
+        23.4227,
+        22.6076
+      ],
+      "AllocatedBytes": [
+        125672,
+        125616,
+        125616,
+        125616
+      ],
+      "MedianMs": 22.6076,
+      "Expected": [
+        {
+          "X": 138.6,
+          "Y": 126.2,
+          "AngleDegrees": -24.4,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 138.5,
+          "Y": 126.5,
+          "AngleDegrees": -24.5,
+          "Scale": 1,
+          "Score": 0.9847514033317566
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.31622776601683344
+      ],
+      "AngleErrors": [
+        0.10000000000002274
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "158629117075C028ED393B9F630055E7001224E91104511F3050B7074544DC68",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-two",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.2003,
+      "FirstMs": 48.6973,
+      "WarmMs": [
+        48.1207,
+        47.7747,
+        48.7525
+      ],
+      "AllocatedBytes": [
+        49934104,
+        49934048,
+        49934048,
+        49934048
+      ],
+      "MedianMs": 48.1207,
+      "Expected": [
+        {
+          "X": 130.6,
+          "Y": 117.2,
+          "AngleDegrees": 6.8,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 360.4,
+          "Y": 372.7,
+          "AngleDegrees": -21.6,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 360.3971544086615,
+          "Y": 372.6999868048043,
+          "AngleDegrees": -21.564010671652795,
+          "Scale": 1,
+          "Score": 0.9789499032924697
+        },
+        {
+          "X": 130.60289776547972,
+          "Y": 117.20983655212308,
+          "AngleDegrees": 6.783855312971923,
+          "Scale": 1,
+          "Score": 0.9675276909635038
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.010254501569823321,
+        0.0028456219318186357
+      ],
+      "AngleErrors": [
+        0.016144687028031512,
+        0.035989328347227456
+      ],
+      "ScaleErrors": [
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 116458,
+      "ImageSha256": "6B2F5E7FEBE44C25B81BB6A145B0C367CAB0B90884747C6E7CF43BB00CD53AE1",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-two",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0565,
+      "FirstMs": 94.1829,
+      "WarmMs": [
+        93.6394,
+        95.5825,
+        93.5144
+      ],
+      "AllocatedBytes": [
+        8956608,
+        8956552,
+        8972496,
+        8972872
+      ],
+      "MedianMs": 93.6394,
+      "Expected": [
+        {
+          "X": 130.6,
+          "Y": 117.2,
+          "AngleDegrees": 6.8,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 360.4,
+          "Y": 372.7,
+          "AngleDegrees": -21.6,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 360.5,
+          "Y": 372.75,
+          "AngleDegrees": -21.625,
+          "Scale": 1,
+          "Score": 0.9830308860293814
+        },
+        {
+          "X": 130.5,
+          "Y": 117.25,
+          "AngleDegrees": 6.875,
+          "Scale": 1,
+          "Score": 0.9822296793125117
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.11180339887498314,
+        0.1118033988750149
+      ],
+      "AngleErrors": [
+        0.07500000000004547,
+        0.024999999999977263
+      ],
+      "ScaleErrors": [
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 117778,
+      "ImageSha256": "6B2F5E7FEBE44C25B81BB6A145B0C367CAB0B90884747C6E7CF43BB00CD53AE1",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-two",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.2051,
+      "FirstMs": 292.5837,
+      "WarmMs": [
+        288.7428,
+        294.9786,
+        291.9275
+      ],
+      "AllocatedBytes": [
+        45907992,
+        45908432,
+        45907904,
+        45908032
+      ],
+      "MedianMs": 291.9275,
+      "Expected": [
+        {
+          "X": 130.6,
+          "Y": 117.2,
+          "AngleDegrees": 6.8,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 360.4,
+          "Y": 372.7,
+          "AngleDegrees": -21.6,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 360.3971544194085,
+          "Y": 372.6999868168128,
+          "AngleDegrees": -21.56401098357003,
+          "Scale": 1,
+          "Score": 0.9155708417766577
+        },
+        {
+          "X": 130.60289776631652,
+          "Y": 117.20983663621074,
+          "AngleDegrees": 6.7838536515052965,
+          "Scale": 1,
+          "Score": 0.8929295601349008
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.010254582466757258,
+        0.002845611129288594
+      ],
+      "AngleErrors": [
+        0.016146348494658014,
+        0.03598901642999408
+      ],
+      "ScaleErrors": [
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 121458,
+      "ImageSha256": "6B2F5E7FEBE44C25B81BB6A145B0C367CAB0B90884747C6E7CF43BB00CD53AE1",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-two",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0018,
+      "FirstMs": 5.5594,
+      "WarmMs": [
+        5.1093,
+        4.8569,
+        5.0998
+      ],
+      "AllocatedBytes": [
+        272856,
+        272800,
+        272800,
+        272800
+      ],
+      "MedianMs": 5.0998,
+      "Expected": [
+        {
+          "X": 130.6,
+          "Y": 117.2,
+          "AngleDegrees": 6.8,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 360.4,
+          "Y": 372.7,
+          "AngleDegrees": -21.6,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 131,
+          "Y": 118,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.813327968120575
+        }
+      ],
+      "Missing": 1,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.8944271909999159
+      ],
+      "AngleErrors": [
+        6.7999999999999545
+      ],
+      "ScaleErrors": [
+        0
+      ],
+      "KnownTargetsPassed": false,
+      "Passed": false,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "6B2F5E7FEBE44C25B81BB6A145B0C367CAB0B90884747C6E7CF43BB00CD53AE1",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-two",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 61.4722,
+      "WarmMs": [
+        60.2284,
+        61.2959,
+        62.3849
+      ],
+      "AllocatedBytes": [
+        370208,
+        370152,
+        370152,
+        370152
+      ],
+      "MedianMs": 61.2959,
+      "Expected": [
+        {
+          "X": 130.6,
+          "Y": 117.2,
+          "AngleDegrees": 6.8,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 360.4,
+          "Y": 372.7,
+          "AngleDegrees": -21.6,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 130.5,
+          "Y": 117,
+          "AngleDegrees": 6.5,
+          "Scale": 1,
+          "Score": 0.988725483417511
+        },
+        {
+          "X": 360,
+          "Y": 372.5,
+          "AngleDegrees": -21,
+          "Scale": 1,
+          "Score": 0.9795258641242981
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0.22360679774997896,
+        0.44721359549993256
+      ],
+      "AngleErrors": [
+        0.2999999999999545,
+        0.6000000000000227
+      ],
+      "ScaleErrors": [
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "6B2F5E7FEBE44C25B81BB6A145B0C367CAB0B90884747C6E7CF43BB00CD53AE1",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "Line2D",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.1691,
+      "FirstMs": 8.5997,
+      "WarmMs": [
+        9.577,
+        7.315,
+        8.1271
+      ],
+      "AllocatedBytes": [
+        12893456,
+        12893368,
+        12893368,
+        12893368
+      ],
+      "MedianMs": 8.1271,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 28672,
+      "ImageSha256": "71D1A1CE8DA6A5EC9D01021007713524BE73A66E4B54DAFBB314B3A2D7EA5CCC",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "SubNcc",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0259,
+      "FirstMs": 11.2153,
+      "WarmMs": [
+        11.0368,
+        11.0131,
+        11.1924
+      ],
+      "AllocatedBytes": [
+        790728,
+        790616,
+        790616,
+        790616
+      ],
+      "MedianMs": 11.0368,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 28672,
+      "ImageSha256": "71D1A1CE8DA6A5EC9D01021007713524BE73A66E4B54DAFBB314B3A2D7EA5CCC",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "DirectionalChamfer",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.1362,
+      "FirstMs": 74.3054,
+      "WarmMs": [
+        73.6556,
+        74.9022,
+        73.7279
+      ],
+      "AllocatedBytes": [
+        12248488,
+        12240616,
+        12240616,
+        12248752
+      ],
+      "MedianMs": 73.7279,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 31057,
+      "ImageSha256": "71D1A1CE8DA6A5EC9D01021007713524BE73A66E4B54DAFBB314B3A2D7EA5CCC",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "OpenCvFixed",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.001,
+      "FirstMs": 0.9846,
+      "WarmMs": [
+        0.8166,
+        0.8172,
+        0.8697
+      ],
+      "AllocatedBytes": [
+        71928,
+        71872,
+        71872,
+        71872
+      ],
+      "MedianMs": 0.8172,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "71D1A1CE8DA6A5EC9D01021007713524BE73A66E4B54DAFBB314B3A2D7EA5CCC",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    },
+    {
+      "Name": "validation-negative",
+      "Method": "OpenCvRotated",
+      "Labels": "Synthetic known transform; no real-scene recall claim",
+      "GroundTruthComplete": true,
+      "Split": "Validation",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 16,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 36.6,
+        "Region": null
+      },
+      "TrainMs": 0.0093,
+      "FirstMs": 5.8138,
+      "WarmMs": [
+        5.6252,
+        5.5079,
+        5.5326
+      ],
+      "AllocatedBytes": [
+        78456,
+        78400,
+        78400,
+        78400
+      ],
+      "MedianMs": 5.5326,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "71D1A1CE8DA6A5EC9D01021007713524BE73A66E4B54DAFBB314B3A2D7EA5CCC",
+      "TemplateSha256": "898866ACF8FD02C7E31DFA99D4521E4CBF6531119EE7B32D186A42C002C23B91"
+    }
+  ]
+}

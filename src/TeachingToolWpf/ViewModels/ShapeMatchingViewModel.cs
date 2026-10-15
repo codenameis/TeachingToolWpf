@@ -68,7 +68,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
     {
         get;
     }
-    public string ModelSummary => !IsShapeMethod ? TemplateSummary : Model is not { } model ? "학습된 모델 없음" :
+    public string ModelSummary => IsCpuMethod ? CpuSummary : IsTdcmMethod ? TdcmSummary : !IsShapeMethod ? TemplateSummary : Model is not { } model ? "학습된 모델 없음" :
         $"특징 {model.Levels[0].Features.Length}개 · {model.Levels.Length}단계(자동) · 템플릿 {model.TemplateCount}개" +
         (model.HasFineDetailModel ? " · 원본 세부 획 검증" : "") +
         (InspectRotation ? " · 회전 검사: 전체 방향 탐색" : "") +
@@ -115,11 +115,14 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         set => ChangeSearchSettings(ActiveSearchSettings with { UseSelection = value });
     }
 
-    public ShapeMatchingViewModel(IShapeMatchingService service, ITemplateMatchingService? templateService = null)
+    public ShapeMatchingViewModel(IShapeMatchingService service, ITemplateMatchingService? templateService = null, ITdcmMatchingService? tdcmService = null,
+        ICpuTemplateMatchingService? cpuService = null)
     {
         _service = service;
         _templateService = templateService;
-        Train = new(TrainAsync, Failed, () => IsIdle && _canExecute && _image is not null && _selection is not null && OptionsError.Length == 0 && (IsShapeMethod || _templateService is not null));
+        _tdcmService = tdcmService;
+        _cpuService = cpuService;
+        Train = new(TrainAsync, Failed, () => IsIdle && _canExecute && _image is not null && _selection is not null && OptionsError.Length == 0 && (IsCpuMethod ? _cpuService is not null : IsShapeMethod || (IsTdcmMethod ? _tdcmService is not null : _templateService is not null)));
         Search = new(SearchAsync, Failed, () => IsIdle && _canExecute && _image is not null && HasModel && !IsTrainingDirty && OptionsError.Length == 0 && (!UseSelection || _selection is not null));
         Cancel = new(() => _cancellation?.Cancel(), () => _cancellation is not null);
         Clear = new(ClearModel, () => IsIdle && HasModel);
@@ -137,7 +140,18 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         var searchSelection = selection is null ? null : selected!.SearchRange?.Expand(selection) ?? selection;
         var exclusion = selection is not null && !selected!.Masks.IsEmpty ? new RoiExclusion(selection, selected.Masks) : null;
         var wasDirty = IsTrainingDirty;
-        foreach (var mode in new[] { _paperState, _geometricState })
+        foreach (var mode in _cpuStates.Values)
+        {
+            if (mode.TeachingRoiId is { } cpuId && state.Rois.TryGetValue(cpuId, out var cpuRoi))
+            {
+                mode.IsMaskDirty = !cpuRoi.Masks.IsEmpty;
+            }
+        }
+        if (_tdcmTeachingId is { } tdcmId && state.Rois.TryGetValue(tdcmId, out var tdcmRoi))
+        {
+            _tdcmMaskDirty = !tdcmRoi.Masks.IsEmpty;
+        }
+        foreach (var mode in new[] { _paperState })
         {
             if (mode.TeachingRoiId is { } id && state.Rois.TryGetValue(id, out var trained))
             {
@@ -172,6 +186,16 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
     private async Task TrainAsync()
     {
         _training = true;
+        if (IsCpuMethod)
+        {
+            await TrainCpuAsync();
+            return;
+        }
+        if (IsTdcmMethod)
+        {
+            await TrainTdcmAsync();
+            return;
+        }
         if (!IsShapeMethod)
         {
             await TrainTemplateAsync();
@@ -183,7 +207,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         var method = Method;
         var state = ActiveShapeState;
         var training = state.Training;
-        var options = training.ToOptions(IsGeometricMethod);
+        var options = training.ToOptions();
         var exclusion = _selectionExclusion;
         var roiId = _selectedRoiId;
         await RunAsync(async (token, epoch) =>
@@ -214,6 +238,17 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
 
     private async Task SearchAsync()
     {
+        var startedTimestamp = Stopwatch.GetTimestamp();
+        if (IsCpuMethod)
+        {
+            await SearchCpuAsync(startedTimestamp);
+            return;
+        }
+        if (IsTdcmMethod)
+        {
+            await SearchTdcmAsync(startedTimestamp);
+            return;
+        }
         if (!IsShapeMethod)
         {
             await SearchTemplateAsync();
@@ -270,6 +305,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
                 return;
             }
             var decision = InspectionDecision.Evaluate(output, rotation, model.TrainingReferenceAngle);
+            _inspectionNotice = decision.Reason;
             var boundary = SearchBoundary(image, roi);
             Verdict = decision.Verdict;
             _result = new($"{InspectionResultPresentation.Name(decision.Verdict)} · 검출 {output.Matches.Length}개",
@@ -277,7 +313,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
             {
                 BatchLabels = method == PatternMatchingMethod.Shape
             };
-            var rows = output.Matches.Select((match, index) => FormatShapeMatch(match, index, method == PatternMatchingMethod.GeometricShape) +
+            var rows = output.Matches.Select((match, index) => FormatShapeMatch(match, index) +
                 FormatRotationDecision(match, rotation, model.TrainingReferenceAngle, decision.Verdict == InspectionVerdict.Warning))
                 .ToImmutableArray();
             Results = decision.Reason + (output.Matches.IsEmpty ? "\n검출 위치 없음" : "\n\n" + string.Join("\n\n", rows));
@@ -297,7 +333,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
             if (method == PatternMatchingMethod.Shape)
             {
                 ResultRows = rows;
-                _paperResultSummary = decision.Reason + Results[detailsEnd..];
+                _resultSummary = decision.Reason + Results[detailsEnd..];
             }
             Status = $"{output.Matches.Length}개 · {output.TotalMilliseconds:F1} ms (읽기/변환 {output.ReadMilliseconds:F1}) · 창 {output.Windows}개" +
                 (output.CandidateScoring is not null ? " · CUDA + CPU" : output.Preprocessing is not null ? " · GPU 전처리" : " · CPU") +
@@ -415,7 +451,8 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         Verdict = InspectionVerdict.Warning;
         Results = message;
         Status = message;
-        _result = new("WARN · " + (summary ?? message), InspectionResultPresentation.Color(InspectionVerdict.Warning), [], []);
+        _inspectionNotice = message;
+        _result = new("검사 확인 필요 · " + (summary ?? message), InspectionResultPresentation.Color(InspectionVerdict.Warning), [], []);
         PublishResult();
     }
 
@@ -425,6 +462,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         NotifyResultRows();
         Notify(nameof(VerdictText));
         Notify(nameof(VerdictColor));
+        NotifyPanelState();
         Locate.Refresh();
         Changed?.Invoke();
     }
@@ -443,6 +481,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         Notify(nameof(IsBusy));
         Notify(nameof(VerdictText));
         Notify(nameof(OptionsError));
+        NotifyPanelState();
         Train.Refresh();
         Search.Refresh();
         Cancel.Refresh();

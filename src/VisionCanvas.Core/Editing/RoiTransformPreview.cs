@@ -25,6 +25,7 @@ public sealed class RoiTransformSelection
     private readonly Lazy<RoiSpatialIndex> _stationarySearch;
     private RotationConstraint? _rotationConstraint;
     private readonly Lazy<RoiSpatialIndex> _repeatedConstraints;
+    private readonly Lazy<(RoiGeometry Parent, RoiGeometry Child)[]> _groupBoundaries;
     public ImmutableArray<RepeatedRoiBatch> Repeated
     {
         get;
@@ -50,7 +51,7 @@ public sealed class RoiTransformSelection
         get
         {
             var cached = Volatile.Read(ref _rotationConstraint);
-            return _moving.IsValueCreated && _stationary.IsValueCreated && _movingSearch.IsValueCreated && _stationarySearch.IsValueCreated && cached is { } constraint
+            return _groupBoundaries.IsValueCreated && _moving.IsValueCreated && _stationary.IsValueCreated && _movingSearch.IsValueCreated && _stationarySearch.IsValueCreated && cached is { } constraint
                 && constraint.Pivot == Bounds.Center && constraint.Limits.IsValueCreated;
         }
     }
@@ -61,6 +62,7 @@ public sealed class RoiTransformSelection
         // Expanded membership never changes during a gesture; freeze once instead of building persistent tree nodes.
         Affected = before.Selection.Count == before.Rois.Count || before.Snapshot.Children.Count == 0 ? before.Selection
             : RoiHierarchy.Subtree(before, RoiHierarchy.EffectiveRoots(before)).ToFrozenSet();
+        _groupBoundaries = new(() => RoiGroupBounds.StationaryParents(before, Affected));
         Repeated = before.RepeatedSelection.Select(pair => before.RepeatedRois[pair.Key].Slice(pair.Value))
             .OfType<RepeatedRoiBatch>().ToImmutableArray();
         _stationaryRepeated = new(() => before.RepeatedRois.Values.Select(batch => before.RepeatedSelection.TryGetValue(batch.Id, out var selected)
@@ -75,11 +77,11 @@ public sealed class RoiTransformSelection
             : before.Snapshot.IsSpatialCreated && Affected.Count > 64 && Affected.Count > before.Rois.Count / 8 ? before.Snapshot.Spatial.Filter(Affected, include: true)
             : new(Affected.Select(id => before.Rois[id])));
         _stationary = new(() => all ? new([]) : Affected.Count <= 64 ? before.Snapshot.Spatial.WithChanges(Affected.Select(id => (id, (Roi?)null)))
-            : before.Snapshot.IsSpatialCreated && before.Rois.Count - Affected.Count > before.Rois.Count / 8 ? before.Snapshot.Spatial.Filter(Affected, include: false)
+            : before.Snapshot.IsSpatialCreated ? before.Snapshot.Spatial.Filter(Affected, include: false)
             : new(before.Rois.Values.Where(r => !Affected.Contains(r.Id))));
     }
 
-    public PointD Constrain(PointD requested)
+    public PointD Constrain(PointD requested, PointD previous = default, bool allowSlide = false)
     {
         if (!requested.IsFinite)
         {
@@ -88,7 +90,7 @@ public sealed class RoiTransformSelection
 
         if (Before.Image is not { } image || (Affected.Count == 0 && Repeated.IsEmpty))
         {
-            return requested;
+            return RoiGroupBounds.ConstrainTranslation(_groupBoundaries.Value, requested, previous, allowSlide);
         }
 
         var bounds = Combine(Moving.Bounds, Affected.Count != 0, _repeatedConstraints.Value.Bounds, !Repeated.IsEmpty);
@@ -113,11 +115,20 @@ public sealed class RoiTransformSelection
             fraction = Math.Min(fraction, -bounds.Top / requested.Y);
         }
 
-        return requested * Math.Clamp(fraction, 0, 1);
+        var imageBounds = new BoundsD(-bounds.Left, -bounds.Top, image.Width - bounds.Right, image.Height - bounds.Bottom);
+        // 부모 벽을 따라 이동할 때 이미지 밖의 X 입력 때문에 유효한 Y 이동까지 축소하지 않는다.
+        var target = allowSlide && _groupBoundaries.Value.Length > 0
+            ? new PointD(Math.Clamp(requested.X, imageBounds.Left, imageBounds.Right), Math.Clamp(requested.Y, imageBounds.Top, imageBounds.Bottom))
+            : requested * Math.Clamp(fraction, 0, 1);
+        return RoiGroupBounds.ConstrainTranslation(_groupBoundaries.Value, target, previous, allowSlide, imageBounds);
     }
+
+    public double ConstrainRotation(PointD pivot, double degrees)
+        => RotationLimits(pivot).Clamp(degrees);
 
     public RotationRange RotationLimits(PointD pivot)
     {
+        _ = _groupBoundaries.Value;
         if (!pivot.IsFinite)
         {
             throw new ArgumentOutOfRangeException(nameof(pivot));
@@ -128,14 +139,23 @@ public sealed class RoiTransformSelection
         {
             cached = new(pivot, new(() =>
             {
-                if (Before.Image is not { } image)
+                var minimum = double.NegativeInfinity;
+                var maximum = double.PositiveInfinity;
+                if (Before.Image is { } image)
                 {
-                    return RotationRange.Unbounded;
+                    var ordinary = Moving.RotationLimits(pivot, image);
+                    var repeated = _repeatedConstraints.Value.RotationLimits(pivot, image);
+                    minimum = Math.Max(ordinary.MinimumDegrees, repeated.MinimumDegrees);
+                    maximum = Math.Min(ordinary.MaximumDegrees, repeated.MaximumDegrees);
                 }
-
-                var ordinary = Moving.RotationLimits(pivot, image);
-                var repeated = _repeatedConstraints.Value.RotationLimits(pivot, image);
-                return new RotationRange(Math.Max(ordinary.MinimumDegrees, repeated.MinimumDegrees), Math.Min(ordinary.MaximumDegrees, repeated.MaximumDegrees));
+                foreach (var (parent, child) in _groupBoundaries.Value)
+                {
+                    var negative = RoiMotionBounds.RotationLimit(parent, child, pivot, -360);
+                    var positive = RoiMotionBounds.RotationLimit(parent, child, pivot, 360);
+                    minimum = Math.Max(minimum, negative <= -360 ? double.NegativeInfinity : negative);
+                    maximum = Math.Min(maximum, positive >= 360 ? double.PositiveInfinity : positive);
+                }
+                return new RotationRange(minimum, maximum);
             }));
             Interlocked.Exchange(ref _rotationConstraint, cached);
         }
@@ -143,6 +163,23 @@ public sealed class RoiTransformSelection
     }
 
     public DocumentState Apply(RigidTransform2D transform, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        return ApplyCore(RoiGroupBounds.Constrain(_groupBoundaries.Value, transform), token);
+    }
+
+    internal DocumentState ApplyPreview(RigidTransform2D transform, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        // 미리보기는 각 포인터 구간을 이미 검사했다. 시작점의 직선으로 다시 제한하면 우회 이동이 되튄다.
+        if (_groupBoundaries.Value.Any(pair => !pair.Parent.Covers(TransformGeometry(pair.Child, transform))))
+        {
+            throw new InvalidOperationException("ROI 미리보기가 상위 그룹 경계를 벗어났습니다.");
+        }
+        return ApplyCore(transform, token);
+    }
+
+    private DocumentState ApplyCore(RigidTransform2D transform, CancellationToken token)
     {
         if (transform.IsIdentity || (Affected.Count == 0 && Repeated.IsEmpty))
         {
@@ -159,7 +196,10 @@ public sealed class RoiTransformSelection
                 Geometry = TransformGeometry(roi.Geometry, transform)
             };
         }
-        var result = Affected.Count == Before.Rois.Count ? Before.WithRigidRois(rois.ToImmutable(), Affected, token)
+        // 큰 단일 그룹은 소수의 고정 조상만 제외한 같은 공간 이웃을 함께 옮긴다. 전체 정렬 대신 경계만 갱신한다.
+        var refit = Affected.Count == Before.Rois.Count ||
+            (Before.Selection.Count == 1 && Affected.Count > 4096 && Affected.Count > Before.Rois.Count / 2);
+        var result = refit ? Before.WithRigidRois(rois.ToImmutable(), Affected, token)
             : Before.WithRois(rois.ToImmutable(), Affected);
         var batches = Before.RepeatedRois;
         foreach (var (id, cells) in Before.RepeatedSelection)

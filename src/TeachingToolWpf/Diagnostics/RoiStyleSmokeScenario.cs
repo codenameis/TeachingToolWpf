@@ -75,6 +75,17 @@ internal static class RoiStyleSmokeScenario
             openSettings.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(window.OwnedWindows.OfType<ConfigPage>().Count() == 1, "settings button reuses the open page");
             var panel = Descendants(configuration).OfType<RoiStylePanel>().Single();
+            var handleSize = Descendants(panel).OfType<Slider>().Single(item => AutomationProperties.GetName(item) == "ROI 편집 핸들 크기");
+            var beforeHandleSize = editor.State;
+            var handleHistory = editor.HistoryBytes;
+            handleSize.SetCurrentValue(System.Windows.Controls.Primitives.RangeBase.ValueProperty, 2d);
+            Require(model.Input.HandleScale == 2 && model.Scene!.Overlay.HandleScale == 2, "handle slider updates input and display immediately");
+            Require(ReferenceEquals(beforeHandleSize, editor.State) && handleHistory == editor.HistoryBytes, "handle size preserves document and history");
+            editor.Select([child]);
+            await Capture("large-handles");
+            editor.Select([]);
+            handleSize.SetCurrentValue(System.Windows.Controls.Primitives.RangeBase.ValueProperty, 1d);
+            Require(model.Input.HandleScale == 1 && model.Scene!.Overlay.HandleScale == 1, "handle slider restores original size");
             var guideToggle = Descendants(configuration).OfType<CheckBox>().Single(item => AutomationProperties.GetName(item) == "설정 크로스헤어 표시");
             var pixelToggle = Descendants(configuration).OfType<CheckBox>().Single(item => AutomationProperties.GetName(item) == "설정 픽셀 선명하게");
             guideToggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
@@ -152,6 +163,7 @@ internal static class RoiStyleSmokeScenario
             await model.EditCompletion;
             Require(!model.Input.IsDragging && !editor.IsPreviewing, "native detach finishes one edit");
             Require(editor.State.Rois[child].Geometry != beforeMove.Rois[child].Geometry, "native drag moved the child");
+            Require(editor.State.Rois[parent].Geometry.Covers(editor.State.Rois[child].Geometry), "native leaf drag remains inside parent");
             AssertRoles(parent, child, standalone, attached: true);
             var detached = editor.State;
             editor.Select([]);

@@ -1,5 +1,12 @@
-<UserControl x:Class="TeachingToolWpf.Views.RoiStylePanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:TeachingToolWpf.Controls">
+<UserControl x:Class="TeachingToolWpf.Views.RoiStylePanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:TeachingToolWpf.Controls" xmlns:geometry="clr-namespace:VisionCanvas.Core.Geometry;assembly=VisionCanvas.Core">
     <StackPanel>
+        <TextBlock Text="ROI 편집 핸들 크기" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="64"/></Grid.ColumnDefinitions>
+            <Slider Minimum="{x:Static geometry:HandleGeometry.MinimumScale}" Maximum="{x:Static geometry:HandleGeometry.MaximumScale}" TickFrequency="0.25" IsSnapToTickEnabled="True" SmallChange="0.25" LargeChange="0.5" Value="{Binding HandleScale, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="ROI 편집 핸들 크기"/>
+            <TextBlock Grid.Column="1" Text="{Binding HandleScale, StringFormat={}{0:P0}}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <TextBlock Text="50~300% · 기본 100% · 즉시 적용됩니다. 사각 크기 조절 핸들과 회전 핸들의 표시·클릭 범위를 함께 조절합니다. ROI 자체 크기는 바뀌지 않습니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" FontSize="11" Margin="0,0,0,16"/>
         <TextBlock Text="ROI 색상과 선 두께" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
         <TextBlock Text="4단계 계층의 색상과 선택 상태를 각각 설정합니다. 부모 없는 ROI도 자식 ROI 색상을 사용합니다." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,16"/>
         <Grid Margin="0,0,0,6">

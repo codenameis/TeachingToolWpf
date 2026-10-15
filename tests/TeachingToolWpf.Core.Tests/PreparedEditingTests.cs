@@ -190,7 +190,7 @@ public class PreparedEditingTests
         var child = editor.Add(new(new(300, 300), 100, 100, 0));
         var grandchild = editor.AddChild(child, new(new(300, 300), 20, 20, 25));
         editor.SetFilters(new(RoiFilterKind.Edge));
-        var sibling = editor.Add(new(new(500, 300), 40, 40, 0));
+        var sibling = editor.Add(new(new(320, 300), 40, 40, 0));
         editor.Select([child, sibling]);
         var parent = editor.GroupSelection();
         editor.Rename(parent, "검사 그룹");

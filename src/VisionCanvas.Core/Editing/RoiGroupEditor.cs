@@ -77,15 +77,41 @@ internal static class RoiGroupEditor
             {
                 throw new InvalidOperationException("ROI 계층은 RootGroup을 포함하여 최대 4단계입니다.");
             }
+            if (before.IsGroupRoi(id) && !before.Rois[parentId].Geometry.Covers(roi.Geometry))
+            {
+                throw new InvalidOperationException("연결할 ROI를 먼저 상위 그룹 도형 안으로 옮겨 주세요.");
+            }
             rois[id] = roi with
             {
                 ParentId = parentId
             };
         }
-        return before.WithRois(rois.ToImmutable(), roots) with
+        var parent = before.Rois[parentId];
+        var members = before.Snapshot.Children.GetValueOrDefault(parentId, []).Concat(roots).Select(id =>
+        {
+            token.ThrowIfCancellationRequested();
+            return rois[id].Geometry;
+        });
+        var expanded = parent.Geometry.ExpandToCover(members);
+        if (parent.ParentId is { } ancestor && !before.Rois[ancestor].Geometry.Covers(expanded))
+        {
+            throw new InvalidOperationException("확장한 ROI 그룹이 상위 그룹을 벗어나므로 그룹화할 수 없습니다.");
+        }
+        if (before.Image is { } image && !RoiImageBounds.Fits(expanded.Bounds, image))
+        {
+            throw new InvalidOperationException("확장한 ROI 그룹이 이미지를 벗어나므로 그룹화할 수 없습니다.");
+        }
+        rois[parentId] = parent with
+        {
+            Geometry = expanded
+        };
+        var changed = roots.Append(parentId).ToArray();
+        var next = before.WithRois(rois.ToImmutable(), changed) with
         {
             Selection = [parentId]
         };
+        RoiGroupBounds.Validate(next, changed, before);
+        return next;
     }
 
     public static DocumentState Group(DocumentState before, long order, CancellationToken token)
@@ -131,10 +157,12 @@ internal static class RoiGroupEditor
         }
 
         token.ThrowIfCancellationRequested();
-        return before.WithRois(rois.ToImmutable(), roots.Append(group.Id)) with
+        var next = before.WithRois(rois.ToImmutable(), roots.Append(group.Id)) with
         {
             Selection = [group.Id]
         };
+        RoiGroupBounds.Validate(next, roots.Append(group.Id), before);
+        return next;
     }
 
     public static DocumentState Ungroup(DocumentState before, CancellationToken token)
@@ -148,7 +176,7 @@ internal static class RoiGroupEditor
         var groups = before.Selection.Where(id =>
         {
             token.ThrowIfCancellationRequested();
-            return before.Rois[id].IsGroup;
+            return before.IsGroupRoi(id);
         }).ToHashSet();
         if (groups.Count == 0)
         {

@@ -7,6 +7,52 @@ namespace TeachingToolWpf.Core.Tests;
 
 public class DoubleClickSelectionTests
 {
+    [Fact]
+    public void NativeClickSequenceCyclesNestedHierarchyAndKeepsPickedGroupForDragging()
+    {
+        var editor = new EditorSession();
+        var root = editor.AddParent(new(new(500, 500), 600, 600, 0));
+        var module = editor.AddChild(root, new(new(500, 500), 400, 400, 0));
+        var group = editor.AddChild(module, new(new(500, 500), 200, 200, 0));
+        var leaf = editor.AddChild(group, new(new(500, 500), 60, 60, 0));
+        var input = new InteractionController(editor);
+        var before = editor.State.Rois;
+        var history = editor.HistoryBytes;
+        var point = new PointD(500, 500);
+        foreach (var expected in new[] { group, module, root, leaf, group })
+        {
+            input.Down(point);
+            input.Up(point);
+            input.DoubleClick(point);
+            input.Up(point);
+            Assert.Equal(expected, Assert.Single(editor.State.Selection));
+            Assert.Same(before, editor.State.Rois);
+            Assert.Equal(history, editor.HistoryBytes);
+        }
+        input.Down(point);
+        input.Move(point + new PointD(30, 0));
+        input.Up(point + new PointD(30, 0));
+        Assert.Equal(group, Assert.Single(editor.State.Selection));
+        Assert.Equal(before[group].Geometry.Translate(new(30, 0)), editor.State.Rois[group].Geometry);
+        Assert.Equal(before[leaf].Geometry.Translate(new(30, 0)), editor.State.Rois[leaf].Geometry);
+        Assert.Equal(before[module], editor.State.Rois[module]);
+        editor.Undo();
+        Assert.Equal(before, editor.State.Rois);
+    }
+
+    [Fact]
+    public void ControlClickStillSelectsInnerRoiWhileGroupIsSelected()
+    {
+        var editor = new EditorSession();
+        var group = editor.AddParent(new(new(100, 100), 100, 100, 0));
+        var leaf = editor.AddChild(group, new(new(100, 100), 20, 20, 0));
+        editor.Select([group]);
+        var input = new InteractionController(editor);
+        input.Down(new(100, 100), InputModifiers.Control);
+        input.Up(new(100, 100), InputModifiers.Control);
+        Assert.True(editor.State.Selection.SetEquals([group, leaf]));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

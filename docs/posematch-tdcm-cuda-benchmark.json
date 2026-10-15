@@ -1,0 +1,504 @@
+{
+  "cpu": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+  "threads": 4,
+  "rows": [
+    {
+      "kind": "native-window",
+      "device": "Cuda",
+      "size": 224,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 371.934,
+      "firstMilliseconds": 313.5093,
+      "warmMilliseconds": [
+        12.3651,
+        8.3462,
+        8.5647
+      ],
+      "matches": 1,
+      "maximumHeadDifference": 7.37607479095459E-05,
+      "expectedMatches": 1,
+      "expectedAngle": 50,
+      "angleErrorDegrees": 6.006228750364656,
+      "errorPixels": 0.5160156871153326,
+      "nearest": {
+        "X": 44.53846153846154,
+        "Y": 94.76923076923077,
+        "Width": 26.67936897277832,
+        "Height": 28.04709243774414,
+        "AngleDegrees": 56.006228750364656,
+        "Score": 0.6455574
+      }
+    },
+    {
+      "kind": "native-window",
+      "device": "Cuda",
+      "size": 256,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 371.934,
+      "firstMilliseconds": 29.1307,
+      "warmMilliseconds": [
+        10.3755,
+        10.5837,
+        9.9385
+      ],
+      "matches": 1,
+      "maximumHeadDifference": 0.00040090084075927734,
+      "expectedMatches": 1,
+      "expectedAngle": 50,
+      "angleErrorDegrees": 6.771566911840075,
+      "errorPixels": 0.5160156871153326,
+      "nearest": {
+        "X": 44.53846153846154,
+        "Y": 94.76923076923077,
+        "Width": 26.604209899902344,
+        "Height": 28.135234832763672,
+        "AngleDegrees": 56.771566911840075,
+        "Score": 0.64946246
+      }
+    },
+    {
+      "kind": "native-window",
+      "device": "Cuda",
+      "size": 512,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 371.934,
+      "firstMilliseconds": 38.79,
+      "warmMilliseconds": [
+        31.018,
+        31.7207,
+        29.4128
+      ],
+      "matches": 2,
+      "maximumHeadDifference": 0.0013988018035888672,
+      "expectedMatches": 1,
+      "expectedAngle": 50,
+      "angleErrorDegrees": 25.583694755265057,
+      "errorPixels": 1.4006446928309673,
+      "nearest": {
+        "X": 43.791666666666664,
+        "Y": 94.29166666666667,
+        "Width": 26.355623245239258,
+        "Height": 29.125219345092773,
+        "AngleDegrees": 75.58369475526506,
+        "Score": 0.7600781
+      }
+    },
+    {
+      "kind": "native-window",
+      "device": "Cuda",
+      "size": 1024,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 371.934,
+      "firstMilliseconds": 125.4945,
+      "warmMilliseconds": [
+        101.2139,
+        102.2755,
+        103.0053
+      ],
+      "matches": 2,
+      "maximumHeadDifference": 0.010778307914733887,
+      "expectedMatches": 1,
+      "expectedAngle": 50,
+      "angleErrorDegrees": 9.958443511298512,
+      "errorPixels": 1.2311681584144143,
+      "nearest": {
+        "X": 44.111111111111114,
+        "Y": 94.14814814814815,
+        "Width": 27.425308227539062,
+        "Height": 28.981592178344727,
+        "AngleDegrees": 59.95844351129851,
+        "Score": 0.83688706
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 512,
+      "templateSize": 36,
+      "actualTemplate": [
+        31,
+        33
+      ],
+      "reduction": 1,
+      "trainingMilliseconds": 105.0322,
+      "TotalMilliseconds": 105.7565,
+      "ReadMilliseconds": 8.481,
+      "InitializationMilliseconds": 43.4655,
+      "InferenceMilliseconds": 44.7993,
+      "Windows": 1,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 1.1872657663724666,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 44.36,
+        "Y": 94,
+        "Width": 30.41583824157715,
+        "Height": 29.57672691345215,
+        "AngleDegrees": 50.63364601980807,
+        "Score": 0.83947855
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 36,
+      "actualTemplate": [
+        31,
+        33
+      ],
+      "reduction": 1,
+      "trainingMilliseconds": 105.0322,
+      "TotalMilliseconds": 13320.6305,
+      "ReadMilliseconds": 300.15340000000015,
+      "InitializationMilliseconds": 0.0001,
+      "InferenceMilliseconds": 13018.351600000009,
+      "Windows": 484,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 1.1872657663724666,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 44.36,
+        "Y": 94,
+        "Width": 30.41583824157715,
+        "Height": 29.57672691345215,
+        "AngleDegrees": 50.63364601980807,
+        "Score": 0.83947855
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 512,
+      "templateSize": 72,
+      "actualTemplate": [
+        62,
+        66
+      ],
+      "reduction": 2,
+      "trainingMilliseconds": 0.3433,
+      "TotalMilliseconds": 98.1957,
+      "ReadMilliseconds": 9.6676,
+      "InitializationMilliseconds": 47.7585,
+      "InferenceMilliseconds": 40.7101,
+      "Windows": 1,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 3.7103643811461224,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 86.66666666666667,
+        "Y": 188.37037037037038,
+        "Width": 64.2152099609375,
+        "Height": 59.00440979003906,
+        "AngleDegrees": 53.39006445827712,
+        "Score": 0.8637053
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 72,
+      "actualTemplate": [
+        62,
+        66
+      ],
+      "reduction": 2,
+      "trainingMilliseconds": 0.3433,
+      "TotalMilliseconds": 3541.316,
+      "ReadMilliseconds": 218.94889999999995,
+      "InitializationMilliseconds": 0.0001,
+      "InferenceMilliseconds": 3321.818,
+      "Windows": 121,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 3.7103643811461224,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 86.66666666666667,
+        "Y": 188.37037037037038,
+        "Width": 64.2152099609375,
+        "Height": 59.00440979003906,
+        "AngleDegrees": 53.39006445827712,
+        "Score": 0.8637053
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 512,
+      "templateSize": 128,
+      "actualTemplate": [
+        110,
+        117
+      ],
+      "reduction": 4,
+      "trainingMilliseconds": 0.4395,
+      "TotalMilliseconds": 82.715,
+      "ReadMilliseconds": 3.383,
+      "InitializationMilliseconds": 40.3952,
+      "InferenceMilliseconds": 38.8937,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 6.798974368284258,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 154.73684210526315,
+        "Y": 333.4736842105263,
+        "Width": 121.2747802734375,
+        "Height": 114.38695526123047,
+        "AngleDegrees": 58.234543411206936,
+        "Score": 0.80202615
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 128,
+      "actualTemplate": [
+        110,
+        117
+      ],
+      "reduction": 4,
+      "trainingMilliseconds": 0.4395,
+      "TotalMilliseconds": 1169.0485,
+      "ReadMilliseconds": 196.69970000000006,
+      "InitializationMilliseconds": 0.0001,
+      "InferenceMilliseconds": 972.1582000000001,
+      "Windows": 36,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 6.444444444444446,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 155.33333333333334,
+        "Y": 333.3333333333333,
+        "Width": 121.5771255493164,
+        "Height": 114.72563934326172,
+        "AngleDegrees": 59.62757682139917,
+        "Score": 0.7748239
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 1024,
+      "templateSize": 256,
+      "actualTemplate": [
+        220,
+        235
+      ],
+      "reduction": 8,
+      "trainingMilliseconds": 0.5125,
+      "TotalMilliseconds": 102.0544,
+      "ReadMilliseconds": 13.506599999999999,
+      "InitializationMilliseconds": 45.4565,
+      "InferenceMilliseconds": 43.0498,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 11.26333252908807,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 311.05882352941177,
+        "Y": 668.7058823529412,
+        "Width": 235.96902465820312,
+        "Height": 224.61915588378906,
+        "AngleDegrees": 57.07897732384922,
+        "Score": 0.70333725
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 256,
+      "actualTemplate": [
+        220,
+        235
+      ],
+      "reduction": 8,
+      "trainingMilliseconds": 0.5125,
+      "TotalMilliseconds": 493.024,
+      "ReadMilliseconds": 237.83619999999996,
+      "InitializationMilliseconds": 0.0001,
+      "InferenceMilliseconds": 254.9282,
+      "Windows": 9,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 10.436462671155375,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 311.5,
+        "Y": 669.5,
+        "Width": 235.583984375,
+        "Height": 224.81126403808594,
+        "AngleDegrees": 59.31922444348074,
+        "Score": 0.6577437
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 2048,
+      "templateSize": 512,
+      "actualTemplate": [
+        441,
+        469
+      ],
+      "reduction": 16,
+      "trainingMilliseconds": 1.1473,
+      "TotalMilliseconds": 103.8822,
+      "ReadMilliseconds": 19.320700000000002,
+      "InitializationMilliseconds": 41.4924,
+      "InferenceMilliseconds": 43.03,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 22.67049009592026,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 620.5714285714286,
+        "Y": 1339.4285714285713,
+        "Width": 479.537841796875,
+        "Height": 444.9217834472656,
+        "AngleDegrees": 57.711545519951606,
+        "Score": 0.66756773
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 512,
+      "actualTemplate": [
+        441,
+        469
+      ],
+      "reduction": 16,
+      "trainingMilliseconds": 1.1473,
+      "TotalMilliseconds": 246.6582,
+      "ReadMilliseconds": 209.3262,
+      "InitializationMilliseconds": 0.0001,
+      "InferenceMilliseconds": 37.2729,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 20.12624171449942,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 622.5454545454545,
+        "Y": 1341.090909090909,
+        "Width": 478.9877014160156,
+        "Height": 445.2298583984375,
+        "AngleDegrees": 59.98213473728994,
+        "Score": 0.61635435
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 4096,
+      "templateSize": 1024,
+      "actualTemplate": [
+        882,
+        939
+      ],
+      "reduction": 32,
+      "trainingMilliseconds": 4.2772,
+      "TotalMilliseconds": 162.478,
+      "ReadMilliseconds": 77.68900000000001,
+      "InitializationMilliseconds": 45.2522,
+      "InferenceMilliseconds": 39.4931,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 38.959301334775304,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 1248,
+        "Y": 2680,
+        "Width": 1004.7122192382812,
+        "Height": 909.02294921875,
+        "AngleDegrees": 62.48407754795198,
+        "Score": 0.58361953
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 1024,
+      "actualTemplate": [
+        882,
+        939
+      ],
+      "reduction": 32,
+      "trainingMilliseconds": 4.2772,
+      "TotalMilliseconds": 268.2262,
+      "ReadMilliseconds": 232.17430000000002,
+      "InitializationMilliseconds": 0.0001,
+      "InferenceMilliseconds": 35.9814,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 50.062676765613226,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 1232,
+        "Y": 2688,
+        "Width": 955.7144775390625,
+        "Height": 904.8909912109375,
+        "AngleDegrees": 59.4657797559274,
+        "Score": 0.528041
+      }
+    },
+    {
+      "kind": "original-service",
+      "device": "Cuda",
+      "size": 8192,
+      "templateSize": 2048,
+      "actualTemplate": [
+        1764,
+        1877
+      ],
+      "reduction": 32,
+      "trainingMilliseconds": 15.674,
+      "TotalMilliseconds": 407.0311,
+      "ReadMilliseconds": 312.231,
+      "InitializationMilliseconds": 44.9279,
+      "InferenceMilliseconds": 49.8226,
+      "Windows": 1,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 63.56078556720232,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 2555.3684210526317,
+        "Y": 5341.0526315789475,
+        "Width": 1779.576171875,
+        "Height": 1892.377685546875,
+        "AngleDegrees": 61.016369850849685,
+        "Score": 0.8655359
+      }
+    }
+  ]
+}

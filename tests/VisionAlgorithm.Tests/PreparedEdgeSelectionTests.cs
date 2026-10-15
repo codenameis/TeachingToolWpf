@@ -53,17 +53,19 @@ public sealed class PreparedEdgeSelectionTests
     }
 
     [Theory]
-    [InlineData(false, true, true, 0, false)]
-    [InlineData(true, false, false, 0, false)]
-    [InlineData(true, false, true, 0, true)]
-    [InlineData(true, true, false, 0, true)]
-    [InlineData(true, false, false, 1, true)]
-    [InlineData(true, true, true, 1, true)]
-    public void OptionSpecificPreparationPreservesExactMatches(bool verify, bool refine, bool evaluateGeometry,
+    [InlineData(false, true, 0, false)]
+    [InlineData(true, false, 0, false)]
+    [InlineData(true, true, 0, true)]
+    [InlineData(true, false, 1, true)]
+    [InlineData(true, true, 1, true)]
+    public void OptionSpecificPreparationPreservesExactMatches(bool verify, bool refine,
         double clutterWeight, bool needsEdges)
     {
         var model = ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
-            new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new());
+            new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()
+            {
+                BuildClutterModel = true
+            });
         var image = SyntheticScene.Create(163, 151, new MatchPose(81.3, 75.7, 0.13));
         var full = PreparedSearchImage.Create(image, 8, model.Levels.Length);
         var selected = PreparedSearchImage.CreateForSearch(image, 8, model.Levels.Length, needsEdges,
@@ -72,7 +74,6 @@ public sealed class PreparedEdgeSelectionTests
         {
             Verify = verify,
             Refine = refine,
-            EvaluateGeometry = evaluateGeometry,
             ClutterWeight = clutterWeight
         };
         var matcher = new ShapeMatcher();

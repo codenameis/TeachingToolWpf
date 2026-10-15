@@ -57,23 +57,23 @@ public partial class ShapeMatchingPanel : UserControl
 
     private void RefreshNumericValidation()
     {
-        var valid = _numericErrors.Count == 0;
-        // Button은 이 값과 ICommand.CanExecute를 함께 적용한다.
-        TrainButton.IsEnabled = valid;
-        SearchButton.IsEnabled = valid;
-        NumericInputError.Visibility = valid ? Visibility.Collapsed : Visibility.Visible;
         if (_observedSource is ShapeMatchingViewModel viewModel)
         {
-            viewModel.HasInputErrors = !valid;
+            viewModel.HasInputErrors = _numericErrors.Count != 0;
         }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e) => ObserveSource();
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => UnsubscribeSource();
+    // 탭 전환은 입력 초안을 폐기하는 동작이 아니다. 숨겨진 동안에도 실행 차단을 유지한다.
+    private void OnUnloaded(object sender, RoutedEventArgs e) => UnsubscribeSource(clearInputErrors: false);
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+        if (!IsLoaded && e.OldValue is ShapeMatchingViewModel previous)
+        {
+            previous.HasInputErrors = false;
+        }
         if (IsLoaded)
         {
             ObserveSource();
@@ -92,12 +92,12 @@ public partial class ShapeMatchingPanel : UserControl
         RefreshNumericValidation();
     }
 
-    private void UnsubscribeSource()
+    private void UnsubscribeSource(bool clearInputErrors = true)
     {
         if (_observedSource is not null)
         {
             _observedSource.PropertyChanged -= OnSourcePropertyChanged;
-            if (_observedSource is ShapeMatchingViewModel viewModel)
+            if (clearInputErrors && _observedSource is ShapeMatchingViewModel viewModel)
             {
                 viewModel.HasInputErrors = false;
             }

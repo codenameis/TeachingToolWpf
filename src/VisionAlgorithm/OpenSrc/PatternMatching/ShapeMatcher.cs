@@ -11,7 +11,7 @@ public sealed class ShapeMatcher
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
-        ValidateGeometricPolicy(model, options);
+        ValidateClutterPolicy(model, options);
     }
 
     private readonly IImagePreprocessor? _preprocessor;
@@ -31,7 +31,7 @@ public sealed class ShapeMatcher
         SearchOptions options, CancellationToken cancellationToken = default)
     {
         options.Validate();
-        ValidateGeometricPolicy(model, options);
+        ValidateClutterPolicy(model, options);
         var preprocessor = GetPreprocessor(options);
         if (!double.IsFinite(initial.X) || !double.IsFinite(initial.Y) || !double.IsFinite(initial.Angle) ||
             !double.IsFinite(initial.Scale) || !double.IsFinite(candidateScore) || candidateScore is < 0 or > 1 ||
@@ -41,7 +41,7 @@ public sealed class ShapeMatcher
             throw new ArgumentException("정밀화 초기 자세 또는 후보 점수가 모델의 유효 범위를 벗어납니다.", nameof(initial));
         }
         var prepared = PreparedSearchImage.CreateForRefinement(image, model.Options.MinimumGradient, model.Levels.Length,
-            cancellationToken, options.TiledPreprocessing, preprocessor, RequiresEdges(model, options), model.FineDetail is not null && options.ClutterWeight > 0);
+            cancellationToken, options.TiledPreprocessing, preprocessor, RequiresEdges(options), model.FineDetail is not null && options.ClutterWeight > 0);
         var timer = Stopwatch.StartNew();
         var pose = initial;
         VerifiedScore? verification = null;
@@ -72,11 +72,11 @@ public sealed class ShapeMatcher
     public MatchResult Search(GrayImage image, ShapeModel model, SearchOptions options, CancellationToken cancellationToken = default)
     {
         options.Validate();
-        ValidateGeometricPolicy(model, options);
+        ValidateClutterPolicy(model, options);
         var preprocessor = GetPreprocessor(options);
         var createLinearResponses = options.ComputeMode != InspectionComputeMode.GpuPreprocessing || _candidateScorer is null;
         return Search(PreparedSearchImage.CreateForSearch(image, model.Options.MinimumGradient, model.Levels.Length,
-            RequiresEdges(model, options), cancellationToken, options.TiledPreprocessing, preprocessor, createLinearResponses,
+            RequiresEdges(options), cancellationToken, options.TiledPreprocessing, preprocessor, createLinearResponses,
             model.FineDetail is not null && options.ClutterWeight > 0),
             model, options, cancellationToken);
     }
@@ -85,7 +85,7 @@ public sealed class ShapeMatcher
         CancellationToken cancellationToken = default)
     {
         options.Validate();
-        ValidateGeometricPolicy(model, options);
+        ValidateClutterPolicy(model, options);
         if (image.MinimumGradient != model.Options.MinimumGradient || image.LevelCount < model.Levels.Length || image.Maps.Length < model.Levels.Length)
         {
             throw new ArgumentException("전처리 설정이 모델과 다릅니다.", nameof(image));
@@ -172,28 +172,10 @@ public sealed class ShapeMatcher
             {
                 continue;
             }
-            if (options.Verify && options.EvaluateGeometry && model.GeometryModel is not null)
-            {
-                var quality = GeometricQualityEvaluator.Evaluate(image.Gradients[0], model, final.Pose,
-                    options.GeometricTolerancePixels, cancellationToken);
-                if (quality.Coverage < options.MinimumCoverage || quality.FitErrorPixels > options.MaximumFitErrorPixels ||
-                    quality.ClutterRatio > options.MaximumClutterRatio)
-                {
-                    continue;
-                }
-                final = final with
-                {
-                    Geometry = quality,
-                    ClutterRatio = quality.ClutterRatio,
-                    ClutterPenaltyRatio = quality.ClutterEnergyRatio
-                };
-            }
             if (options.ClutterWeight > 0)
             {
-                var clutter = final.Geometry is { } geometry
-                    ? new ClutterMeasurement(geometry.ClutterRatio, geometry.SceneEdges, geometry.ClutterEnergyRatio)
-                    : GeometricQualityEvaluator.EvaluateClutter(image.Gradients[0], model,
-                        final.Pose, options.GeometricTolerancePixels, cancellationToken);
+                var clutter = ClutterEvaluator.EvaluateClutter(image.Gradients[0], model,
+                        final.Pose, options.ClutterTolerancePixels, cancellationToken);
                 final = final with
                 {
                     ClutterRatio = clutter.Ratio,
@@ -214,7 +196,7 @@ public sealed class ShapeMatcher
         return new(output.Take(options.MaximumMatches).ToImmutableArray(), new(image.ElapsedMilliseconds, candidateTime, verificationTime, refinementTime,
             timer.Elapsed.TotalMilliseconds, batch.EvaluatedTemplates, batch.Candidates.Count, batch.BudgetExceeded,
             eligible.Count > options.MaximumVerifiedCandidates, image.EstimatedBytes + (candidates.Length * 128L),
-            "180° 무부호 후보 → 선택한 극성의 연속 방향 점수 × (1 - 추가 윤곽 가중치 × 대비 에너지 비율); 개수 비율과 기하 제한은 별도 유지; 반환 각도는 이미지 기준 절대각이며 범위는 학습 ROI 대비 편차; 검증 상한에서는 서로 다른 근접 자세 묶음을 먼저 방문하며 피라미드/국소 최대/후보 예산은 근사 탐색", output.Length > options.MaximumMatches)
+            "180° 무부호 후보 → 선택한 극성의 연속 방향 점수 × (1 - 추가 윤곽 가중치 × 대비 에너지 비율); 반환 각도는 이미지 기준 절대각이며 범위는 학습 ROI 대비 편차; 검증 상한에서는 서로 다른 근접 자세 묶음을 먼저 방문하며 피라미드/국소 최대/후보 예산은 근사 탐색", output.Length > options.MaximumMatches)
         {
             CandidateGridMilliseconds = batch.GridMilliseconds,
             CandidatePoseMilliseconds = batch.PoseMilliseconds,
@@ -233,19 +215,14 @@ public sealed class ShapeMatcher
         return _preprocessor ?? throw new InvalidOperationException("GPU 실행에는 초기화된 전처리 또는 후보 점수 구현이 필요합니다.");
     }
 
-    private static bool RequiresEdges(ShapeModel model, SearchOptions options)
-        => options.Verify && (options.Refine || (options.EvaluateGeometry && model.GeometryModel is not null) || options.ClutterWeight > 0);
+    private static bool RequiresEdges(SearchOptions options)
+        => options.Verify && (options.Refine || options.ClutterWeight > 0);
 
-    private static void ValidateGeometricPolicy(ShapeModel model, SearchOptions options)
+    private static void ValidateClutterPolicy(ShapeModel model, SearchOptions options)
     {
         if (options.ClutterWeight > 0 && (!options.Verify || model.ContourModel is null))
         {
             throw new ArgumentException("추가 윤곽 점수에는 연속 검증과 전체 윤곽·마스크를 보관한 원본 모델이 필요합니다.", nameof(model));
-        }
-        if (options.Verify && options.EvaluateGeometry && model.GeometryModel is null &&
-            (options.MinimumCoverage > 0 || double.IsFinite(options.MaximumFitErrorPixels) || options.MaximumClutterRatio < 1))
-        {
-            throw new ArgumentException("기하 품질 제한에는 전체 윤곽과 마스크를 보관한 원본 모델이 필요합니다.", nameof(model));
         }
     }
 }

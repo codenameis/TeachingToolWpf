@@ -1,0 +1,471 @@
+{
+  "cpu": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+  "threads": 4,
+  "rows": [
+    {
+      "kind": "native-window",
+      "size": 224,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 169.4821,
+      "firstMilliseconds": 79.2222,
+      "warmMilliseconds": [
+        37.8921,
+        43.704,
+        39.2176
+      ],
+      "matches": 1,
+      "errorPixels": 0.5160156871153326,
+      "nearest": {
+        "X": 44.53846153846154,
+        "Y": 94.76923076923077,
+        "Width": 26.679372787475586,
+        "Height": 28.047101974487305,
+        "AngleDegrees": 56.006022797796525,
+        "Score": 0.64555705
+      }
+    },
+    {
+      "kind": "native-window",
+      "size": 256,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 169.4821,
+      "firstMilliseconds": 58.3032,
+      "warmMilliseconds": [
+        62.518,
+        48.2029,
+        54.5791
+      ],
+      "matches": 1,
+      "errorPixels": 0.5160156871153326,
+      "nearest": {
+        "X": 44.53846153846154,
+        "Y": 94.76923076923077,
+        "Width": 26.60420036315918,
+        "Height": 28.135244369506836,
+        "AngleDegrees": 56.77010123312108,
+        "Score": 0.6494509
+      }
+    },
+    {
+      "kind": "native-window",
+      "size": 512,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 169.4821,
+      "firstMilliseconds": 234.2477,
+      "warmMilliseconds": [
+        237.5324,
+        232.8072,
+        251.4238
+      ],
+      "matches": 2,
+      "errorPixels": 1.4006446928309673,
+      "nearest": {
+        "X": 43.791666666666664,
+        "Y": 94.29166666666667,
+        "Width": 26.355775833129883,
+        "Height": 29.1251277923584,
+        "AngleDegrees": 75.58404472279162,
+        "Score": 0.76006854
+      }
+    },
+    {
+      "kind": "native-window",
+      "size": 1024,
+      "templateSize": "31x33 -\u003E 36x36",
+      "sessionMilliseconds": 169.4821,
+      "firstMilliseconds": 1071.7195,
+      "warmMilliseconds": [
+        1093.7228,
+        1032.4338,
+        1122.2801
+      ],
+      "matches": 2,
+      "errorPixels": 1.2311681584144143,
+      "nearest": {
+        "X": 44.111111111111114,
+        "Y": 94.14814814814815,
+        "Width": 27.426342010498047,
+        "Height": 28.98348045349121,
+        "AngleDegrees": 59.955788447250505,
+        "Score": 0.8368196
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 512,
+      "templateSize": 36,
+      "actualTemplate": [
+        31,
+        33
+      ],
+      "reduction": 1,
+      "trainingMilliseconds": 120.4802,
+      "TotalMilliseconds": 330.6047,
+      "ReadMilliseconds": 10.0928,
+      "InitializationMilliseconds": 42.7375,
+      "InferenceMilliseconds": 271.3983,
+      "Windows": 1,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 1.1872657663724666,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 44.36,
+        "Y": 94,
+        "Width": 30.416133880615234,
+        "Height": 29.577722549438477,
+        "AngleDegrees": 50.63024456350606,
+        "Score": 0.8395269
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 36,
+      "actualTemplate": [
+        31,
+        33
+      ],
+      "reduction": 1,
+      "trainingMilliseconds": 120.4802,
+      "TotalMilliseconds": 114264.0171,
+      "ReadMilliseconds": 370.6895,
+      "InitializationMilliseconds": 35.1945,
+      "InferenceMilliseconds": 113855.05000000005,
+      "Windows": 484,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 1.1872657663724666,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 44.36,
+        "Y": 94,
+        "Width": 30.416133880615234,
+        "Height": 29.577722549438477,
+        "AngleDegrees": 50.63024456350606,
+        "Score": 0.8395269
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 512,
+      "templateSize": 72,
+      "actualTemplate": [
+        62,
+        66
+      ],
+      "reduction": 2,
+      "trainingMilliseconds": 0.4526,
+      "TotalMilliseconds": 272.7772,
+      "ReadMilliseconds": 6.0515,
+      "InitializationMilliseconds": 33.7594,
+      "InferenceMilliseconds": 232.9345,
+      "Windows": 1,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 3.7103643811461224,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 86.66666666666667,
+        "Y": 188.37037037037038,
+        "Width": 64.21550750732422,
+        "Height": 59.005245208740234,
+        "AngleDegrees": 53.3843335218265,
+        "Score": 0.8637782
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 72,
+      "actualTemplate": [
+        62,
+        66
+      ],
+      "reduction": 2,
+      "trainingMilliseconds": 0.4526,
+      "TotalMilliseconds": 26963.0339,
+      "ReadMilliseconds": 242.9568,
+      "InitializationMilliseconds": 37.3109,
+      "InferenceMilliseconds": 26682.0143,
+      "Windows": 121,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 3.7103643811461224,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 86.66666666666667,
+        "Y": 188.37037037037038,
+        "Width": 64.21550750732422,
+        "Height": 59.005245208740234,
+        "AngleDegrees": 53.3843335218265,
+        "Score": 0.8637782
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 512,
+      "templateSize": 128,
+      "actualTemplate": [
+        110,
+        117
+      ],
+      "reduction": 4,
+      "trainingMilliseconds": 0.8408,
+      "TotalMilliseconds": 289.1373,
+      "ReadMilliseconds": 3.6774999999999998,
+      "InitializationMilliseconds": 41.8768,
+      "InferenceMilliseconds": 243.5448,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 6.798974368284258,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 154.73684210526315,
+        "Y": 333.4736842105263,
+        "Width": 121.2741470336914,
+        "Height": 114.38810729980469,
+        "AngleDegrees": 58.23819859501469,
+        "Score": 0.8019812
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 128,
+      "actualTemplate": [
+        110,
+        117
+      ],
+      "reduction": 4,
+      "trainingMilliseconds": 0.8408,
+      "TotalMilliseconds": 8071.5034,
+      "ReadMilliseconds": 211.30519999999996,
+      "InitializationMilliseconds": 48.0094,
+      "InferenceMilliseconds": 7811.8487,
+      "Windows": 36,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 6.444444444444446,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 155.33333333333334,
+        "Y": 333.3333333333333,
+        "Width": 121.57683563232422,
+        "Height": 114.72577667236328,
+        "AngleDegrees": 59.628166613755155,
+        "Score": 0.77479994
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 1024,
+      "templateSize": 256,
+      "actualTemplate": [
+        220,
+        235
+      ],
+      "reduction": 8,
+      "trainingMilliseconds": 0.7435,
+      "TotalMilliseconds": 264.2281,
+      "ReadMilliseconds": 9.1427,
+      "InitializationMilliseconds": 34.5576,
+      "InferenceMilliseconds": 220.4945,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 11.26333252908807,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 311.05882352941177,
+        "Y": 668.7058823529412,
+        "Width": 235.97023010253906,
+        "Height": 224.6190643310547,
+        "AngleDegrees": 57.07308609112453,
+        "Score": 0.7033286
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 256,
+      "actualTemplate": [
+        220,
+        235
+      ],
+      "reduction": 8,
+      "trainingMilliseconds": 0.7435,
+      "TotalMilliseconds": 2329.1496,
+      "ReadMilliseconds": 220.244,
+      "InitializationMilliseconds": 32.6586,
+      "InferenceMilliseconds": 2076.1646,
+      "Windows": 9,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 10.436462671155375,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 311.5,
+        "Y": 669.5,
+        "Width": 235.58409118652344,
+        "Height": 224.80979919433594,
+        "AngleDegrees": 59.30875252904759,
+        "Score": 0.6577748
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 2048,
+      "templateSize": 512,
+      "actualTemplate": [
+        441,
+        469
+      ],
+      "reduction": 16,
+      "trainingMilliseconds": 1.3452,
+      "TotalMilliseconds": 270.0664,
+      "ReadMilliseconds": 19.0359,
+      "InitializationMilliseconds": 32.8721,
+      "InferenceMilliseconds": 218.1269,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 22.67049009592026,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 620.5714285714286,
+        "Y": 1339.4285714285713,
+        "Width": 479.5328674316406,
+        "Height": 444.9249572753906,
+        "AngleDegrees": 57.70799449646125,
+        "Score": 0.6674686
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 512,
+      "actualTemplate": [
+        441,
+        469
+      ],
+      "reduction": 16,
+      "trainingMilliseconds": 1.3452,
+      "TotalMilliseconds": 445.4895,
+      "ReadMilliseconds": 203.32920000000001,
+      "InitializationMilliseconds": 32.6131,
+      "InferenceMilliseconds": 209.5183,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 20.12624171449942,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 622.5454545454545,
+        "Y": 1341.090909090909,
+        "Width": 478.9809265136719,
+        "Height": 445.2323913574219,
+        "AngleDegrees": 59.98166538568774,
+        "Score": 0.6162475
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 4096,
+      "templateSize": 1024,
+      "actualTemplate": [
+        882,
+        939
+      ],
+      "reduction": 32,
+      "trainingMilliseconds": 4.1123,
+      "TotalMilliseconds": 346.6165,
+      "ReadMilliseconds": 76.9371,
+      "InitializationMilliseconds": 33.116,
+      "InferenceMilliseconds": 236.5255,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 38.959301334775304,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 1248,
+        "Y": 2680,
+        "Width": 1004.70751953125,
+        "Height": 909.0236206054688,
+        "AngleDegrees": 62.48642643351707,
+        "Score": 0.58352995
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 1024,
+      "actualTemplate": [
+        882,
+        939
+      ],
+      "reduction": 32,
+      "trainingMilliseconds": 4.1123,
+      "TotalMilliseconds": 505.4942,
+      "ReadMilliseconds": 232.4554,
+      "InitializationMilliseconds": 45.6115,
+      "InferenceMilliseconds": 227.3964,
+      "Windows": 1,
+      "matches": 1,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 50.062676765613226,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 1232,
+        "Y": 2688,
+        "Width": 955.70849609375,
+        "Height": 904.8972778320312,
+        "AngleDegrees": 59.46637845812274,
+        "Score": 0.5280534
+      }
+    },
+    {
+      "kind": "original-service",
+      "size": 8192,
+      "templateSize": 2048,
+      "actualTemplate": [
+        1764,
+        1877
+      ],
+      "reduction": 32,
+      "trainingMilliseconds": 15.823,
+      "TotalMilliseconds": 569.1554,
+      "ReadMilliseconds": 309.3858,
+      "InitializationMilliseconds": 31.6663,
+      "InferenceMilliseconds": 227.9843,
+      "Windows": 1,
+      "matches": 2,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "errorPixels": 63.56078556720232,
+      "expectedAngle": 50,
+      "nearest": {
+        "X": 2555.3684210526317,
+        "Y": 5341.0526315789475,
+        "Width": 1779.443359375,
+        "Height": 1892.4166259765625,
+        "AngleDegrees": 61.018122751824635,
+        "Score": 0.865623
+      }
+    }
+  ]
+}

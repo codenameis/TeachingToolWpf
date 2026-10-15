@@ -78,7 +78,7 @@ public sealed class FineDetailMatchingTests
         var image = CreateText();
         var model = Train(image);
         var matcher = new ShapeMatcher();
-        var options = new SearchOptions { ClutterWeight = 1, EvaluateGeometry = false, MinimumScore = .5, MinimumSupport = .2 };
+        var options = new SearchOptions { ClutterWeight = 1, MinimumScore = .5, MinimumSupport = .2 };
         var result = Assert.Single(matcher.RefineCandidate(image, model, new(43.5, 37, 0), 1, options).Matches);
         Assert.Equal(model.FineDetail!.Score(image, result.Pose, model.Options.Polarity), result.DetailConsistency!.Value, 10);
         Assert.Equal(result.DirectionScore * (1 - result.ClutterPenaltyRatio!.Value) * result.DetailConsistency.Value, result.Score, 10);
@@ -94,13 +94,13 @@ public sealed class FineDetailMatchingTests
     }
 
     [Fact]
-    public void GeometricModelNeverEnablesPaperDetailValidation()
+    public void DetailValidationRequiresClutterModel()
     {
         var model = ShapeTrainer.Train(CreateText(), Region(), new()
         {
             PyramidLevels = 1,
             UseFineDetailValidation = true,
-            BuildGeometricModel = true
+            BuildClutterModel = false
         });
         Assert.Null(model.FineDetail);
     }
@@ -141,7 +141,6 @@ public sealed class FineDetailMatchingTests
         {
             PyramidLevels = 1,
             UseFineDetailValidation = true,
-            BuildGeometricModel = false,
             BuildClutterModel = true,
             MinimumAngleDegrees = minimumAngle,
             MaximumAngleDegrees = maximumAngle,

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WATCH — 처음 쓰는 이상 감시</title>
+  <style>
+    :root { color-scheme:light; --bg:#f6f6f1; --paper:#fff; --ink:#23372f; --muted:#65736c; --line:#dce2d9; --green:#245d45; --mint:#edf4e9; --soft:#e2eddb; --orange:#a3452a; --peach:#fff0e9; --gold:#78592b; --radius:14px; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.65 "Segoe UI","Malgun Gothic",sans-serif; } button,input { font:inherit; } button { cursor:pointer; border:0; color:inherit; background:none; } button:disabled { cursor:not-allowed; opacity:.5; } button,a,input,summary { -webkit-tap-highlight-color:transparent; } button:hover:not(:disabled) { filter:brightness(.96); } button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible { outline:3px solid #648b43; outline-offset:4px; } [hidden] { display:none!important; } h1,h2,h3,p { margin:0; } a { color:var(--green); text-decoration:none; } a:hover { text-decoration:underline; } .muted { color:var(--muted); } .icon { width:22px; height:22px; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; fill:none; flex-shrink:0; } .sprite { position:absolute; width:0; height:0; }
+    .topbar { height:80px; border-bottom:1px solid var(--line); background:var(--paper); display:flex; justify-content:space-between; align-items:center; padding:0 max(24px,calc((100vw - 1260px)/2)); gap:20px; }
+    .brand { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:800; letter-spacing:2px; } .brand .icon { width:31px; height:31px; color:var(--green); } .brand span { font-size:12px; letter-spacing:0; font-weight:450; color:var(--muted); margin-left:10px; }
+    .top-actions { display:flex; align-items:center; gap:22px; font-size:12px; } .demo-tag { color:var(--gold); background:#f8f0dd; padding:5px 10px; border-radius:5px; font-size:10px; font-weight:600; letter-spacing:.5px; }
+    main { max-width:1260px; margin:auto; padding:30px 24px; } .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin-bottom:30px; border:1px solid var(--line); border-radius:10px; background:var(--paper); overflow:hidden; }
+    .step { display:flex; align-items:center; gap:13px; padding:18px 22px; text-align:left; position:relative; border-right:1px solid var(--line); } .step:last-child { border:0; } .step.active { background:var(--mint); } .step.active::after { content:''; position:absolute; height:3px; background:var(--green); bottom:0; left:0; right:0; } .step-number { width:30px; height:30px; border:1px solid #bdc8ba; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:650; flex-shrink:0; } .step.active .step-number,.step.done .step-number { background:var(--green); color:#fff; border-color:var(--green); } .step strong { display:block; font-size:13px; font-weight:650; } .step small { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+    .heading { margin-bottom:25px; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; } .eyebrow { font-size:10px; letter-spacing:1.8px; font-weight:700; color:var(--green); margin-bottom:8px; } h1 { font-size:32px; font-weight:650; line-height:1.45; letter-spacing:-1.5px; } .description { color:var(--muted); margin-top:9px; font-size:13px; } .help-btn { color:var(--green); padding:6px 0; border-bottom:1px solid #b3c6a6; font-size:12px; white-space:nowrap; }
+    .workspace { display:grid; grid-template-columns:minmax(0,1fr) 348px; gap:24px; align-items:start; } .viewer { border:1px solid #cfd8ca; border-radius:var(--radius); overflow:hidden; background:var(--paper); } .viewer-top { padding:15px 19px; display:flex; align-items:center; justify-content:space-between; gap:12px; } .camera-name { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600; } .camera-name .icon { width:18px; } .preview-tag { font-size:10px; padding:4px 8px; border-radius:4px; background:#f0f2ed; color:#52644f; }
+    .scene { position:relative; aspect-ratio:16/10; background:#52625a; } canvas { width:100%; height:100%; display:block; } .scene canvas { object-fit:cover; } .camera-stamp { position:absolute; top:16px; left:16px; color:#e2e9de; background:#223329bd; border-radius:4px; padding:4px 7px; font:10px monospace; } .scene-badge { position:absolute; right:16px; top:16px; color:#e1efdf; font-size:10px; background:#223329bd; border-radius:4px; padding:4px 7px; } .scene-caption { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:#f3f7ee; background:#203b2be8; border:1px solid #799779; border-radius:6px; padding:8px 13px; font-size:11px; white-space:nowrap; }
+    .scene-cover { position:absolute; inset:0; background:#192d25d6; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#fff; text-align:center; padding:20px; } .scene-cover .icon { width:42px; height:42px; margin-bottom:14px; } .scene-cover strong { font-size:20px; margin-bottom:9px; } .scene-cover p { font-size:12px; color:#d1dfd2; max-width:330px; } .scene-cover .btn { margin-top:20px; background:#fff; color:var(--green); border-color:#fff; }
+    .viewer-footer { padding:13px 18px; display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:11px; color:var(--muted); } .status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#8b9887; margin-right:6px; } .status-dot.live { background:var(--green); } .status-dot.alarm { background:var(--orange); }
+    .side-card { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:24px; } .section-kicker { color:var(--muted); font-size:10px; letter-spacing:1px; margin-bottom:12px; } h2 { font-size:19px; font-weight:650; letter-spacing:-.5px; } .side-intro { color:var(--muted); font-size:12px; line-height:1.8; margin-top:9px; margin-bottom:22px; }
+    .source-option { display:flex; align-items:center; gap:13px; width:100%; padding:15px 12px; border:1px solid var(--line); border-radius:8px; text-align:left; margin-bottom:10px; background:#fff; } .source-option[aria-pressed=true] { background:var(--mint); border-color:var(--green); } .source-icon { width:38px; height:38px; background:#eff1eb; border-radius:8px; display:grid; place-items:center; color:#566e50; } .source-option[aria-pressed=true] .source-icon { background:#dce9d5; color:var(--green); } .source-option strong { font-size:13px; font-weight:600; display:block; } .source-option small { display:block; color:var(--muted); font-size:10px; margin-top:3px; } .selection-dot { margin-left:auto; width:16px; height:16px; border:1px solid #a7b5a1; border-radius:50%; } .source-option[aria-pressed=true] .selection-dot { border:5px solid var(--green); }
+    .divider { border-top:1px solid var(--line); margin:22px 0; } .label-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; } .label-row strong { font-size:12px; font-weight:600; } .label-row span { font-size:10px; color:var(--muted); }
+    .area-picker { display:flex; border:1px solid var(--line); padding:4px; gap:4px; border-radius:7px; background:#f8f9f5; } .area-picker button { flex:1; padding:7px 5px; font-size:11px; border-radius:4px; } .area-picker button[aria-pressed=true] { color:var(--green); background:#e1ebda; font-weight:650; } .helper { color:var(--muted); font-size:10px; line-height:1.8; margin:9px 0 20px; }
+    .btn { display:inline-flex; gap:8px; align-items:center; justify-content:center; padding:11px 16px; min-height:42px; border:1px solid var(--line); background:#fff; border-radius:7px; font-size:12px; font-weight:600; } .btn.primary { background:var(--green); color:#fff; border-color:var(--green); } .btn.full { width:100%; } .btn.soft { background:var(--mint); border-color:#cbdcc0; color:var(--green); } .btn.danger { background:var(--orange); border-color:var(--orange); color:#fff; } .btn .icon { width:18px; height:18px; } .button-row { display:flex; gap:8px; margin-top:10px; } .button-row .btn { flex:1; } .back-btn { padding:9px 0; color:var(--muted); font-size:11px; margin-top:6px; width:100%; }
+    .explain { margin-top:20px; padding:18px 20px; background:#eef1e7; border:1px solid #dce4d3; border-radius:10px; display:flex; gap:13px; align-items:flex-start; } .explain .icon { color:#567548; width:20px; margin-top:2px; } .explain strong { font-size:12px; font-weight:600; } .explain p { color:#5e7057; font-size:11px; margin-top:4px; }
+    .normal-sample { display:flex; align-items:center; gap:11px; padding:12px 0; border-bottom:1px solid #e7ebe3; font-size:12px; cursor:pointer; } .normal-sample input { accent-color:var(--green); width:17px; height:17px; } .normal-sample small { color:var(--muted); font-size:10px; display:block; margin-top:2px; } .sample-art { width:40px; height:32px; display:grid; place-items:center; background:#eef1e8; border-radius:5px; color:#728264; }
+    .learning { margin:20px 0; } .progress-label { display:flex; justify-content:space-between; font-size:11px; margin-bottom:8px; } progress { width:100%; height:8px; appearance:none; display:block; } progress::-webkit-progress-bar { background:#e6ebdf; border-radius:5px; } progress::-webkit-progress-value { background:var(--green); border-radius:5px; } .ready-message { margin:20px 0; background:var(--mint); border:1px solid #ccdfc0; padding:14px; border-radius:7px; font-size:12px; color:var(--green); }
+    .status-banner { display:flex; align-items:center; gap:13px; border:1px solid #c8d8bd; padding:17px 20px; border-radius:10px; margin-bottom:20px; background:var(--mint); } .status-banner .icon { width:29px; height:29px; color:var(--green); } .status-banner strong { font-size:15px; display:block; } .status-banner p { color:var(--muted); font-size:11px; margin-top:2px; } .status-banner.alert { background:var(--peach); border-color:#e7bba5; } .status-banner.alert .icon,.status-banner.alert strong { color:var(--orange); } .status-banner.stopped { background:#f4efe3; border-color:#d8cbb0; } .status-banner.stopped .icon { color:var(--gold); }
+    .monitor-summary { display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line); font-size:12px; } .monitor-summary span { color:var(--muted); } .monitor-summary strong { font-weight:600; } .alarm-card { background:var(--peach); border:1px solid #e7bba5; padding:17px; border-radius:8px; margin:19px 0; } .alarm-card .alarm-kicker { font-size:10px; color:var(--orange); margin-bottom:7px; } .alarm-card h3 { font-size:15px; line-height:1.6; } .alarm-card p { color:#775143; font-size:11px; line-height:1.8; margin:9px 0 13px; } .alarm-card .button-row { flex-direction:column; }
+    .trial { margin-top:20px; padding:18px 20px; border:1px dashed #b5c5a8; border-radius:10px; background:#fbfcf7; } .trial-title { display:flex; justify-content:space-between; align-items:center; gap:10px; } .trial-title strong { font-size:12px; } .trial-title span { color:var(--muted); font-size:10px; } .trial .button-row { margin-top:13px; } .trial .btn { font-size:11px; }
+    .history { background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:20px 24px; margin-top:25px; } .history-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; } .history-head h2 { font-size:15px; } .history-head span { font-size:11px; color:var(--muted); } .history-empty { color:var(--muted); font-size:12px; padding:18px 0; text-align:center; } .history-entry { display:flex; align-items:center; gap:14px; border-top:1px solid var(--line); padding:13px 0; font-size:12px; } .history-entry .event-icon { color:var(--orange); background:var(--peach); width:32px; height:32px; border-radius:7px; display:grid; place-items:center; flex-shrink:0; } .history-entry small { font-size:10px; color:var(--muted); display:block; } .history-entry .entry-status { margin-left:auto; padding:4px 8px; font-size:10px; border:1px solid var(--line); border-radius:4px; white-space:nowrap; }
+    details { margin-top:20px; border-top:1px solid var(--line); padding-top:14px; font-size:11px; color:var(--muted); } summary { cursor:pointer; padding:4px 0; } details p { margin:10px 0; } .compact { font-size:11px; min-height:34px; padding:7px 10px; }
+    .bottom-help { display:grid; grid-template-columns:repeat(3,1fr); margin-top:27px; border-top:1px solid var(--line); padding-top:24px; gap:25px; } .bottom-help article { display:flex; gap:10px; } .bottom-help .number { color:#7b9070; font:13px/1.7 monospace; } .bottom-help h2 { font-size:12px; font-weight:600; } .bottom-help p { color:var(--muted); font-size:11px; margin-top:5px; }
+    footer { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:30px; color:var(--muted); font-size:10px; } .toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); max-width:calc(100% - 32px); background:#233c2d; color:#fff; padding:12px 20px; border-radius:8px; font-size:12px; box-shadow:0 6px 24px #12291b29; z-index:10; }
+    dialog { color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:15px; padding:28px; width:min(480px,calc(100% - 32px)); } dialog::backdrop { background:#20362a80; } .dialog-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:20px; } .close { width:32px; height:32px; border:1px solid var(--line); border-radius:6px; } dialog p { color:var(--muted); font-size:13px; line-height:1.9; margin:14px 0; }
+    @media(max-width:1050px) { .workspace { grid-template-columns:minmax(0,1fr) 310px; gap:18px; } .side-card { padding:20px; } h1 { font-size:28px; } .scene { aspect-ratio:4/3; } .brand span { display:none; } }
+    @media(max-width:800px) { .workspace { grid-template-columns:1fr; } .scene { aspect-ratio:16/9; } .side-card { padding:24px; } .step { padding:15px 13px; gap:9px; } .step small { display:none; } .topbar { padding:0 24px; height:70px; } .top-actions { gap:12px; } .bottom-help { gap:15px; } .heading { align-items:flex-start; } }
+    @media(max-width:500px) { main { padding:22px 16px; } .topbar { padding:13px 16px; height:auto; flex-wrap:wrap; gap:10px; } .brand { font-size:19px; } .brand .icon { width:26px; } .top-actions { margin-left:auto; gap:10px; font-size:10px; } .demo-tag { font-size:9px; } .steps { margin-bottom:23px; } .step { flex-direction:column; gap:7px; text-align:center; padding:13px 5px; } .step strong { font-size:10px; } .step-number { width:26px; height:26px; font-size:11px; } h1 { font-size:25px; letter-spacing:-1px; } .heading { display:block; } .help-btn { margin-top:12px; } .description { font-size:12px; } .viewer-top { padding:12px; } .viewer-footer { padding:12px; font-size:10px; flex-wrap:wrap; } .scene-caption { font-size:9px; padding:6px 8px; bottom:10px; } .scene-badge { right:9px; top:9px; font-size:8px; } .camera-stamp { top:9px; left:9px; font-size:8px; } .side-card { padding:20px; } .trial .button-row { flex-direction:column; } .bottom-help { grid-template-columns:1fr; gap:15px; } footer { display:block; } footer p { margin-top:8px; } .history { padding:17px; } .history-entry { flex-wrap:wrap; gap:10px; } .history-entry .entry-status { margin-left:42px; } .status-banner { padding:14px; } .status-banner strong { font-size:13px; } }
+  </style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true"><defs>
+  <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="box" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4v10l-9 4-9-4V7Zm0 0 9 4 9-4m-9 4v10M7 5l10 4"/></symbol>
+  <symbol id="camera" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+  <symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/></symbol>
+  <symbol id="idea" viewBox="0 0 24 24"><path d="M8 16a7 7 0 1 1 8 0v3H8v-3Zm1 6h6m-5-9 2 2 2-2m-2 2v4"/></symbol>
+  <symbol id="alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Zm0 6v5m0 3v.1"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="3"/></symbol>
+  <symbol id="offline" viewBox="0 0 24 24"><path d="m3 3 18 18M2 8c5-5 15-5 20 0M5 12c3-3 11-3 14 0m-11 4c2-2 6-2 8 0m-4 4v.1"/></symbol>
+</defs></svg>
+<header class="topbar"><div class="brand"><svg class="icon"><use href="#eye"/></svg>WATCH <span>처음 쓰는 이상 감시</span></div><div class="top-actions"><span class="demo-tag">화면 체험용 데모</span><a href="01-control-room.html">관제실형 보기 ↗</a></div></header>
+<main>
+  <nav class="steps" aria-label="설정 진행 단계">
+    <button class="step active" data-step="1" aria-current="step"><span class="step-number">1</span><span><strong>영상 고르기</strong><small>어디를 지켜볼까요?</small></span></button>
+    <button class="step" data-step="2" disabled><span class="step-number">2</span><span><strong>정상 모습 알려주기</strong><small>평소 모습을 기억해요</small></span></button>
+    <button class="step" data-step="3" disabled><span class="step-number">3</span><span><strong>감시하고 확인하기</strong><small>달라진 순간을 알려드려요</small></span></button>
+  </nav>
+  <div class="heading"><div><p class="eyebrow" id="eyebrow">FIRST, YOUR CAMERA</p><h1 id="pageTitle">어떤 영상을 지켜볼까요?</h1><p class="description" id="description">영상과 감시할 곳만 골라주세요. 어려운 설정은 필요하지 않아요.</p></div><button class="help-btn" id="helpButton">처음이라면, 30초 안내 ↗</button></div>
+  <div class="status-banner" id="statusBanner" role="status" hidden><svg class="icon"><use id="statusIcon" href="#check"/></svg><div><strong id="statusTitle"></strong><p id="statusDescription"></p></div></div>
+  <div class="workspace">
+    <div>
+      <section class="viewer" aria-label="선택한 영상">
+        <div class="viewer-top"><span class="camera-name"><svg class="icon"><use href="#camera"/></svg><span id="cameraName">제품 검사 라인</span></span><span class="preview-tag" id="previewTag">미리보기</span></div>
+        <div class="scene"><canvas id="previewCanvas" role="img" aria-label="제품 검사 라인의 합성 영상"></canvas><span class="camera-stamp" id="cameraStamp">CAM 01 / SAMPLE</span><span class="scene-badge">합성 영상 · 실제 검사 아님</span><span class="scene-caption" id="sceneCaption">점선 안의 모습을 살펴볼 거예요</span><div class="scene-cover" id="connectionCover" hidden><svg class="icon"><use href="#offline"/></svg><strong>영상 연결이 끊겼어요</strong><p>지금은 이상 여부를 판단할 수 없어요.<br>연결을 확인한 뒤 감시를 다시 시작해주세요.</p><button class="btn" id="reconnect">연결 복구 체험</button></div></div>
+        <div class="viewer-footer"><span><span class="status-dot" id="viewerDot"></span><span id="viewerState">아직 감시를 시작하지 않았어요</span></span><span id="regionDescription">가운데 영역</span></div>
+      </section>
+      <div class="explain" id="explain"><svg class="icon"><use href="#idea"/></svg><div><strong id="explainTitle">화면 전체를 감시하지 않아도 괜찮아요</strong><p id="explainText">제품이 지나가는 곳만 고르면, 주변 사람이나 배경 변화에 덜 영향을 받아요.</p></div></div>
+      <section class="trial" id="trial" hidden><div class="trial-title"><strong>이제, 이상 상황을 직접 만들어보세요</strong><span>모의 알람 체험</span></div><div class="button-row"><button class="btn soft" id="appearanceDemo"><svg class="icon"><use href="#box"/></svg><span>다른 제품 하나 들어오기</span></button><button class="btn soft" id="motionDemo"><svg class="icon"><use href="#arrow"/></svg>움직임 달라지기</button></div></section>
+    </div>
+    <aside class="side-card" aria-label="현재 단계의 작업">
+      <section id="step1"><p class="section-kicker">STEP 01</p><h2>지켜볼 곳을 골라주세요</h2><p class="side-intro">두 가지 예시로 화면을 체험할 수 있어요.</p>
+        <button class="source-option" data-source="product" aria-pressed="true"><span class="source-icon"><svg class="icon"><use href="#box"/></svg></span><span><strong>제품 검사 라인</strong><small>정상 제품 사이에 다른 제품이 나타나요</small></span><span class="selection-dot" aria-hidden="true"></span></button>
+        <button class="source-option" data-source="hallway" aria-pressed="false"><span class="source-icon"><svg class="icon"><use href="#camera"/></svg></span><span><strong>물류 이동 통로</strong><small>평소와 다른 모습이나 움직임이 보여요</small></span><span class="selection-dot" aria-hidden="true"></span></button>
+        <div class="divider"></div><div class="label-row"><strong>어디까지 살펴볼까요?</strong><span>감시 영역</span></div><div class="area-picker"><button data-area="focus" aria-pressed="true">가운데 영역</button><button data-area="all" aria-pressed="false">화면 전체</button></div><p class="helper">선택한 영역이 왼쪽 영상에 표시돼요.<br>이 데모에서는 미리 정한 영역을 사용해요.</p><button class="btn primary full" id="continueToLearn">이 영상으로 계속 <svg class="icon"><use href="#arrow"/></svg></button>
+      </section>
+      <section id="step2" hidden><p class="section-kicker">STEP 02</p><h2>이 모습은 정상인가요?</h2><p class="side-intro">정상으로 기억할 예시를 골라주세요. 평소에 생기는 자연스러운 변화도 포함해요.</p><div id="samples">
+        <label class="normal-sample"><input type="checkbox" checked><span class="sample-art"><svg class="icon"><use href="#box"/></svg></span><span><span class="sample-name">평소의 정상 제품</span><small>기본적인 정상 모습</small></span></label>
+        <label class="normal-sample"><input type="checkbox" checked><span class="sample-art"><svg class="icon"><use href="#eye"/></svg></span><span><span class="sample-name">조금 밝게 보이는 제품</span><small>허용할 조명 변화</small></span></label>
+        <label class="normal-sample"><input type="checkbox" checked><span class="sample-art"><svg class="icon"><use href="#arrow"/></svg></span><span><span class="sample-name">위치가 조금 다른 제품</span><small>허용할 위치 변화</small></span></label>
+      </div><p class="helper">실제 학습에서는 해당 장면의 정상 영상이 필요해요. 지금은 선택과 준비 과정을 체험합니다.</p><div class="learning" id="learning" hidden><div class="progress-label"><span>정상 기준 준비 중 · 데모</span><strong id="progressText">0%</strong></div><progress id="learningProgress" max="100" value="0" aria-label="모의 정상 기준 준비 진행률"></progress></div><div class="ready-message" id="readyMessage" role="status" hidden>✓ 정상 기준을 준비했어요. 감시를 시작할 수 있어요.<br><small>실제 신경망 학습이 아닌 데모 완료 상태예요.</small></div><button class="btn primary full" id="learnButton">선택한 정상 모습 기억하기</button><button class="btn primary full" id="startMonitoring" hidden>감시 시작하기 <svg class="icon"><use href="#arrow"/></svg></button><button class="back-btn" id="backToSource">← 영상 다시 고르기</button>
+      </section>
+      <section id="step3" hidden><p class="section-kicker">STEP 03</p><h2 id="monitorHeading">이제 지켜보고 있어요</h2><p class="side-intro">평소와 다른 순간이 보이면 영상 옆에 알려드릴게요.</p><div class="monitor-summary"><span>지켜보는 곳</span><strong id="monitorCamera">제품 검사 라인</strong></div><div class="monitor-summary"><span>정상 기준</span><strong>준비됨 · 데모 v1</strong></div><div class="monitor-summary"><span>확인할 알람</span><strong id="alarmCount">없어요</strong></div>
+        <article class="alarm-card" id="alarmCard" hidden><p class="alarm-kicker" id="alarmTime">방금 발생 · 모의 이벤트</p><h3 id="alarmTitle"></h3><p id="alarmReason"></p><div class="button-row"><button class="btn danger full" id="acknowledge">확인했어요</button><button class="btn full" id="markNormal">정상 상황이에요</button></div></article>
+        <div class="button-row"><button class="btn full" id="pauseMonitoring"><svg class="icon"><use href="#pause"/></svg><span>감시 잠시 멈추기</span></button></div><p class="helper">알람 확인은 기록만 남겨요. 정상 기준을 자동으로 바꾸지는 않아요.</p><details><summary>다른 상태도 살펴보기</summary><p>영상이 끊기면 정상으로 표시하지 않고 감시를 중단해요.</p><button class="btn compact" id="disconnect">연결 끊김 체험</button><button class="back-btn" id="resetSetup">영상·정상 기준 다시 설정하기</button></details>
+      </section>
+    </aside>
+  </div>
+  <section class="history" id="history" hidden><div class="history-head"><h2>오늘 확인한 순간들</h2><span id="historyCount">0건 · 현재 탭의 기록</span></div><div id="historyEntries"><p class="history-empty">아직 알람이 없어요. 위의 체험 버튼을 눌러보세요.</p></div></section>
+  <div class="bottom-help"><article><span class="number">01</span><div><h2>평소 모습을 기억해요</h2><p>정상 예시와 비교해 달라진 정도를 살펴봐요.</p></div></article><article><span class="number">02</span><div><h2>짧은 이상도 알려드려요</h2><p>제품 하나의 변화와 이어지는 움직임을 구분해요.</p></div></article><article><span class="number">03</span><div><h2>마지막 확인은 사람이 해요</h2><p>이상 후보의 근거를 보고 확인 결과를 남겨요.</p></div></article></div>
+  <footer><p>합성 영상과 모의 상태로 만든 UI 시안입니다. 카메라 연결·실제 AI 학습·검사는 포함하지 않습니다.</p><p>02 / 안내형 구성 · 새로고침하면 처음부터</p></footer>
+</main>
+<dialog id="helpDialog" aria-labelledby="helpTitle"><div class="dialog-top"><h2 id="helpTitle">세 가지만 하면 돼요</h2><button class="close" id="closeHelp" aria-label="안내 닫기">✕</button></div><p><strong>1. 영상 고르기</strong><br>살펴볼 카메라와 영역을 고릅니다.</p><p><strong>2. 정상 모습 알려주기</strong><br>평소 모습을 정상 기준으로 준비합니다.</p><p><strong>3. 감시하고 확인하기</strong><br>달라진 순간의 알람을 보고 확인 결과를 남깁니다.</p><p>이 화면에서는 예시 버튼으로 흐름을 체험할 수 있어요. 연결이 끊기거나 감시를 멈춘 상태는 정상 상태와 다르게 표시됩니다.</p><button class="btn primary full" id="understood">이해했어요</button></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+<script id="scene-engine">
+// 두 HTML이 각각 독립 실행되도록 같은 합성 영상 렌더러를 포함합니다.
+function createDemoScene(canvas, initialType = 'product', seed = 0) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = 960;
+  canvas.height = 540;
+  let type = initialType, alarm = false, alarmKind = 'appearance', paused = false, region = true, frame = 0, last = 0, running = true;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function polygon(points, color) {
+    ctx.fillStyle = color; ctx.beginPath();
+    points.forEach(([x,y], i) => i ? ctx.lineTo(x,y) : ctx.moveTo(x,y)); ctx.closePath(); ctx.fill();
+  }
+  function box(x,y,w,h,bad) {
+    ctx.fillStyle='#0e161b55'; ctx.fillRect(x+9,y+14,w,h);
+    const face=ctx.createLinearGradient(x,y,x+w,y+h); face.addColorStop(0,'#cdbb96'); face.addColorStop(1,'#a58e69');
+    ctx.fillStyle=face; ctx.fillRect(x,y,w,h); ctx.strokeStyle='#867453'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#dbcdae'; ctx.fillRect(x+w*.43,y,14,h); ctx.fillStyle='#eee9dc'; ctx.fillRect(x+14,y+15,w*.44,26);
+    ctx.fillStyle='#5d655f'; for(let i=0;i<9;i++) ctx.fillRect(x+19+i*3,y+21,1,13);
+    ctx.font='9px monospace'; ctx.fillText('HB / 2026',x+15,y+h-14);
+    if(bad) { polygon([[x+w-38,y],[x+w,y],[x+w,y+45],[x+w-20,y+31],[x+w-32,y+12]],'#3e332a'); ctx.strokeStyle='#fb9c88'; ctx.lineWidth=3; ctx.strokeRect(x-10,y-10,w+20,h+20); ctx.fillStyle='#fca48f'; ctx.fillRect(x-10,y-38,115,25); ctx.fillStyle='#2d1b15'; ctx.font='bold 13px "Malgun Gothic",sans-serif'; ctx.fillText('외관 이상 · 예시',x-3,y-21); }
+  }
+  function product() {
+    ctx.fillStyle='#626e6b'; ctx.fillRect(0,0,960,540);
+    for(let y=0;y<540;y+=90){ctx.strokeStyle='#8d989233';ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(960,y);ctx.stroke();}
+    ctx.fillStyle='#283535';ctx.fillRect(0,120,960,310); ctx.fillStyle='#2d4040';ctx.fillRect(0,140,960,270);
+    const speed=alarm&&alarmKind==='motion'?2.8:1;
+    const shift=(frame*1.25*speed)%27;
+    for(let x=-27+shift;x<960;x+=27){ const g=ctx.createLinearGradient(x,0,x+20,0); g.addColorStop(0,'#495959');g.addColorStop(.5,'#83938e');g.addColorStop(1,'#3b4b4c');ctx.fillStyle=g;ctx.fillRect(x,145,20,260); }
+    ctx.fillStyle='#aeb7aa';ctx.fillRect(0,113,960,13);ctx.fillRect(0,424,960,14);ctx.fillStyle='#475958';ctx.fillRect(0,128,960,9);ctx.fillRect(0,410,960,10);
+    for(let x=20;x<960;x+=110){ctx.fillStyle='#303e3c';ctx.beginPath();ctx.arc(x,119,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(x,431,3,0,Math.PI*2);ctx.fill();}
+    for(let i=-1;i<5;i++){const x=((i*235+frame*.6*speed+seed*61)%1175)-100;box(x,220,139,100,alarm&&alarmKind==='appearance'&&i===2);}
+    if(alarm&&alarmKind==='motion'){ctx.strokeStyle='#ffb39b';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(365,345);ctx.lineTo(580,345);ctx.lineTo(560,330);ctx.moveTo(580,345);ctx.lineTo(560,360);ctx.stroke();ctx.fillStyle='#ffd4c3';ctx.font='14px "Malgun Gothic",sans-serif';ctx.fillText('이동 속도 변화 · 예시',370,377);}
+    ctx.fillStyle='#d9b95c';ctx.fillRect(0,72,960,6);ctx.fillRect(0,478,960,6);ctx.fillStyle='#374745';ctx.fillRect(730,15,140,40);ctx.fillStyle='#cad4c8';ctx.font='15px monospace';ctx.fillText('INSPECTION 01',741,40);
+    if(region){ctx.strokeStyle='#90e4c4aa';ctx.lineWidth=2;ctx.setLineDash([12,8]);ctx.strokeRect(310,159,330,234);ctx.setLineDash([]);ctx.fillStyle='#b4edce';ctx.font='12px "Malgun Gothic",sans-serif';ctx.fillText('감시 영역',320,181);}
+  }
+  function person(x,y,s,bad,index) {
+    ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle='#14232255';ctx.beginPath();ctx.ellipse(5,13,22,9,.1,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#283943';ctx.lineWidth=11;ctx.lineCap='round';const stride=Math.sin(frame*.055+index)*8;ctx.beginPath();ctx.moveTo(-6,-8);ctx.lineTo(-9+stride,16);ctx.moveTo(6,-8);ctx.lineTo(9-stride,16);ctx.stroke();ctx.fillStyle=index%2?'#4b6163':'#687c78';ctx.fillRect(-14,-45,28,38);ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(-13,-39);ctx.lineTo(-20,-14+stride);ctx.moveTo(13,-39);ctx.lineTo(20,-14-stride);ctx.stroke();ctx.fillStyle='#c4b49c';ctx.beginPath();ctx.arc(0,-55,11,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=bad?'#ffaf99':'#a7d8c190';ctx.lineWidth=1.4;ctx.strokeRect(-29,-75,58,105);if(bad){ctx.fillStyle='#faaa93';ctx.fillRect(-30,-99,106,20);ctx.fillStyle='#30251d';ctx.font='12px "Malgun Gothic",sans-serif';ctx.fillText('이동 이상 · 예시',-25,-85);}ctx.restore();
+  }
+  function hallway() {
+    ctx.fillStyle='#86918b';ctx.fillRect(0,0,960,540);polygon([[0,0],[960,0],[690,170],[280,170]],'#afbab1');polygon([[0,0],[280,170],[280,540],[0,540]],'#a4aea4');polygon([[960,0],[690,170],[690,540],[960,540]],'#6f807b');polygon([[280,170],[690,170],[960,540],[0,540]],'#a9b1a5');
+    ctx.strokeStyle='#77857b';ctx.lineWidth=2;for(let i=0;i<7;i++){const y=170+i*i*10;ctx.beginPath();ctx.moveTo(280-(y-170)*.76,y);ctx.lineTo(690+(y-170)*.73,y);ctx.stroke();}for(let i=0;i<8;i++){ctx.beginPath();ctx.moveTo(300+i*50,170);ctx.lineTo(-200+i*210,540);ctx.stroke();}
+    polygon([[35,83],[184,164],[184,365],[35,338]],'#475d58');polygon([[55,111],[166,174],[166,343],[55,323]],'#697e71');polygon([[778,115],[897,45],[897,337],[778,363]],'#405652');polygon([[791,136],[880,86],[880,319],[791,343]],'#61786d');
+    ctx.fillStyle='#526a5c';ctx.fillRect(393,86,176,85);ctx.fillStyle='#c6d5b7';ctx.fillRect(450,107,64,22);ctx.fillStyle='#426044';ctx.font='14px monospace';ctx.fillText('EXIT',463,123);
+    for(let i=0;i<4;i++){const d=((frame*(alarm&&alarmKind==='motion'&&i===2?1.4:.45)+i*105+seed*35)%330)/330;const s=.45+d*.8;const x=350+i*55+Math.sin(i*2)*d*130;person(x,205+d*270,s,alarm&&alarmKind==='motion'&&i===2,i);}
+    if(alarm&&alarmKind==='appearance')box(545,350,110,80,true);
+    if(region){ctx.strokeStyle='#9ce3c9aa';ctx.setLineDash([12,8]);ctx.lineWidth=2;ctx.strokeRect(290,185,410,295);ctx.setLineDash([]);}
+  }
+  function paint() {
+      ctx.clearRect(0,0,960,540);type==='product'?product():hallway();
+      const shade=ctx.createRadialGradient(480,270,100,480,270,640);shade.addColorStop(0,'#0b151000');shade.addColorStop(1,'#1020185e');ctx.fillStyle=shade;ctx.fillRect(0,0,960,540);
+      ctx.fillStyle='#18282012';for(let y=0;y<540;y+=4)ctx.fillRect(0,y,960,1);
+  }
+  function draw(now) {
+    if(!running) return;
+    if(now-last>80){last=now;if(!paused&&!reduced)frame++;paint();}
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+  return { setType(value){type=value;alarm=false;frame=0;paint();}, setAlarm(value,kind='appearance'){if(alarm===value&&alarmKind===kind)return;alarm=value;alarmKind=kind;paint();}, setPaused(value){paused=value;}, setRegion(value){region=value;paint();}, destroy(){running=false;} };
+}
+</script>
+<script>
+  const $ = id => document.getElementById(id);
+  const state = {step:1,type:'product',area:'focus',trained:false,learning:false,monitoring:false,disconnected:false,progress:0,alarm:null};
+  const scene = createDemoScene($('previewCanvas'),'product');
+  const history=[];
+  let learningTimer,toastTimer,nextEvent=1;
+  const cameraName=()=>state.type==='product'?'제품 검사 라인':'물류 이동 통로';
+  const timeText=time=>new Date(time).toLocaleTimeString('ko-KR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3500);}
+  function renderSteps(){
+    document.querySelectorAll('[data-step]').forEach(button=>{
+      const index=Number(button.dataset.step);button.classList.toggle('active',index===state.step);button.classList.toggle('done',index<state.step);
+      button.disabled=state.learning||(index===2&&state.step===1)||(index===3&&!state.trained);
+      if(index===state.step)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');
+      button.querySelector('.step-number').textContent=index<state.step?'✓':index;
+    });
+    [1,2,3].forEach(index=>$('step'+index).hidden=index!==state.step);
+    const headings={1:['FIRST, YOUR CAMERA','어떤 영상을 지켜볼까요?','영상과 감시할 곳만 골라주세요. 어려운 설정은 필요하지 않아요.'],2:['TEACH WHAT IS NORMAL','평소의 모습을 알려주세요','정상이 어떤 모습인지 먼저 알아야, 달라진 순간을 찾을 수 있어요.'],3:['WATCH, THEN REVIEW','달라진 순간만 확인하세요','계속 화면을 바라볼 필요 없이, 확인이 필요한 알람을 살펴보세요.']};
+    const heading=headings[state.step];$('eyebrow').textContent=heading[0];$('pageTitle').textContent=heading[1];$('description').textContent=heading[2];
+    $('trial').hidden=state.step!==3;$('history').hidden=state.step!==3;$('statusBanner').hidden=state.step!==3;
+    $('explainTitle').textContent=state.step===1?'화면 전체를 감시하지 않아도 괜찮아요':state.step===2?'평소의 다양한 모습을 포함해주세요':'알람은 “다시 살펴볼 순간”이라는 뜻이에요';
+    $('explainText').textContent=state.step===1?(state.type==='product'?'제품이 지나가는 곳만 고르면, 주변 사람이나 배경 변화에 덜 영향을 받아요.':'사람이 지나는 통로를 고르면, 관심 없는 주변 영역을 제외할 수 있어요.'):state.step===2?'정상적인 밝기나 위치 변화도 알려주면, 무엇을 허용할지 기준을 만들 수 있어요.':'드문 정상 상황도 알람이 될 수 있어요. 근거를 보고 확인하거나 정상으로 기록해주세요.';
+    renderStatus();
+  }
+  function renderSource(){
+    $('cameraName').textContent=cameraName();$('monitorCamera').textContent=cameraName();$('cameraStamp').textContent=state.type==='product'?'CAM 01 / SAMPLE':'CAM 02 / SAMPLE';$('previewCanvas').setAttribute('aria-label',cameraName()+' 합성 영상');
+    document.querySelectorAll('[data-source]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.source===state.type));
+    document.querySelectorAll('[data-area]').forEach(button=>button.setAttribute('aria-pressed',button.dataset.area===state.area));
+    $('regionDescription').textContent=state.area==='focus'?'가운데 영역':'화면 전체';scene.setRegion(state.area==='focus');
+    $('appearanceDemo').querySelector('span').textContent=state.type==='product'?'다른 제품 하나 들어오기':'다른 모습 나타나기';
+    const names=state.type==='product'?['평소의 정상 제품','조금 밝게 보이는 제품','위치가 조금 다른 제품']:['평소의 통로 모습','조금 밝은 통로 모습','평소의 사람 이동'];
+    document.querySelectorAll('.sample-name').forEach((el,i)=>el.textContent=names[i]);
+  }
+  function renderTraining(){
+    $('learning').hidden=!state.learning;$('learningProgress').value=state.progress;$('progressText').textContent=state.progress+'%';
+    $('readyMessage').hidden=!state.trained;$('startMonitoring').hidden=!state.trained;$('learnButton').hidden=state.trained;
+    $('learnButton').disabled=state.learning||!document.querySelector('#samples input:checked');$('learnButton').textContent=state.learning?'정상 기준을 준비하고 있어요…':'선택한 정상 모습 기억하기';
+    $('backToSource').disabled=state.learning;document.querySelectorAll('#samples input').forEach(input=>input.disabled=state.learning);renderSteps();
+  }
+  function renderStatus(){
+    const alarm=state.alarm;
+    const visualAlarm=state.step===3&&alarm?.source===cameraName();
+    const active=state.step===3&&state.monitoring&&!state.disconnected;
+    const pending=history.filter(item=>item.status==='pending').length;
+    $('alarmCount').textContent=pending?pending+'건 확인 필요':'없어요';
+    $('appearanceDemo').disabled=!active;$('motionDemo').disabled=!active;$('pauseMonitoring').disabled=state.disconnected;$('disconnect').disabled=state.disconnected;
+    $('pauseMonitoring').querySelector('span').textContent=state.monitoring?'감시 잠시 멈추기':'감시 다시 시작하기';
+    $('connectionCover').hidden=!state.disconnected;$('alarmCard').hidden=!alarm;
+    if(alarm){$('alarmTitle').textContent=alarm.title;$('alarmReason').textContent=alarm.reason;$('alarmTime').textContent=alarm.source+' · '+timeText(alarm.time)+' · 모의 이벤트';}
+    const stopped=state.disconnected||!state.monitoring;
+    $('statusBanner').className='status-banner'+(stopped?' stopped':alarm?' alert':'');
+    $('statusIcon').setAttribute('href',state.disconnected?'#offline':!state.monitoring?'#pause':alarm?'#alert':'#check');
+    $('statusTitle').textContent=state.disconnected?'연결이 끊겨 감시를 멈췄어요':!state.monitoring?'감시를 잠시 멈췄어요':alarm?'평소와 다른 순간을 발견했어요':'정상 흐름을 지켜보고 있어요';
+    $('statusDescription').textContent=state.disconnected?'영상이 없으므로 정상·이상 여부를 판단하지 않아요.':!state.monitoring?'마지막 화면을 유지하며 새 이상을 검사하지 않아요.':alarm?'오른쪽에서 달라진 이유를 보고 확인해주세요.':'아래 체험 버튼으로 모의 이상 상황을 만들 수 있어요.';
+    $('monitorHeading').textContent=state.disconnected?'먼저 연결을 확인해주세요':!state.monitoring?'잠시 쉬고 있어요':alarm?'이 순간을 확인해주세요':'이제 지켜보고 있어요';
+    $('previewTag').textContent=state.step!==3?'미리보기':state.disconnected?'연결 끊김':!state.monitoring?'일시정지':alarm?'알람 발생':'감시 중 · 데모';
+    $('viewerDot').className='status-dot'+(active?(alarm?' alarm':' live'):'');
+    $('viewerState').textContent=state.step!==3?'아직 감시를 시작하지 않았어요':state.disconnected?'영상 없음 · 검사 중단':!state.monitoring?'일시정지 · 새 검사 없음':alarm?'확인이 필요한 모의 알람이 있어요':'모의 정상 기준과 비교하고 있어요';
+    $('sceneCaption').textContent=visualAlarm?'표시된 이상 후보를 확인해주세요':alarm&&state.step===3?'다른 영상의 미확인 기록을 보고 있어요':state.step===3?'실제 AI 대신 미리 정한 모의 상황을 보여드려요':state.area==='focus'?'점선 안의 모습을 살펴볼 거예요':'화면 전체의 모습을 살펴볼 거예요';
+    scene.setPaused(document.hidden||state.disconnected||(state.step===3&&!state.monitoring));scene.setAlarm(visualAlarm,alarm?.type);
+  }
+  function stopLearning(){clearInterval(learningTimer);state.learning=false;state.progress=0;}
+  function changeStep(step){if(state.learning)return;if(step===3&&!state.trained)return;state.step=step;if(step!==3){state.monitoring=false;state.disconnected=false;}else state.monitoring=true;renderSteps();}
+  function invalidateTraining(){stopLearning();state.trained=false;state.monitoring=false;state.disconnected=false;renderTraining();}
+  function learn(){
+    if(state.learning||!document.querySelector('#samples input:checked'))return;
+    state.learning=true;state.progress=0;renderTraining();
+    learningTimer=setInterval(()=>{state.progress+=10;if(state.progress>=100){clearInterval(learningTimer);state.learning=false;state.trained=true;toast('모의 정상 기준이 준비됐어요. 감시를 시작해보세요.');}renderTraining();},350);
+  }
+  function inject(type){
+    if(!state.monitoring||state.disconnected)return;
+    const item={id:nextEvent++,type,source:cameraName(),time:Date.now(),status:'pending'};
+    if(type==='appearance'){item.title=state.type==='product'?'제품 하나의 모양이 달라요':'평소와 다른 모습이 나타났어요';item.reason=state.type==='product'?'제품의 오른쪽 모서리가 정상 예시와 달라요. 잠깐 지나가는 제품도 확인 대상으로 표시해요.':'통로에서 정상 예시와 다른 외관이 관찰됐어요. 영상의 표시된 부분을 살펴봐주세요.';}
+    else {item.title='평소와 다른 움직임이 이어져요';item.reason='이동 속도가 정상 예시와 달라요. 모의 예시에서는 3.2초 동안 이어진 변화로 표시해요.';}
+    history.unshift(item);if(history.length>50)history.pop();state.alarm=item;renderStatus();renderHistory();toast('모의 알람이 발생했어요. 오른쪽에서 확인해주세요.');
+  }
+  function review(status){if(!state.alarm)return;state.alarm.status=status;state.alarm=history.find(item=>item.status==='pending')||null;renderStatus();renderHistory();toast(status==='normal'?'정상 상황으로 기록했어요. 정상 기준을 자동으로 바꾸지는 않아요.':'확인 결과를 기록했어요.');}
+  function renderHistory(){
+    $('historyCount').textContent=history.length+'건 · 현재 탭의 기록';
+    $('historyEntries').innerHTML=history.map(item=>`<div class="history-entry"><span class="event-icon"><svg class="icon"><use href="#${item.status==='pending'?'alert':'check'}"/></svg></span><div><strong>${item.title}</strong><small>${item.source} · ${timeText(item.time)} · 모의 이벤트</small></div>${item.status==='pending'?`<button class="btn entry-status" data-history="${item.id}" aria-label="${item.source} ${timeText(item.time)} 알람 살펴보기">알람 살펴보기</button>`:`<span class="entry-status">${item.status==='normal'?'정상으로 기록':'확인했어요'}</span>`}</div>`).join('')||'<p class="history-empty">아직 알람이 없어요. 위의 체험 버튼을 눌러보세요.</p>';
+  }
+  $('historyEntries').addEventListener('click',event=>{const button=event.target.closest('[data-history]');if(!button)return;state.alarm=history.find(item=>item.id===Number(button.dataset.history));renderStatus();$('alarmCard').scrollIntoView({block:'center'});$('acknowledge').focus({preventScroll:true});});
+  document.querySelectorAll('[data-source]').forEach(button=>button.addEventListener('click',()=>{if(state.type===button.dataset.source)return;state.type=button.dataset.source;invalidateTraining();scene.setType(state.type);renderSource();renderSteps();}));
+  document.querySelectorAll('[data-area]').forEach(button=>button.addEventListener('click',()=>{if(state.area===button.dataset.area)return;state.area=button.dataset.area;invalidateTraining();renderSource();}));
+  document.querySelectorAll('[data-step]').forEach(button=>button.addEventListener('click',()=>changeStep(Number(button.dataset.step))));
+  document.querySelectorAll('#samples input').forEach(input=>input.addEventListener('change',()=>{state.trained=false;renderTraining();}));
+  $('continueToLearn').addEventListener('click',()=>changeStep(2));$('backToSource').addEventListener('click',()=>changeStep(1));$('learnButton').addEventListener('click',learn);$('startMonitoring').addEventListener('click',()=>changeStep(3));
+  $('appearanceDemo').addEventListener('click',()=>inject('appearance'));$('motionDemo').addEventListener('click',()=>inject('motion'));$('acknowledge').addEventListener('click',()=>review('checked'));$('markNormal').addEventListener('click',()=>review('normal'));
+  $('pauseMonitoring').addEventListener('click',()=>{state.monitoring=!state.monitoring;renderStatus();});
+  $('disconnect').addEventListener('click',()=>{state.disconnected=true;state.monitoring=false;renderStatus();toast('연결 끊김 상태를 체험하고 있어요.');});
+  $('reconnect').addEventListener('click',()=>{state.disconnected=false;state.monitoring=true;renderStatus();toast('모의 연결을 복구하고 감시를 다시 시작했어요.');});
+  $('resetSetup').addEventListener('click',()=>{state.step=1;invalidateTraining();renderSource();renderSteps();toast('영상을 고른 뒤 정상 기준을 다시 준비해주세요.');});
+  $('helpButton').addEventListener('click',()=>$('helpDialog').showModal());$('closeHelp').addEventListener('click',()=>$('helpDialog').close());$('understood').addEventListener('click',()=>$('helpDialog').close());
+  document.addEventListener('visibilitychange',renderStatus);
+  renderSource();renderTraining();renderHistory();
+</script>
+</body>
+</html>

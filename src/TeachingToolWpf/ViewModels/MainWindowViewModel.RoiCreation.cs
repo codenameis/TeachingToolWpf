@@ -34,16 +34,6 @@ public sealed partial class MainWindowViewModel
         _roisToAttach = [];
         RefreshCommands();
     }
-    public RelayCommand AddChildRoi
-    {
-        get;
-    }
-
-    public RelayCommand DrawChildRoi
-    {
-        get;
-    }
-
     public RelayCommand AddParentRoi
     {
         get;
@@ -54,7 +44,23 @@ public sealed partial class MainWindowViewModel
         get;
     }
 
-    private void AddRoiInView() => AddRoiInView(Session.Add, () => StartRoiDrawing(null));
+    private Guid? SelectedGroupParent => Session.State.SelectionCount == 1 && Session.State.Selection.Count == 1 &&
+        Session.State.IsGroupRoi(Session.State.Selection.Single()) ? Session.State.Selection.Single() : null;
+
+    private bool CanCreateRoi() => HasImage() && (SelectedGroupParent is not { } parent ||
+        RoiHierarchy.Depth(Session.State.Rois, parent) < RoiHierarchy.MaximumDepth);
+
+    private void AddRoiInView()
+    {
+        if (SelectedGroupParent is { } parent)
+        {
+            AddChildRoiInView(parent);
+        }
+        else
+        {
+            AddRoiInView(Session.Add, () => StartRoiDrawing(null));
+        }
+    }
 
     private void AddParentRoiInView() => AddRoiInView(Session.AddParent, StartParentDrawing);
 
@@ -80,16 +86,15 @@ public sealed partial class MainWindowViewModel
 
         var id = add(RoiGeometry.Create(SelectedShape, geometry.Center, geometry.Width, geometry.Height));
         SetTool(EditorTool.Select);
-        Status = Session.State.Rois[id].IsGroup ? "부모 ROI를 추가했습니다. 선택 후 자식을 추가하거나 그리세요."
+        Status = Session.State.Rois[id].IsGroup ? "부모 ROI를 추가했습니다. ROI 추가/그리기로 하위 ROI를 만드세요."
             : "ROI를 추가했습니다. 핸들로 크기와 회전을 조절하세요.";
     }
 
-    private bool CanAddChildRoi() => HasImage() && Session.State.SelectionCount == 1 && Session.State.Selection.Count == 1 &&
+    private bool CanAttachToSelectedRoi() => HasImage() && Session.State.SelectionCount == 1 && Session.State.Selection.Count == 1 &&
         RoiHierarchy.Depth(Session.State.Rois, Session.State.Selection.Single()) < RoiHierarchy.MaximumDepth;
 
-    private void AddChildRoiInView()
+    private void AddChildRoiInView(Guid parentId)
     {
-        var parentId = Session.State.Selection.Single();
         if (SelectedShape == RoiShapeKind.Polygon)
         {
             StartRoiDrawing(parentId);
@@ -97,10 +102,7 @@ public sealed partial class MainWindowViewModel
         }
 
         var parent = Session.State.Rois[parentId];
-        var geometry = parent.Geometry;
-        var child = RoiGeometry.Create(SelectedShape, geometry.Center,
-            Math.Max(.01, geometry.Width / 3), Math.Max(.01, geometry.Height / 3));
-        Session.AddChild(parentId, child.RotateAround(geometry.Center, geometry.Angle));
+        Session.AddChild(parentId, RoiPlacement.InParent(parent.Geometry, SelectedShape));
         SetTool(EditorTool.Select);
         Status = $"‘{parent.Name}’의 자식 ROI를 추가했습니다. 이동해도 부모 관계는 유지됩니다.";
     }
@@ -123,6 +125,6 @@ public sealed partial class MainWindowViewModel
         SetTool(EditorTool.Draw);
         Status = SelectedShape == RoiShapeKind.Polygon
             ? "부모 ROI의 꼭짓점을 차례로 클릭하세요. 선이 교차하면 교차점에서 자동 완성합니다."
-            : "부모 ROI를 그립니다. 완성한 부모를 선택한 뒤 자식을 추가하거나 그리세요.";
+            : "부모 ROI를 그립니다. 완성한 부모를 선택한 뒤 ROI 추가/그리기를 사용하세요.";
     }
 }

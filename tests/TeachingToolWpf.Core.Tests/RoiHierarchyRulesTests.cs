@@ -51,7 +51,7 @@ public class RoiHierarchyRulesTests
     [InlineData(RoiShapeKind.Rectangle, 45)]
     [InlineData(RoiShapeKind.Circle, 0)]
     [InlineData(RoiShapeKind.Triangle, 0)]
-    public void ChildDrawingRejectsCrossingAndAllowsLaterOutsideEdits(RoiShapeKind shape, double angle)
+    public void ChildDrawingAndLaterEditsStayInsideParent(RoiShapeKind shape, double angle)
     {
         var editor = new EditorSession();
         var geometry = RoiGeometry.Create(shape, new(200, 200), 200, 200);
@@ -71,7 +71,7 @@ public class RoiHierarchyRulesTests
         var child = editor.State.Selection.Single();
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         editor.TranslateSelection(new(400, 0));
-        Assert.False(editor.State.Rois[parent].Geometry.Contains(editor.State.Rois[child].Geometry));
+        Assert.True(editor.State.Rois[parent].Geometry.Covers(editor.State.Rois[child].Geometry));
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         editor.Undo();
         Assert.True(editor.State.Rois[parent].Geometry.Contains(editor.State.Rois[child].Geometry));
@@ -115,7 +115,7 @@ public class RoiHierarchyRulesTests
         }
         Assert.Equal(4, RoiHierarchy.Depth(editor.State.Rois, leaf));
         Assert.StartsWith("루트 그룹", editor.State.Rois[highest].Name);
-        var independent = editor.Add(new(new(700, 100), 20, 20, 0));
+        var independent = editor.Add(new(new(300, 100), 20, 20, 0));
         editor.Select([highest, independent]);
         Assert.True(editor.State.SelectionFacts.CanGroup);
         var count = editor.State.Rois.Count;
@@ -123,7 +123,7 @@ public class RoiHierarchyRulesTests
         Assert.Equal(count, editor.State.Rois.Count);
         Assert.Equal(highest, editor.State.Rois[independent].ParentId);
         editor.Undo();
-        editor.AddChild(independent, new(new(700, 100), 5, 5, 0));
+        editor.AddChild(independent, new(new(300, 100), 5, 5, 0));
         editor.Select([highest, independent]);
         editor.Rename(independent, "임시");
         editor.Undo();
@@ -157,9 +157,9 @@ public class RoiHierarchyRulesTests
     public async Task AttachPreservesGeometryAndHistoryAndRejectsCyclesOrReparenting()
     {
         var editor = new EditorSession();
-        var parent = editor.Add(new(new(100, 100), 20, 20, 0));
+        var parent = editor.Add(new(new(300, 300), 100, 100, 0));
         var child = editor.Add(new(new(300, 300), 10, 10, 0));
-        var other = editor.Add(new(new(500, 500), 20, 20, 0));
+        var other = editor.Add(new(new(320, 320), 20, 20, 0));
         var geometry = editor.State.Rois[child].Geometry;
         editor.CommitPrepared(await editor.PrepareAttachAsync([child], parent));
         Assert.Equal(parent, editor.State.Rois[child].ParentId);

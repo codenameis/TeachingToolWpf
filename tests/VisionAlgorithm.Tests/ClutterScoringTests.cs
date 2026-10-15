@@ -5,14 +5,20 @@ namespace VisionAlgorithm.Tests;
 public sealed class ClutterScoringTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void AddedDiagonalLowersFinalScoreWhilePreservingDirectionalEvidence(bool geometry)
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(.49)]
+    [InlineData(8.01)]
+    public void ClutterToleranceRejectsInvalidValues(double tolerance)
+        => Assert.Throws<ArgumentOutOfRangeException>(() => new SearchOptions { ClutterTolerancePixels = tolerance }.Validate());
+
+    [Fact]
+    public void AddedDiagonalLowersFinalScoreWhilePreservingDirectionalEvidence()
     {
-        var model = Train(geometry);
-        var clean = Refine(CreatePin(0), model, geometry, 1);
-        var legacy = Refine(CreatePin(0, extra: true), model, geometry, 0);
-        var penalized = Refine(CreatePin(0, extra: true), model, geometry, 1);
+        var model = Train();
+        var clean = Refine(CreatePin(0), model, 1);
+        var legacy = Refine(CreatePin(0, extra: true), model, 0);
+        var penalized = Refine(CreatePin(0, extra: true), model, 1);
 
         Assert.InRange(clean.Score, .95, 1);
         Assert.InRange(legacy.Score, .95, 1);
@@ -20,17 +26,16 @@ public sealed class ClutterScoringTests
         Assert.True(penalized.Score < clean.Score - .15);
         Assert.InRange(penalized.ClutterRatio!.Value, .15, .6);
         Assert.Equal(penalized.DirectionScore * (1 - penalized.ClutterPenaltyRatio!.Value), penalized.Score, 12);
-        Assert.Equal(geometry, penalized.Geometry is not null);
         Assert.Equal(0, clean.ClutterRatio!.Value, 12);
     }
 
     [Fact]
     public void PartialWeightIsExplicitAndZeroKeepsExistingScore()
     {
-        var model = Train(false);
+        var model = Train();
         var scene = CreatePin(0, extra: true);
-        var legacy = Refine(scene, model, false, 0);
-        var weighted = Refine(scene, model, false, .25);
+        var legacy = Refine(scene, model, 0);
+        var weighted = Refine(scene, model, .25);
 
         Assert.Null(legacy.ClutterRatio);
         Assert.Equal(legacy.Score, legacy.DirectionScore);
@@ -41,9 +46,9 @@ public sealed class ClutterScoringTests
     [Fact]
     public void MissingPinContourStillLowersDirectionalAndFinalScores()
     {
-        var model = Train(false);
-        var clean = Refine(CreatePin(0), model, false, 1);
-        var missing = Refine(CreatePin(0, missing: true), model, false, 1);
+        var model = Train();
+        var clean = Refine(CreatePin(0), model, 1);
+        var missing = Refine(CreatePin(0, missing: true), model, 1);
 
         Assert.True(missing.DirectionScore < clean.DirectionScore - .1);
         Assert.True(missing.Score <= missing.DirectionScore);
@@ -64,10 +69,10 @@ public sealed class ClutterScoringTests
                 mask[(y * 128) + x] = 255;
             }
         }
-        var model = Train(false, mask);
+        var model = Train(mask);
         Array.Clear(mask);
-        var clean = Refine(CreatePin(angle), model, false, 1, angle);
-        var outside = Refine(CreatePin(angle, extra: true), model, false, 1, angle);
+        var clean = Refine(CreatePin(angle), model, 1, angle);
+        var outside = Refine(CreatePin(angle, extra: true), model, 1, angle);
 
         Assert.Equal(clean.DirectionScore, outside.DirectionScore, 8);
         Assert.Equal(clean.Score, outside.Score, 8);
@@ -81,9 +86,9 @@ public sealed class ClutterScoringTests
         const double TrainingAngle = Math.PI / 2;
         const double SceneAngle = Math.PI;
         var model = ShapeTrainer.Train(CreatePin(TrainingAngle), new(ReadOnlyMemory<byte>.Empty, new(64, 64), TrainingAngle),
-            Training(false));
-        var clean = Refine(CreatePin(SceneAngle), model, false, 1, SceneAngle);
-        var extra = Refine(CreatePin(SceneAngle, extra: true), model, false, 1, SceneAngle);
+            Training());
+        var clean = Refine(CreatePin(SceneAngle), model, 1, SceneAngle);
+        var extra = Refine(CreatePin(SceneAngle, extra: true), model, 1, SceneAngle);
 
         Assert.InRange(clean.Score, .95, 1);
         Assert.InRange(extra.DirectionScore, .95, 1);
@@ -91,22 +96,20 @@ public sealed class ClutterScoringTests
         Assert.InRange(extra.ClutterRatio!.Value, .15, .6);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void MinimumScoreUsesFinalScoreAfterClutterPenalty(bool geometry)
+    [Fact]
+    public void MinimumScoreUsesFinalScoreAfterClutterPenalty()
     {
-        var model = Train(geometry);
+        var model = Train();
         var scene = CreatePin(0, extra: true);
         var matcher = new ShapeMatcher();
         var directional = Assert.Single(matcher.RefineCandidate(scene, model, new(64, 64, 0), 1,
-            Options(geometry, 0) with
+            Options(0) with
             {
                 MinimumScore = .9
             }).Matches);
         Assert.True(directional.Score > .9);
         Assert.Empty(matcher.RefineCandidate(scene, model, new(64, 64, 0), 1,
-            Options(geometry, 1) with
+            Options(1) with
             {
                 MinimumScore = .9
             }).Matches);
@@ -115,7 +118,7 @@ public sealed class ClutterScoringTests
     [Fact]
     public void FinalScoreControlsOrderingAndOutputLimitBeforeSuppression()
     {
-        var model = Train(false);
+        var model = Train();
         var clean = CreatePin(0);
         var dirty = CreatePin(0, extra: true);
         var pixels = new byte[256 * 128];
@@ -130,7 +133,7 @@ public sealed class ClutterScoringTests
         // 후보 순서와 방향 점수에서 추가선 후보가 앞서도 최종 점수로 다시 정렬한다.
         var batch = new CandidateBatch(
             [new(dirtyPose, 1, 0, new(1, 1, 4)), new(cleanPose, .96, 0, new(.96, 1, 4))], false, 2);
-        var options = Options(false, 1) with
+        var options = Options(1) with
         {
             MaximumMatches = 1
         };
@@ -155,10 +158,10 @@ public sealed class ClutterScoringTests
     [Fact]
     public void FullSearchReturnsPenalizedScoreAndRejectsItAtFinalThreshold()
     {
-        var model = Train(false);
+        var model = Train();
         var scene = CreatePin(0, extra: true);
         var matcher = new ShapeMatcher();
-        var options = Options(false, 1) with
+        var options = Options(1) with
         {
             MinimumScore = .7
         };
@@ -175,7 +178,7 @@ public sealed class ClutterScoringTests
     [Fact]
     public void PublicRefinementClearsPreviousClutterAndKeepsDirectionSeparate()
     {
-        var model = Train(false);
+        var model = Train();
         var image = PreparedSearchImage.Create(CreatePin(0), 8, model.Levels.Length);
         var initial = new MatchPose(65.5, 65.2, 0);
         var match = new ShapeMatch(initial, 1, .4, 1, 4,
@@ -184,7 +187,7 @@ public sealed class ClutterScoringTests
             DirectionScore = 1,
             ClutterRatio = .6
         };
-        var refined = PointToLineRefiner.Refine(image, model, match, Options(false, 0) with
+        var refined = PointToLineRefiner.Refine(image, model, match, Options(0) with
         {
             MinimumScore = 1,
             MinimumSupport = 1
@@ -198,11 +201,10 @@ public sealed class ClutterScoringTests
     }
 
     [Fact]
-    public void PaperContourFootprintIsSeparateFromGeometryAndCoarseViews()
+    public void PaperContourFootprintIsSeparateFromCoarseViews()
     {
-        var model = Train(false);
+        var model = Train();
         Assert.NotNull(model.ContourModel);
-        Assert.Null(model.GeometryModel);
         Assert.Same(model.ContourModel, model.AtPyramidLevel(0).ContourModel);
         Assert.Null(model.AtPyramidLevel(1).ContourModel);
         Assert.True(model.EstimatedBytes > model.AtPyramidLevel(1).EstimatedBytes);
@@ -220,26 +222,25 @@ public sealed class ClutterScoringTests
     public void ClutterScoringRequiresVerificationAndOriginalContourModel()
     {
         var image = CreatePin(0);
-        var model = Train(false);
+        var model = Train();
         var withoutContour = ShapeTrainer.Train(image, new(ReadOnlyMemory<byte>.Empty, new(64, 64)),
-            Training(false) with
+            Training() with
             {
                 BuildClutterModel = false
             });
         var matcher = new ShapeMatcher();
 
-        Assert.Throws<ArgumentException>(() => matcher.Search(image, withoutContour, Options(false, 1)));
-        Assert.Throws<ArgumentException>(() => matcher.Search(image, model.AtPyramidLevel(1), Options(false, 1)));
-        Assert.Throws<ArgumentException>(() => matcher.Search(image, model, Options(false, 1) with { Verify = false }));
+        Assert.Throws<ArgumentException>(() => matcher.Search(image, withoutContour, Options(1)));
+        Assert.Throws<ArgumentException>(() => matcher.Search(image, model.AtPyramidLevel(1), Options(1)));
+        Assert.Throws<ArgumentException>(() => matcher.Search(image, model, Options(1) with { Verify = false }));
     }
 
-    private static ShapeModel Train(bool geometry, byte[]? mask = null)
-        => ShapeTrainer.Train(CreatePin(0), new(mask ?? ReadOnlyMemory<byte>.Empty, new(64, 64)), Training(geometry));
+    private static ShapeModel Train(byte[]? mask = null)
+        => ShapeTrainer.Train(CreatePin(0), new(mask ?? ReadOnlyMemory<byte>.Empty, new(64, 64)), Training());
 
-    private static TrainingOptions Training(bool geometry)
+    private static TrainingOptions Training()
         => new()
         {
-            BuildGeometricModel = geometry,
             BuildClutterModel = true,
             PyramidLevels = 2,
             MinimumAngleDegrees = 0,
@@ -247,18 +248,17 @@ public sealed class ClutterScoringTests
             AngleStepDegrees = 45
         };
 
-    private static SearchOptions Options(bool geometry, double weight)
+    private static SearchOptions Options(double weight)
         => new()
         {
-            EvaluateGeometry = geometry,
             ClutterWeight = weight,
             Refine = false,
             MinimumScore = .1,
             MinimumSupport = .1
         };
 
-    private static ShapeMatch Refine(GrayImage image, ShapeModel model, bool geometry, double weight, double angle = 0)
-        => Assert.Single(new ShapeMatcher().RefineCandidate(image, model, new(64, 64, angle), 1, Options(geometry, weight)).Matches);
+    private static ShapeMatch Refine(GrayImage image, ShapeModel model, double weight, double angle = 0)
+        => Assert.Single(new ShapeMatcher().RefineCandidate(image, model, new(64, 64, angle), 1, Options(weight)).Matches);
 
     private static GrayImage CreatePin(double angle, bool extra = false, bool missing = false)
     {

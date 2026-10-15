@@ -6,6 +6,18 @@ namespace VisionInspection.Tests;
 
 public sealed class RecipeJsonTests
 {
+    [Theory]
+    [InlineData("evaluateGeometry")]
+    [InlineData("minimumCoverage")]
+    [InlineData("maximumFitErrorPixels")]
+    [InlineData("maximumClutterRatio")]
+    [InlineData("geometricTolerancePixels")]
+    public void RemovedGeometryOptionsAreRejectedInsteadOfSilentlyIgnored(string field)
+    {
+        var json = "{\"searchOptions\":{\"" + field + "\":0.5}}";
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<InspectionRecipe>(json, RecipeJson.CreateOptions()));
+    }
+
     [Fact]
     public void PartialSearchOptionsPreserveHostDefaults()
     {
@@ -26,20 +38,20 @@ public sealed class RecipeJsonTests
     }
 
     [Theory]
-    [InlineData(double.PositiveInfinity)]
+    [InlineData(1.5)]
     [InlineData(2.5)]
-    public void RecipeRoundTripPreservesFitLimitAndSearchDefaults(double fitLimit)
+    public void RecipeRoundTripPreservesClutterToleranceAndSearchDefaults(double tolerance)
     {
         var recipe = new InspectionRecipe
         {
-            SearchOptions = new SearchOptions { MaximumFitErrorPixels = fitLimit, MaximumMatches = 71, ClutterWeight = .6 }
+            SearchOptions = new SearchOptions { ClutterTolerancePixels = tolerance, MaximumMatches = 71, ClutterWeight = .6 }
         };
         var options = RecipeJson.CreateOptions();
 
         var json = JsonSerializer.Serialize(recipe, options);
         var restored = JsonSerializer.Deserialize<InspectionRecipe>(json, options)!;
 
-        Assert.Equal(fitLimit, restored.SearchOptions.MaximumFitErrorPixels);
+        Assert.Equal(tolerance, restored.SearchOptions.ClutterTolerancePixels);
         Assert.Equal(71, restored.SearchOptions.MaximumMatches);
         Assert.Equal(.6, restored.SearchOptions.ClutterWeight);
         Assert.DoesNotContain("Infinity", json);

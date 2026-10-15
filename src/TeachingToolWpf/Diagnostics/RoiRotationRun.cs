@@ -31,7 +31,7 @@ internal static class RoiRotationRun
 
         string mode = "interior";
 
-        string selectionMode = "all";
+        string selectionMode = "group";
         string? renderError = null;
         var count = 40000;
         var sampleCount = 180;
@@ -63,7 +63,7 @@ internal static class RoiRotationRun
                 angleStep = double.Parse(Option("--rotation-step", ".1"), CultureInfo.InvariantCulture);
                 layout = Option("--rotation-layout", "flat");
                 mode = Option("--rotation-mode", "interior");
-                selectionMode = Option("--rotation-selection", "all");
+                selectionMode = Option("--rotation-selection", "group");
                 if (args.Contains("--rotation-cancel-ms"))
                 {
                     var delay = int.Parse(Option("--rotation-cancel-ms", ""), CultureInfo.InvariantCulture);
@@ -88,9 +88,9 @@ internal static class RoiRotationRun
                     throw new ArgumentException("rotation-layout은 flat|pcb, rotation-mode는 interior|boundary입니다.");
                 }
 
-                if (selectionMode is not ("all" or "parents" or "half" or "group"))
+                if (selectionMode != "group")
                 {
-                    throw new ArgumentException("rotation-selection은 all|parents|half|group입니다.");
+                    throw new ArgumentException("복수 선택 회전은 제거되었습니다. rotation-selection은 group만 지원합니다.");
                 }
 
                 await Save();
@@ -99,27 +99,14 @@ internal static class RoiRotationRun
                 await Save();
                 model.Session.AddRange(RoiInteractionRun.DescribeFixture(RoiInteractionRun.Fixture(count, layout == "pcb").Select(r => mode == "interior"
                     ? new RoiGeometry((r.Center * .5) + new PointD(2048, 2048), r.Width * .5, r.Height * .5, r.Angle) : r), layout == "pcb"));
-                if (selectionMode is "all" or "group")
-                {
-                    await model.SelectAll.ExecuteAsync();
-                    await model.EditCompletion;
-                    if (selectionMode == "group")
-                    {
-                        stage = "group";
-                        await Save();
-                        model.Group.Execute(null);
-                        await model.EditCompletion;
-                    }
-                }
-                else
-                {
-                    var ordered = model.Session.State.Rois.Values.OrderBy(r => r.Order);
-                    var selected = selectionMode == "parents" ? ordered.Where(r => r.ParentId is null)
-                        : ordered.Take((count + 1) / 2);
-                    model.Session.Select(selected.Select(r => r.Id));
-                }
+                await model.SelectAll.ExecuteAsync();
+                await model.EditCompletion;
+                stage = "group";
+                await Save();
+                model.Group.Execute(null);
+                await model.EditCompletion;
                 selectedCount = model.Session.State.Selection.Count;
-                var expectedCount = count + (selectionMode == "group" ? 1 : 0);
+                var expectedCount = count + 1;
                 if (model.Session.State.Rois.Count != expectedCount || selectedCount == 0)
                 {
                     throw new InvalidOperationException("선택 fixture 수가 일치하지 않습니다.");

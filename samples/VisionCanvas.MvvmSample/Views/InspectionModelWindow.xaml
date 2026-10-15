@@ -1,0 +1,31 @@
+<Window x:Class="VisionCanvas.MvvmSample.Views.InspectionModelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:VisionCanvas.MvvmSample.Views"
+        Title="VisionCanvas · 두 카메라 모델" Width="1600" Height="1000" MinWidth="1200" MinHeight="850"
+        FontFamily="Malgun Gothic" FontSize="13" Background="#F4F5F7" Closed="OnClosed">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#E5EBF3" Padding="16,12">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="2카메라 모델 불러오기" Command="{Binding LoadCommand}"
+                        Padding="18,10" Margin="16,0,0,0" />
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="22" />
+                    <TextBlock Text="각 카메라의 이미지·ROI·그룹·알고리즘 설정을 함께 불러옵니다. 편집과 Undo/Redo는 카메라별로 독립적입니다."
+                               TextWrapping="Wrap" Margin="0,4,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <!-- 같은 View를 두 번 사용하지만 DataContext와 네이티브 화면은 각각 별개다. -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="1" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <views:EditorView x:Name="FirstEditor" DataContext="{Binding FirstCamera}" />
+            <Border Grid.Column="1" Background="#CBD0D8" />
+            <views:EditorView x:Name="SecondEditor" Grid.Column="2" DataContext="{Binding SecondCamera}" />
+        </Grid>
+    </DockPanel>
+</Window>

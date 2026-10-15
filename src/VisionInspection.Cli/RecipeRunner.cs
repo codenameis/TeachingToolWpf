@@ -80,9 +80,9 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
 
     private void Validate(InspectionRecipe recipe)
     {
-        if (recipe.SchemaVersion != 1 || recipe.Method is not ("paper" or "geometric" or "template" or "primitives"))
+        if (recipe.SchemaVersion != 1 || recipe.Method is not ("paper" or "template" or "primitives"))
         {
-            throw new ArgumentException("schemaVersion은 1, method는 paper/geometric/template/primitives 중 하나여야 합니다.");
+            throw new ArgumentException("schemaVersion은 1, method는 paper/template/primitives 중 하나여야 합니다.");
         }
         if (string.IsNullOrWhiteSpace(recipe.InspectionImage) || !double.IsFinite(recipe.TimeoutSeconds) || recipe.TimeoutSeconds is < 0 or > 600)
         {
@@ -107,7 +107,7 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
         {
             throw new ArgumentException("패턴 방식에는 trainingImage와 teachingRoi가 필요합니다.");
         }
-        if (recipe.Method is "paper" or "geometric")
+        if (recipe.Method is "paper")
         {
             ArgumentNullException.ThrowIfNull(recipe.TrainingOptions);
             recipe.TrainingOptions.Validate();
@@ -201,19 +201,14 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
     private async Task<InspectionRunResult> RunShapeAsync(InspectionRecipe recipe, ImageReference training,
         ImageReference inspection, RoiGeometry teachingRoi, RoiGeometry? region, IImageLoader loader, CancellationToken token)
     {
-        var geometric = recipe.Method == "geometric";
         var service = new ShapeMatchingService(loader, () => null, createGpuPreprocessor,
-            pipeline: geometric ? ShapeSearchPipeline.Classic : ShapeSearchPipeline.Paper);
+            pipeline: ShapeSearchPipeline.Paper);
         var options = recipe.TrainingOptions with
         {
-            BuildGeometricModel = geometric,
             BuildClutterModel = true
         };
         var model = await service.TrainAsync(training, false, teachingRoi, options, token).ConfigureAwait(false);
-        var search = recipe.SearchOptions with
-        {
-            EvaluateGeometry = geometric && recipe.SearchOptions.EvaluateGeometry
-        };
+        var search = recipe.SearchOptions;
         var output = await service.SearchAsync(inspection, false, model.Model, region, search, token).ConfigureAwait(false);
         var incomplete = output.Truncated || output.MatchLimitExceeded;
         return new()

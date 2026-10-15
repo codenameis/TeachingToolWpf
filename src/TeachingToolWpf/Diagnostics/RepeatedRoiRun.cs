@@ -3,16 +3,41 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Windows;
 using TeachingToolWpf.ViewModels;
-using TeachingToolWpf.Views;
 using VisionCanvas.Controls;
 using VisionGeometry;
+using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Diagnostics;
 
 internal static class RepeatedRoiRun
 {
-    public static async Task RunAsync(RepeatedRoiWindow window, Dx12Viewport viewport, RepeatedRoiViewModel model)
+    public static void Attach(Window window, Dx12Viewport viewport, RepeatedRoiViewModel model, IImageLoader loader)
+    {
+        window.Loaded += async (_, _) =>
+        {
+            try
+            {
+                await model.InitializeAsync(loader);
+                await RunAsync(window, viewport, model);
+            }
+            catch (OperationCanceledException)
+            {
+                // VM이 취소 상태를 게시하며 창 종료 중에는 새 진단 창을 만들지 않는다.
+            }
+            catch (Exception error)
+            {
+                model.Fail(error);
+                Directory.CreateDirectory("artifacts");
+                File.WriteAllText("artifacts/repeated-roi-error.txt", error.ToString());
+                Environment.ExitCode = 1;
+                window.Close();
+            }
+        };
+    }
+
+    public static async Task RunAsync(Window window, Dx12Viewport viewport, RepeatedRoiViewModel model)
     {
         var args = Environment.GetCommandLineArgs();
         var reportIndex = Array.IndexOf(args, "--roi-report");
@@ -100,7 +125,7 @@ internal static class RepeatedRoiRun
                 viewport.ActualHeight,
                 viewport.Dpi
             },
-            window.Adapter,
+            model.Adapter,
             Correctness = "PASS: native double-click replacement, individual move/rotation/undo/redo, exact count, preview cancellation",
             Scope = "Repeated rectangular grid. Summary at low zoom, exact per-cell outline at detail. Frame CSV contains actual renderer submissions; physical input/display latency is not measured.",
             StopwatchFrequency = Stopwatch.Frequency,

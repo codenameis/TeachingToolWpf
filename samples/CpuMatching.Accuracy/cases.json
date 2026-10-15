@@ -1,0 +1,84 @@
+[
+  {
+    "Name": "kensa-four-parts",
+    "Template": "template.png",
+    "Image": "kensa-parts.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 183,
+        "Y": 182.5,
+        "AngleDegrees": 0,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 279,
+        "Y": 182.5,
+        "AngleDegrees": 0,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 183,
+        "Y": 242,
+        "AngleDegrees": 0,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 279,
+        "Y": 242,
+        "AngleDegrees": 0,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "Four visually annotated memory packages. Manual centers approximately \u002B/-1 pixel; first is exact training crop. Not production ground truth.",
+    "GroundTruthComplete": true,
+    "Split": "Development",
+    "Centers": {
+      "X": 56,
+      "Y": 55,
+      "Width": 256,
+      "Height": 256
+    }
+  },
+  {
+    "Name": "kensa-other-components",
+    "Template": "template.png",
+    "Image": "kensa-other-components.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [],
+    "Labels": "Different controller/connectors below memory packages; no full target package present.",
+    "GroundTruthComplete": true,
+    "Split": "Development",
+    "Centers": null
+  }
+]

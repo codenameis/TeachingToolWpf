@@ -231,7 +231,7 @@ public sealed class ViewportLifetimeTests
 
             // 실제 렌더 스레드를 GPU 초기화 직후 멈춰 종료가 아직 진행 중인 순서를 고정한다.
             // 생산 코드에 테스트 전용 수명 인터페이스를 추가하지 않도록 테스트에서만 소유 필드를 교체한다.
-            retiring = new RenderWorker(viewport.Handle, viewport.Tiles, new WpfTextRasterizer(), frames,
+            retiring = new RenderWorker(viewport.Handle, viewport.Tiles, new TextRasterizer(), frames,
                 new VisibleFramePreparer(), RenderDevicePreference.Software);
             retiring.StatusChanged += status =>
             {

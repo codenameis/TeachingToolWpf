@@ -2,7 +2,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using TeachingToolWpf.Commands;
 using TeachingToolWpf.Controls;
 using TeachingToolWpf.ViewModels;
@@ -18,7 +17,7 @@ internal static class ExplicitHierarchySmokeScenario
     {
         var editor = model.Session;
         Require(editor.State.Rois.Count == 0, "empty fixture");
-        Require(!model.AddChildRoi.CanExecute(null), "child requires one selected parent");
+        Require(model.AddRoi.CanExecute(null), "unified creation allows an independent ROI");
         ExecuteButton(model.AddRoi);
         var parent = editor.State.Selection.Single();
         Require(editor.State.Rois[parent].ParentId is null && !editor.State.Rois[parent].IsGroup,
@@ -27,8 +26,11 @@ internal static class ExplicitHierarchySmokeScenario
         editor.Select([]);
         await CheckLeafColor(parent, "added-unselected");
         editor.Select([parent]);
+        await model.Delete.ExecuteAsync();
+        ExecuteButton(model.AddParentRoi);
+        parent = editor.State.Selection.Single();
         var parentGeometry = editor.State.Rois[parent].Geometry;
-        ExecuteButton(model.AddChildRoi);
+        ExecuteButton(model.AddRoi);
         var child = editor.State.Selection.Single();
         Require(editor.State.Rois[child].ParentId == parent, "child button connects selected parent");
         await model.Undo.ExecuteAsync();
@@ -36,9 +38,10 @@ internal static class ExplicitHierarchySmokeScenario
         await model.Redo.ExecuteAsync();
         Require(editor.State.Rois[child].ParentId == parent, "redo restores child id and relation");
         editor.SetGeometry(child, new(new(1000, 1000), 200, 200, 0));
-        Require(editor.State.Rois[child].ParentId == parent, "outside child retains its parent");
+        Require(editor.State.Rois[child].ParentId == parent && parentGeometry.Covers(editor.State.Rois[child].Geometry),
+            "numeric child edit stays inside its parent");
         editor.Select([parent]);
-        ExecuteButton(model.DrawChildRoi);
+        ExecuteButton(model.DrawTool);
         Pointer(0x201, parentGeometry.Center - new PointD(100, 100));
         Pointer(0x200, parentGeometry.Center + new PointD(100, 100));
         Pointer(0x202, parentGeometry.Center + new PointD(100, 100));
@@ -58,7 +61,9 @@ internal static class ExplicitHierarchySmokeScenario
         await CheckLeafColor(independent, "drawn-custom");
         model.StyleSettings.Reset.Execute(null);
         editor.Select([parent, independent]);
-        Require(!model.AddChildRoi.CanExecute(null), "multiple selection disables ambiguous parent");
+        ExecuteButton(model.DrawTool);
+        Require(model.Input.DrawParentId is null, "multiple selection creates independently");
+        model.SelectTool.Execute(null);
         editor.Select([parent]);
         await model.Delete.ExecuteAsync();
         Require(editor.State.Rois.Count == 1 && editor.State.Rois.ContainsKey(independent), "cascade preserves unrelated overlap");
@@ -90,7 +95,7 @@ internal static class ExplicitHierarchySmokeScenario
         var drawnParent = editor.State.Rois[editor.State.Selection.Single()];
         Require(drawnParent.IsGroup && editor.State.Rois.Count == 1, "parent drawing commits one group");
         await CheckStrokeColor(drawnParent.Geometry, model.StyleSettings.Palette.Parent.SelectedColor, "parent-drawn");
-        ExecuteButton(model.AddChildRoi);
+        ExecuteButton(model.AddRoi);
         Require(editor.State.Rois[editor.State.Selection.Single()].ParentId == drawnParent.Id,
             "restored parent accepts child without an extra group");
         await model.SelectAll.ExecuteAsync();
@@ -108,26 +113,13 @@ internal static class ExplicitHierarchySmokeScenario
         async Task CheckStrokeColor(RoiGeometry geometry, System.Numerics.Vector4 color, string name)
         {
             var path = Path.GetFullPath($"artifacts/leaf-{name}.png");
-            viewport.Capture(path);
-            for (var attempt = 0; attempt < 100; attempt++)
-            {
-                await Task.Delay(100);
-                if (!File.Exists(path))
-                {
-                    continue;
-                }
-                using var stream = File.OpenRead(path);
-                var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-                var bitmap = new FormatConvertedBitmap(decoder.Frames[0], PixelFormats.Bgra32, null, 0);
-                var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
-                bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
-                // 선택 핸들을 피한 윗변 위치에서 실제 선 색상을 확인한다.
-                var point = geometry.Center + new PointD(geometry.Width / 4, -geometry.Height / 2);
-                var screen = editor.State.Viewport.ImageToScreen(point) * viewport.Dpi;
-                Require(RoiHierarchyRulesSmoke.HasColor(pixels, bitmap.PixelWidth, bitmap.PixelHeight, screen, color), name + " leaf stroke pixels");
-                return;
-            }
-            throw new TimeoutException("Leaf stroke capture timed out.");
+            var bitmap = await RoiHierarchyRulesSmoke.CaptureBitmap(viewport, path);
+            var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+            bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+            // 선택 핸들을 피한 윗변 위치에서 실제 선 색상을 확인한다.
+            var point = geometry.Center + new PointD(geometry.Width / 4, -geometry.Height / 2);
+            var screen = editor.State.Viewport.ImageToScreen(point) * viewport.Dpi;
+            Require(RoiHierarchyRulesSmoke.HasColor(pixels, bitmap.PixelWidth, bitmap.PixelHeight, screen, color), name + " leaf stroke pixels");
         }
 
         void ExecuteButton(RelayCommand command)

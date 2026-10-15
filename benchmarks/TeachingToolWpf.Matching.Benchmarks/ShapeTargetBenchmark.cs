@@ -23,7 +23,7 @@ internal static class ShapeTargetBenchmark
         var loader = new CountingImageLoader(new ImageLoader(Path.GetFullPath("artifacts/matching-benchmark-cache")));
         using var compute = new VisionCompute.ILGPU.CudaInspectionSession();
         var service = new ShapeMatchingService(loader, () => null,
-            compute.Rent, compute.PrepareAsync);
+            compute.Rent, compute.PrepareAsync, pipeline: ShapeSearchPipeline.Paper);
         var expected = PinGroundTruth.Create();
         var rows = new List<object>();
         var summaries = new List<object>();
@@ -37,7 +37,7 @@ internal static class ShapeTargetBenchmark
         var selectedModes = modes == "cpu" ? new[] { InspectionComputeMode.Cpu }
             : modes == "gpu" ? new[] { InspectionComputeMode.GpuPreprocessing }
             : new[] { InspectionComputeMode.Cpu, InspectionComputeMode.GpuPreprocessing };
-        foreach (var geometric in new[] { false, true })
+
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             var trainingOptions = new TrainingOptions
@@ -45,7 +45,6 @@ internal static class ShapeTargetBenchmark
                 MinimumAngleDegrees = -180,
                 MaximumAngleDegrees = 180,
                 AngleStepDegrees = 10,
-                BuildGeometricModel = geometric,
                 BuildClutterModel = true
             };
             var training = await service.TrainAsync(image, false, roi, trainingOptions, cancellation.Token);
@@ -53,7 +52,7 @@ internal static class ShapeTargetBenchmark
             var measuredTimes = selectedModes.ToDictionary(mode => mode, _ => new List<double>());
             for (var repetition = 0; repetition <= repetitions; repetition++)
             {
-                var orderedModes = (repetition + (geometric ? 1 : 0)) % 2 == 0 ? selectedModes : selectedModes.Reverse().ToArray();
+                var orderedModes = repetition % 2 == 0 ? selectedModes : selectedModes.Reverse().ToArray();
                 foreach (var mode in orderedModes)
                 {
                     if (mode == InspectionComputeMode.GpuPreprocessing && !compute.IsReady)
@@ -61,7 +60,7 @@ internal static class ShapeTargetBenchmark
                         var preparationTime = await service.PrepareGpuAsync(cancellation.Token);
                         preparations.Add(new
                         {
-                            Geometric = geometric,
+                            Method = "paper",
                             Milliseconds = preparationTime
                         });
                         Console.WriteLine($"CUDA session preparation: {preparationTime:F1} ms (separate from inspection)");
@@ -69,7 +68,6 @@ internal static class ShapeTargetBenchmark
                     var options = new SearchOptions
                     {
                         MaximumMatches = 256,
-                        EvaluateGeometry = geometric,
                         ClutterWeight = 1,
                         MaximumParallelism = parallelism,
                         ComputeMode = mode
@@ -95,7 +93,7 @@ internal static class ShapeTargetBenchmark
                     }
                     rows.Add(new
                     {
-                        Geometric = geometric,
+                        Method = "paper",
                         Mode = mode.ToString(),
                         Repetition = repetition,
                         Phase = repetition == 0 ? "FIRST_SEARCH" : "REPEATED_SEARCH",
@@ -125,7 +123,7 @@ internal static class ShapeTargetBenchmark
                         TrainingOptions = trainingOptions,
                         MatchDetails = result.Matches
                     });
-                    Console.WriteLine($"target geometry={geometric} {mode} CPU{parallelism} run{repetition}: {wall:F1} ms, read {result.ReadMilliseconds:F1}, {result.Matches.Length}/256, recall={validation.Passed}, scoreGap={scores.Gap:F4}, complete={complete}, parity={parity}");
+                    Console.WriteLine($"target method=paper {mode} CPU{parallelism} run{repetition}: {wall:F1} ms, read {result.ReadMilliseconds:F1}, {result.Matches.Length}/256, recall={validation.Passed}, scoreGap={scores.Gap:F4}, complete={complete}, parity={parity}");
                 }
             }
             var cpuMedian = double.NaN;
@@ -145,7 +143,7 @@ internal static class ShapeTargetBenchmark
                 }
                 summaries.Add(new
                 {
-                    Geometric = geometric,
+                    Method = "paper",
                     Mode = mode.ToString(),
                     MedianMilliseconds = median,
                     MaximumMilliseconds = times[^1],

@@ -1,14 +1,26 @@
 using System.Windows.Media;
 using TeachingToolWpf.Commands;
 using TeachingToolWpf.Infrastructure;
+using VisionCanvas.Core.Geometry;
 using VisionCanvas.Rendering;
 
 namespace TeachingToolWpf.ViewModels;
 
-/// <summary>Application display settings; publishes one immutable palette without editing the document.</summary>
+/// <summary>ROI 표시 설정과 핸들 크기를 게시한다. 문서와 편집 이력은 변경하지 않는다.</summary>
 public sealed class RoiStyleSettingsViewModel : ObservableObject
 {
     private string _error = "";
+    private double _handleScale = HandleGeometry.DefaultScale;
+
+    public double HandleScale
+    {
+        get => _handleScale;
+        set
+        {
+            HandleGeometry.ValidateScale(value);
+            Publish(Palette, value);
+        }
+    }
 
     public RoiStyles Default { get; } = new("공통 표시");
     public RoiStyles Child { get; } = new("자식 ROI");
@@ -88,25 +100,26 @@ public sealed class RoiStyleSettingsViewModel : ObservableObject
             return;
         }
         Error = "";
-        Publish(next);
+        Publish(next, HandleScale);
         RefreshDrafts();
     }
 
     private void ResetSettings()
     {
         Error = "";
-        Publish(RoiStylePalette.Standard);
+        Publish(RoiStylePalette.Standard, HandleGeometry.DefaultScale);
         RefreshDrafts();
     }
 
-    private void Publish(RoiStylePalette next)
+    private void Publish(RoiStylePalette next, double handleScale)
     {
-        if (Palette == next)
+        if (Palette == next && HandleScale == handleScale)
         {
             return;
         }
 
         Palette = next;
+        Set(ref _handleScale, handleScale, nameof(HandleScale));
         Notify(nameof(Palette));
         Notify(nameof(DefaultColor));
         Notify(nameof(ChildColor));

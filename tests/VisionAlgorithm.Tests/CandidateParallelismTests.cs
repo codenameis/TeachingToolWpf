@@ -10,7 +10,11 @@ public sealed class CandidateParallelismTests
     public void ParallelCandidatesPreserveExactMatchesAndBudgetWarnings(int maximumCandidates,
         int maximumVerifiedCandidates, int maximumMatches)
     {
-        var model = MatchingTests.Train();
+        var model = ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
+            new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()
+            {
+                BuildClutterModel = true
+            });
         var scene = SyntheticScene.Create(255, 173,
             new MatchPose(48.2, 55.7, 0.13),
             new MatchPose(158.4, 55.2, -0.18),
@@ -51,7 +55,11 @@ public sealed class CandidateParallelismTests
     [InlineData(4)]
     public void CandidateCancellationPreservesTheCallerToken(int maximumParallelism)
     {
-        var model = MatchingTests.Train();
+        var model = ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
+            new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()
+            {
+                BuildClutterModel = true
+            });
         var prepared = PreparedSearchImage.Create(SyntheticScene.Create(163, 151, new MatchPose(81, 75, 0.15)),
             8, model.Levels.Length);
         using var cancellation = new CancellationTokenSource();

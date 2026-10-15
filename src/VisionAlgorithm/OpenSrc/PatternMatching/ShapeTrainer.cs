@@ -22,7 +22,7 @@ public static class ShapeTrainer
             throw new ArgumentException("학습 마스크 또는 기준점이 잘못되었습니다.", nameof(region));
         }
         var levels = ImmutableArray.CreateBuilder<ModelLevel>();
-        GeometricQualityModel? geometryModel = null;
+        ClutterModel? contourModel = null;
         var current = image;
         var cos = Math.Cos(region.ReferenceAngle);
         var sin = Math.Sin(region.ReferenceAngle);
@@ -41,9 +41,9 @@ public static class ShapeTrainer
                     candidates.Add(edge);
                 }
             }
-            if (level == 0 && (options.BuildGeometricModel || options.BuildClutterModel))
+            if (level == 0 && options.BuildClutterModel)
             {
-                geometryModel = new(image.Width, image.Height, region.Mask, candidates, cancellationToken);
+                contourModel = new(image.Width, image.Height, region.Mask, candidates, cancellationToken);
             }
             candidates.Sort((a, b) =>
             {
@@ -102,11 +102,11 @@ public static class ShapeTrainer
                 )).ToImmutableArray()).ToImmutableArray()));
             }
         }
-        var detail = options.UseFineDetailValidation && options.BuildClutterModel && !options.BuildGeometricModel && levels.Count == 1
+        var detail = options.UseFineDetailValidation && options.BuildClutterModel && levels.Count == 1
             ? FineDetailModel.Create(image, region, cancellationToken) : null;
-        return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), geometryModel, detail)
+        return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), contourModel, detail)
         {
-            PixelMask = new(image.Width, image.Height, geometryModel?.OwnedMask ?? region.Mask.ToArray(), region.ReferencePoint, region.ReferenceAngle)
+            PixelMask = new(image.Width, image.Height, contourModel?.OwnedMask ?? region.Mask.ToArray(), region.ReferencePoint, region.ReferenceAngle)
         };
     }
 

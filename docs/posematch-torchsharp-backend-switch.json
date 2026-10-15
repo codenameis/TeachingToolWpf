@@ -1,0 +1,22 @@
+[
+  {
+    "backend": "OnnxRuntime",
+    "maximumDifference": 0,
+    "passed": true
+  },
+  {
+    "backend": "TorchSharp",
+    "maximumDifference": 2.092123E-05,
+    "passed": true
+  },
+  {
+    "backend": "OnnxRuntime",
+    "maximumDifference": 0,
+    "passed": true
+  },
+  {
+    "backend": "TorchSharp",
+    "maximumDifference": 2.092123E-05,
+    "passed": true
+  }
+]

@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
+    <ProjectReference Include="../CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
+    <ProjectReference Include="../CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
     <ProjectReference Include="../VisionGeometry/VisionGeometry.csproj" />
     <ProjectReference Include="../VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />

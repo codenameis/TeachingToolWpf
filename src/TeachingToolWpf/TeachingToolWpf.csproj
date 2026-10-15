@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PoseMatch.Tdcm.TorchSharp\PoseMatch.Tdcm.TorchSharp.csproj" />
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
     <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../PoseMatch.Tdcm/PoseMatch.Tdcm.csproj" />
+    <PackageReference Include="TorchSharp-cuda-windows" Version="0.107.0" />
+    <EmbeddedResource Include="Models/official.tdcm" />
+    <None Include="../../licenses/TorchSharp/*" Link="licenses/TorchSharp/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

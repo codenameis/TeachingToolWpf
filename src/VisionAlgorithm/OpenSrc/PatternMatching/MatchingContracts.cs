@@ -37,14 +37,12 @@ public sealed record TrainingOptions
     public double ScaleStep { get; init; } = 0.1;
     public int MaximumTemplates { get; init; } = 2048;
     public ContrastPolarity Polarity { get; init; } = ContrastPolarity.Preserve;
-    /// <summary>최종 기하 품질 계산에 필요한 전체 학습 윤곽과 마스크를 보관한다.</summary>
-    public bool BuildGeometricModel { get; init; } = true;
     /// <summary>한 단계만 남은 작은 논문 형상의 원본 gradient 세부 검증. 추가 윤곽 감점과 함께 적용한다.</summary>
     public bool UseFineDetailValidation
     {
         get; init;
     }
-    /// <summary>기하 상세 판정과 독립적으로 추가 윤곽 점수에 필요한 전체 윤곽과 마스크를 보관한다.</summary>
+    /// <summary>추가 윤곽 점수에 필요한 전체 윤곽과 마스크를 보관한다.</summary>
     public bool BuildClutterModel
     {
         get; init;
@@ -74,7 +72,7 @@ public sealed record TrainingOptions
     }
 }
 
-/// <summary>Mask는 원본 픽셀마다 0/비0 한 바이트. 그래디언트 계산 후 특징 선택과 최종 기하 품질의 유효 영역에 적용한다.</summary>
+/// <summary>Mask는 원본 픽셀마다 0/비0 한 바이트. 그래디언트 계산 후 특징 선택과 추가 윤곽 점수의 유효 영역에 적용한다.</summary>
 public sealed record TrainingRegion(ReadOnlyMemory<byte> Mask, ImagePoint ReferencePoint, double ReferenceAngle = 0);
 
 public sealed record SearchOptions
@@ -95,19 +93,8 @@ public sealed record SearchOptions
     public double MaximumOverlap { get; init; } = 0.3;
     public bool Refine { get; init; } = true;
     public bool Verify { get; init; } = true;
-    /// <summary>Verify가 활성이고 원본 모델일 때 최종 자세의 기하 품질을 측정한다.</summary>
-    public bool EvaluateGeometry { get; init; } = true;
     /// <summary>최종 원본 검색 영상 픽셀 단위의 에지 대응 허용 거리.</summary>
-    public double GeometricTolerancePixels { get; init; } = 3;
-    /// <summary>선택 특징의 최소 대응 비율. 기본값 0은 추가 제한을 적용하지 않는다.</summary>
-    public double MinimumCoverage
-    {
-        get; init;
-    }
-    /// <summary>최대 대응 거리 RMS. +Infinity는 추가 제한을 적용하지 않는다.</summary>
-    public double MaximumFitErrorPixels { get; init; } = double.PositiveInfinity;
-    /// <summary>학습 마스크 내부 장면 에지의 최대 설명 불가 비율. 기본값 1은 추가 제한을 적용하지 않는다.</summary>
-    public double MaximumClutterRatio { get; init; } = 1;
+    public double ClutterTolerancePixels { get; init; } = 3;
     public bool UseSimd { get; init; } = true;
     public bool TiledPreprocessing
     {
@@ -126,15 +113,14 @@ public sealed record SearchOptions
 
     public void Validate()
     {
-        foreach (var value in new[] { CandidateThreshold, MinimumScore, MinimumSupport, MaximumOverlap, MinimumCoverage, MaximumClutterRatio, ClutterWeight })
+        foreach (var value in new[] { CandidateThreshold, MinimumScore, MinimumSupport, MaximumOverlap, ClutterWeight })
         {
             if (!double.IsFinite(value) || value is < 0 or > 1)
             {
                 throw new ArgumentOutOfRangeException(nameof(SearchOptions));
             }
         }
-        if (!double.IsFinite(GeometricTolerancePixels) || GeometricTolerancePixels is < 0.5 or > 8 ||
-            double.IsNaN(MaximumFitErrorPixels) || MaximumFitErrorPixels <= 0)
+        if (!double.IsFinite(ClutterTolerancePixels) || ClutterTolerancePixels is < 0.5 or > 8)
         {
             throw new ArgumentOutOfRangeException(nameof(SearchOptions));
         }
@@ -322,8 +308,7 @@ public sealed class ShapeModel
         get;
     }
     public bool HasFineDetailModel => FineDetail is not null;
-    internal GeometricQualityModel? GeometryModel => Options.BuildGeometricModel ? ContourModel : null;
-    internal GeometricQualityModel? ContourModel
+    internal ClutterModel? ContourModel
     {
         get;
     }
@@ -333,7 +318,7 @@ public sealed class ShapeModel
     }
 
     internal ShapeModel(TrainingRegion region, TrainingOptions options, ImmutableArray<ModelLevel> levels,
-        ImmutableArray<ImagePoint> bounds, ImmutableArray<PoseTemplate> templates, GeometricQualityModel? geometryModel = null,
+        ImmutableArray<ImagePoint> bounds, ImmutableArray<PoseTemplate> templates, ClutterModel? contourModel = null,
         FineDetailModel? fineDetail = null)
     {
         TrainingReferencePoint = region.ReferencePoint;
@@ -342,7 +327,7 @@ public sealed class ShapeModel
         Levels = levels;
         Bounds = bounds;
         Templates = templates;
-        ContourModel = geometryModel;
+        ContourModel = contourModel;
         FineDetail = fineDetail;
     }
 
@@ -382,15 +367,6 @@ public enum RefinementStatus
 
 public sealed record RefinementDiagnostics(RefinementStatus Status, MatchPose InitialPose, double InitialResidual,
     double FinalResidual, int Iterations, int Correspondences, bool AngleObservable);
-/// <summary>최종 반환 자세의 기하 품질. Coverage는 선택된 학습 특징 전체 중 대응 비율이며,
-/// FitErrorPixels는 대응점의 유클리드 거리 RMS(원본 검색 픽셀), 무대응이면 +Infinity다.
-/// ClutterRatio는 변환된 학습 마스크 안의 장면 에지 중 전체 학습 윤곽으로 설명되지 않는 비율이다.</summary>
-public sealed record GeometricMatchQuality(double Coverage, double FitErrorPixels, double ClutterRatio,
-    int MatchedFeatures, int ModelFeatures, int SceneEdges)
-{
-    /// <summary>설명되지 않는 윤곽의 gradient 강도 제곱 합 / 전체 윤곽의 강도 제곱 합.</summary>
-    public double ClutterEnergyRatio { get; init; } = ClutterRatio;
-}
 public sealed record ShapeMatch(MatchPose Pose, double CandidateScore, double Score, double Support,
     int SupportedQuadrants, RefinementDiagnostics Refinement)
 {
@@ -408,10 +384,6 @@ public sealed record ShapeMatch(MatchPose Pose, double CandidateScore, double Sc
     }
     /// <summary>추가 윤곽 점수에 사용한 대비 에너지 비율. 윤곽 개수 비율과 구별한다.</summary>
     public double? ClutterPenaltyRatio
-    {
-        get; init;
-    }
-    public GeometricMatchQuality? Geometry
     {
         get; init;
     }

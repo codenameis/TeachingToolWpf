@@ -8,10 +8,8 @@ namespace VisionCanvas.Core.Interaction;
 
 /// <summary>입력에 맞는 제스처를 선택하고 이동·확정·취소를 전달한다. 문서 변경과 이력은 EditorSession이 소유한다.</summary>
 public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null,
-    Action<PointD>? previewTranslation = null, Action<PointD, double>? previewRotation = null, Action<BoundsD, bool>? selectRegion = null) : IViewportInput
+    Action<PointD, bool>? previewTranslation = null, Action<PointD, double>? previewRotation = null, Action<BoundsD, bool>? selectRegion = null) : IViewportInput
 {
-    private const double RotationHandleHitRadiusDip = 10;
-    private const double ResizeHandleHitRadiusDip = 9;
     private const double RoiHitToleranceDip = 3;
     private const double PolygonClosureDistanceDip = 8;
 
@@ -22,6 +20,23 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     private ImageReference? _polygonStartImage;
     private Guid? _drawParentId;
     private bool _drawAsGroup;
+    private double _handleScale = HandleGeometry.DefaultScale;
+
+    /// <summary>화면 DIP 기준 핸들 크기와 클릭 범위를 함께 조절한다. ROI 형상과 이력은 바꾸지 않는다.</summary>
+    public double HandleScale
+    {
+        get => _handleScale;
+        set
+        {
+            HandleGeometry.ValidateScale(value);
+            if (_handleScale == value)
+            {
+                return;
+            }
+            _handleScale = value;
+            Show(Overlay);
+        }
+    }
 
     public Guid? MaskTargetId
     {
@@ -164,15 +179,15 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     internal EditorSession Editor => editor;
 
-    internal void PreviewTranslation(PointD delta)
+    internal void PreviewTranslation(PointD delta, bool allowSlide)
     {
         if (previewTranslation is null)
         {
-            editor.PreviewTranslation(delta);
+            editor.PreviewTranslation(delta, allowSlide);
         }
         else
         {
-            previewTranslation(delta);
+            previewTranslation(delta, allowSlide);
         }
     }
 
@@ -214,7 +229,10 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     internal void Show(InteractionOverlay overlay)
     {
-        Overlay = overlay;
+        Overlay = overlay.HandleScale == HandleScale ? overlay : overlay with
+        {
+            HandleScale = HandleScale
+        };
         Changed?.Invoke();
     }
 
@@ -321,8 +339,13 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         }
 
         Cancel();
-        // 더블클릭은 기존 선택 핸들보다 실제 ROI hit를 우선하고 선택만 교체한다.
+        // 계층 안의 더블클릭은 겹친 리프 → 안쪽 그룹 → 바깥 그룹 순서로 선택한다.
         var hit = HitSelectableRoi(screen, modifiers.HasFlag(InputModifiers.Alt));
+        if (!modifiers.HasFlag(InputModifiers.Alt) && hit.Ordinary is { } ordinary &&
+            (editor.State.Rois[ordinary].ParentId is not null || editor.State.IsGroupRoi(ordinary)))
+        {
+            hit = HitSelectableRoi(screen, cycleSelection: true);
+        }
         if (hit.Repeated is { } repeated)
         {
             editor.SelectRepeated(repeated);
@@ -345,6 +368,13 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             if (handleGesture is not null)
             {
                 return handleGesture;
+            }
+            // 화면에서 고른 그룹을 내부에서 잡아도 리프가 선택을 빼앗지 않는다.
+            if (modifiers == InputModifiers.None && state.SelectionCount == 1 && state.Selection.Count == 1 &&
+                state.Selection.Single() is var selected && state.IsGroupRoi(selected) &&
+                state.Rois[selected].Geometry.Contains(state.Viewport.ScreenToImage(screen)))
+            {
+                return new MoveGesture(this, screen);
             }
         }
 
@@ -382,11 +412,11 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     private IGesture? StartHandleGesture(DocumentState state, PointD screen)
     {
-        // 단일 반복 셀, 단일 일반 ROI, 다중 선택의 핸들을 순서대로 검사한다.
+        // 회전/크기 핸들은 단일 ROI 또는 단일 그룹을 선택했을 때만 제공한다.
         if (state.SingleRepeatedCell is { } cell)
         {
             var cellGeometry = state.RepeatedRois[cell.BatchId].Geometry(cell.Index);
-            if ((HandleGeometry.RotationHandle(cellGeometry, state.Viewport) - screen).Length < RotationHandleHitRadiusDip)
+            if ((HandleGeometry.RotationHandle(cellGeometry, state.Viewport, HandleScale) - screen).Length < HandleGeometry.RotationHitRadiusDip * HandleScale)
             {
                 return new RotateGesture(this, screen, cellGeometry.Center);
             }
@@ -394,7 +424,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             var handles = HandleGeometry.ResizeHandles(cellGeometry, state.Viewport);
             for (var i = 0; i < handles.Count; i++)
             {
-                if ((handles[i] - screen).Length < ResizeHandleHitRadiusDip)
+                if ((handles[i] - screen).Length < HandleGeometry.ResizeHitRadiusDip * HandleScale)
                 {
                     return new RepeatedResizeGesture(this, cell, cellGeometry, i, screen);
                 }
@@ -403,7 +433,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         else if (state.SelectionCount == 1)
         {
             var selectedRoi = state.Rois[state.Selection.Single()];
-            if ((HandleGeometry.RotationHandle(selectedRoi.Geometry, state.Viewport) - screen).Length < RotationHandleHitRadiusDip)
+            if ((HandleGeometry.RotationHandle(selectedRoi.Geometry, state.Viewport, HandleScale) - screen).Length < HandleGeometry.RotationHitRadiusDip * HandleScale)
             {
                 return new RotateGesture(this, screen, selectedRoi.Geometry.Center);
             }
@@ -411,18 +441,10 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             var handles = HandleGeometry.ResizeHandles(selectedRoi.Geometry, state.Viewport);
             for (var i = 0; i < handles.Count; i++)
             {
-                if ((handles[i] - screen).Length < ResizeHandleHitRadiusDip)
+                if ((handles[i] - screen).Length < HandleGeometry.ResizeHitRadiusDip * HandleScale)
                 {
                     return new ResizeGesture(this, selectedRoi, i, screen);
                 }
-            }
-        }
-        else if (state.SelectionCount > 1)
-        {
-            var selectionBounds = SelectionBounds(state);
-            if ((state.Viewport.ImageToScreen(new(selectionBounds.Center.X, selectionBounds.Top)) + new PointD(0, -28) - screen).Length < RotationHandleHitRadiusDip)
-            {
-                return new RotateGesture(this, screen, selectionBounds.Center);
             }
         }
         return null;

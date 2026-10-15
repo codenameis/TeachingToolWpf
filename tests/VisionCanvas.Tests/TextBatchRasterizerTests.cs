@@ -15,7 +15,7 @@ public sealed class TextBatchRasterizerTests
         {
             try
             {
-                var rasterizer = new WpfTextRasterizer();
+                var rasterizer = new TextRasterizer();
                 var texts = Enumerable.Range(1, 256).Select(index => $"#{index} 점수 {index / 256d:F3}").ToArray();
                 using var batch = rasterizer.RasterizeBatch(texts, dpi);
                 Assert.NotNull(batch);

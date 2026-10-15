@@ -69,7 +69,8 @@ internal static class ShapeSmokeScenario
         editor.Rename(polygon, "오목 폴리곤 검사");
         Require(editor.State.Rois[polygon].Geometry.Shape.Vertices.Length == 5 && model.IsSelect, "polygon completed");
         var before = editor.State;
-        var addChild = Descendants(window).OfType<Button>().Single(b => ReferenceEquals(b.Command, model.AddChildRoi));
+        var polygonParent = editor.AddParent(editor.State.Rois[polygon].Geometry);
+        var addChild = Descendants(window).OfType<Button>().First(b => ReferenceEquals(b.Command, model.AddRoi) && b.IsVisible);
         Require(addChild.IsEnabled, "visible polygon child add enabled");
         addChild.Command.Execute(null);
         // Keep the crossing polygon wholly inside the concave parent, including native pixel rounding.
@@ -78,10 +79,10 @@ internal static class ShapeSmokeScenario
             Click(p);
         }
         Pointer(0x200, new(2800, 4700));
-        Require(editor.State.Rois.Count == 3, "crossing preview does not commit");
+        Require(editor.State.Rois.Count == 4, "crossing preview does not commit");
         Click(new(2800, 4700));
         var crossed = editor.State.Rois[editor.State.Selection.Single()];
-        Require(model.IsSelect && crossed.ParentId == polygon && crossed.Geometry.Shape.Vertices.Length == 3,
+        Require(model.IsSelect && crossed.ParentId == polygonParent && crossed.Geometry.Shape.Vertices.Length == 3,
             "native crossing creates triangular child at intersection");
         Require(crossed.Geometry.Outline.Any(p => (p - new PointD(2300, 5150)).Length < 30), "new intersection vertex matches native input rounding");
         Require(editor.State.Rois[polygon].Geometry.Contains(crossed.Geometry), "drawn child stays inside its parent");
@@ -89,15 +90,24 @@ internal static class ShapeSmokeScenario
         viewport.Capture("artifacts/polygon-crossing.png");
         await Task.Delay(500);
         await model.Undo.ExecuteAsync();
-        Require(before.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value) && editor.State.Rois.Count == 3, "polygon closure is one undo");
+        Require(before.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value) && editor.State.Rois.Count == 4, "polygon closure is one undo");
         await model.Redo.ExecuteAsync();
         Require(editor.State.Rois[crossed.Id] == crossed, "polygon closure exact redo");
         await model.Undo.ExecuteAsync();
+        editor.Select([polygonParent]);
+        await model.Delete.ExecuteAsync();
         editor.Select([circle, triangle, polygon]);
+        Require(!model.RotateRight.CanExecute(null), "mixed multiple selection cannot rotate");
+        await model.Group.ExecuteAsync();
+        var grouped = editor.State;
         model.RotateRight.Execute(null);
         await model.EditCompletion;
+        Require(grouped.Rois.Any(pair => editor.State.Rois[pair.Key].Geometry != pair.Value.Geometry), "mixed shape group rotates");
         await model.Undo.ExecuteAsync();
-        Require(before.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value), "mixed shape rotation undo");
+        Require(grouped.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value), "mixed shape group rotation undo");
+        await model.Undo.ExecuteAsync();
+        Require(before.Rois.All(pair => editor.State.Rois[pair.Key] == pair.Value) && editor.State.Rois.Count == 3,
+            "grouping undo restores mixed shapes and selection");
         model.Filters.SelectedFilter = RoiFilterKind.Binarize;
         model.Filters.Preview.Execute(null);
         await model.Filters.WhenIdle;

@@ -79,20 +79,10 @@ public sealed record DetectionResult
     }
     public string ContourSource { get; init; } = "transformedTeachingRoi";
     public ImagePoint[] Contour { get; init; } = [];
-    public GeometrySummary? Geometry
-    {
-        get; init;
-    }
     public RefinementSummary? Refinement
     {
         get; init;
     }
-}
-
-public sealed record GeometrySummary(double Coverage, double? FitErrorPixels, double ClutterRatio,
-    int MatchedFeatures, int ModelFeatures, int SceneEdges)
-{
-    public double ClutterEnergyRatio { get; init; } = ClutterRatio;
 }
 
 public sealed record RefinementSummary(string Status, double? InitialResidual, double? FinalResidual,

@@ -3,6 +3,20 @@ namespace VisionCanvas.Core.Geometry;
 
 public static class HandleGeometry
 {
+    public const double DefaultScale = 1;
+    public const double MinimumScale = .5;
+    public const double MaximumScale = 3;
+    public const double ResizeHitRadiusDip = 9;
+    public const double RotationHitRadiusDip = 10;
+
+    public static void ValidateScale(double scale)
+    {
+        if (!double.IsFinite(scale) || scale < MinimumScale || scale > MaximumScale)
+        {
+            throw new ArgumentOutOfRangeException(nameof(scale), "핸들 배율은 0.5~3 사이여야 합니다.");
+        }
+    }
+
     public static IReadOnlyList<PointD> ResizeHandles(RoiGeometry rect, ViewportTransform view)
     {
         var corners = rect.FrameCorners.Select(view.ImageToScreen).ToArray();
@@ -10,8 +24,8 @@ public static class HandleGeometry
             corners[2], (corners[2] + corners[3]) / 2, corners[3], (corners[3] + corners[0]) / 2];
     }
 
-    public static PointD RotationHandle(RoiGeometry rect, ViewportTransform view)
-        => view.ImageToScreen(rect.ToWorld(new(0, -rect.Height / 2))) + new PointD(0, -28).Rotate(rect.Angle);
+    public static PointD RotationHandle(RoiGeometry rect, ViewportTransform view, double scale = DefaultScale)
+        => view.ImageToScreen(rect.ToWorld(new(0, -rect.Height / 2))) + new PointD(0, -28 * scale).Rotate(rect.Angle);
 
     public static RoiGeometry Resize(RoiGeometry original, int handle, PointD imagePoint)
     {

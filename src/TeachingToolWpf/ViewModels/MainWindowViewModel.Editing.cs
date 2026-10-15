@@ -116,7 +116,9 @@ public sealed partial class MainWindowViewModel
 
     private void CompleteSelection(IEnumerable<Guid> ids)
     {
-        if (Session.State.Rois.Count <= SynchronousSelectionDocumentLimit)
+        // 단일 선택은 자손 변환 자료가 필요 없다. 실제 드래그에서 기존 preview worker가 준비한다.
+        if (Session.State.Rois.Count <= SynchronousSelectionDocumentLimit ||
+            (ids.TryGetNonEnumeratedCount(out var count) && count <= 1))
         {
             Session.Select(ids);
             return;
@@ -150,7 +152,7 @@ public sealed partial class MainWindowViewModel
 
         Session.AddRepeatedGrid(new(10001, 10001, pitch, new(image.Width / 2d, image.Height / 2d)));
         SetTool(VisionCanvas.Core.Interaction.EditorTool.Select);
-        Status = "현재 이미지 중심에 100,020,001개 추가 · 영역 선택 / Ctrl+C·V / 이동·회전 / Ctrl+Z";
+        Status = "현재 이미지 중심에 100,020,001개 추가 · 영역 선택 / Ctrl+C·V / 이동·개별 회전 / Ctrl+Z";
     }
 
     // UI 이벤트의 오류를 알리면서도 진단·종료 코드가 완료를 기다릴 수 있도록 Task를 보관한다.

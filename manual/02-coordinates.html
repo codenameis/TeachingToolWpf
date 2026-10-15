@@ -162,7 +162,7 @@ public readonly record struct RigidTransform2D
 }</code></pre>
 <p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · <code>../src/VisionGeometry/RigidTransform2D.cs</code></p></details><details id="source-836dfc73070e" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">RoiGeometry</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
-<div class="code-toolbar"><span class="code-file">RoiGeometry.cs · 206줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RoiGeometry 코드 복사">복사</button></div>
+<div class="code-toolbar"><span class="code-file">RoiGeometry.cs · 237줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="RoiGeometry 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="RoiGeometry 코드"><code data-source="../src/VisionGeometry/RoiGeometry.cs" data-kind="full" data-language="csharp">using System.Collections.Immutable;
 namespace VisionGeometry;
 
@@ -250,6 +250,30 @@ public sealed record RoiGeometry
     public RoiGeometry WithFrame(PointD center, double width, double height, double angle)
         =&gt; new(center, width, height, angle, Shape);
 
+    /// &lt;summary&gt;기존 각도를 유지하며 모든 도형을 감싸는 사각형으로 확장한다. 이미 포함하면 원래 도형을 반환한다.&lt;/summary&gt;
+    public RoiGeometry ExpandToCover(IEnumerable&lt;RoiGeometry&gt; members)
+    {
+        var xAxis = new PointD(1, 0).Rotate(Angle);
+        var yAxis = new PointD(0, 1).Rotate(Angle);
+        var originX = Dot(Center, xAxis);
+        var originY = Dot(Center, yAxis);
+        var left = -Width / 2;
+        var right = Width / 2;
+        var top = -Height / 2;
+        var bottom = Height / 2;
+        var expanded = false;
+        foreach (var member in members)
+        {
+            expanded |= !Covers(member);
+            left = Math.Min(left, -member.Support(xAxis * -1) - originX);
+            right = Math.Max(right, member.Support(xAxis) - originX);
+            top = Math.Min(top, -member.Support(yAxis * -1) - originY);
+            bottom = Math.Max(bottom, member.Support(yAxis) - originY);
+        }
+        var bounds = new BoundsD(left, top, right, bottom);
+        return expanded ? new(ToWorld(bounds.Center), bounds.Width, bounds.Height, Angle) : this;
+    }
+
     public static RoiGeometry Create(RoiShapeKind kind, PointD center, double width, double height)
     {
         if (!Enum.IsDefined(kind))
@@ -335,6 +359,13 @@ public sealed record RoiGeometry
             return false;
         }
 
+        return Covers(child);
+    }
+
+    /// &lt;summary&gt;Actual shape containment including equal boundaries; drawing uses the stricter Contains check.&lt;/summary&gt;
+    public bool Covers(RoiGeometry child)
+    {
+        var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
         if (Radius &gt; 0)
         {
             return child.Radius &gt; 0 ? (Center - child.Center).Length + child.Radius &lt;= Radius + tolerance

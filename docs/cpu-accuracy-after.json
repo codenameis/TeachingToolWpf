@@ -1,0 +1,902 @@
+{
+  "Runtime": ".NET 10.0.13",
+  "CpuThreads": 12,
+  "Timing": "CPU Find includes ROI copy, pyramid, features, search, refinement; excludes PNG decode/UI; sequential",
+  "Rows": [
+    {
+      "Name": "kensa-four-parts",
+      "Method": "Line2D",
+      "Labels": "Four visually annotated memory packages. Manual centers approximately \u002B/-1 pixel; first is exact training crop. Not production ground truth.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 7.8683,
+      "FirstMs": 308.7625,
+      "WarmMs": [
+        282.8493,
+        241.9076,
+        138.0286,
+        120.7693,
+        123.4282
+      ],
+      "AllocatedBytes": [
+        37067296,
+        36966456,
+        36966456,
+        36966896,
+        36966544,
+        36966456
+      ],
+      "MedianMs": 138.0286,
+      "Expected": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9883147386147384
+        },
+        {
+          "X": 183.00146350826304,
+          "Y": 241.85657066455354,
+          "AngleDegrees": 0.08346818221468766,
+          "Scale": 1,
+          "Score": 0.9597736647979173
+        },
+        {
+          "X": 279.01515459392823,
+          "Y": 182.455555469039,
+          "AngleDegrees": 0.27555062033263766,
+          "Scale": 1,
+          "Score": 0.955007840805261
+        },
+        {
+          "X": 279.0402617875746,
+          "Y": 241.80284306611304,
+          "AngleDegrees": 0.053948282471424136,
+          "Scale": 1,
+          "Score": 0.9477402473287346
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0,
+        0.04695719379894552,
+        0.14343680184334817,
+        0.2012259131384629
+      ],
+      "AngleErrors": [
+        0,
+        0.27555062033263766,
+        0.08346818221468766,
+        0.053948282471424136
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 106305,
+      "ImageSha256": "849E2D5EB7346F865EA41463FBA45084737A53A1687DD349C0B9E7DA59D55B2E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-four-parts",
+      "Method": "SubNcc",
+      "Labels": "Four visually annotated memory packages. Manual centers approximately \u002B/-1 pixel; first is exact training crop. Not production ground truth.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.3512,
+      "FirstMs": 397.0163,
+      "WarmMs": [
+        288.9254,
+        139.6605,
+        138.045,
+        133.8641,
+        129.773
+      ],
+      "AllocatedBytes": [
+        13578424,
+        13577952,
+        13590344,
+        13602016,
+        13606832,
+        13601680
+      ],
+      "MedianMs": 138.045,
+      "Expected": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9999999999999958
+        },
+        {
+          "X": 279.25,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9537249408980765
+        },
+        {
+          "X": 183,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9527178271716653
+        },
+        {
+          "X": 279.25,
+          "Y": 241.75,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9275856248128392
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0,
+        0.25,
+        0,
+        0.3535533905932738
+      ],
+      "AngleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 65532,
+      "ImageSha256": "849E2D5EB7346F865EA41463FBA45084737A53A1687DD349C0B9E7DA59D55B2E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-four-parts",
+      "Method": "DirectionalChamfer",
+      "Labels": "Four visually annotated memory packages. Manual centers approximately \u002B/-1 pixel; first is exact training crop. Not production ground truth.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.4219,
+      "FirstMs": 356.4334,
+      "WarmMs": [
+        237.8514,
+        226.3061,
+        229.0083,
+        225.365,
+        226.5107
+      ],
+      "AllocatedBytes": [
+        31905792,
+        31914840,
+        31902936,
+        31902936,
+        31907056,
+        31910912
+      ],
+      "MedianMs": 226.5107,
+      "Expected": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9327010327571922
+        },
+        {
+          "X": 279.01515459392823,
+          "Y": 182.455555469039,
+          "AngleDegrees": 0.27555062033263766,
+          "Scale": 1,
+          "Score": 0.8704933748949759
+        },
+        {
+          "X": 183.00146350826304,
+          "Y": 241.85657066455354,
+          "AngleDegrees": 0.08346818221468766,
+          "Scale": 1,
+          "Score": 0.8577846653796131
+        },
+        {
+          "X": 279.0402617875746,
+          "Y": 241.80284306611304,
+          "AngleDegrees": 0.053948282471424136,
+          "Scale": 1,
+          "Score": 0.8421717165640782
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0,
+        0.04695719379894552,
+        0.14343680184334817,
+        0.2012259131384629
+      ],
+      "AngleErrors": [
+        0,
+        0.27555062033263766,
+        0.08346818221468766,
+        0.053948282471424136
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 95920,
+      "ImageSha256": "849E2D5EB7346F865EA41463FBA45084737A53A1687DD349C0B9E7DA59D55B2E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-four-parts",
+      "Method": "OpenCvFixed",
+      "Labels": "Four visually annotated memory packages. Manual centers approximately \u002B/-1 pixel; first is exact training crop. Not production ground truth.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.1085,
+      "FirstMs": 12.4606,
+      "WarmMs": [
+        4.2501,
+        3.9945,
+        4.0811,
+        4.0811,
+        4.1486
+      ],
+      "AllocatedBytes": [
+        166168,
+        148832,
+        148832,
+        148832,
+        148920,
+        148832
+      ],
+      "MedianMs": 4.0811,
+      "Expected": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 241.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9139997363090515
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9100326895713806
+        },
+        {
+          "X": 279,
+          "Y": 241.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.8597986102104187
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0,
+        0,
+        0.5,
+        0.5
+      ],
+      "AngleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "849E2D5EB7346F865EA41463FBA45084737A53A1687DD349C0B9E7DA59D55B2E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-four-parts",
+      "Method": "OpenCvRotated",
+      "Labels": "Four visually annotated memory packages. Manual centers approximately \u002B/-1 pixel; first is exact training crop. Not production ground truth.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0009,
+      "FirstMs": 89.0746,
+      "WarmMs": [
+        91.7326,
+        88.2058,
+        88.2687,
+        85.2144,
+        86.5557
+      ],
+      "AllocatedBytes": [
+        329496,
+        329440,
+        329440,
+        329496,
+        329528,
+        329440
+      ],
+      "MedianMs": 88.2058,
+      "Expected": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 279,
+          "Y": 242,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        }
+      ],
+      "Found": [
+        {
+          "X": 183,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 1
+        },
+        {
+          "X": 183,
+          "Y": 241.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9139997363090515
+        },
+        {
+          "X": 279,
+          "Y": 182.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.9100326895713806
+        },
+        {
+          "X": 279,
+          "Y": 241.5,
+          "AngleDegrees": 0,
+          "Scale": 1,
+          "Score": 0.8597986102104187
+        }
+      ],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [
+        0,
+        0,
+        0.5,
+        0.5
+      ],
+      "AngleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "ScaleErrors": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "849E2D5EB7346F865EA41463FBA45084737A53A1687DD349C0B9E7DA59D55B2E",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "Line2D",
+      "Labels": "Different controller/connectors below memory packages; no full target package present.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.2515,
+      "FirstMs": 25.2651,
+      "WarmMs": [
+        27.284,
+        23.0492,
+        23.1389,
+        22.9924,
+        22.1911
+      ],
+      "AllocatedBytes": [
+        7477144,
+        7477088,
+        7477088,
+        7477088,
+        7477176,
+        7477088
+      ],
+      "MedianMs": 23.0492,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 18039,
+      "ImageSha256": "2825726464942155B0A2740BEBD4E24EFADAC92CDD823174838EDB190429B6F6",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "SubNcc",
+      "Labels": "Different controller/connectors below memory packages; no full target package present.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0669,
+      "FirstMs": 16.6528,
+      "WarmMs": [
+        16.7188,
+        16.5789,
+        16.4376,
+        16.4188,
+        15.7852
+      ],
+      "AllocatedBytes": [
+        4607936,
+        4607880,
+        4607880,
+        4607880,
+        4607968,
+        4607880
+      ],
+      "MedianMs": 16.4376,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 11020,
+      "ImageSha256": "2825726464942155B0A2740BEBD4E24EFADAC92CDD823174838EDB190429B6F6",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "DirectionalChamfer",
+      "Labels": "Different controller/connectors below memory packages; no full target package present.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.3228,
+      "FirstMs": 50.3357,
+      "WarmMs": [
+        52.1203,
+        53.2949,
+        54.0605,
+        68.4939,
+        49.4534
+      ],
+      "AllocatedBytes": [
+        7551008,
+        7558312,
+        7559120,
+        7559120,
+        7559208,
+        7559120
+      ],
+      "MedianMs": 53.2949,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 18283,
+      "ImageSha256": "2825726464942155B0A2740BEBD4E24EFADAC92CDD823174838EDB190429B6F6",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "OpenCvFixed",
+      "Labels": "Different controller/connectors below memory packages; no full target package present.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0008,
+      "FirstMs": 0.5546,
+      "WarmMs": [
+        0.255,
+        0.2714,
+        0.2401,
+        0.2332,
+        0.2397
+      ],
+      "AllocatedBytes": [
+        28568,
+        28512,
+        28512,
+        28512,
+        28600,
+        28512
+      ],
+      "MedianMs": 0.2401,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "2825726464942155B0A2740BEBD4E24EFADAC92CDD823174838EDB190429B6F6",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    },
+    {
+      "Name": "kensa-other-components",
+      "Method": "OpenCvRotated",
+      "Labels": "Different controller/connectors below memory packages; no full target package present.",
+      "GroundTruthComplete": true,
+      "Split": "Development",
+      "Options": {
+        "MinimumAngle": -30,
+        "MaximumAngle": 30,
+        "AngleStep": 10,
+        "MinimumScale": 1,
+        "MaximumScale": 1,
+        "ScaleStep": 0.1,
+        "MinimumScore": 0.75,
+        "MaximumMatches": 256,
+        "CandidateLimit": 2048,
+        "PyramidLevels": 3,
+        "SuppressionRadius": 31.2,
+        "Region": null
+      },
+      "TrainMs": 0.0011,
+      "FirstMs": 4.6067,
+      "WarmMs": [
+        3.8786,
+        4.215,
+        3.8869,
+        3.9239,
+        3.89
+      ],
+      "AllocatedBytes": [
+        35096,
+        35040,
+        35040,
+        35040,
+        35128,
+        35040
+      ],
+      "MedianMs": 3.89,
+      "Expected": [],
+      "Found": [],
+      "Missing": 0,
+      "FalsePositive": 0,
+      "PositionErrors": [],
+      "AngleErrors": [],
+      "ScaleErrors": [],
+      "KnownTargetsPassed": true,
+      "Passed": true,
+      "CandidatesTruncated": false,
+      "MatchLimitExceeded": false,
+      "Evaluations": 0,
+      "ImageSha256": "2825726464942155B0A2740BEBD4E24EFADAC92CDD823174838EDB190429B6F6",
+      "TemplateSha256": "4532DA0CF0BE15137A3CC812C238E82D94132F6FBC59F369403D72F6FC723FA1"
+    }
+  ]
+}

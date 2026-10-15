@@ -1,0 +1,131 @@
+{
+  "upstreamRevision": "a6adc3a74fcf38ddbe4beb49e4bc76be07f848a2",
+  "optimization": "FP32 five-head convolution fusion; unchanged weights and full spatial search",
+  "unoptimizedOnnxSha256": "58e95a8b69b53db047fb7ede991498a062da7e4984489e1f2bd513a6917cc1c1",
+  "weightsSha256": "4bbd7178908332a7b036b2f3893d6a664c5fa144955b93a85f0a03524768dc02",
+  "onnxSha256": "4d6099d85b68d91547aceaeeee4def12981adf733b6bf175f5d3b165fe03f1eb",
+  "torch": "2.14.1+cpu",
+  "onnxruntime": "1.31.0",
+  "comparisons": [
+    {
+      "size": [
+        224,
+        224
+      ],
+      "head": "score",
+      "maxAbsoluteError": 1.3634562492370605e-06
+    },
+    {
+      "size": [
+        224,
+        224
+      ],
+      "head": "sign",
+      "maxAbsoluteError": 4.976987838745117e-05
+    },
+    {
+      "size": [
+        224,
+        224
+      ],
+      "head": "cos",
+      "maxAbsoluteError": 1.7255544662475586e-05
+    },
+    {
+      "size": [
+        224,
+        224
+      ],
+      "head": "scale_x",
+      "maxAbsoluteError": 7.152557373046875e-06
+    },
+    {
+      "size": [
+        224,
+        224
+      ],
+      "head": "scale_y",
+      "maxAbsoluteError": 1.0251998901367188e-05
+    },
+    {
+      "size": [
+        320,
+        256
+      ],
+      "head": "score",
+      "maxAbsoluteError": 7.208436727523804e-07
+    },
+    {
+      "size": [
+        320,
+        256
+      ],
+      "head": "sign",
+      "maxAbsoluteError": 5.525350570678711e-05
+    },
+    {
+      "size": [
+        320,
+        256
+      ],
+      "head": "cos",
+      "maxAbsoluteError": 1.6235746443271637e-05
+    },
+    {
+      "size": [
+        320,
+        256
+      ],
+      "head": "scale_x",
+      "maxAbsoluteError": 8.106231689453125e-06
+    },
+    {
+      "size": [
+        320,
+        256
+      ],
+      "head": "scale_y",
+      "maxAbsoluteError": 1.2874603271484375e-05
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "head": "score",
+      "maxAbsoluteError": 2.302229404449463e-06
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "head": "sign",
+      "maxAbsoluteError": 7.301568984985352e-05
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "head": "cos",
+      "maxAbsoluteError": 2.0936131477355957e-05
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "head": "scale_x",
+      "maxAbsoluteError": 7.867813110351562e-06
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "head": "scale_y",
+      "maxAbsoluteError": 1.4901161193847656e-05
+    }
+  ]
+}

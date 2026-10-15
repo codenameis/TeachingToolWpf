@@ -4,6 +4,8 @@
 
 | Runtime component | Version | License / source |
 |---|---|---|
+| PoseMatch-TDCM 가중치·공식 예제 | a6adc3a74fcf38ddbe4beb49e4bc76be07f848a2 | MIT · Copyright(c)2025 ZhouJ6610 · [공식 저장소](https://github.com/ZhouJ6610/PoseMatch-TDCM), [원문](licenses/posematch-tdcm/LICENSE.txt) |
+| Microsoft.ML.OnnxRuntime.Gpu / Gpu.Windows / Gpu.Linux / Managed | 1.24.4 | MIT · Microsoft · [LICENSE](licenses/onnxruntime/LICENSE.txt), [제3자 고지](licenses/onnxruntime/ThirdPartyNotices.txt) |
 | Vortice.Direct3D12, DXGI, D3DCompiler, DirectX | 3.8.3 | MIT · [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) |
 | Vortice.Mathematics | 2.1.0 | MIT · [Vortice.Mathematics](https://github.com/amerkoleci/Vortice.Mathematics) |
 | SharpGen.Runtime, SharpGen.Runtime.COM | 2.4.2-beta | MIT · [SharpGenTools](https://github.com/SharpGenTools/SharpGenTools) |
@@ -57,6 +59,10 @@ THE SOFTWARE.
 ## SkiaSharp 비교 실험 (2026-10-14)
 
 `experiments/VisionImaging.Skia`가 SkiaSharp 및 NativeAssets 4.153.1을 참조한다. 선택형 UseSkiaImageLoader=true 앱 비교 빌드에도 연결하며 생산 앱의 기본 로더에는 연결하지 않는다. 패키지의 MIT 전문은 [SkiaSharp-LICENSE.txt](licenses/skia/SkiaSharp-LICENSE.txt), 네이티브 포함 구성요소 고지는 [Windows](licenses/skia/Win32-THIRD-PARTY-NOTICES.txt)와 [Linux](licenses/skia/Linux-THIRD-PARTY-NOTICES.txt)에 보관하고 실험 빌드/배포에 복사한다. Linux 패키지 포함과 실제 Linux 실행 검증은 구별한다. TIFF 경로의 기존 `licenses/streaming-codecs` 고지도 유지한다.
+
+## TorchSharp / LibTorch (PoseMatch C# 학습·추론)
+
+TorchSharp 및 TorchSharp-cuda-windows0.107.0, LibTorch2.10.0 CUDA12.8을 사용한다. TorchSharp는 MIT이며 [전문](licenses/TorchSharp/LICENSE.txt)을 포함한다. LibTorch 및 포함 구성요소는 [배포 고지 전문](licenses/TorchSharp/LICENSE-LIBTORCH.txt)을 따른다. 출처는 https://github.com/dotnet/TorchSharp 와 공식 NuGet 패키지다. CUDA/cuDNN 네이티브 라이브러리는 패키지에 포함되며 NVIDIA 드라이버는 별도다. TorchSharp 전이 의존성에는 Google.Protobuf3.21.9, SharpZipLib1.4.0, SkiaSharp2.88.6이 포함된다. 공식 PoseMatch 모델의 기존 MIT 고지도 유지한다. C# 학습·추론 실행에는 Python이 필요하지 않다.
 
 ## dotnet-anti-slop (빌드 전용)
 

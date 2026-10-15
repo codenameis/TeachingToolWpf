@@ -4,6 +4,7 @@ using TeachingToolWpf.Commands;
 using TeachingToolWpf.Infrastructure;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
+using VisionCanvas.Diagnostics;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionGeometry;
@@ -14,6 +15,7 @@ namespace TeachingToolWpf.ViewModels;
 public sealed class RepeatedRoiViewModel : ObservableObject, IDisposable
 {
     private readonly IImageDisplay _display;
+    private readonly CancellationTokenSource _loading = new();
     private bool _disposed;
     public ViewportLayout Layout
     {
@@ -28,6 +30,7 @@ public sealed class RepeatedRoiViewModel : ObservableObject, IDisposable
     private long _generation;
     private string _status = "준비 중…";
     private string _performance = "";
+    public string Adapter { get; private set; } = "";
     public RepeatedRoiSession Session
     {
         get;
@@ -219,6 +222,33 @@ public sealed class RepeatedRoiViewModel : ObservableObject, IDisposable
         }
     }
 
+    public async Task InitializeAsync(IImageLoader loader)
+    {
+        try
+        {
+            await LoadImageAsync(loader, _loading.Token);
+        }
+        catch (Exception error)
+        {
+            Fail(error);
+            throw;
+        }
+    }
+
+    public void Fail(Exception error) => Status = error is OperationCanceledException ? "읽기 취소" : error.Message;
+
+    public void UpdateRendererStatus(string status)
+    {
+        Adapter = status;
+        Status = status;
+    }
+
+    public void UpdatePerformance(RenderMetrics metrics)
+    {
+        var gpu = metrics.GpuMilliseconds is { } elapsed ? $"{elapsed:F2} ms" : "미측정 (WARP)";
+        Performance = $"CPU {metrics.CpuMilliseconds:F2} ms · GPU {gpu} · 최근 프레임 간격 {metrics.FrameIntervalMilliseconds:F2} ms";
+    }
+
     private void Changed()
     {
         Publish();
@@ -287,7 +317,13 @@ public sealed class RepeatedRoiViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
         _disposed = true;
+        _loading.Cancel();
+        _loading.Dispose();
         Session.Changed -= Changed;
         Layout.Changed -= Publish;
     }

@@ -33,7 +33,10 @@ public class HistoryAndHierarchyTests
         editor.Select([parent]);
         editor.BeginPreview();
         editor.PreviewResize(parent, new(new(125, 125), 50, 50, 0));
-        Assert.Equal(shape.Translate(new(25, 25)), editor.State.Rois[child].Geometry);
+        var appliedParent = editor.State.Rois[parent].Geometry;
+        Assert.Equal(shape.Translate(appliedParent.Center - new PointD(100, 100)), editor.State.Rois[child].Geometry);
+        Assert.InRange(appliedParent.Width, 69.99999, 70.00001);
+        Assert.True(appliedParent.Covers(editor.State.Rois[child].Geometry));
         Assert.Equal(parent, editor.State.Rois[child].ParentId);
         editor.CommitPreview("resize");
         Assert.Equal(parent, editor.State.Rois[child].ParentId);

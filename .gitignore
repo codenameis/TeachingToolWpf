@@ -14,6 +14,9 @@
 artifacts/
 BenchmarkDotNet.Artifacts/
 
+# 161MB 현장 테스트 이미지는 로컬에만 보관 (2026-10-16 사용자 승인)
+/ken32.png
+
 # 테스트 결과 / 커버리지
 [Tt]est[Rr]esults/
 *.trx

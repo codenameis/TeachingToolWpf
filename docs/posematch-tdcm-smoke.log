@@ -1,0 +1,64 @@
+DX12 · GPU · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False
+Native ROI: center 1027.351098644226, 1027.351098644226; size 1598.9527816736795 × 1120.2244039270688
+Startup chip: 3205.5 ms UI command; 16개 · 3170.1 ms (읽기/변환 190.0) · 창 4개 · CPU
+PASS: WPF character-by-character decimal entry, numeric parse/range guard, correction and mode switching
+OpenCV pin cap 16: OpenCV 16개 · 8883.4 ms (읽기 106.9) · 창 16개 · 최대 결과 수 도달: 일부 검출 결과 생략
+WARN · 경고
+PASS: one 107×130 template, output cap 16 WARNING → 256 PASS, all 16 chips / 256 pin positions; OpenCV 256개 · 9049.4 ms (읽기 51.8) · 창 16개
+Paper pin cap 16: 16개 · 322.1 ms (읽기/변환 160.7) · 창 64개 · CPU · 최대 결과 수 도달: 일부 검출 결과 생략
+WARN · 경고
+PASS: paper single-pin teaching, output cap 16 WARNING → 256 complete, all 16 chips / 256 pin positions; 256개 · 388.9 ms (읽기/변환 160.1) · 창 64개 · CPU
+OK · 정상
+GPU execution controls: 256개 · 268.9 ms (읽기/변환 50.4) · 창 64개 · CUDA + CPU
+전처리·원본 정밀 검사: CPU
+ILGPU CUDA: orientation spread + batched template scores · NVIDIA GeForce RTX 3060 Laptop GPU
+GPU 후보 계산 64회 · 템플릿 2,368개 · 전송/대기 포함 64.6 ms
+CUDA 장치·커널 준비 664.8 ms (검사 시간과 별도, 세션에서 재사용)
+PASS: startup flat-ROI warning, native chip ROI, 16 source positions, busy/result GPU overlays, pattern sample button, image Undo/Redo
+2개 · 14.4 ms (읽기/변환 2.4) · 창 6개 · CPU
+위치 정밀화 미확정 (Rejected) · 검출 위치를 확인하세요.
+
+1 · X 160.000 / Y 160.000
+각도 0.000° · 배율 1.0000
+최종 점수 0.999 · 방향 점수 0.999
+방향 지지율 100%
+추가 윤곽 감점(대비) 0.0% · 개수 0.0%
+정밀화 Converged · 회전 관측 가능
+
+2 · X 419.875 / Y 230.125
+각도 20.156° · 배율 1.2000
+최종 점수 0.999 · 방향 점수 0.999
+방향 지지율 100%
+추가 윤곽 감점(대비) 0.0% · 개수 0.0%
+정밀화 Rejected · 회전 관측 가능
+
+좌표: 원본 이미지 픽셀 · 각도: 이미지 기준 시계 방향
+
+전처리·원본 정밀 검사: CPU
+GPU Pass #32CD32: 13402 pixels
+GPU Fail #FF6347: 13478 pixels
+GPU Warning #FFA500: 13467 pixels
+GPU Review #FFD700: 13513 pixels
+OpenCV 1개 · 7.5 ms (읽기 2.5) · 창 1개
+PoseMatch-TDCM CPU 395.7 ms · 읽기 8.5 · 세션 준비 112.8 · 추론/후처리 269.4 ms · 창 1
+Polygon boundary search: 1개 · 10.6 ms (읽기/변환 2.4) · 창 4개 · CPU
+위치 정밀화 미확정 (Rejected) · 검출 위치를 확인하세요.
+
+1 · X 419.875 / Y 230.125
+각도 20.156° · 배율 1.2000
+최종 점수 0.999 · 방향 점수 0.999
+방향 지지율 100%
+추가 윤곽 감점(대비) 0.0% · 개수 0.0%
+정밀화 Rejected · 회전 관측 가능
+
+좌표: 원본 이미지 픽셀 · 각도: 이미지 기준 시계 방향
+
+전처리·원본 정밀 검사: CPU
+PASS: real polygon training/search, six transformed vertices, all closed GPU edges, dashed search (89 dash/31 gap/18 transitions)
+Primitive controls: 도형 4개 · 37.0 ms · 원본 창 1개
+#1 십자가 · 0.992 · X450.00 Y350.00 · 면적 4425.0px²
+#2 원 · 0.984 · X160.00 Y350.00 · 면적 4911.0px²
+#3 사각형 · 0.983 · X440.00 Y120.00 · 면적 5623.0px²
+#4 삼각형 · 0.978 · X130.07 Y120.03 · 면적 3920.0px²
+PASS: GPU selection/busy protection, primitive sample/4 kinds/actual contours/history/source invalidation
+PASS: file training/search, 2 poses, feature toggle (7314→10266), selection, navigation, four GPU colors, actual no-match, no renderer errors

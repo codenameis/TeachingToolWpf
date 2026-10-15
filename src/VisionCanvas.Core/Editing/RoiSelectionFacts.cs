@@ -51,7 +51,7 @@ public sealed class RoiSelectionFacts
                 First = roi;
             }
 
-            HasGroup |= roi.IsGroup;
+            HasGroup |= roi.IsGroup || snapshot.Children.ContainsKey(roi.Id);
             if (firstSettings is null)
             {
                 firstSettings = roi.Filter;

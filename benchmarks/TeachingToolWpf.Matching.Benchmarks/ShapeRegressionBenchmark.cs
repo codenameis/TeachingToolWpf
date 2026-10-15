@@ -9,7 +9,7 @@ using VisionGeometry;
 using VisionImaging;
 using VisionImaging.Abstractions;
 
-/// <summary>실제 파일·큰 ROI·회전/배율/잡음에서 두 형상 경로의 검색 비용과 결과를 함께 기록한다.</summary>
+/// <summary>실제 파일·큰 ROI·회전/배율/잡음에서 논문 형상 경로의 검색 비용과 결과를 함께 기록한다.</summary>
 internal static class ShapeRegressionBenchmark
 {
     private const int Dimension = 8192;
@@ -53,7 +53,7 @@ internal static class ShapeRegressionBenchmark
         }
 
         var loader = new CountingImageLoader(new ImageLoader(Path.GetFullPath("artifacts/shape-regression-image-cache-v1")));
-        var service = new ShapeMatchingService(loader, () => null);
+        var service = new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper);
         foreach (var fixture in fixtures)
         {
             var reference = new ImageReference(fixture.Path, fixture.Name, Dimension, Dimension, DiskPyramidSource.Version(fixture.Path));
@@ -86,7 +86,7 @@ internal static class ShapeRegressionBenchmark
                     continue;
                 }
             }
-            foreach (var geometric in new[] { false, true })
+
             {
                 ShapeTrainingOutput training;
                 var trainingOptions = new TrainingOptions
@@ -97,7 +97,6 @@ internal static class ShapeRegressionBenchmark
                     MinimumScale = fixture.NoisyRotation ? .85 : 1,
                     MaximumScale = fixture.NoisyRotation ? 1.15 : 1,
                     ScaleStep = .05,
-                    BuildGeometricModel = geometric,
                     BuildClutterModel = true
                 };
                 using (var trainingCancellation = new CancellationTokenSource(s_runLimit))
@@ -112,24 +111,23 @@ internal static class ShapeRegressionBenchmark
                         rows.Add(new
                         {
                             fixture.Name,
-                            Geometric = geometric,
+                            Method = "paper",
                             Status = "TRAINING_FAILED",
                             Error = error.ToString()
                         });
-                        Console.WriteLine($"{fixture.Name} geometric={geometric}: training failed {error.Message}");
+                        Console.WriteLine($"{fixture.Name} method=paper: training failed {error.Message}");
                         Save();
                         continue;
                     }
                 }
                 ShapeSearchOutput? first = null;
                 // 방식별 순서를 바꿔 항상 CPU 4만 뒤에서 실행하는 편향을 줄인다.
-                foreach (var parallelism in geometric ? new[] { 4, 1 } : new[] { 1, 4 })
+                foreach (var parallelism in new[] { 1, 4 })
                 {
                     var options = new SearchOptions
                     {
                         MaximumMatches = 1000,
                         MaximumParallelism = parallelism,
-                        EvaluateGeometry = geometric,
                         ClutterWeight = 1,
                         ComputeMode = InspectionComputeMode.Cpu
                     };
@@ -165,7 +163,7 @@ internal static class ShapeRegressionBenchmark
                                 fixture.Name,
                                 Input = fixture.Path,
                                 fixture.Region,
-                                Geometric = geometric,
+                                Method = "paper",
                                 Parallelism = parallelism,
                                 Repetition = repetition,
                                 Phase = repetition == 0 ? "FIRST_SEARCH_FOR_SETTING" : "WARM_SEARCH",
@@ -199,7 +197,7 @@ internal static class ShapeRegressionBenchmark
                                 ModelBytes = training.Model.EstimatedBytes,
                                 MatchDetails = result.Matches
                             });
-                            Console.WriteLine($"{fixture.Name} geometry={geometric} CPU{parallelism} run{repetition}: {elapsed:F1} ms, read {result.ReadMilliseconds:F1}, {result.Matches.Length} matches, crops {result.Diagnostics.Count(value => value.TemplatesEvaluated == 0)}, complete={!result.Truncated && !result.MatchLimitExceeded}, knownRecall={correct}, parity={parity}");
+                            Console.WriteLine($"{fixture.Name} method=paper CPU{parallelism} run{repetition}: {elapsed:F1} ms, read {result.ReadMilliseconds:F1}, {result.Matches.Length} matches, crops {result.Diagnostics.Count(value => value.TemplatesEvaluated == 0)}, complete={!result.Truncated && !result.MatchLimitExceeded}, knownRecall={correct}, parity={parity}");
                         }
                         catch (Exception error)
                         {
@@ -207,7 +205,7 @@ internal static class ShapeRegressionBenchmark
                             rows.Add(new
                             {
                                 fixture.Name,
-                                Geometric = geometric,
+                                Method = "paper",
                                 Parallelism = parallelism,
                                 Repetition = repetition,
                                 Status = error is OperationCanceledException ? "TIMEOUT_INCOMPLETE" : "FAILED",
@@ -215,7 +213,7 @@ internal static class ShapeRegressionBenchmark
                                 Reads = loader.Snapshot(),
                                 Error = error.ToString()
                             });
-                            Console.WriteLine($"{fixture.Name} geometry={geometric} CPU{parallelism} run{repetition}: {timer.Elapsed.TotalMilliseconds:F1} ms, {error.GetType().Name}: {error.Message}");
+                            Console.WriteLine($"{fixture.Name} method=paper CPU{parallelism} run{repetition}: {timer.Elapsed.TotalMilliseconds:F1} ms, {error.GetType().Name}: {error.Message}");
                         }
                         Save();
                     }

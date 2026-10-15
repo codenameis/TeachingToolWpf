@@ -12,7 +12,6 @@ internal static class ResultContours
     public static DetectionResult FromShape(RoiGeometry teachingRoi, ShapeMatch match)
     {
         var pose = match.Pose;
-        var quality = match.Geometry;
         var refinement = match.Refinement;
         return new()
         {
@@ -25,11 +24,6 @@ internal static class ResultContours
             ClutterRatio = match.ClutterRatio,
             ClutterPenaltyRatio = match.ClutterPenaltyRatio,
             Contour = Transform(teachingRoi, new(pose.X, pose.Y), pose.Angle * 180 / Math.PI, pose.Scale),
-            Geometry = quality is null ? null : new(quality.Coverage, FiniteOrNull(quality.FitErrorPixels), quality.ClutterRatio,
-                quality.MatchedFeatures, quality.ModelFeatures, quality.SceneEdges)
-            {
-                ClutterEnergyRatio = quality.ClutterEnergyRatio
-            },
             Refinement = new(refinement.Status.ToString(), FiniteOrNull(refinement.InitialResidual), FiniteOrNull(refinement.FinalResidual),
                 refinement.Iterations, refinement.Correspondences, refinement.AngleObservable)
         };

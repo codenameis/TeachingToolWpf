@@ -1,0 +1,110 @@
+[
+  {
+    "kind": "native-window",
+    "device": "Cpu",
+    "size": 224,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 117.6549,
+    "firstMilliseconds": 69.7033,
+    "warmMilliseconds": [
+      35.0029,
+      34.1877,
+      31.3583
+    ],
+    "matches": 1,
+    "maximumHeadDifference": null,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 6.0060227977965255,
+    "errorPixels": 0.5160156871153326,
+    "nearest": {
+      "X": 44.53846153846154,
+      "Y": 94.76923076923077,
+      "Width": 26.679372787475586,
+      "Height": 28.047101974487305,
+      "AngleDegrees": 56.006022797796525,
+      "Score": 0.64555705
+    }
+  },
+  {
+    "kind": "native-window",
+    "device": "Cpu",
+    "size": 256,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 117.6549,
+    "firstMilliseconds": 44.2211,
+    "warmMilliseconds": [
+      42.1536,
+      43.9315,
+      43.2448
+    ],
+    "matches": 1,
+    "maximumHeadDifference": null,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 6.770105315825724,
+    "errorPixels": 0.5160156871153326,
+    "nearest": {
+      "X": 44.53846153846154,
+      "Y": 94.76923076923077,
+      "Width": 26.60420036315918,
+      "Height": 28.135244369506836,
+      "AngleDegrees": 56.770105315825724,
+      "Score": 0.64945096
+    }
+  },
+  {
+    "kind": "native-window",
+    "device": "Cpu",
+    "size": 512,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 117.6549,
+    "firstMilliseconds": 223.118,
+    "warmMilliseconds": [
+      195.5311,
+      218.5004,
+      207.4725
+    ],
+    "matches": 2,
+    "maximumHeadDifference": null,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 25.584044722791617,
+    "errorPixels": 1.4006446928309673,
+    "nearest": {
+      "X": 43.791666666666664,
+      "Y": 94.29166666666667,
+      "Width": 26.355775833129883,
+      "Height": 29.12512969970703,
+      "AngleDegrees": 75.58404472279162,
+      "Score": 0.7600686
+    }
+  },
+  {
+    "kind": "native-window",
+    "device": "Cpu",
+    "size": 1024,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 117.6549,
+    "firstMilliseconds": 988.8275,
+    "warmMilliseconds": [
+      1057.5335,
+      1043.8416,
+      973.2283
+    ],
+    "matches": 2,
+    "maximumHeadDifference": null,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 9.955788447250505,
+    "errorPixels": 1.2311681584144143,
+    "nearest": {
+      "X": 44.111111111111114,
+      "Y": 94.14814814814815,
+      "Width": 27.426342010498047,
+      "Height": 28.983482360839844,
+      "AngleDegrees": 59.955788447250505,
+      "Score": 0.8368195
+    }
+  }
+]

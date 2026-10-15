@@ -21,7 +21,10 @@ public enum PatternMatchingMethod
 {
     Shape,
     OpenCvTemplate,
-    GeometricShape
+    PoseMatchTdcm = 3,
+    CpuLine2D = 4,
+    CpuSubNcc = 5,
+    CpuDirectionalChamfer = 6
 }
 
 public sealed record PatternMethodOption(PatternMatchingMethod Method, string Name);

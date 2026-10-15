@@ -31,10 +31,10 @@ internal sealed record ShapeTrainingSettings
         get; init;
     }
 
-    public TrainingOptions ToOptions(bool buildGeometricModel) => new()
+    public TrainingOptions ToOptions() => new()
     {
-        MinimumAngleDegrees = InspectRotation && !buildGeometricModel ? -180 : MinimumAngle,
-        MaximumAngleDegrees = InspectRotation && !buildGeometricModel ? 180 : MaximumAngle,
+        MinimumAngleDegrees = InspectRotation ? -180 : MinimumAngle,
+        MaximumAngleDegrees = InspectRotation ? 180 : MaximumAngle,
         AngleStepDegrees = AngleStep,
         MinimumScale = EnableScale ? MinimumScale : 1,
         MaximumScale = EnableScale ? MaximumScale : 1,
@@ -44,7 +44,6 @@ internal sealed record ShapeTrainingSettings
         MinimumGradient = MinimumGradient,
         MinimumFeatureContrastRatio = MinimumFeatureContrastRatio,
         MaximumTemplates = MaximumTemplates,
-        BuildGeometricModel = buildGeometricModel,
         BuildClutterModel = true
     };
 }
@@ -61,16 +60,6 @@ internal sealed record MatchingSearchSettings
     {
         get; init;
     }
-    public bool LimitFitError
-    {
-        get; init;
-    }
-    public double MaximumFitErrorPixels { get; init; } = 3;
-    public bool LimitClutter
-    {
-        get; init;
-    }
-    public double MaximumClutterRatio { get; init; } = .3;
 }
 
 internal sealed class ShapeMatchingModeState

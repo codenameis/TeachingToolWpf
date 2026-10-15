@@ -27,7 +27,6 @@ internal static class KensaTextBenchmark
         var training = new TrainingOptions
         {
             PyramidLevels = 3,
-            BuildGeometricModel = false,
             BuildClutterModel = true,
             MinimumAngleDegrees = -180,
             MaximumAngleDegrees = 180,
@@ -37,7 +36,6 @@ internal static class KensaTextBenchmark
         {
             MaximumParallelism = 12,
             MaximumMatches = 256,
-            EvaluateGeometry = false,
             ClutterWeight = 1
         };
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(3));

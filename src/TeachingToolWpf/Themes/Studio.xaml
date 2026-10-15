@@ -8,6 +8,28 @@
     <SolidColorBrush x:Key="Accent" Color="#2463EB"/>
     <SolidColorBrush x:Key="AccentSoft" Color="#EBF1FF"/>
     <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
+    <Style x:Key="InspectorTabs" TargetType="TabControl">
+        <Setter Property="Background" Value="{StaticResource Surface}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style x:Key="InspectorTab" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+            <Border x:Name="TabBody" Background="Transparent" BorderBrush="{StaticResource Stroke}" BorderThickness="0,0,0,2" Padding="{TemplateBinding Padding}" TextElement.Foreground="{StaticResource TextSecondary}">
+                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" HorizontalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsSelected" Value="True"><Setter TargetName="TabBody" Property="TextElement.Foreground" Value="{StaticResource Accent}"/><Setter TargetName="TabBody" Property="TextElement.FontWeight" Value="SemiBold"/><Setter TargetName="TabBody" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabBody" Property="Background" Value="{StaticResource Shell}"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="TabBody" Property="Background" Value="{StaticResource AccentSoft}"/></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="TextBlock"><Setter Property="FontSize" Value="12"/></Style>
     <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{StaticResource TextSecondary}"/><Setter Property="Margin" Value="0,0,0,6"/></Style>
     <Style x:Key="SectionLabel" TargetType="TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource TextSecondary}"/></Style>

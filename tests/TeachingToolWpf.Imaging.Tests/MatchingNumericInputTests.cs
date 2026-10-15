@@ -15,7 +15,6 @@ public sealed class MatchingNumericInputTests
     [Theory]
     [InlineData(PatternMatchingMethod.OpenCvTemplate)]
     [InlineData(PatternMatchingMethod.Shape)]
-    [InlineData(PatternMatchingMethod.GeometricShape)]
     public void TypingFractionPreservesDecimalPointAndTrailingZero(PatternMatchingMethod method)
     {
         RunSta(() =>
@@ -107,7 +106,7 @@ public sealed class MatchingNumericInputTests
             TypeCharacters(support, "0.670");
             Assert.Equal("0.820", score.Text);
             Assert.Equal(.67, model.MinimumSupport);
-            model.Method = PatternMatchingMethod.GeometricShape;
+            model.Method = PatternMatchingMethod.OpenCvTemplate;
             PumpBindings();
             Assert.Equal("0.72", score.Text);
             TypeCharacters(score, "0.910");
@@ -118,7 +117,7 @@ public sealed class MatchingNumericInputTests
             score.SetCurrentValue(TextBox.TextProperty, "bad");
             PumpBindings();
             Assert.True(Validation.GetHasError(score));
-            model.Method = PatternMatchingMethod.GeometricShape;
+            model.Method = PatternMatchingMethod.OpenCvTemplate;
             score.GetBindingExpression(TextBox.TextProperty)!.UpdateTarget();
             Assert.Equal("0.910", score.Text);
             Assert.False(Validation.GetHasError(score));

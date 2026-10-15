@@ -1,0 +1,116 @@
+using CpuMatching.Core;
+using CpuMatching.DirectionalChamfer;
+using CpuMatching.Line2D;
+using CpuMatching.SubNcc;
+
+namespace CpuMatching.Tests;
+
+public sealed class MatchingTests
+{
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FindsDistinctRightAngleInstancesAndReportsOutputLimit(int algorithm)
+    {
+        var pixels = new byte[33 * 29];
+        for (var y = 4; y < 25; y++)
+        {
+            for (var x = 4; x < 29; x++)
+            {
+                if (x < 9 || y > 20 || (x > 22 && y < 9))
+                {
+                    pixels[(y * 33) + x] = 225;
+                }
+            }
+        }
+        var template = new GrayImage(33, 29, pixels);
+        ITemplateMatcher matcher = algorithm switch
+        {
+            0 => new Line2DMatcher(template),
+            1 => new SubNccMatcher(template),
+            _ => new DirectionalChamferMatcher(template)
+        };
+        var buffer = new byte[128 * 100];
+        for (var y = 0; y < 29; y++)
+        {
+            for (var x = 0; x < 33; x++)
+            {
+                buffer[((y + 12) * 128) + x + 15] = pixels[(y * 33) + x];
+                // 독립적인 정수 90도 회전 배치. 보간/검색 구현을 재사용하지 않는다.
+                buffer[((x + 48) * 128) + 100 - y] = pixels[(y * 33) + x];
+            }
+        }
+        var image = new GrayImage(128, 100, buffer);
+        var options = new SearchOptions { MinimumAngle = -180, MaximumAngle = 180, SuppressionRadius = 16 };
+        var result = matcher.Find(image, options);
+        Assert.Equal(2, result.Matches.Count);
+        Assert.Contains(result.Matches, match => Math.Abs(match.X - 31) < 1 && Math.Abs(match.Y - 26) < 1 && Math.Abs(match.AngleDegrees) < 1);
+        Assert.Contains(result.Matches, match => Math.Abs(match.X - 86) < 1 && Math.Abs(match.Y - 64) < 1 && Math.Abs(match.AngleDegrees - 90) < 1);
+        var limited = matcher.Find(image, options with
+        {
+            MaximumMatches = 1
+        });
+        Assert.Single(limited.Matches);
+        Assert.True(limited.MatchLimitExceeded);
+        Assert.False(result.CandidatesTruncated);
+        Assert.Throws<ArgumentOutOfRangeException>(() => matcher.Find(image, options with { Region = new SearchRegion(120, 0, 20, 20) }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => matcher.Find(image, options with { AngleStep = double.NaN }));
+    }
+
+    [Fact]
+    public void GrayImagePreservesOwnershipAndRejectsInvalidBuffers()
+    {
+        var pixels = new byte[16];
+        var image = new GrayImage(4, 4, pixels);
+        pixels[0] = 255;
+        Assert.Equal(0, image[0, 0]);
+        Assert.Throws<ArgumentException>(() => new GrayImage(4, 4, new byte[15]));
+        Assert.Throws<ArgumentException>(() => new Line2DMatcher(image));
+        Assert.Throws<ArgumentException>(() => new SubNccMatcher(image));
+        Assert.Throws<ArgumentException>(() => new DirectionalChamferMatcher(image));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FindsTranslationAndHonorsRegion(int algorithm)
+    {
+        var pixels = new byte[32 * 32];
+        for (var y = 6; y < 26; y++)
+        {
+            for (var x = 6; x < 25; x++)
+            {
+                if (x < 11 || y > 20 || (x > 17 && y < 10))
+                {
+                    pixels[(y * 32) + x] = 220;
+                }
+            }
+        }
+        var template = new GrayImage(32, 32, pixels);
+        var scene = new byte[96 * 80];
+        for (var y = 0; y < 32; y++)
+        {
+            pixels.AsSpan(y * 32, 32).CopyTo(scene.AsSpan(((y + 27) * 96) + 39));
+        }
+        ITemplateMatcher matcher = algorithm switch
+        {
+            0 => new Line2DMatcher(template),
+            1 => new SubNccMatcher(template),
+            _ => new DirectionalChamferMatcher(template)
+        };
+        var result = matcher.Find(new GrayImage(96, 80, scene), new SearchOptions
+        {
+            MinimumAngle = -15,
+            MaximumAngle = 15,
+            Region = new SearchRegion(25, 15, 65, 60)
+        });
+        var match = Assert.Single(result.Matches);
+        Assert.InRange(Math.Abs(match.X - 54.5), 0, 1);
+        Assert.InRange(Math.Abs(match.Y - 42.5), 0, 1);
+        Assert.InRange(Math.Abs(match.AngleDegrees), 0, 1);
+        Assert.Empty(matcher.Find(new GrayImage(96, 80, new byte[96 * 80])).Matches);
+        Assert.Throws<OperationCanceledException>(() => matcher.Find(new GrayImage(96, 80, scene), cancellationToken: new CancellationToken(true)));
+    }
+}

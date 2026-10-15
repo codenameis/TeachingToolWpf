@@ -79,7 +79,15 @@ public static class RoiHierarchy
                 continue;
             }
 
-            foreach (var child in children.GetValueOrDefault(id, []))
+            var descendants = children.GetValueOrDefault(id, []);
+            if (!descendants.IsEmpty)
+            {
+                // 자식 수를 이미 알고 있으므로 큰 그룹에서 큐와 집합의 반복 확장을 피한다.
+                var pending = queue.Count + descendants.Length;
+                queue.EnsureCapacity(pending);
+                result.EnsureCapacity(result.Count + pending);
+            }
+            foreach (var child in descendants)
             {
                 queue.Enqueue(child);
             }

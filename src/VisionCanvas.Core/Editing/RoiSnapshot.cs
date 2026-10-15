@@ -66,7 +66,8 @@ public sealed partial class RoiSnapshot
         var bulk = RequiresRebuild(changedIds.Length, rois.Count);
         var seed = spatialSeed ?? previous;
         var seedIsPrevious = ReferenceEquals(seed.Rois, oldRois);
-        List<(Guid Id, Roi? Value)>? geometryChanges = [];
+        // Refit은 모든 기존 공간 분할을 갱신하므로 별도의 변경 목록이 필요 없다.
+        List<(Guid Id, Roi? Value)>? geometryChanges = refitSpatial ? null : [];
         List<ParentChange>? parentChanges = bulk ? null : [];
         var rowsChanged = false;
         var topologyChanged = false;
@@ -84,7 +85,7 @@ public sealed partial class RoiSnapshot
                 topologyChanged = true;
                 parentChanges?.Add(new(id, old?.ParentId, next?.ParentId));
             }
-            if (!rebuildSpatial)
+            if (!rebuildSpatial && !refitSpatial)
             {
                 var indexed = seedIsPrevious ? old : seed.Rois.GetValueOrDefault(id);
                 if (indexed?.Geometry != next?.Geometry || indexed?.Order != next?.Order)

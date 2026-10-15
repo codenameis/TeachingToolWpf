@@ -1,0 +1,110 @@
+[
+  {
+    "kind": "native-window",
+    "device": "Cuda",
+    "size": 224,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 822.6154,
+    "firstMilliseconds": 308.9827,
+    "warmMilliseconds": [
+      11.3612,
+      10.3811,
+      10.0909
+    ],
+    "matches": 1,
+    "maximumHeadDifference": 7.447600364685059E-05,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 6.00623698845699,
+    "errorPixels": 0.5160156871153326,
+    "nearest": {
+      "X": 44.53846153846154,
+      "Y": 94.76923076923077,
+      "Width": 26.67936897277832,
+      "Height": 28.047096252441406,
+      "AngleDegrees": 56.00623698845699,
+      "Score": 0.6455574
+    }
+  },
+  {
+    "kind": "native-window",
+    "device": "Cuda",
+    "size": 256,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 822.6154,
+    "firstMilliseconds": 15.8142,
+    "warmMilliseconds": [
+      9.6007,
+      8.6365,
+      8.0976
+    ],
+    "matches": 1,
+    "maximumHeadDifference": 0.0004000663757324219,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 6.771566911840075,
+    "errorPixels": 0.5160156871153326,
+    "nearest": {
+      "X": 44.53846153846154,
+      "Y": 94.76923076923077,
+      "Width": 26.604206085205078,
+      "Height": 28.135234832763672,
+      "AngleDegrees": 56.771566911840075,
+      "Score": 0.6494624
+    }
+  },
+  {
+    "kind": "native-window",
+    "device": "Cuda",
+    "size": 512,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 822.6154,
+    "firstMilliseconds": 31.7781,
+    "warmMilliseconds": [
+      23.2014,
+      24.594,
+      24.6211
+    ],
+    "matches": 2,
+    "maximumHeadDifference": 0.001398921012878418,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 25.5836824138309,
+    "errorPixels": 1.4006446928309673,
+    "nearest": {
+      "X": 43.791666666666664,
+      "Y": 94.29166666666667,
+      "Width": 26.355623245239258,
+      "Height": 29.125219345092773,
+      "AngleDegrees": 75.5836824138309,
+      "Score": 0.7600781
+    }
+  },
+  {
+    "kind": "native-window",
+    "device": "Cuda",
+    "size": 1024,
+    "templateSize": "31x33 -\u003E 36x36",
+    "sessionMilliseconds": 822.6154,
+    "firstMilliseconds": 101.729,
+    "warmMilliseconds": [
+      80.754,
+      80.7498,
+      79.1748
+    ],
+    "matches": 2,
+    "maximumHeadDifference": 0.010777950286865234,
+    "expectedMatches": 1,
+    "expectedAngle": 50,
+    "angleErrorDegrees": 9.958443511298512,
+    "errorPixels": 1.2311681584144143,
+    "nearest": {
+      "X": 44.111111111111114,
+      "Y": 94.14814814814815,
+      "Width": 27.425308227539062,
+      "Height": 28.981592178344727,
+      "AngleDegrees": 59.95844351129851,
+      "Score": 0.83688706
+    }
+  }
+]

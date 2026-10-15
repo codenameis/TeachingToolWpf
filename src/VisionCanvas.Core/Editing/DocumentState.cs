@@ -142,7 +142,7 @@ public sealed partial record DocumentState(
             _selectionFacts = null,
             _transformSelection = null
         };
-    // A whole-document rigid edit preserves BVH membership and spatial neighborhoods; refit without sorting.
+    // Whole-document edits and large coherent groups preserve BVH membership; refit bounds without sorting.
     internal DocumentState WithRigidRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds, CancellationToken token = default)
         => ReferenceEquals(Rois, rois) ? this : this with
         {

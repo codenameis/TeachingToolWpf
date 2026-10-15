@@ -85,6 +85,30 @@ public sealed record RoiGeometry
     public RoiGeometry WithFrame(PointD center, double width, double height, double angle)
         => new(center, width, height, angle, Shape);
 
+    /// <summary>기존 각도를 유지하며 모든 도형을 감싸는 사각형으로 확장한다. 이미 포함하면 원래 도형을 반환한다.</summary>
+    public RoiGeometry ExpandToCover(IEnumerable<RoiGeometry> members)
+    {
+        var xAxis = new PointD(1, 0).Rotate(Angle);
+        var yAxis = new PointD(0, 1).Rotate(Angle);
+        var originX = Dot(Center, xAxis);
+        var originY = Dot(Center, yAxis);
+        var left = -Width / 2;
+        var right = Width / 2;
+        var top = -Height / 2;
+        var bottom = Height / 2;
+        var expanded = false;
+        foreach (var member in members)
+        {
+            expanded |= !Covers(member);
+            left = Math.Min(left, -member.Support(xAxis * -1) - originX);
+            right = Math.Max(right, member.Support(xAxis) - originX);
+            top = Math.Min(top, -member.Support(yAxis * -1) - originY);
+            bottom = Math.Max(bottom, member.Support(yAxis) - originY);
+        }
+        var bounds = new BoundsD(left, top, right, bottom);
+        return expanded ? new(ToWorld(bounds.Center), bounds.Width, bounds.Height, Angle) : this;
+    }
+
     public static RoiGeometry Create(RoiShapeKind kind, PointD center, double width, double height)
     {
         if (!Enum.IsDefined(kind))
@@ -170,6 +194,13 @@ public sealed record RoiGeometry
             return false;
         }
 
+        return Covers(child);
+    }
+
+    /// <summary>Actual shape containment including equal boundaries; drawing uses the stricter Contains check.</summary>
+    public bool Covers(RoiGeometry child)
+    {
+        var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
         if (Radius > 0)
         {
             return child.Radius > 0 ? (Center - child.Center).Length + child.Radius <= Radius + tolerance

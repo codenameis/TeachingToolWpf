@@ -7,11 +7,11 @@ namespace TeachingToolWpf.Core.Tests;
 public class ExplicitHierarchyTests
 {
     [Fact]
-    public void OutsideDescendantStillConstrainsParentAtImageEdge()
+    public void DescendantAtParentEdgePreservesImageAndParentBounds()
     {
         var editor = new EditorSession();
         editor.InitializeImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);
-        var parent = editor.Add(new(new(100, 100), 20, 20, 0));
+        var parent = editor.Add(new(new(500, 500), 1000, 1000, 0));
         var child = editor.AddChild(parent, new(new(990, 500), 20, 20, 0));
         editor.Select([parent]);
         var before = editor.State;
@@ -62,9 +62,9 @@ public class ExplicitHierarchyTests
         var editor = new EditorSession();
         editor.AddRange(new RoiCreation[]
         {
-            new(new(new(100, 100), 10, 10, 0)),
-            new(new(new(300, 300), 10, 10, 0), 0),
-            new(new(new(500, 500), 10, 10, 0), 1)
+            new(new(new(100, 100), 100, 100, 0)),
+            new(new(new(100, 100), 10, 10, 0), 0),
+            new(new(new(100, 100), 5, 5, 0), 1)
         });
         var rois = editor.State.Rois.Values.OrderBy(r => r.Order).ToArray();
         Assert.Equal(rois[0].Id, rois[1].ParentId);
@@ -135,17 +135,19 @@ public class ExplicitHierarchyTests
     }
 
     [Fact]
-    public void ExplicitChildOutsideParentFollowsParentAndRestoresThroughHistory()
+    public void ContainedLeafFollowsNestedGroupsAndRestoresThroughHistory()
     {
         var editor = new EditorSession();
-        var parent = editor.Add(new(new(100, 100), 20, 20, 0));
+        var parent = editor.Add(new(new(100, 100), 500, 500, 0));
         var child = editor.AddChild(parent, new(new(300, 300), 10, 10, 0));
-        var leaf = editor.AddChild(child, new(new(400, 400), 5, 5, 0));
+        var leaf = editor.AddChild(child, new(new(300, 300), 5, 5, 0));
+        Assert.True(editor.State.Rois[parent].Geometry.Covers(editor.State.Rois[child].Geometry));
+        Assert.True(editor.State.Rois[child].Geometry.Covers(editor.State.Rois[leaf].Geometry));
         editor.Select([parent, leaf]);
         var before = editor.State;
         editor.TranslateSelection(new(20, 30));
         Assert.Equal(new PointD(320, 330), editor.State.Rois[child].Geometry.Center);
-        Assert.Equal(new PointD(420, 430), editor.State.Rois[leaf].Geometry.Center);
+        Assert.Equal(new PointD(320, 330), editor.State.Rois[leaf].Geometry.Center);
         editor.DeleteSelection();
         Assert.Empty(editor.State.Rois);
         editor.Undo();

@@ -28,8 +28,8 @@ internal static class InspectionResultPresentation
     {
         InspectionVerdict.Pass => "OK · 정상",
         InspectionVerdict.Fail => "NG · 불량",
-        InspectionVerdict.Warning => "WARN · 경고",
-        InspectionVerdict.Review => "CHECK · 사용자 확인",
+        InspectionVerdict.Warning => "검사 확인 필요",
+        InspectionVerdict.Review => "위치·방향 확인",
         _ => throw new ArgumentOutOfRangeException(nameof(verdict))
     };
 

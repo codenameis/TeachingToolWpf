@@ -31,7 +31,7 @@ public static class RoiTransforms
 
         if (state.Image is not { } image || RoiImageBounds.Contains(reset, reset.Snapshot.ChangedIds))
         {
-            return reset;
+            return ValidateReset(reset, state);
         }
         // Zero is an exact command: fit the transformed subtree as one unit if zero would cross an edge.
         var affected = RoiHierarchy.Subtree(state, roots);
@@ -50,7 +50,16 @@ public static class RoiTransforms
                 Geometry = rect.WithFrame(center + ((rect.Center - bounds.Center) * scale), rect.Width * scale, rect.Height * scale, rect.Angle)
             };
         }
-        return state.WithRois(rois.ToImmutable(), affected);
+        return ValidateReset(state.WithRois(rois.ToImmutable(), affected), state);
+    }
+
+    private static DocumentState ValidateReset(DocumentState state, DocumentState before)
+    {
+        if (!RoiGroupBounds.Contains(state, state.Snapshot.ChangedIds, before))
+        {
+            throw new InvalidOperationException("상위 그룹의 경계를 벗어나는 각도로 초기화할 수 없습니다.");
+        }
+        return state;
     }
 
     public static DocumentState Apply(DocumentState state, IEnumerable<Guid> roots, Func<Roi, RoiGeometry> transform)
@@ -63,7 +72,7 @@ public static class RoiTransforms
         }
 
         var requested = ApplyCore(state, targets);
-        if (state.Image is null || RoiImageBounds.Contains(requested, requested.Snapshot.ChangedIds))
+        if (Fits(requested))
         {
             return requested;
         }
@@ -77,7 +86,7 @@ public static class RoiTransforms
             var partial = targets.ToDictionary(pair => pair.Key,
                 pair => RoiImageBounds.Interpolate(state.Rois[pair.Key].Geometry, pair.Value, fraction));
             var candidate = ApplyCore(state, partial);
-            if (ReferenceEquals(candidate, state) || RoiImageBounds.Contains(candidate, candidate.Snapshot.ChangedIds))
+            if (ReferenceEquals(candidate, state) || Fits(candidate))
             {
                 low = fraction;
                 accepted = candidate;
@@ -88,6 +97,9 @@ public static class RoiTransforms
             }
         }
         return accepted;
+
+        bool Fits(DocumentState candidate) => RoiImageBounds.Contains(candidate, candidate.Snapshot.ChangedIds) &&
+            RoiGroupBounds.Contains(candidate, candidate.Snapshot.ChangedIds, state);
     }
 
     private static DocumentState ApplyCore(DocumentState state, IReadOnlyDictionary<Guid, RoiGeometry> targets)

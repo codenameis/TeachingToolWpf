@@ -190,6 +190,6 @@ public sealed partial class ShapeMatchingViewModel
         MaximumMatches = MaximumMatches,
         MaximumCandidates = MaximumCandidates,
         MaximumOverlap = MaximumOverlap,
-        EvaluateGeometry = false
+
     };
 }

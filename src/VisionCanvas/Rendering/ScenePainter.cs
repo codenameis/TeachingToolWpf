@@ -76,13 +76,13 @@ internal sealed partial class ScenePainter
             var points = geometry.FrameCorners.Select(view.ImageToScreen).ToArray();
             foreach (var point in HandleGeometry.ResizeHandles(geometry, view))
             {
-                Handle(white, point, 6, color);
+                Handle(white, point, scene.Overlay.HandleScale, color);
             }
 
             var top = (points[0] + points[1]) / 2;
-            var rotation = HandleGeometry.RotationHandle(geometry, view);
+            var rotation = HandleGeometry.RotationHandle(geometry, view, scene.Overlay.HandleScale);
             _mesh.Line(white, top, rotation, 1, color);
-            RotationHandle(white, rotation, color);
+            RotationHandle(white, rotation, color, scene.Overlay.HandleScale);
         }
         if (scene.Document.SelectionCount > 1)
         {
@@ -91,10 +91,6 @@ internal sealed partial class ScenePainter
             var transform = scene.Transform?.Transform ?? default;
             var corners = SelectionCorners(bounds, view, transform);
             _mesh.Outline(white, corners, 1, selectionColor);
-            var top = (corners[0] + corners[1]) / 2;
-            var rotation = top + transform.ApplyVector(new PointD(0, -28));
-            _mesh.Line(white, top, rotation, 1, selectionColor);
-            RotationHandle(white, rotation, selectionColor);
         }
         var draftStyle = scene.Overlay.DraftIsGroup ? scene.RoiStyles.Parent : scene.RoiStyles.Child;
         if (scene.Overlay.Draft is { } draft)
@@ -199,15 +195,17 @@ internal sealed partial class ScenePainter
         => new[] { new PointD(bounds.Left, bounds.Top), new(bounds.Right, bounds.Top), new(bounds.Right, bounds.Bottom), new(bounds.Left, bounds.Bottom) }
             .Select(point => view.ImageToScreen(transform.Apply(point))).ToArray();
 
-    private void Handle(GpuTexture white, PointD point, double size, Vector4 color)
+    private void Handle(GpuTexture white, PointD point, double scale, Vector4 color)
     {
-        _mesh.Rectangle(white, new(point.X - (size / 2) - 1, point.Y - (size / 2) - 1, point.X + (size / 2) + 1, point.Y + (size / 2) + 1), color);
-        _mesh.Rectangle(white, new(point.X - (size / 2), point.Y - (size / 2), point.X + (size / 2), point.Y + (size / 2)), Vector4.One);
+        var outer = 4 * scale;
+        var inner = 3 * scale;
+        _mesh.Rectangle(white, new(point.X - outer, point.Y - outer, point.X + outer, point.Y + outer), color);
+        _mesh.Rectangle(white, new(point.X - inner, point.Y - inner, point.X + inner, point.Y + inner), Vector4.One);
     }
 
-    private void RotationHandle(GpuTexture white, PointD point, Vector4 color)
+    private void RotationHandle(GpuTexture white, PointD point, Vector4 color, double scale = HandleGeometry.DefaultScale)
     {
-        _mesh.Circle(white, point, 5, color);
-        _mesh.Circle(white, point, 3.5, Vector4.One);
+        _mesh.Circle(white, point, 5 * scale, color);
+        _mesh.Circle(white, point, 3.5 * scale, Vector4.One);
     }
 }

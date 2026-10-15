@@ -29,10 +29,7 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
             return;
         }
 
-        if (edit.EstimatedBytes > byteBudget)
-        {
-            throw new InvalidOperationException("한 편집이 이력 메모리 예산을 초과합니다.");
-        }
+        ValidateBudget(edit);
 
         if (_cursor < _edits.Count)
         {
@@ -60,6 +57,14 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
         if (CanUndo && ReferenceEquals(_edits[_cursor - 1], edit))
         {
             _prepared = new(new(_identity, _revision, _cursor, edit, false), after, edit.RestoreCachedMetadata(before, after, false), true);
+        }
+    }
+
+    internal void ValidateBudget(DocumentEdit edit)
+    {
+        if (edit.EstimatedBytes > byteBudget)
+        {
+            throw new InvalidOperationException("한 편집이 이력 메모리 예산을 초과합니다.");
         }
     }
 

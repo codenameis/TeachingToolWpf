@@ -126,7 +126,6 @@ public sealed class ShapeCoarseSearchSchedulerTests
                 PyramidLevels = 1,
                 MinimumAngleDegrees = 0,
                 MaximumAngleDegrees = 0,
-                BuildGeometricModel = false
             });
 
     private static SearchOptions Options(int parallelism)

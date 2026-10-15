@@ -22,10 +22,9 @@ internal static class InspectionControlsBenchmark
             MinimumAngleDegrees = -180,
             MaximumAngleDegrees = 180,
             AngleStepDegrees = 10,
-            BuildGeometricModel = false,
             BuildClutterModel = true
         }, cancellation.Token);
-        var standard = new SearchOptions { MaximumMatches = 1000, EvaluateGeometry = false, ClutterWeight = 1 };
+        var standard = new SearchOptions { MaximumMatches = 1000, ClutterWeight = 1 };
         (string Name, SearchOptions Options)[] cases =
         [
             ("direction-only", standard with { ClutterWeight = 0 }),

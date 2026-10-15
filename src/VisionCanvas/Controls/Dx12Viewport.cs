@@ -205,7 +205,7 @@ public sealed partial class Dx12Viewport : HwndHost, IViewportSurface, IFramePre
 
     private void StartRenderer(nint handle)
     {
-        _renderer = new RenderWorker(handle, Tiles, new WpfTextRasterizer(), _frames, new VisibleFramePreparer(), _devicePreference);
+        _renderer = new RenderWorker(handle, Tiles, new TextRasterizer(), _frames, new VisibleFramePreparer(), _devicePreference);
         _renderer.StatusChanged += status => Dispatcher.BeginInvoke(() => RendererStatusChanged?.Invoke(status));
         _renderer.MetricsChanged += value => Dispatcher.BeginInvoke(() => MetricsChanged?.Invoke(value));
         _renderer.OverlayPresented += value => Dispatcher.BeginInvoke(() => OverlayPresented?.Invoke(value));

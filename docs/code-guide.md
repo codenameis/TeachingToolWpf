@@ -1,5 +1,7 @@
 # 코드를 읽기 시작하는 순서
 
+최소 WPF 소비 예제는 [VisionCanvas.MvvmSample](../samples/VisionCanvas.MvvmSample/README.md)이다. App → EditorViewModel → XAML 바인딩 순서로 읽는다. 이미지 교체/이력 서비스 ImageCoordinator는 두 앱이 공유하는 `VisionCanvas.Presentation`에 있다.
+
 C# 문법을 막 배웠다면 [신입용 HTML 실습서](../manual/index.html)의 픽셀 → 좌표 → 필터 → 설계 → 편집 → 표시 순서로 시작한다. [직접 구축 실습](../manual/09-build.html)은 실행 가능한 작은 호스트를 제공한다. 이력은 [DocumentEdit](../src/VisionCanvas.Core/Editing/DocumentEdit.cs)(편집 차이), [HistoryStep](../src/VisionCanvas.Core/Editing/HistoryStep.cs)(준비 요청), [PreparedHistoryStep](../src/VisionCanvas.Core/Editing/PreparedHistoryStep.cs)(준비 결과), [EditHistory](../src/VisionCanvas.Core/Editing/EditHistory.cs)(목록·커서·예산)의 순서로 나누어 읽는다. [정리 범위와 실행 명령 비교](beginner-manual-validation.md).
 
 이 앱은 **입력 → 편집 상태 → 화면 그리기**로 읽으면 된다. ROI 규칙을 바꾸기 위해 DX12 포인터나 셰이더부터 이해할 필요는 없다. 순수 기하는 `VisionGeometry`, 편집 상태는 `VisionCanvas.Core`, 영상 수명 계약은 `VisionImaging.Abstractions`가 소유한다. WPF 화면은 앱의 Views, 바인딩 상태·명령은 ViewModels, GPU 자원은 `VisionCanvas`의 Rendering이 소유한다.
@@ -21,12 +23,13 @@ TeachingToolWpf/
   Controls/        재사용 WPF 컨트롤·화면 연결
   Themes/          화면 리소스
   Diagnostics/     실제 앱 검증 시나리오
-  App.xaml         Views/MainWindow.xaml 시작 경로
+  App.xaml         공통 화면 리소스
+  App.xaml.cs      창/서비스 조립·시작·해제 순서
 ```
 
-왼쪽 패널의 `ROI 추가/그리기`는 초록색 독립 ROI, `부모 추가/그리기`는 자식이 없어도 부모 역할을 갖는 그룹, `자식 추가/그리기`는 선택 부모에 연결된 ROI를 만든다. 부모 생성은 한 번의 이력으로 기록하며 기본 도형과 폴리곤에 동일하게 적용한다.
+왼쪽 패널의 `ROI 추가/그리기`는 그룹 하나를 선택했으면 그 그룹에 연결된 ROI를, 일반 ROI·무선택·다중선택이면 초록색 독립 ROI를 만든다. 별도 자식 버튼은 이 명령으로 통합했다. `부모 추가/그리기`는 자식이 없어도 부모 역할을 갖는 그룹을 만든다. 생성은 한 번의 이력으로 기록하며 기본 도형과 폴리곤에 동일하게 적용한다.
 
-메인 창의 ViewModel은 [MainWindowViewModel.cs](../src/TeachingToolWpf/ViewModels/MainWindowViewModel.cs)다. [MainWindow.xaml.cs](../src/TeachingToolWpf/Views/MainWindow.xaml.cs)에서 서비스를 주입해 만들고 `DataContext = _model`로 연결한다. 색상 설정의 역할별 값은 [RoiStyles.cs](../src/TeachingToolWpf/ViewModels/RoiStyles.cs)가 보관하고, `RoiStyleSettingsViewModel`이 검증 후 한 번에 적용한다. 기본 그리기/추가는 부모 없는 초록색 ROI이며 부모에 연결된 자식과 같은 스타일을 쓴다.
+메인 창의 ViewModel은 [MainWindowViewModel.cs](../src/TeachingToolWpf/ViewModels/MainWindowViewModel.cs)다. [App.xaml.cs](../src/TeachingToolWpf/App.xaml.cs)에서 구현 서비스를 주입해 만들고 [MainWindow.xaml.cs](../src/TeachingToolWpf/Views/MainWindow.xaml.cs)의 `Bind(model)`이 DataContext와 실제 컨트롤을 연결한다. App이 창을 직접 표시하므로 StartupUri는 사용하지 않는다. 일반 초기화/오류·성능 표시 문구는 VM, 실행 진단 선택은 [DiagnosticStartup](../src/TeachingToolWpf/Diagnostics/DiagnosticStartup.cs)이 맡는다. 색상 설정의 역할별 값은 [RoiStyles.cs](../src/TeachingToolWpf/ViewModels/RoiStyles.cs)가 보관하고, `RoiStyleSettingsViewModel`이 검증 후 한 번에 적용한다. 독립 ROI와 부모에 연결된 리프는 같은 초록색 스타일을 쓴다. [모든 View의 코드 비하인드 검토와 남긴 이유](views-mvvm-and-group-bounds.md).
 
 Viewport 연결은 [MainWindow.xaml](../src/TeachingToolWpf/Views/MainWindow.xaml)의 Scene/Input/Layout 바인딩 → [의존 속성](../src/VisionCanvas/Controls/Dx12Viewport.Properties.cs) → 기존 Submit 순서로 읽는다. VM은 장면 데이터와 명령을 게시하고 이미지 소유권 이전은 IImageDisplay에 위임한다. [MVVM 경계와 남긴 View 코드의 이유](decisions/0046-parent-reuse-and-mvvm-viewport.md).
 
@@ -43,7 +46,8 @@ Viewport 연결은 [MainWindow.xaml](../src/TeachingToolWpf/Views/MainWindow.xam
 | 메인 편집기의 1억 ROI | [RepeatedRoiBatch](../src/VisionCanvas.Core/Editing/RepeatedRoiBatch.cs), [RoiCellSet](../src/VisionCanvas.Core/Editing/RoiCellSet.cs), [EditorSession.Repeated](../src/VisionCanvas.Core/Editing/EditorSession.Repeated.cs), [RepeatedRoiPipeline](../src/VisionCanvas/Rendering/RepeatedRoiPipeline.cs) | 배치/셀 ID, 부분 선택·복붙·변환, 개별 수정값, 공통 문서 이력. [사용법·실측·한계](main-editor-repeated-roi-validation.md) |
 | 큰 선택 집합의 준비·최신 포인터 | [RoiPreviewPreparation](../src/TeachingToolWpf/Services/RoiPreviewPreparation.cs) | 작업 하나만 실행, 이전 드래그 결과는 폐기 |
 | 무거운 편집의 준비·확정 | [MainWindowViewModel.Editing](../src/TeachingToolWpf/ViewModels/MainWindowViewModel.Editing.cs) | 작업 스레드 준비 후 UI에서 유효성 확인·확정 |
-| 명시적 부모·자식 연결 | [RoiHierarchy](../src/VisionCanvas.Core/Editing/RoiHierarchy.cs) | ParentId와 하위 트리 순회. 겹침으로 연결하지 않으며 부모 밖에서도 관계 유지 |
+| 명시적 부모·자식 연결 | [RoiHierarchy](../src/VisionCanvas.Core/Editing/RoiHierarchy.cs), [RoiGroupBounds](../src/VisionCanvas.Core/Editing/RoiGroupBounds.cs) | 부모 안의 일반 ROI/그룹은 상위 도형 안에서 편집. 밖의 리프 편입은 허용하고 내부 이동 확정 후 제한. 그룹 해제로 분리 |
+| 빠른 이동·회전과 중첩 선택 | [RoiMotionBounds](../src/VisionGeometry/RoiMotionBounds.cs), [InteractionController](../src/VisionCanvas.Core/Interaction/InteractionController.cs) | 첫 경계에서 멈춤. 더블클릭으로 겹친 계층 순환, 고른 그룹 내부 드래그. [사용법·검증](roi-boundary-motion-validation.md) |
 | 부모 색·선 두께 | [RoiStyles](../src/VisionCanvas/Rendering/RoiStyles.cs), [RoiStyleSettingsViewModel](../src/TeachingToolWpf/ViewModels/RoiStyleSettingsViewModel.cs) | 표시 설정은 문서·Undo/Redo와 별도 |
 | 앱 표시 설정·크로스헤어 | [ConfigPage](../src/TeachingToolWpf/Views/ConfigPage.xaml), [CrosshairLayerLink](../src/TeachingToolWpf/Controls/CrosshairLayerLink.cs) | 별도 설정 창과 불변 레이어 게시. [사용 가이드](configuration-guide.md) |
 | 마우스가 들어오는 입구 | [Dx12Viewport](../src/VisionCanvas/Controls/Dx12Viewport.cs), [NativeMethods](../src/VisionCanvas/Controls/NativeMethods.cs) | Windows 입력을 앱 좌표·입력 호출로 변환 |
@@ -52,7 +56,7 @@ Viewport 연결은 [MainWindow.xaml](../src/TeachingToolWpf/Views/MainWindow.xam
 | 작은 ROI 버퍼의 할당·해제 | [RoiBufferArena](../src/VisionCanvas/Rendering/RoiBufferArena.cs) | GPU 페이지 안의 정렬된 구간을 대여하고 fence 이후 마지막 lease 반환 시 페이지 해제 |
 | 셰이더에 보내는 값의 의미 | [RoiDrawConstants](../src/VisionCanvas/Rendering/RoiDrawConstants.cs), [Roi.hlsl](../src/VisionCanvas/Shaders/Roi.hlsl) | 배율·원점·회전·색·두께의 동일한 176바이트 배치 |
 | 셰이더 컴파일·오류 확인 | [ShaderCompiler](../src/VisionCanvas/Rendering/ShaderCompiler.cs) | 파일을 바이트로 전달해 한글 주석도 소스가 잘리지 않게 처리 |
-| 이미지 열기·교체 | [ImageCoordinator](../src/TeachingToolWpf/Services/ImageCoordinator.cs) | 성공 후 문서 교체, 실패/취소 시 유지 |
+| 이미지 열기·교체 | [ImageCoordinator](../src/VisionCanvas/Presentation/ImageCoordinator.cs) | 성공 후 문서 교체, 실패/취소 시 유지 |
 | ROI 필터 컨트롤/미리보기 | [VisionCanvas.Filters.Wpf](../src/VisionCanvas.Filters.Wpf/README.md), [Imaging/Filters](../src/VisionCanvas/Imaging/Filters) | MVVM 파라미터·토글·연속 갱신과 CPU/CUDA 계산 경계 분리 |
 | 형상 모델 학습·검색 계약 | [ShapeTrainer](../src/VisionAlgorithm/OpenSrc/PatternMatching/ShapeTrainer.cs), [ShapeMatcher](../src/VisionAlgorithm/OpenSrc/PatternMatching/ShapeMatcher.cs) | 순수 C# Gray8 입력, 불변 모델, 원본 픽셀 좌표 |
 | 오른쪽 패턴 티칭 UI 상태 | [ShapeMatchingViewModel](../src/TeachingToolWpf/ViewModels/ShapeMatchingViewModel.cs), [ShapeMatchingPanel](../src/TeachingToolWpf/Views/ShapeMatchingPanel.xaml) | worker 취소, source epoch 검사, ROI 편집 이력과 분리 |

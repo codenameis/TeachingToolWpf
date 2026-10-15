@@ -97,7 +97,9 @@ public class RotationPreviewTests
         editor.BeginPreview();
         editor.PreviewRotation(new(500, 500), 180);
         Assert.Equal(first, editor.State.Rois[child].ParentId);
-        Near(new(600, 500), editor.TransformPreview!.Geometry(before.Rois[child]).Center);
+        var shown = editor.TransformPreview!.Geometry(before.Rois[child]);
+        Assert.True(before.Rois[first].Geometry.Covers(shown));
+        Assert.InRange(editor.TransformPreview.Transform.AngleDegrees, 0.1, 30);
         editor.CommitPreview("회전");
         Assert.Equal(first, editor.State.Rois[child].ParentId);
         Assert.Equal(before.Rois[first], editor.State.Rois[first]);

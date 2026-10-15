@@ -1,0 +1,666 @@
+{
+  "input": {
+    "Key": "C:\\Users\\Kim Bohyun\\Desktop\\Projects\\TeachingToolWpf\\kensa.png",
+    "Name": "kensa.png",
+    "Width": 1024,
+    "Height": 1536,
+    "Version": "2440112:639267703823677870"
+  },
+  "renderer": "DX12 \u00B7 GPU \u00B7 NVIDIA GeForce RTX 3060 Laptop GPU \u00B7 VRAM 5.9 GiB \u00B7 Budget 5.1 GiB \u00B7 Debug: False",
+  "failure": null,
+  "rows": [
+    {
+      "device": "Cpu",
+      "repeat": 0,
+      "commandMs": 1989.4397,
+      "displayedMs": 2052.6627,
+      "log": {
+        "RunId": "cacb6b20-a156-4c2c-8565-c00e6e31d616",
+        "StartedTimestamp": 940909850627,
+        "Width": 1024,
+        "Height": 1536,
+        "Device": 0,
+        "Backend": 1,
+        "WeightsPath": "src/PoseMatch.Tdcm.TorchSharp/Models/official.tdcm",
+        "PresentationId": "6b86390b-ef63-4880-824e-c0ef954accfa",
+        "ServiceMilliseconds": 1968.1467,
+        "PublishedMilliseconds": 1983.554,
+        "CommandMilliseconds": 1987.2895,
+        "PresentedMilliseconds": 2026.2757,
+        "Matches": 28,
+        "Incomplete": false,
+        "Outcome": "Completed"
+      },
+      "MinimumScore": 0.5,
+      "TdcmWindowSize": 512,
+      "TdcmRefinePose": false,
+      "backend": "TorchSharp",
+      "TdcmWeightsPath": "src/PoseMatch.Tdcm.TorchSharp/Models/official.tdcm",
+      "expectedCount": 48,
+      "accuracy": {
+        "Expected": 48,
+        "Found": 28,
+        "Missing": 20,
+        "FalsePositives": 0,
+        "Duplicates": 0,
+        "PositionFailures": 27,
+        "AngleFailures": 28,
+        "MaximumPositionError": 6.726812023536855,
+        "MaximumAngleError": 41.24382484313601,
+        "GroundTruthVerified": false,
+        "Passed": false
+      },
+      "withinTimeBudget": false,
+      "Status": "PoseMatch-TDCM TorchSharp Cpu \uC11C\uBE44\uC2A4 1968.1 ms \u00B7 \uC77D\uAE30 18.2 \u00B7 \uC138\uC158 \uC900\uBE44 545.6 \u00B7 \uCD94\uB860/\uD6C4\uCC98\uB9AC 1393.0 ms \u00B7 \uCC3D 4",
+      "matches": [
+        {
+          "ReferencePoint": {
+            "X": 826.75,
+            "Y": 1128.5,
+            "Length": 1398.9381017400306,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.27769215534332026,
+          "Label": "#1 \uC2E0\uB8B0\uB3C4 0.682"
+        },
+        {
+          "ReferencePoint": {
+            "X": 562.8,
+            "Y": 1128.4,
+            "Length": 1260.9640756183344,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.30146278264593157,
+          "Label": "#2 \uC2E0\uB8B0\uB3C4 0.646"
+        },
+        {
+          "ReferencePoint": {
+            "X": 464,
+            "Y": 1128.2857142857142,
+            "Length": 1219.9691197162429,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3110800412071314,
+          "Label": "#3 \uC2E0\uB8B0\uB3C4 0.639"
+        },
+        {
+          "ReferencePoint": {
+            "X": 199.5,
+            "Y": 184.25,
+            "Length": 271.566405322897,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.2352916897648073,
+          "Label": "#4 \uC2E0\uB8B0\uB3C4 0.635"
+        },
+        {
+          "ReferencePoint": {
+            "X": 826.1818181818182,
+            "Y": 185.27272727272728,
+            "Length": 846.7008799837694,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3454261029223944,
+          "Label": "#5 \uC2E0\uB8B0\uB3C4 0.634"
+        },
+        {
+          "ReferencePoint": {
+            "X": 464.85714285714283,
+            "Y": 184.85714285714286,
+            "Length": 500.26425669900925,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3392147936397472,
+          "Label": "#6 \uC2E0\uB8B0\uB3C4 0.629"
+        },
+        {
+          "ReferencePoint": {
+            "X": 296.1666666666667,
+            "Y": 1128.5,
+            "Length": 1166.7163084676774,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.34313866439436613,
+          "Label": "#7 \uC2E0\uB8B0\uB3C4 0.617"
+        },
+        {
+          "ReferencePoint": {
+            "X": 199.28571428571428,
+            "Y": 1128.5714285714284,
+            "Length": 1146.0315289319583,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3101027585208506,
+          "Label": "#8 \uC2E0\uB8B0\uB3C4 0.614"
+        },
+        {
+          "ReferencePoint": {
+            "X": 826.8,
+            "Y": 244.4,
+            "Length": 862.1656453373678,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.7198405396285572,
+          "Label": "#9 \uC2E0\uB8B0\uB3C4 0.614"
+        },
+        {
+          "ReferencePoint": {
+            "X": 826.5,
+            "Y": 814,
+            "Length": 1160.0423483649206,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.44559463980622854,
+          "Label": "#10 \uC2E0\uB8B0\uB3C4 0.598"
+        },
+        {
+          "ReferencePoint": {
+            "X": 828.4,
+            "Y": 1188.4,
+            "Length": 1448.6342257450638,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.6642916290236441,
+          "Label": "#11 \uC2E0\uB8B0\uB3C4 0.596"
+        },
+        {
+          "ReferencePoint": {
+            "X": 200.8,
+            "Y": 814.4,
+            "Length": 838.7896041320494,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.4222050810649647,
+          "Label": "#12 \uC2E0\uB8B0\uB3C4 0.589"
+        },
+        {
+          "ReferencePoint": {
+            "X": 728.6,
+            "Y": 1129.2,
+            "Length": 1343.8566143752093,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.43619118530810513,
+          "Label": "#13 \uC2E0\uB8B0\uB3C4 0.589"
+        },
+        {
+          "ReferencePoint": {
+            "X": 198,
+            "Y": 499.25,
+            "Length": 537.079661223547,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.5194049191585841,
+          "Label": "#14 \uC2E0\uB8B0\uB3C4 0.589"
+        },
+        {
+          "ReferencePoint": {
+            "X": 464,
+            "Y": 244,
+            "Length": 524.2442178984905,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.29408616846906815,
+          "Label": "#15 \uC2E0\uB8B0\uB3C4 0.582"
+        },
+        {
+          "ReferencePoint": {
+            "X": 563.6,
+            "Y": 185.2,
+            "Length": 593.2486831000975,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.4040735739114705,
+          "Label": "#16 \uC2E0\uB8B0\uB3C4 0.576"
+        },
+        {
+          "ReferencePoint": {
+            "X": 728,
+            "Y": 185.25,
+            "Length": 751.2000815362043,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.423839961127192,
+          "Label": "#17 \uC2E0\uB8B0\uB3C4 0.576"
+        },
+        {
+          "ReferencePoint": {
+            "X": 198,
+            "Y": 244,
+            "Length": 314.2292157008956,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.43139462214439767,
+          "Label": "#18 \uC2E0\uB8B0\uB3C4 0.559"
+        },
+        {
+          "ReferencePoint": {
+            "X": 297.3333333333333,
+            "Y": 814.6666666666666,
+            "Length": 867.2305857664898,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.34600637076599033,
+          "Label": "#19 \uC2E0\uB8B0\uB3C4 0.557"
+        },
+        {
+          "ReferencePoint": {
+            "X": 562.5,
+            "Y": 814.5,
+            "Length": 989.8568078262633,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.34898028527084857,
+          "Label": "#20 \uC2E0\uB8B0\uB3C4 0.552"
+        },
+        {
+          "ReferencePoint": {
+            "X": 296,
+            "Y": 185.25,
+            "Length": 349.1898659755177,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.44307321476163913,
+          "Label": "#21 \uC2E0\uB8B0\uB3C4 0.541"
+        },
+        {
+          "ReferencePoint": {
+            "X": 297.3333333333333,
+            "Y": 500.6666666666667,
+            "Length": 582.3008004650364,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.4457199191846355,
+          "Label": "#22 \uC2E0\uB8B0\uB3C4 0.538"
+        },
+        {
+          "ReferencePoint": {
+            "X": 730.5,
+            "Y": 814.5,
+            "Length": 1094.093460358849,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.4832027812489211,
+          "Label": "#23 \uC2E0\uB8B0\uB3C4 0.537"
+        },
+        {
+          "ReferencePoint": {
+            "X": 194,
+            "Y": 1188,
+            "Length": 1203.7358514225618,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.31640700920801484,
+          "Label": "#24 \uC2E0\uB8B0\uB3C4 0.537"
+        },
+        {
+          "ReferencePoint": {
+            "X": 466,
+            "Y": 1188,
+            "Length": 1276.1269529321917,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.29943991937295666,
+          "Label": "#25 \uC2E0\uB8B0\uB3C4 0.525"
+        },
+        {
+          "ReferencePoint": {
+            "X": 466,
+            "Y": 816,
+            "Length": 939.6871819919648,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.35612588431903125,
+          "Label": "#26 \uC2E0\uB8B0\uB3C4 0.516"
+        },
+        {
+          "ReferencePoint": {
+            "X": 730,
+            "Y": 244,
+            "Length": 769.6986423269824,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.3467374545206742,
+          "Label": "#27 \uC2E0\uB8B0\uB3C4 0.513"
+        },
+        {
+          "ReferencePoint": {
+            "X": 298,
+            "Y": 1188,
+            "Length": 1224.8052906482728,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.6522560914998589,
+          "Label": "#28 \uC2E0\uB8B0\uB3C4 0.507"
+        }
+      ]
+    },
+    {
+      "device": "Cuda",
+      "repeat": 0,
+      "commandMs": 1424.8162,
+      "displayedMs": 1516.5173,
+      "log": {
+        "RunId": "1c7f60c4-afb7-4399-a00a-8605c2c4b0b7",
+        "StartedTimestamp": 940931092870,
+        "Width": 1024,
+        "Height": 1536,
+        "Device": 1,
+        "Backend": 1,
+        "WeightsPath": "src/PoseMatch.Tdcm.TorchSharp/Models/official.tdcm",
+        "PresentationId": "55d43624-261d-4e72-82f6-7774d14ded69",
+        "ServiceMilliseconds": 1418.2542,
+        "PublishedMilliseconds": 1422.5658,
+        "CommandMilliseconds": 1424.5582,
+        "PresentedMilliseconds": 1438.6106,
+        "Matches": 28,
+        "Incomplete": false,
+        "Outcome": "Completed"
+      },
+      "MinimumScore": 0.5,
+      "TdcmWindowSize": 512,
+      "TdcmRefinePose": false,
+      "backend": "TorchSharp",
+      "TdcmWeightsPath": "src/PoseMatch.Tdcm.TorchSharp/Models/official.tdcm",
+      "expectedCount": 48,
+      "accuracy": {
+        "Expected": 48,
+        "Found": 28,
+        "Missing": 20,
+        "FalsePositives": 0,
+        "Duplicates": 0,
+        "PositionFailures": 27,
+        "AngleFailures": 28,
+        "MaximumPositionError": 6.726812023536855,
+        "MaximumAngleError": 41.24419781300286,
+        "GroundTruthVerified": false,
+        "Passed": false
+      },
+      "withinTimeBudget": false,
+      "Status": "PoseMatch-TDCM TorchSharp Cuda \uC11C\uBE44\uC2A4 1418.3 ms \u00B7 \uC77D\uAE30 7.8 \u00B7 \uC138\uC158 \uC900\uBE44 152.5 \u00B7 \uCD94\uB860/\uD6C4\uCC98\uB9AC 1257.3 ms \u00B7 \uCC3D 4",
+      "matches": [
+        {
+          "ReferencePoint": {
+            "X": 826.75,
+            "Y": 1128.5,
+            "Length": 1398.9381017400306,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.27763105194001764,
+          "Label": "#1 \uC2E0\uB8B0\uB3C4 0.682"
+        },
+        {
+          "ReferencePoint": {
+            "X": 562.8,
+            "Y": 1128.4,
+            "Length": 1260.9640756183344,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3014894805728638,
+          "Label": "#2 \uC2E0\uB8B0\uB3C4 0.646"
+        },
+        {
+          "ReferencePoint": {
+            "X": 464,
+            "Y": 1128.2857142857142,
+            "Length": 1219.9691197162429,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.31111041781515486,
+          "Label": "#3 \uC2E0\uB8B0\uB3C4 0.639"
+        },
+        {
+          "ReferencePoint": {
+            "X": 199.5,
+            "Y": 184.25,
+            "Length": 271.566405322897,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.2352922011141678,
+          "Label": "#4 \uC2E0\uB8B0\uB3C4 0.635"
+        },
+        {
+          "ReferencePoint": {
+            "X": 826.1818181818182,
+            "Y": 185.27272727272728,
+            "Length": 846.7008799837694,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3453810354359491,
+          "Label": "#5 \uC2E0\uB8B0\uB3C4 0.634"
+        },
+        {
+          "ReferencePoint": {
+            "X": 464.85714285714283,
+            "Y": 184.85714285714286,
+            "Length": 500.26425669900925,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.339214256251839,
+          "Label": "#6 \uC2E0\uB8B0\uB3C4 0.629"
+        },
+        {
+          "ReferencePoint": {
+            "X": 296.1666666666667,
+            "Y": 1128.5,
+            "Length": 1166.7163084676774,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3431756890082558,
+          "Label": "#7 \uC2E0\uB8B0\uB3C4 0.617"
+        },
+        {
+          "ReferencePoint": {
+            "X": 199.28571428571428,
+            "Y": 1128.5714285714284,
+            "Length": 1146.0315289319583,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.31013693854561186,
+          "Label": "#8 \uC2E0\uB8B0\uB3C4 0.614"
+        },
+        {
+          "ReferencePoint": {
+            "X": 826.8,
+            "Y": 244.4,
+            "Length": 862.1656453373678,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.7198470491807445,
+          "Label": "#9 \uC2E0\uB8B0\uB3C4 0.614"
+        },
+        {
+          "ReferencePoint": {
+            "X": 826.5,
+            "Y": 814,
+            "Length": 1160.0423483649206,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.4454841288419984,
+          "Label": "#10 \uC2E0\uB8B0\uB3C4 0.598"
+        },
+        {
+          "ReferencePoint": {
+            "X": 828.4,
+            "Y": 1188.4,
+            "Length": 1448.6342257450638,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.6642958830230874,
+          "Label": "#11 \uC2E0\uB8B0\uB3C4 0.597"
+        },
+        {
+          "ReferencePoint": {
+            "X": 200.8,
+            "Y": 814.4,
+            "Length": 838.7896041320494,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.4222756225368615,
+          "Label": "#12 \uC2E0\uB8B0\uB3C4 0.589"
+        },
+        {
+          "ReferencePoint": {
+            "X": 728.6,
+            "Y": 1129.2,
+            "Length": 1343.8566143752093,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.4362507169728521,
+          "Label": "#13 \uC2E0\uB8B0\uB3C4 0.589"
+        },
+        {
+          "ReferencePoint": {
+            "X": 198,
+            "Y": 499.25,
+            "Length": 537.079661223547,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.5194053994888618,
+          "Label": "#14 \uC2E0\uB8B0\uB3C4 0.589"
+        },
+        {
+          "ReferencePoint": {
+            "X": 464,
+            "Y": 244,
+            "Length": 524.2442178984905,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.29408472906462757,
+          "Label": "#15 \uC2E0\uB8B0\uB3C4 0.582"
+        },
+        {
+          "ReferencePoint": {
+            "X": 563.6,
+            "Y": 185.2,
+            "Length": 593.2486831000975,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.4040746351192471,
+          "Label": "#16 \uC2E0\uB8B0\uB3C4 0.576"
+        },
+        {
+          "ReferencePoint": {
+            "X": 728,
+            "Y": 185.25,
+            "Length": 751.2000815362043,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.4238408307092999,
+          "Label": "#17 \uC2E0\uB8B0\uB3C4 0.576"
+        },
+        {
+          "ReferencePoint": {
+            "X": 198,
+            "Y": 244,
+            "Length": 314.2292157008956,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.43139490723983365,
+          "Label": "#18 \uC2E0\uB8B0\uB3C4 0.559"
+        },
+        {
+          "ReferencePoint": {
+            "X": 297.3333333333333,
+            "Y": 814.6666666666666,
+            "Length": 867.2305857664898,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.3460471425707162,
+          "Label": "#19 \uC2E0\uB8B0\uB3C4 0.557"
+        },
+        {
+          "ReferencePoint": {
+            "X": 562.5,
+            "Y": 814.5,
+            "Length": 989.8568078262633,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3490249067403095,
+          "Label": "#20 \uC2E0\uB8B0\uB3C4 0.552"
+        },
+        {
+          "ReferencePoint": {
+            "X": 296,
+            "Y": 185.25,
+            "Length": 349.1898659755177,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.44307349282150554,
+          "Label": "#21 \uC2E0\uB8B0\uB3C4 0.541"
+        },
+        {
+          "ReferencePoint": {
+            "X": 297.3333333333333,
+            "Y": 500.6666666666667,
+            "Length": 582.3008004650364,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.44572130177594066,
+          "Label": "#22 \uC2E0\uB8B0\uB3C4 0.538"
+        },
+        {
+          "ReferencePoint": {
+            "X": 730.5,
+            "Y": 814.5,
+            "Length": 1094.093460358849,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.4833129686557578,
+          "Label": "#23 \uC2E0\uB8B0\uB3C4 0.537"
+        },
+        {
+          "ReferencePoint": {
+            "X": 194,
+            "Y": 1188,
+            "Length": 1203.7358514225618,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.31644148818987,
+          "Label": "#24 \uC2E0\uB8B0\uB3C4 0.537"
+        },
+        {
+          "ReferencePoint": {
+            "X": 466,
+            "Y": 1188,
+            "Length": 1276.1269529321917,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.2994720452180013,
+          "Label": "#25 \uC2E0\uB8B0\uB3C4 0.525"
+        },
+        {
+          "ReferencePoint": {
+            "X": 466,
+            "Y": 816,
+            "Length": 939.6871819919648,
+            "IsFinite": true
+          },
+          "AngleRadians": 0.3561622971111474,
+          "Label": "#26 \uC2E0\uB8B0\uB3C4 0.516"
+        },
+        {
+          "ReferencePoint": {
+            "X": 730,
+            "Y": 244,
+            "Length": 769.6986423269824,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.3467365775454321,
+          "Label": "#27 \uC2E0\uB8B0\uB3C4 0.513"
+        },
+        {
+          "ReferencePoint": {
+            "X": 298,
+            "Y": 1188,
+            "Length": 1224.8052906482728,
+            "IsFinite": true
+          },
+          "AngleRadians": -0.652324434633375,
+          "Label": "#28 \uC2E0\uB8B0\uB3C4 0.507"
+        }
+      ]
+    }
+  ],
+  "measurement": "\uBA85\uB839 \uC9C4\uC785\u2192\uD544\uC218 \uB77C\uBCA8 \uC900\uBE44/Present \uC81C\uCD9C/GPU fence. \uBB3C\uB9AC scan-out \uBC0F \uC785\uB825 \uBA54\uC2DC\uC9C0 \uB300\uAE30 \uC81C\uC678. \uC815\uD655\uB3C4 \uD569\uACA9 \uD310\uC815 \uC544\uB2D8."
+}

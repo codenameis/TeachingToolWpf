@@ -6,6 +6,7 @@ using TeachingToolWpf.Models;
 using TeachingToolWpf.Services;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
+using VisionCanvas.Diagnostics;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionGeometry;
@@ -194,10 +195,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         EditorTool.Mask => "마스크 그리기 · ROI 안에서 드래그 · 완료/Esc로 종료 · 가운데 버튼으로 이동",
         EditorTool.Draw when Input.DrawShape == RoiShapeKind.Polygon => $"꼭짓점 {Input.PolygonPointCount}개 · 클릭으로 연결 · 교차점에서 자동 완성 · 완료/Enter/첫 점 · 취소: Esc",
-        EditorTool.Draw when Input.DrawAsGroup => "부모 ROI 그리기 · 완성 후 부모 선택 → 자식 추가/그리기 · 취소: Esc",
+        EditorTool.Draw when Input.DrawAsGroup => "부모 ROI 그리기 · 완성 후 부모 선택 → ROI 추가/그리기 · 취소: Esc",
         EditorTool.Draw => $"{(Input.DrawParentId is null ? "부모 없이" : "선택 부모의 자식")} ROI 그리기 · 완료 후 선택 도구 복귀 · 취소: Esc",
         EditorTool.Pan => "드래그해 화면을 이동하세요. 휠로 확대·축소합니다.",
-        _ => "클릭으로 선택 · Ctrl로 다중 선택 · 휠로 확대·축소"
+        _ => "더블클릭: 겹친 ROI/그룹 순환 · 선택 그룹 내부 드래그 · Ctrl: 다중 선택 · 휠: 확대·축소"
     };
 
     public string ToolName => Input.Tool switch
@@ -205,7 +206,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         EditorTool.Mask => "마스크 그리기",
         EditorTool.Pan => "이동",
         EditorTool.Draw when Input.DrawAsGroup => "부모 ROI 그리기",
-        EditorTool.Draw => Input.DrawParentId is null ? "ROI 그리기" : "자식 ROI 그리기",
+        EditorTool.Draw => "ROI 그리기",
         _ => "선택"
     };
 
@@ -385,6 +386,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         get;
     }
 
+    public AsyncCommand Initialize
+    {
+        get;
+    }
+
     public AsyncCommand OpenImage
     {
         get;
@@ -444,7 +450,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         Layout = layout;
         _selectImage = selectImage;
-        StyleSettings.Changed += Publish;
+        StyleSettings.Changed += ApplyRoiSettings;
         Live = live;
         Filters = new(filterPreview, Session);
         Filters.Changed += Publish;
@@ -463,13 +469,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         NextRowPage = Command(() => ChangeRowPage(_rowPage + 1), () => (_rowPage + 1) * RowPageSize < Rows.Count);
         SelectTool = Command(() => SetTool(EditorTool.Select));
         PanTool = Command(() => SetTool(EditorTool.Pan), navigation: true);
-        DrawTool = Command(() => StartRoiDrawing(null), HasImage);
-        AddRoi = Command(AddRoiInView, HasImage);
+        DrawTool = Command(() => StartRoiDrawing(SelectedGroupParent), CanCreateRoi);
+        AddRoi = Command(AddRoiInView, CanCreateRoi);
         AddParentRoi = Command(AddParentRoiInView, HasImage);
         DrawParentRoi = Command(StartParentDrawing, HasImage);
         AddRepeatedTest = Command(AddRepeatedTestInDocument, HasImage);
-        AddChildRoi = Command(AddChildRoiInView, CanAddChildRoi);
-        DrawChildRoi = Command(() => StartRoiDrawing(Session.State.Selection.Single()), CanAddChildRoi);
         CompletePolygon = Command(Input.CompletePolygon, () => Input.CanCompletePolygon);
         RemovePolygonPoint = Command(Input.RemovePolygonPoint, () => Input.PolygonPointCount > 0);
         CancelPolygon = Command(Input.Cancel, () => Input.PolygonPointCount > 0);
@@ -488,14 +492,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Group = Async(() => EditCompletion = PrepareEditAsync("부모 ROI로 그룹화", Session.PrepareGroupAsync), () => !HasRepeatedSelection && Session.State.SelectionFacts.CanGroup);
         ChooseChildRois = Command(ChooseRoisToAttach, () => HasSelection() && !HasRepeatedSelection &&
             Session.State.Selection.All(id => Session.State.Rois[id].ParentId is null));
-        AttachToParent = Async(AttachRoisToParentAsync, () => _roisToAttach.Length > 0 && CanAddChildRoi());
+        AttachToParent = Async(AttachRoisToParentAsync, () => _roisToAttach.Length > 0 && CanAttachToSelectedRoi());
         Ungroup = Async(() => EditCompletion = PrepareEditAsync("그룹 해제", Session.PrepareUngroupAsync), () => !HasRepeatedSelection && Session.State.SelectionFacts.HasGroup);
-        ResetAngle = Command(Session.ResetAngles, () => HasSelection() && !HasRepeatedSelection);
-        RotateLeft = Command(() => Rotate(-15), HasSelection);
-        RotateRight = Command(() => Rotate(15), HasSelection);
+        ResetAngle = Command(Session.ResetAngles, () => Session.State.SelectionCount == 1 && !HasRepeatedSelection);
+        RotateLeft = Command(() => Rotate(-15), () => Session.State.SelectionCount == 1);
+        RotateRight = Command(() => Rotate(15), () => Session.State.SelectionCount == 1);
         ApplyProperties = Command(Properties.Apply, () => Properties.HasSingleSelection);
         SelectAll = Async(() => EditCompletion = PrepareEditAsync("전체 선택", Session.PrepareSelectAllAsync), () => Session.State.RoiCount != 0);
         CancelImport = new(Images.Cancel, () => Images.IsBusy);
+        Initialize = Async(InitializeAsync);
         OpenImage = Async(OpenAsync, () => _selectImage is not null);
         Sample8K = Async(() => LoadSampleAsync(8192, 8192));
         Sample24K = Async(() => LoadSampleAsync(24576, 32768));
@@ -520,6 +525,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Images.Changed += Refresh;
         Images.Status += text => Status = text;
         Layout.Changed += LayoutChanged;
+    }
+
+    public void UpdatePerformance(RenderMetrics metrics)
+    {
+        Performance = metrics.GpuMilliseconds is { } gpuMilliseconds
+            ? $"CPU {metrics.CpuMilliseconds:F1} ms · GPU {gpuMilliseconds:F1} ms · 표시 드롭 {metrics.Dropped}"
+            : $"CPU 제출 {metrics.CpuMilliseconds:F1} ms · 장치 시간 미측정 · 표시 드롭 {metrics.Dropped}";
     }
 
     public void RefreshLivePreview()
@@ -841,6 +853,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         return Images.ReplaceAsync(new(path, "", 0, 0, ImageFileVersion.Read(path)));
     }
 
+    private void ApplyRoiSettings()
+    {
+        if (Input.HandleScale == StyleSettings.HandleScale)
+        {
+            Publish();
+        }
+        else
+        {
+            // Input.Changed를 통해 입력 범위와 핸들 표시를 한 번에 게시한다.
+            Input.HandleScale = StyleSettings.HandleScale;
+        }
+    }
+
     public void Publish()
     {
         if (_disposed)
@@ -947,7 +972,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _disposed = true;
         _editCancellation?.Cancel();
         _previewPreparation.Dispose();
-        StyleSettings.Changed -= Publish;
+        StyleSettings.Changed -= ApplyRoiSettings;
         Filters.Changed -= Publish;
         Filters.Dispose();
         Inspections.Changed -= Publish;
