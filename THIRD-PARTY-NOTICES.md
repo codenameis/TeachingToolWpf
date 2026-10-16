@@ -60,6 +60,14 @@ THE SOFTWARE.
 
 `experiments/VisionImaging.Skia`가 SkiaSharp 및 NativeAssets 4.153.1을 참조한다. 선택형 UseSkiaImageLoader=true 앱 비교 빌드에도 연결하며 생산 앱의 기본 로더에는 연결하지 않는다. 패키지의 MIT 전문은 [SkiaSharp-LICENSE.txt](licenses/skia/SkiaSharp-LICENSE.txt), 네이티브 포함 구성요소 고지는 [Windows](licenses/skia/Win32-THIRD-PARTY-NOTICES.txt)와 [Linux](licenses/skia/Linux-THIRD-PARTY-NOTICES.txt)에 보관하고 실험 빌드/배포에 복사한다. Linux 패키지 포함과 실제 Linux 실행 검증은 구별한다. TIFF 경로의 기존 `licenses/streaming-codecs` 고지도 유지한다.
 
+## 독립 AnomalyMonitor 영상 이상 감지 (2026-10-16)
+
+새 앱은 `OpenCvSharp4` / `OpenCvSharp4.runtime.win`4.13.0.20260627의 full Windows x64 런타임을 사용한다. 기존 티칭 앱의 slim 참조는 변경하지 않는다. `video`/`videoio` 모듈로 optical flow와 영상 입력을 수행하며, `opencv_videoio_ffmpeg4130_64.dll`을 동적으로 로드한다. FFmpeg는 LGPL2.1-or-later이며 [배포 고지와 전문](licenses/FFmpeg-LICENSE.txt)을 함께 둔다. 출처와 빌드 설명은 [OpenCV4.13 FFmpeg 안내](https://github.com/opencv/opencv/blob/4.13.0/3rdparty/ffmpeg/readme.txt), [OpenCvSharp](https://github.com/shimat/opencvsharp), [OpenCV FFmpeg 빌드 소스](https://github.com/opencv/opencv_3rdparty/tree/ffmpeg)다. 네이티브 라이브러리는 변경하지 않았다.
+
+CPU 추론에는 Microsoft.ML.OnnxRuntime1.24.4를 사용하며 [MIT 전문](licenses/onnxruntime/LICENSE.txt), [네이티브 포함 고지](licenses/onnxruntime/ThirdPartyNotices.txt), [관리 코드 포함 고지](licenses/onnxruntime/Managed-ThirdPartyNotices.txt)를 함께 복사한다.
+
+특징 모델은 [Torchvision ResNet18 IMAGENET1K_V1](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html)의 공개 사전 학습 가중치에서 layer2/3와 고정 채널 축소를 변환했다. [Torchvision BSD3 전문](licenses/Torchvision-LICENSE.txt), [변환 스크립트](scripts/Export-AnomalyFeatures.py), [변환 hash/출력 대조](src/VisionAnomaly/Models/conversion.json)를 보존한다. Torch/Python은 일회성 변환 도구이며 앱 실행 의존성이 아니다. ImageNet 데이터셋 자체는 포함하지 않는다. PatchCore는 알고리즘 참고이며 공식 저장소 소스를 복사하지 않았다. 입력 샘플 AVI는 이 저장소에서 자체 생성한 합성 영상이다.
+
 ## TorchSharp / LibTorch (PoseMatch C# 학습·추론)
 
 TorchSharp 및 TorchSharp-cuda-windows0.107.0, LibTorch2.10.0 CUDA12.8을 사용한다. TorchSharp는 MIT이며 [전문](licenses/TorchSharp/LICENSE.txt)을 포함한다. LibTorch 및 포함 구성요소는 [배포 고지 전문](licenses/TorchSharp/LICENSE-LIBTORCH.txt)을 따른다. 출처는 https://github.com/dotnet/TorchSharp 와 공식 NuGet 패키지다. CUDA/cuDNN 네이티브 라이브러리는 패키지에 포함되며 NVIDIA 드라이버는 별도다. TorchSharp 전이 의존성에는 Google.Protobuf3.21.9, SharpZipLib1.4.0, SkiaSharp2.88.6이 포함된다. 공식 PoseMatch 모델의 기존 MIT 고지도 유지한다. C# 학습·추론 실행에는 Python이 필요하지 않다.

@@ -21,7 +21,7 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.MvvmSample.Tests;
 
-public sealed class EditorWindowTests
+public sealed partial class EditorWindowTests
 {
     [Theory]
     [InlineData(RenderDevicePreference.Automatic)]

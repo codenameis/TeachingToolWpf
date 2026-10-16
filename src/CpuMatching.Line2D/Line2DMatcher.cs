@@ -7,10 +7,13 @@ namespace CpuMatching.Line2D;
 public sealed class Line2DMatcher : ITemplateMatcher
 {
     private readonly GrayImage _template;
+    private readonly Line2DOptions _parameters;
 
-    public Line2DMatcher(GrayImage template)
+    public Line2DMatcher(GrayImage template, Line2DOptions? parameters = null)
     {
         ArgumentNullException.ThrowIfNull(template);
+        _parameters = parameters ?? new Line2DOptions();
+        _parameters.Validate();
         if (Edges.Extract(template, 0, 0).Length < 6)
         {
             throw new ArgumentException("Template needs at least six distinct edges.", nameof(template));
@@ -19,15 +22,17 @@ public sealed class Line2DMatcher : ITemplateMatcher
     }
 
     public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
-        Func<double, double, bool>? acceptCenter = null)
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
         return PyramidSearch.Find(_template, image, options ?? new SearchOptions(),
-            (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine), cancellationToken, refineEdges: true, acceptCenter: acceptCenter);
+            (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine, _parameters, cancellationToken), cancellationToken, refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator);
     }
 
     private sealed class OrientationLevel : IScoreLevel
     {
+        public bool SupportsParallelEvaluation => true;
+
         private const int Bins = 16;
         private readonly float[][] _maps;
         private readonly EdgePoint[] _features;
@@ -35,15 +40,29 @@ public sealed class Line2DMatcher : ITemplateMatcher
         private readonly int _height;
         private readonly bool _fine;
 
-        public OrientationLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine)
+        public OrientationLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, Line2DOptions parameters, CancellationToken token)
         {
             _width = scene.Width;
             _height = scene.Height;
             _fine = fine;
-            _features = Edges.Extract(template, cx, cy, fine ? 128 : 64);
+            _features = Edges.Extract(template, cx, cy, fine ? parameters.FineFeatures : parameters.CoarseFeatures);
             _maps = new float[Bins][];
             var gradients = Edges.Gradients(scene);
-            for (var bin = 0; bin < Bins; bin++)
+            // 방향과 무관한 길이는 픽셀당 한 번만 구한다. 나눗셈/반올림 순서는 그대로다.
+            var lengths = gradients.Select(gradient => Math.Sqrt((gradient.X * gradient.X) + (gradient.Y * gradient.Y))).ToArray();
+            if (gradients.Length >= 16_384)
+            {
+                Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token }, BuildMap);
+            }
+            else
+            {
+                for (var bin = 0; bin < Bins; bin++)
+                {
+                    BuildMap(bin);
+                }
+            }
+
+            void BuildMap(int bin)
             {
                 var map = new float[_width * _height];
                 var angle = bin * 2 * Math.PI / Bins;
@@ -51,8 +70,12 @@ public sealed class Line2DMatcher : ITemplateMatcher
                 var ny = Math.Sin(angle);
                 for (var i = 0; i < map.Length; i++)
                 {
+                    if (i % 16_384 == 0)
+                    {
+                        token.ThrowIfCancellationRequested();
+                    }
                     var (gx, gy) = gradients[i];
-                    var length = Math.Sqrt((gx * gx) + (gy * gy));
+                    var length = lengths[i];
                     if (length > 4)
                     {
                         map[i] = (float)(Math.Max(0, ((gx * nx) + (gy * ny)) / length) * Math.Min(1, length / 12));
@@ -64,17 +87,8 @@ public sealed class Line2DMatcher : ITemplateMatcher
 
         public IPoseScore AtPose(double angleDegrees, double scale)
         {
-            var angle = angleDegrees * Math.PI / 180;
-            var cos = Math.Cos(angle) * scale;
-            var sin = Math.Sin(angle) * scale;
-            var points = _features.Select(point =>
-            {
-                var orientation = (point.Angle + angle + (4 * Math.PI)) % (2 * Math.PI) * Bins / (2 * Math.PI);
-                var bin = (int)orientation;
-                return new Sample((point.X * cos) - (point.Y * sin), (point.X * sin) + (point.Y * cos),
-                    bin % Bins, (bin + 1) % Bins, orientation - bin);
-            }).ToArray();
-            return _fine ? new OrientationPose(_maps, points, _width, _height) : new CoarsePose(_maps, points, _width, _height);
+            var points = DirectionalSample.Rotate(_features, angleDegrees, scale, Bins);
+            return _fine ? new DirectionalPoseScore(_maps, points, _width, _height) : new CoarsePose(_maps, points, _width, _height);
         }
 
         private float[] Spread(float[] source)
@@ -99,17 +113,15 @@ public sealed class Line2DMatcher : ITemplateMatcher
         }
     }
 
-    private readonly record struct Sample(double X, double Y, int Bin, int Next, double Fraction);
-
-    private sealed class CoarsePose : IPoseScore, IRowScore
+    private sealed class CoarsePose : IPoseScore, IRowScore, IAcceleratedPoseScore
     {
         private readonly float[][] _maps;
-        private readonly Sample[] _points;
+        private readonly DirectionalSample[] _points;
         private readonly float[] _row;
         private readonly int _width;
         private readonly int _height;
 
-        public CoarsePose(float[][] maps, Sample[] points, int width, int height)
+        public CoarsePose(float[][] maps, DirectionalSample[] points, int width, int height)
         {
             _maps = maps;
             _points = points.Select(point => point with { X = Math.Round(point.X), Y = Math.Round(point.Y) }).ToArray();
@@ -134,6 +146,9 @@ public sealed class Line2DMatcher : ITemplateMatcher
             }
             return _points.Length == 0 ? 0 : sum / _points.Length;
         }
+
+        public void ScoreGrid(ICoarseScoreAccelerator accelerator, double[] output, CancellationToken token) =>
+            accelerator.ScoreDirections(_maps, _points, _width, _height, DirectionalSampling.RoundedRow, output, token);
 
         public void ScoreRow(int y, Span<double> output)
         {
@@ -181,27 +196,4 @@ public sealed class Line2DMatcher : ITemplateMatcher
         }
     }
 
-    private sealed class OrientationPose(float[][] maps, Sample[] points, int width, int height) : IPoseScore
-    {
-        public double Score(double x, double y)
-        {
-            if (points.Length == 0)
-            {
-                return 0;
-            }
-            double sum = 0;
-            foreach (var point in points)
-            {
-                var px = x + point.X;
-                var py = y + point.Y;
-                if (px < 1 || py < 1 || px >= width - 2 || py >= height - 2)
-                {
-                    return 0;
-                }
-                sum += ((1 - point.Fraction) * Edges.Bilinear(maps[point.Bin], width, height, px, py)) +
-                    (point.Fraction * Edges.Bilinear(maps[point.Next], width, height, px, py));
-            }
-            return sum / points.Length;
-        }
-    }
 }

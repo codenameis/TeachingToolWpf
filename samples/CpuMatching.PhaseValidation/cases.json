@@ -1,0 +1,258 @@
+[
+  {
+    "Name": "phase-0",
+    "Template": "template.png",
+    "Image": "phase-0.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 80.4,
+        "Y": 80.7,
+        "AngleDegrees": 7.6,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-1",
+    "Template": "template.png",
+    "Image": "phase-1.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 169.60000000000036,
+        "Y": 80.2,
+        "AngleDegrees": -8.4,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-2",
+    "Template": "template.png",
+    "Image": "phase-2.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 80.4,
+        "Y": 169.69999999999982,
+        "AngleDegrees": 12.7,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-3",
+    "Template": "template.png",
+    "Image": "phase-3.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 169.60000000000036,
+        "Y": 169.19999999999982,
+        "AngleDegrees": -12.7,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-4",
+    "Template": "template.png",
+    "Image": "phase-4.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 131.4000000000001,
+        "Y": 131.69999999999982,
+        "AngleDegrees": 7.6,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-5",
+    "Template": "template.png",
+    "Image": "phase-5.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 128.5999999999999,
+        "Y": 128.19999999999982,
+        "AngleDegrees": -8.4,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-6",
+    "Template": "template.png",
+    "Image": "phase-6.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 128.39999999999964,
+        "Y": 128.69999999999982,
+        "AngleDegrees": 12.7,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  },
+  {
+    "Name": "phase-7",
+    "Template": "template.png",
+    "Image": "phase-7.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 128.60000000000036,
+        "Y": 128.19999999999982,
+        "AngleDegrees": -12.7,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8K full-search alias regression; same pyramid phase and score .75. Full-image coverage is tested separately.",
+    "GroundTruthComplete": true,
+    "Split": "PhaseValidation",
+    "Centers": null
+  }
+]

@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-16",
+  "coreTests": 10,
+  "wpfTests": 2,
+  "bindingErrors": "",
+  "renderer": "DX12 · GPU · NVIDIA GeForce RTX 3060 Laptop GPU · VRAM 5.9 GiB · Budget 5.1 GiB · Debug: False",
+  "source": "640x360 MJPEG AVI, 10 fps, 240 frames; synthetic",
+  "trainingFrames": 80,
+  "analysisSamples": 80,
+  "normalAlarmsBefore11Seconds": 0,
+  "events": [
+    {
+      "Time": 11.1,
+      "Kind": 0
+    },
+    {
+      "Time": 16.8,
+      "Kind": 1
+    }
+  ],
+  "analysisMilliseconds": {
+    "mean": 27.86174875,
+    "maximum": 32.6541,
+    "includes": "crop, feature inference, memory distance, flow; excludes decode, queue, UI, 200ms wait"
+  },
+  "wpfAlarmMediaSeconds": [
+    11.2
+  ],
+  "display8K": "PASS: 7680x4320 BGRA frame, WARP native capture",
+  "notRun": [
+    "USB camera",
+    "RTSP server",
+    "real CCTV or factory accuracy",
+    "4 concurrent 8K streams",
+    "60FPS video",
+    "long soak",
+    "other PC deployment"
+  ],
+  "featureConversion": {
+    "backbone": "torchvision ResNet18 IMAGENET1K_V1",
+    "torch": "2.14.1+cpu",
+    "shape": [
+      784,
+      96
+    ],
+    "input": "RGB 224x224 / ImageNet mean and std",
+    "maxAbsoluteError": 9.5367431640625e-07,
+    "sha256": "0cc430e32db637b744053dd544240262ef50bf9f4000aafa2cc33d1fa991a32f",
+    "scope": "Fixed feature extractor; normal memory bank is trained separately in C#."
+  }
+}

@@ -1,0 +1,83 @@
+[
+  {
+    "Name": "8k-full-eight",
+    "Template": "template.png",
+    "Image": "8k-full-eight.png",
+    "Options": {
+      "MinimumAngle": -30,
+      "MaximumAngle": 30,
+      "AngleStep": 10,
+      "MinimumScale": 1,
+      "MaximumScale": 1,
+      "ScaleStep": 0.1,
+      "MinimumScore": 0.75,
+      "MaximumMatches": 256,
+      "CandidateLimit": 2048,
+      "PyramidLevels": 3,
+      "SuppressionRadius": 31.2,
+      "Region": null
+    },
+    "Expected": [
+      {
+        "X": 80.4,
+        "Y": 80.7,
+        "AngleDegrees": 7.6,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 8105.6,
+        "Y": 80.2,
+        "AngleDegrees": -8.4,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 80.4,
+        "Y": 8105.7,
+        "AngleDegrees": 12.7,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 8105.6,
+        "Y": 8105.2,
+        "AngleDegrees": -12.7,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 4095.4,
+        "Y": 4095.7,
+        "AngleDegrees": 7.6,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 2048.6,
+        "Y": 6144.2,
+        "AngleDegrees": -8.4,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 6144.4,
+        "Y": 2048.7,
+        "AngleDegrees": 12.7,
+        "Scale": 1,
+        "Score": 1
+      },
+      {
+        "X": 6144.6,
+        "Y": 6144.2,
+        "AngleDegrees": -12.7,
+        "Scale": 1,
+        "Score": 1
+      }
+    ],
+    "Labels": "8192x8192 FULL search. Eight known Kensa transforms at corners, center and both sides of 4096. Synthetic truth, not production recall.",
+    "GroundTruthComplete": true,
+    "Split": "FullImageValidation",
+    "Centers": null
+  }
+]

@@ -21,9 +21,9 @@ public sealed partial class ShapeMatchingViewModel
         new(PatternMatchingMethod.OpenCvTemplate, "OpenCV · 템플릿 매칭"),
         new(PatternMatchingMethod.Shape, "논문 기반 · 형상 매칭"),
         new(PatternMatchingMethod.PoseMatchTdcm, "PoseMatch-TDCM · ONNX"),
-        new(PatternMatchingMethod.CpuLine2D, "CPU · Line2D 방향 응답"),
-        new(PatternMatchingMethod.CpuSubNcc, "CPU · Sub-NCC 선택 픽셀"),
-        new(PatternMatchingMethod.CpuDirectionalChamfer, "CPU · Directional Chamfer"),
+        new(PatternMatchingMethod.CpuLine2D, "Line2D 방향 응답 · CPU/CUDA"),
+        new(PatternMatchingMethod.CpuSubNcc, "Sub-NCC 선택 픽셀 · CPU/CUDA"),
+        new(PatternMatchingMethod.CpuDirectionalChamfer, "Directional Chamfer · CPU/CUDA"),
     ];
     public PatternMatchingMethod Method
     {
@@ -48,12 +48,13 @@ public sealed partial class ShapeMatchingViewModel
     public bool IsTemplateMethod => Method == PatternMatchingMethod.OpenCvTemplate;
     public CorrelationTemplate? TemplateModel => _templateState.Model;
     public bool HasModel => IsCpuMethod ? ActiveCpuState.Template is not null : IsTdcmMethod ? _tdcmTemplate is not null : IsShapeMethod ? Model is not null : TemplateModel is not null;
-    public bool IsTrainingDirty => IsCpuMethod ? ActiveCpuState.IsMaskDirty : IsTdcmMethod ? _tdcmMaskDirty : IsShapeMethod
+    public bool IsTrainingDirty => IsCpuMethod ? ActiveCpuState.IsMaskDirty ||
+        (ActiveCpuState.Template is { } cpu && cpu.Parameters != ActiveCpuState.Parameters) : IsTdcmMethod ? _tdcmMaskDirty : IsShapeMethod
         ? Model is not null && (ActiveShapeState.Training != ActiveShapeState.TrainedSettings || ActiveShapeState.IsMaskDirty)
         : TemplateModel is not null && _templateState.IsMaskDirty;
     public string MethodDescription => Method switch
     {
-        PatternMatchingMethod.CpuLine2D => "희소 윤곽·방향 응답 맵 → 원본 자세 정밀화. CPU 전용 논문 참고 구현. 마스크 없는 사각형 학습.",
+        PatternMatchingMethod.CpuLine2D => "희소 윤곽·방향 응답 맵 → 원본 자세 정밀화. CPU 또는 CPU+CUDA 선택. 마스크 없는 사각형 학습.",
         PatternMatchingMethod.CpuSubNcc => "선택 픽셀 ZNCC 후보 → 전체 템플릿 명암 정밀화. CPU 회전·균일 배율 검색. 마스크 없는 사각형 학습.",
         PatternMatchingMethod.CpuDirectionalChamfer => "방향별 거리 변환 → 원본 자세 정밀화·양방향 윤곽 검증. FDCM 참고 구현이며 선분 적분 가속은 미포함. 마스크 없는 사각형 학습.",
         PatternMatchingMethod.Shape => "방향 후보 검색 → 원본 윤곽 검증·자세 정밀화. 학습 영역에 추가된 윤곽을 최종 점수에서 감점합니다. 회전/배율을 지원합니다.",

@@ -1,8 +1,14 @@
 # WPF · DX12 Vision Teaching Sample
 
+**세 매칭의8K 전체 검색:** Line2D/Sub-NCC/Directional Chamfer에서 ‘선택 ROI 범위에서 찾기’를 끄면 최대8192×8192 전체를 검색합니다. 상세 설정에 방식별 특징/표본/거리 파라미터를 추가했고, 단계별 시간·실제 버튼→표시를 측정했습니다. [사용법·전체8K 테스트 데이터·속도와 미달 범위](docs/cpu-matching-performance.md)를 확인하세요. CPU125ms/CUDA80ms 목표는 아직 미달입니다.
+
+**독립 영상 이상 감지 앱:** 관제실형 UI의 실제 WPF 구현은 `AnomalyMonitor.slnx`와 `src/AnomalyMonitor`에 있습니다. 영상 입력 → 정상 학습 → 외관/움직임 이상 알람 → 증거·확인 저장을 제공합니다. [실행·샘플 영상 사용법](src/AnomalyMonitor/README.md), [검증과 한계](docs/anomaly-monitor-validation.md)를 확인하세요. 기존 티칭 앱과 별도로 실행합니다.
+
 **오른쪽 패널 개편:** 검사/영역/필터와 기본/상세 설정/결과/로그로 나누고 검사 버튼을 하단에 고정했습니다. 경고에는 원인과 수정할 설정을 안내합니다. [사용법·화면·검증](docs/inspection-sidebar.md)을 참고하세요.
 
 **GPU 없는 CPU 매칭 비교:** LINE-2D / Sub-NCC / Directional Chamfer를 독립 C# 프로젝트로 구현하고 기존 WPF의 매칭 방식 선택에 추가했습니다. [WPF 사용법](docs/cpu-matching-wpf.md), `CpuMatching.slnx`와 [독립 실행](docs/cpu-template-matching.md)을 사용하세요. 정확도를 우선해 같은 점수0.75에서 Kensa 제한 영역의 Chamfer 추가 오검출을 수정하고 계산 재사용을 적용했습니다. [보정 원인·추가 데이터·실측](docs/cpu-matching-accuracy.md)을 확인하세요. 현장 전수 정확도와 검사 표시125ms는 미달·미검증 범위가 남아 있습니다.
+
+세 방식 모두 **CPU+CUDA**도 선택할 수 있습니다. [장치 선택·실측](docs/cpu-matching-cuda.md), [기초부터 읽는 알고리즘 안내](docs/cpu-matching-algorithm-guide.md)를 추가했습니다. GPU는 전체 후보 점수 계산을 맡으며 작은 검색 영역에서는 CPU가 더 빠를 수 있습니다.
 
 PoseMatch는 **TorchSharp C# CPU/CUDA 학습·추론**과 기존 ONNX 비교 경로를 제공합니다. 앱에서 엔진과 학습한 가중치 파일을 선택하고, 별도 C# CLI에서 가중치를 학습할 수 있습니다. **현재 Kensa/8K 누락·위치·각도와125/80ms 목표는 미달**입니다. [사용법·실측·미완료 범위](docs/posematch-tdcm-torchsharp.md)를 확인하세요.
 

@@ -1,0 +1,17 @@
+<Solution>
+  <Project Path="src/VisionAnomaly/VisionAnomaly.csproj" />
+  <Project Path="src/VisionAnomaly.Controls/VisionAnomaly.Controls.csproj" />
+  <Project Path="src/AnomalyMonitor/AnomalyMonitor.csproj" />
+  <Project Path="tests/VisionAnomaly.Tests/VisionAnomaly.Tests.csproj" />
+  <Project Path="tests/AnomalyMonitor.Tests/AnomalyMonitor.Tests.csproj" />
+  <Folder Name="/Shared/">
+    <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
+    <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
+    <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
+    <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
+    <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Core/IndustrialVision.Filters.Core.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Cpu/IndustrialVision.Filters.Cpu.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
+  </Folder>
+</Solution>

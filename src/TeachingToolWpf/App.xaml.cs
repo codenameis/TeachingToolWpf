@@ -1,4 +1,5 @@
 using System.Windows;
+using CpuMatching.Cuda;
 using TeachingToolWpf.Diagnostics;
 using TeachingToolWpf.Services;
 using TeachingToolWpf.ViewModels;
@@ -52,6 +53,7 @@ public partial class App : Application
         var loader = ImageLoaderHost.Create(GetImageCachePath(args));
         var live = new LivePreview(window.Viewport, kind => new SyntheticFrameSource(kind));
         var inspectionCompute = new CudaInspectionSession();
+        var templateCompute = new CudaTemplateScoreSession();
         IndustrialVision.Filters.Gpu.CudaBackend? filterGpu = null;
         var filterPreview = new RoiFilterPreview(loader, window.Viewport.RetainFrame,
             () => filterGpu ??= new IndustrialVision.Filters.Gpu.CudaBackend());
@@ -63,7 +65,7 @@ public partial class App : Application
             new Imaging.Matching.ShapeMatchingService(loader, window.Viewport.RetainFrame, inspectionCompute.Rent, inspectionCompute.PrepareAsync,
                 Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, window.Viewport.RetainFrame),
-            tdcm, new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame));
+            tdcm, new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent));
         var shapes = new PrimitiveShapeDetectionViewModel(new Imaging.Matching.PrimitiveShapeDetectionService(loader, window.Viewport.RetainFrame));
         var inspections = new InspectionToolsViewModel(pattern, shapes);
         var model = new MainWindowViewModel(window.Viewport, new(), loader, live, filterPreview, inspections,
@@ -102,8 +104,21 @@ public partial class App : Application
             }
             finally
             {
-                tdcm.Dispose();
-                inspectionCompute.Dispose();
+                try
+                {
+                    tdcm.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        inspectionCompute.Dispose();
+                    }
+                    finally
+                    {
+                        templateCompute.Dispose();
+                    }
+                }
             }
         };
         if (!DiagnosticStartup.TryAttach(window, window.Viewport, model, args, () => inspectionCompute.InitializationMilliseconds))

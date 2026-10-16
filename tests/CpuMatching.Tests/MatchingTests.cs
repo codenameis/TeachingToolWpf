@@ -7,6 +7,43 @@ namespace CpuMatching.Tests;
 
 public sealed class MatchingTests
 {
+    [Fact]
+    public void LargeImageLocalMapsKeepNonParallelScoreAndSerialCenterCallbackContracts()
+    {
+        var active = 0;
+        var callbackThread = Environment.CurrentManagedThreadId;
+        var callbacks = 0;
+        var result = PyramidSearch.Find(new(32, 32, new byte[1024]), new(2052, 1024, new byte[2052 * 1024]),
+            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0 },
+            (_, _, _, _, fine) => new SerialLevel(fine, () =>
+            {
+                Assert.Equal(0, Interlocked.Exchange(ref active, 1));
+                Thread.Yield();
+                Volatile.Write(ref active, 0);
+            }), default, acceptCenter: (_, _) =>
+            {
+                Assert.Equal(callbackThread, Environment.CurrentManagedThreadId);
+                callbacks++;
+                return true;
+            });
+        Assert.Equal(4, result.Matches.Count);
+        Assert.Equal(4, callbacks);
+    }
+
+    private sealed class SerialLevel(bool fine, Action checkSerial) : IScoreLevel, IPoseScore
+    {
+        public IPoseScore AtPose(double angleDegrees, double scale) => this;
+        public double Score(double x, double y)
+        {
+            if (fine)
+            {
+                checkSerial();
+                return 1;
+            }
+            return y == 100 && (x == 100 || x == 200 || x == 300 || x == 400) ? 1 : 0;
+        }
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

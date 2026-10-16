@@ -1,0 +1,22 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="VisionAnomaly.Controls.AlarmTimelineControl" x:Name="Root">
+    <Border Background="#192022" BorderBrush="#344044" BorderThickness="1" CornerRadius="6" Padding="12">
+        <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="이벤트 타임라인 · 최근 기록" Foreground="#E8F2EF" FontWeight="SemiBold" Margin="0,0,0,8"/>
+            <ListBox ItemsSource="{Binding ItemsSource, ElementName=Root}" SelectedItem="{Binding SelectedItem, ElementName=Root, Mode=TwoWay}" Background="Transparent" BorderThickness="0" Foreground="#FFC0AF" MinHeight="40" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="최근 알람 타임라인">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="4,0" Orientation="Horizontal">
+                            <TextBlock Text="{Binding Time}" FontSize="11"/>
+                            <TextBlock Text="{Binding ShortTitle}" FontSize="10" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+    </Border>
+</UserControl>

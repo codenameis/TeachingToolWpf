@@ -92,3 +92,5 @@ dotnet test tests/VisionCanvas.MvvmSample.Tests/VisionCanvas.MvvmSample.Tests.cs
 ```
 
 기능 확인과 설계 원칙별 근거는 [검증 기록](../../docs/visioncanvas-mvvm-sample.md)에 있다. 이 앱의 기능 시험은 엄격한60FPS 성능 보장이 아니다.
+
+대형 PNG의 첫 열기는 원본 디코딩과 디스크 피라미드 준비를 기다린다. 준비된 캐시는 재부팅 후에도 재사용한다. `ken32.png`의 단계별 시간, 픽셀을 보존하는 SIMD 개선과 WPF 표시 시간의 한계는 [첫 로딩 실측](../../docs/first-image-load.md)에 있다. 실제 카메라 픽셀 입력의 전송/변환/업로드 성능은 별도 검증 대상이다.

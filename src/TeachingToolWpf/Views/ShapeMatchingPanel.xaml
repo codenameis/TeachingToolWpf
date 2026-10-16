@@ -69,7 +69,7 @@
                         </Expander>
                         <Expander Header="CPU · 배율과 정밀 검색" IsExpanded="False" Margin="0,0,0,10" Visibility="{Binding IsCpuMethod, Converter={StaticResource BoolVisibility}}" IsEnabled="{Binding IsIdle}">
                             <StackPanel Margin="0,8,0,0">
-                                <TextBlock Text="원본 사각형 학습 4~512px. 검색은 대상 여백 포함 약 2Mpx까지. 선택 ROI의 검색 범위를 편집해 검사 영역을 조절하세요. 마스크 미지원." TextWrapping="Wrap" FontSize="10" Margin="0,0,0,8"/>
+                                <TextBlock Text="원본 사각형 학습 4~512px. 최대 8192×8192 전체 검색을 지원합니다. 기본 탭의 ‘선택 ROI 범위에서 찾기’를 끄면 전체를 검색합니다. 마스크 미지원." TextWrapping="Wrap" FontSize="10" Margin="0,0,0,8"/>
                                 <TextBlock Text="각도·배율은 재학습 없이 변경됩니다. 검색 각도 범위는 불량 판정 허용각과 다릅니다. 아래 최소 점수·최대 결과 수·후보 수도 적용됩니다. 후보 수 16~16384, 점수 0 초과~1." TextWrapping="Wrap" FontSize="10" Margin="0,0,0,8"/>
                                 <TextBlock Text="검색 각도 간격 (0.25~30°)" Style="{StaticResource Caption}"/>
                                 <TextBox Text="{Binding CpuAngleStep, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="검색 각도 간격 (0.25~30°)" Margin="0,4,0,8"/>
@@ -83,6 +83,33 @@
                                 <TextBox Text="{Binding CpuPyramidLevels, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="피라미드 단계 (1~5)" Margin="0,4,0,8"/>
                                 <TextBlock Text="중복 억제 반경 (원본 px · 1 이상)" Style="{StaticResource Caption}"/>
                                 <TextBox Text="{Binding CpuSuppressionRadius, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="중복 억제 반경 (원본 px · 1 이상)" Margin="0,4,0,8"/>
+                            </StackPanel>
+                        </Expander>
+                        <Expander Header="알고리즘별 설정 · 변경 후 다시 학습" Margin="0,0,0,10" Visibility="{Binding IsCpuMethod, Converter={StaticResource BoolVisibility}}">
+                            <StackPanel Margin="0,8,0,0">
+                                <TextBlock Text="선택한 방식에만 저장됩니다. 기본값은 기존 검출 조건과 같으며, 특징·표본 수나 허용치를 바꾸면 검출 결과가 달라질 수 있습니다." TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
+                                <StackPanel Visibility="{Binding IsCpuEdgeMethod, Converter={StaticResource BoolVisibility}}">
+                                    <TextBlock Text="축소 특징 수 (16~512 · 기본 64)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuCoarseFeatures, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="축소 특징 수" Margin="0,4,0,8"/>
+                                    <TextBlock Text="원본 특징 수 (16~512 · 기본 128)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuFineFeatures, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="원본 특징 수" Margin="0,4,0,8"/>
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding IsCpuSubNcc, Converter={StaticResource BoolVisibility}}">
+                                    <TextBlock Text="축소 표본 수 (16~512 짝수 · 기본 96)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuNccCoarseSamples, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Sub-NCC 축소 표본 수" Margin="0,4,0,8"/>
+                                    <TextBlock Text="학습 최소 명암차 (1~255 · 기본 8)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuNccMinimumContrast, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Sub-NCC 학습 최소 명암차" Margin="0,4,0,8"/>
+                                    <TextBlock Text="원본 정밀 검증은 항상 내부 픽셀 전체를 사용합니다." FontSize="11" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding IsCpuChamfer, Converter={StaticResource BoolVisibility}}">
+                                    <TextBlock Text="축소 거리 단위 (0.6~8 px · 기본 5)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuChamferCoarseTolerance, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Chamfer 축소 거리 단위" Margin="0,4,0,8"/>
+                                    <TextBlock Text="원본 거리 상한 (0.6~4 px · 기본 1)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuChamferFineTolerance, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Chamfer 원본 거리 상한" Margin="0,4,0,8"/>
+                                    <TextBlock Text="방향 한 칸 비용 (0.1~8 · 기본 1.5)" Style="{StaticResource Caption}"/>
+                                    <TextBox Text="{Binding CpuChamferDirectionPenalty, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Chamfer 방향 비용" Margin="0,4,0,8"/>
+                                    <TextBlock Text="원본 양방향 윤곽 검증은 항상 유지됩니다." FontSize="11" TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
                         </Expander>
                         <Expander Header="학습 설정 · 변경 후 다시 학습" IsExpanded="False" Margin="0,0,0,10" Visibility="{Binding IsShapeMethod, Converter={StaticResource BoolVisibility}}" IsEnabled="{Binding IsIdle}">
@@ -169,6 +196,10 @@
                             <StackPanel Margin="0,8,0,0">
                                 <ComboBox ItemsSource="{Binding SpeedProfiles}" DisplayMemberPath="Name" SelectedValuePath="Profile" SelectedValue="{Binding SpeedProfile}" AutomationProperties.Name="후보 예산 프리셋" Margin="0,0,0,8"/>
                                 <TextBlock Text="후보 예산은 검증할 후보 수를 정합니다. 확대하면 누락을 줄일 수 있지만 더 오래 걸릴 수 있습니다. 합격 점수·최대 결과 수와 원본 정밀화는 유지됩니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+                                <StackPanel Visibility="{Binding IsCpuMethod, Converter={StaticResource BoolVisibility}}">
+                                    <ComboBox ItemsSource="{Binding ComputeModes}" DisplayMemberPath="Name" SelectedValuePath="Mode" SelectedValue="{Binding ComputeMode}" AutomationProperties.Name="템플릿 검사 실행 장치" Margin="0,0,0,8"/>
+                                    <TextBlock Text="CPU+CUDA: 모든 후보 위치의 점수를 GPU로 계산하고, 위치·각도 보정과 원본 검증은 CPU가 수행합니다. 첫 실행에는 장치 준비 시간이 포함됩니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+                                </StackPanel>
                                 <StackPanel Visibility="{Binding IsShapeMethod, Converter={StaticResource BoolVisibility}}">
                                     <ComboBox ItemsSource="{Binding ComputeModes}" DisplayMemberPath="Name" SelectedValuePath="Mode" SelectedValue="{Binding ComputeMode}" AutomationProperties.Name="검사 실행 장치" Margin="0,0,0,8"/>
                                     <TextBlock Text="CUDA는 방향별 후보 점수를 일괄 계산합니다. 전처리와 최종 위치·각도·형상 검증은 CPU 병렬 연산입니다. NVIDIA GPU가 필요합니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>

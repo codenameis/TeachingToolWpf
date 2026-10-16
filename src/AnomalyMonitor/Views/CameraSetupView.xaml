@@ -1,0 +1,86 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="AnomalyMonitor.Views.CameraSetupView">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="MonitorTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <TabControl>
+        <TabItem Header="연결">
+            <StackPanel>
+                <TextBlock Text="1. 영상 입력" Style="{StaticResource SectionTitle}"/>
+                <ComboBox SelectedIndex="{Binding SourceKind}" AutomationProperties.Name="영상 입력 종류">
+                    <ComboBoxItem Content="영상 파일"/>
+                    <ComboBoxItem Content="USB 카메라 번호"/>
+                    <ComboBoxItem Content="RTSP / HTTP 영상"/>
+                </ComboBox>
+                <TextBox Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="영상 경로 또는 주소" Margin="0,8,0,0" ToolTip="파일 경로, USB 번호(예:0), RTSP/HTTP 영상 URL"/>
+                <TextBlock Text="파일 경로 / USB 번호(예:0) / RTSP 주소를 입력하세요." Style="{StaticResource Hint}"/>
+                <Button Content="영상 파일 찾아 열기" Command="{Binding OpenCommand}" Margin="0,0,0,8"/>
+                <UniformGrid Columns="2">
+                    <Button Content="연결 / 다시 연결" Command="{Binding ConnectCommand}" Margin="0,0,4,0"/>
+                    <Button Content="연결 종료" Command="{Binding DisconnectCommand}" Margin="4,0,0,0"/>
+                </UniformGrid>
+                <TextBlock Text="소스를 새로 연결하면 이전 정상 기준을 해제합니다. 같은 촬영 장면의 모델은 정상 기준 탭에서 명시적으로 불러오세요." Style="{StaticResource Hint}"/>
+                <TextBlock Text="표시와 분석" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="원본 크기 프레임을 DX12로 표시합니다. 분석은 선택 영역을224×224로 변환하며, 이 화면에는 실제 분석한 프레임과 그 위치를 함께 표시합니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="분석 간격은 최소200ms입니다. 처리하지 못한 프레임은 누적하지 않고 건너뜀 수를 표시합니다. 짧은 이상이 검사 사이에 지나가면 놓칠 수 있습니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="{Binding Renderer}" Style="{StaticResource Hint}"/>
+            </StackPanel>
+        </TabItem>
+        <TabItem Header="정상 기준">
+            <StackPanel>
+                <TextBlock Text="2. 정상 모습 알려주기" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="이상이 없는 구간에서 수집하세요. 밝기·위치 등 허용할 변화를 충분히 포함해야 합니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="관심 영역 · 영상 크기의 %" Style="{StaticResource SectionTitle}"/>
+                <UniformGrid Columns="2">
+                    <StackPanel Margin="0,0,4,6">
+                        <TextBlock Text="왼쪽 X"/>
+                        <TextBox Text="{Binding RegionX, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="관심 영역 X"/>
+                    </StackPanel>
+                    <StackPanel Margin="4,0,0,6">
+                        <TextBlock Text="위쪽 Y"/>
+                        <TextBox Text="{Binding RegionY, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="관심 영역 Y"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,4,0">
+                        <TextBlock Text="너비"/>
+                        <TextBox Text="{Binding RegionWidth, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="관심 영역 너비"/>
+                    </StackPanel>
+                    <StackPanel Margin="4,0,0,0">
+                        <TextBlock Text="높이"/>
+                        <TextBox Text="{Binding RegionHeight, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="관심 영역 높이"/>
+                    </StackPanel>
+                </UniformGrid>
+                <TextBlock Text="영역 값은 다음 정상 수집을 시작할 때 적용됩니다. 현재 모델의 영역은 모델과 함께 유지됩니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="수집 프레임 수 · 30~200" Margin="0,4"/>
+                <TextBox Text="{Binding SampleCount, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="정상 수집 프레임 수"/>
+                <Button Content="현재 영상으로 정상 수집 시작" Command="{Binding LearnCommand}" Style="{StaticResource PrimaryButton}" Margin="0,10,0,8"/>
+                <UniformGrid Columns="2">
+                    <Button Content="모델 저장" Command="{Binding SaveCommand}" Margin="0,0,4,0"/>
+                    <Button Content="모델 불러오기" Command="{Binding LoadCommand}" Margin="4,0,0,0"/>
+                </UniformGrid>
+                <TextBlock Text="{Binding ModelDescription}" Style="{StaticResource Hint}"/>
+                <TextBlock Text="학습 방식" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="외관: ResNet18 정상 패치 메모리 + 최근접 거리
+움직임: 영역별 속도·방향 통계
+백본 가중치는 고정하며, 이 장면의 정상 기준을 실제 영상으로 학습합니다." Style="{StaticResource Hint}"/>
+            </StackPanel>
+        </TabItem>
+        <TabItem Header="알람 설정">
+            <StackPanel>
+                <TextBlock Text="3. 감시 기준" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="알람 배율 · 0.5~5.0"/>
+                <TextBox Text="{Binding Threshold, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="알람 배율" Margin="0,6"/>
+                <Button Content="배율 적용" Command="{Binding ThresholdCommand}"/>
+                <TextBlock Text="1.0은 정상 학습에서 만든 기준입니다. 높이면 알람이 줄고, 낮추면 작은 변화에도 알람이 날 수 있습니다. 점수는 불량 확률이 아닙니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="외관 이상" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="분석한 프레임 한 장에서도 알람을 기록합니다. 정상 흐름으로 회복한 뒤 다시 이상이 나타나면 새 기록을 만듭니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="움직임 이상" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="속도·방향 변화가0.6초 이상 이어져야 기록합니다. 프레임 간격이1초를 넘으면 시간 상태를 다시 시작합니다." Style="{StaticResource Hint}"/>
+                <TextBlock Text="확인은 학습과 별개" Style="{StaticResource SectionTitle}"/>
+                <TextBlock Text="알람을 확인하거나 정상으로 기록해도 정상 모델을 자동 변경하지 않습니다." Style="{StaticResource Hint}"/>
+            </StackPanel>
+        </TabItem>
+    </TabControl>
+</UserControl>

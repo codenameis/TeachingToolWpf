@@ -25,6 +25,7 @@ public sealed class EdgePoseRefiner
         var pose = seed;
         for (var iteration = 0; iteration < 8; iteration++)
         {
+            // 미지수는 X 이동, Y 이동, 회전의 세 개다. 마지막 열에는 오차를 누적한다.
             var matrix = new double[3, 4];
             var cos = Math.Cos(pose.AngleDegrees * Math.PI / 180);
             var sin = Math.Sin(pose.AngleDegrees * Math.PI / 180);
@@ -36,31 +37,7 @@ public sealed class EdgePoseRefiner
                 var px = pose.X + rx;
                 var py = pose.Y + ry;
                 var expected = point.Angle + (pose.AngleDegrees * Math.PI / 180);
-                EdgePoint? best = null;
-                var cost = double.MaxValue;
-                var ix = (int)Math.Round(px);
-                var iy = (int)Math.Round(py);
-                for (var y = Math.Max(1, iy - 3); y <= Math.Min(_height - 2, iy + 3); y++)
-                {
-                    for (var x = Math.Max(1, ix - 3); x <= Math.Min(_width - 2, ix + 3); x++)
-                    {
-                        if (_scene[(y * _width) + x] is not { } candidate)
-                        {
-                            continue;
-                        }
-                        var alignment = Math.Cos(candidate.Angle - expected);
-                        if (alignment < 0.8)
-                        {
-                            continue;
-                        }
-                        var distance = ((candidate.X - px) * (candidate.X - px)) + ((candidate.Y - py) * (candidate.Y - py)) + (4 * (1 - alignment));
-                        if (distance < cost)
-                        {
-                            best = candidate;
-                            cost = distance;
-                        }
-                    }
-                }
+                var best = FindNearbyEdge(px, py, expected);
                 if (best is not { } edge)
                 {
                     continue;
@@ -107,6 +84,37 @@ public sealed class EdgePoseRefiner
         return pose;
     }
 
+    private EdgePoint? FindNearbyEdge(double px, double py, double expected)
+    {
+        EdgePoint? best = null;
+        var cost = double.MaxValue;
+        var ix = (int)Math.Round(px);
+        var iy = (int)Math.Round(py);
+        for (var y = Math.Max(1, iy - 3); y <= Math.Min(_height - 2, iy + 3); y++)
+        {
+            for (var x = Math.Max(1, ix - 3); x <= Math.Min(_width - 2, ix + 3); x++)
+            {
+                if (_scene[(y * _width) + x] is not { } candidate)
+                {
+                    continue;
+                }
+                var alignment = Math.Cos(candidate.Angle - expected);
+                if (alignment < 0.8)
+                {
+                    continue;
+                }
+                var distance = ((candidate.X - px) * (candidate.X - px)) + ((candidate.Y - py) * (candidate.Y - py)) + (4 * (1 - alignment));
+                if (distance < cost)
+                {
+                    best = candidate;
+                    cost = distance;
+                }
+            }
+        }
+        return best;
+    }
+
+    // 두꺼운 경계를 밝기 변화 방향의 최대점 한 줄로 줄이고, 1픽셀 이내 위치를 보간한다.
     private static EdgePoint?[] Thin(GrayImage image)
     {
         var gradients = Edges.Gradients(image);
@@ -139,6 +147,7 @@ public sealed class EdgePoseRefiner
         return result;
     }
 
+    // 가장 큰 pivot부터 소거해 세 보정량을 구한다. 특이 행렬이면 보정을 멈춘다.
     private static bool Solve(double[,] matrix, out double[] result)
     {
         result = new double[3];

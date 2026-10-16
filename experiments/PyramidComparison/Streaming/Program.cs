@@ -2,6 +2,11 @@ using PyramidComparison;
 using VisionImaging.Codecs;
 using VisionImaging.Pyramid;
 
+if (args is ["profile-load", var profileFile, var profileCache, var profileReport])
+{
+    return LoadProfile.Run(profileFile, profileCache, profileReport);
+}
+
 if (args is ["decode-probe", var probeFile, var budgetMb, var cancelMs, var report])
 {
     return DecoderProbe.Run(probeFile, long.Parse(budgetMb, System.Globalization.CultureInfo.InvariantCulture) * 1024 * 1024,

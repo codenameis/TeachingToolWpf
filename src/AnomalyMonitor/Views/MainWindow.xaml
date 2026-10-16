@@ -1,0 +1,149 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:VisionAnomaly.Controls;assembly=VisionAnomaly.Controls" xmlns:local="clr-namespace:AnomalyMonitor.Views" x:Class="AnomalyMonitor.Views.MainWindow" Title="WATCH · 이상 감지 관제" Width="1520" Height="940" MinWidth="1180" MinHeight="760" Background="#101617" FontFamily="Malgun Gothic" FontSize="12">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="MonitorTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="32"/>
+        </Grid.RowDefinitions>
+        <Border Background="#192022" BorderBrush="#344044" BorderThickness="0,0,0,1" Padding="24,12">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="◉  WATCH" FontSize="23" FontWeight="Bold" Foreground="#91DFC0"/>
+                <TextBlock DockPanel.Dock="Left" Text="이상 감지 워크스페이스" Margin="24,8" Foreground="#A7B9B9"/>
+                <TextBlock Text="실제 정상 학습 · CPU 추론 · 로컬 증거 저장" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#B8D5C9"/>
+            </DockPanel>
+        </Border>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="190"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="330"/>
+            </Grid.ColumnDefinitions>
+            <Border Background="#171E20" BorderBrush="#344044" BorderThickness="0,0,1,0" Padding="14">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <TextBlock Text="정상과 다른 순간을 찾고, 마지막 판단은 사람이 합니다." Style="{StaticResource Hint}"/>
+                        <TextBlock Text="연결 끊김·미학습 상태는 정상으로 판단하지 않습니다." Style="{StaticResource Hint}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="실시간 감시" FontWeight="SemiBold" Foreground="#91DFC0" Margin="8,14,0,26"/>
+                        <TextBlock Text="CAMERAS / 04" FontSize="10" Foreground="#A7B9B9" Margin="8,0,0,10"/>
+                        <ListBox ItemsSource="{Binding Cameras}" SelectedItem="{Binding SelectedCamera}" AutomationProperties.Name="감시 카메라 목록">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,7">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Status}" FontSize="10" Foreground="#9EB3B2" MaxHeight="30" Margin="0,5,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="최근200건 중 미확인" Style="{StaticResource SectionTitle}" Margin="8,28,0,4"/>
+                        <TextBlock Text="{Binding PendingCount, StringFormat={}{0}건}" FontSize="26" Foreground="#FFB29C" Margin="8,0"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <Grid Grid.Column="1" Margin="20,16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="72"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="120"/>
+                    <RowDefinition Height="145"/>
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <CheckBox DockPanel.Dock="Right" IsChecked="{Binding SingleView}" Content="선택 영상만 크게" VerticalAlignment="Top"/>
+                    <StackPanel>
+                        <TextBlock Text="실시간 모니터링" FontSize="23" FontWeight="SemiBold"/>
+                        <TextBlock Text="영상과 알람을 함께 보며, 달라진 순간을 확인하세요." Style="{StaticResource Hint}"/>
+                    </StackPanel>
+                </DockPanel>
+                <UniformGrid x:Name="CameraGrid" Grid.Row="1" Columns="2" Rows="2">
+                    <controls:CameraMonitorControl x:Name="FirstCamera" DataContext="{Binding Cameras[0]}" Title="{Binding Name}" StatusText="{Binding Status}" DetailText="{Binding Detail}" IsSelected="{Binding IsSelected}" SelectCommand="{Binding SelectCommand}" Margin="0,0,6,6" Visibility="{Binding DataContext.FirstVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanVisibility}}"/>
+                    <controls:CameraMonitorControl x:Name="SecondCamera" DataContext="{Binding Cameras[1]}" Title="{Binding Name}" StatusText="{Binding Status}" DetailText="{Binding Detail}" IsSelected="{Binding IsSelected}" SelectCommand="{Binding SelectCommand}" Margin="6,0,0,6" Visibility="{Binding DataContext.SecondVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanVisibility}}"/>
+                    <controls:CameraMonitorControl x:Name="ThirdCamera" DataContext="{Binding Cameras[2]}" Title="{Binding Name}" StatusText="{Binding Status}" DetailText="{Binding Detail}" IsSelected="{Binding IsSelected}" SelectCommand="{Binding SelectCommand}" Margin="0,6,6,0" Visibility="{Binding DataContext.ThirdVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanVisibility}}"/>
+                    <controls:CameraMonitorControl x:Name="FourthCamera" DataContext="{Binding Cameras[3]}" Title="{Binding Name}" StatusText="{Binding Status}" DetailText="{Binding Detail}" IsSelected="{Binding IsSelected}" SelectCommand="{Binding SelectCommand}" Margin="6,6,0,0" Visibility="{Binding DataContext.FourthVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanVisibility}}"/>
+                </UniformGrid>
+                <controls:AlarmTimelineControl Grid.Row="2" ItemsSource="{Binding Events}" SelectedItem="{Binding SelectedAlarm}" Margin="0,12,0,0"/>
+                <Border Grid.Row="3" Background="#192022" BorderBrush="#344044" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="230"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="선택 영상의 검사 상태" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding SelectedCamera.Status}" Foreground="#91DFC0" Margin="0,8"/>
+                            <TextBlock Text="{Binding SelectedCamera.ScoreText}" FontSize="13"/>
+                            <TextBlock Text="{Binding SelectedCamera.ModelDescription}" Style="{StaticResource Hint}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="{Binding SelectedCamera.MonitorCaption}" Command="{Binding SelectedCamera.MonitorCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                    </Grid>
+                </Border>
+            </Grid>
+            <Border Grid.Column="2" Background="#192022" BorderBrush="#344044" BorderThickness="1,0,0,0" Padding="16,12">
+                <TabControl>
+                    <TabItem Header="영상 설정">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="{Binding SelectedCamera.Name}" FontSize="18" FontWeight="SemiBold" Margin="0,6,0,8"/>
+                                <local:CameraSetupView DataContext="{Binding SelectedCamera}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                    <TabItem Header="이벤트 확인" x:Name="EventsTab">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="36"/>
+                                <RowDefinition Height="180"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <CheckBox Content="미확인만 보기" IsChecked="{Binding PendingOnly}"/>
+                            <ListBox Grid.Row="1" ItemsSource="{Binding EventView}" SelectedItem="{Binding SelectedAlarm}" AutomationProperties.Name="알람 목록">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                            <TextBlock FontSize="10" Foreground="#ADBDBB" Margin="0,4">
+                                                <Run Text="{Binding CameraName, Mode=OneWay}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{Binding Time, Mode=OneWay}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{Binding Status, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="0,12,0,0">
+                                    <TextBlock Text="알람을 선택하면 해당 프레임의 근거를 볼 수 있습니다." Style="{StaticResource Hint}"/>
+                                    <StackPanel DataContext="{Binding SelectedAlarm}">
+                                        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Description}" Style="{StaticResource Hint}"/>
+                                        <TextBlock Text="{Binding Score}" FontSize="22" Foreground="#FFB29C"/>
+                                        <TextBlock Text="{Binding EvidenceInfo}" Style="{StaticResource Hint}"/>
+                                        <Image Source="{Binding EvidenceFile}" MaxHeight="175" Stretch="Uniform" Margin="0,6"/>
+                                        <TextBlock Text="{Binding Status}" Foreground="#91DFC0" Margin="0,6"/>
+                                    </StackPanel>
+                                    <Button Content="이벤트 확인 완료" Command="{Binding AcknowledgeCommand}" Style="{StaticResource PrimaryButton}" Margin="0,6"/>
+                                    <Button Content="정상 상황으로 기록" Command="{Binding NormalCommand}" Margin="0,0,0,6"/>
+                                    <Button Content="원본 증거 이미지 열기" Command="{Binding EvidenceCommand}"/>
+                                    <TextBlock Text="확인 결과만 저장합니다. 정상 기준을 자동 변경하지 않습니다." Style="{StaticResource Hint}"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+            </Border>
+        </Grid>
+        <Border Grid.Row="2" Background="#22302B" Padding="16,6">
+            <TextBlock Text="{Binding Message}" Foreground="#D5EBDF" FontSize="11" TextTrimming="CharacterEllipsis"/>
+        </Border>
+    </Grid>
+</Window>

@@ -4,6 +4,7 @@ namespace TeachingToolWpf.Models;
 
 internal sealed class CpuMatchingModeState
 {
+    public CpuTemplateParameters Parameters { get; set; } = new();
     public CpuTemplate? Template
     {
         get; set;

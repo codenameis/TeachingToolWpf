@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using TeachingToolWpf.Diagnostics;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Models;
+using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionCanvas.Rendering;
 using VisionGeometry;
 using CpuSearchOptions = CpuMatching.Core.SearchOptions;
@@ -22,6 +23,9 @@ public sealed partial class ShapeMatchingViewModel
     private readonly List<CpuInspectionRun> _cpuLogs = [];
     public IReadOnlyList<CpuInspectionRun> CpuInspectionLogs => _cpuLogs.AsReadOnly();
     public bool IsCpuMethod => _cpuStates.ContainsKey(Method);
+    public bool IsCpuSubNcc => Method == PatternMatchingMethod.CpuSubNcc;
+    public bool IsCpuChamfer => Method == PatternMatchingMethod.CpuDirectionalChamfer;
+    public bool IsCpuEdgeMethod => Method is PatternMatchingMethod.CpuLine2D or PatternMatchingMethod.CpuDirectionalChamfer;
     private CpuMatchingModeState ActiveCpuState => _cpuStates[IsCpuMethod ? Method : PatternMatchingMethod.CpuLine2D];
     private CpuTemplateMethod CpuMethod => Method switch
     {
@@ -70,9 +74,86 @@ public sealed partial class ShapeMatchingViewModel
         get => ActiveCpuState.Options.SuppressionRadius;
         set => ChangeCpuOptions(ActiveCpuState.Options with { SuppressionRadius = value });
     }
+    public int CpuCoarseFeatures
+    {
+        get => IsCpuChamfer ? ActiveCpuState.Parameters.Chamfer.CoarseFeatures : ActiveCpuState.Parameters.Line2D.CoarseFeatures;
+        set => ChangeCpuParameters(IsCpuChamfer
+            ? ActiveCpuState.Parameters with
+            {
+                Chamfer = ActiveCpuState.Parameters.Chamfer with
+                {
+                    CoarseFeatures = value
+                }
+            }
+            : ActiveCpuState.Parameters with
+            {
+                Line2D = ActiveCpuState.Parameters.Line2D with
+                {
+                    CoarseFeatures = value
+                }
+            });
+    }
+    public int CpuFineFeatures
+    {
+        get => IsCpuChamfer ? ActiveCpuState.Parameters.Chamfer.FineFeatures : ActiveCpuState.Parameters.Line2D.FineFeatures;
+        set => ChangeCpuParameters(IsCpuChamfer
+            ? ActiveCpuState.Parameters with
+            {
+                Chamfer = ActiveCpuState.Parameters.Chamfer with
+                {
+                    FineFeatures = value
+                }
+            }
+            : ActiveCpuState.Parameters with
+            {
+                Line2D = ActiveCpuState.Parameters.Line2D with
+                {
+                    FineFeatures = value
+                }
+            });
+    }
+    public int CpuNccCoarseSamples
+    {
+        get => ActiveCpuState.Parameters.SubNcc.CoarseSamples;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with { SubNcc = ActiveCpuState.Parameters.SubNcc with { CoarseSamples = value } });
+    }
+    public int CpuNccMinimumContrast
+    {
+        get => ActiveCpuState.Parameters.SubNcc.MinimumContrast;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with { SubNcc = ActiveCpuState.Parameters.SubNcc with { MinimumContrast = value } });
+    }
+    public double CpuChamferCoarseTolerance
+    {
+        get => ActiveCpuState.Parameters.Chamfer.CoarseTolerance;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with { Chamfer = ActiveCpuState.Parameters.Chamfer with { CoarseTolerance = value } });
+    }
+    public double CpuChamferFineTolerance
+    {
+        get => ActiveCpuState.Parameters.Chamfer.FineTolerance;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with { Chamfer = ActiveCpuState.Parameters.Chamfer with { FineTolerance = value } });
+    }
+    public double CpuChamferDirectionPenalty
+    {
+        get => ActiveCpuState.Parameters.Chamfer.DirectionPenalty;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with { Chamfer = ActiveCpuState.Parameters.Chamfer with { DirectionPenalty = value } });
+    }
+
+    private void ChangeCpuParameters(CpuTemplateParameters parameters, [CallerMemberName] string? property = null)
+    {
+        if (ActiveCpuState.Parameters == parameters)
+        {
+            return;
+        }
+        ActiveCpuState.Parameters = parameters;
+        Notify(property);
+        Notify(nameof(IsTrainingDirty));
+        Notify(nameof(ModelSummary));
+        Invalidate();
+        RefreshCommands();
+    }
     private string CpuSummary => ActiveCpuState.Template is { } model
-        ? $"{model.Method} CPU · {model.TeachingRegion.Width:F0}×{model.TeachingRegion.Height:F0} px · 학습 방향 {model.TeachingRegion.Angle:F2}°" +
-            (IsTrainingDirty ? " · 마스크 변경: 재학습 필요" : "")
+        ? $"{model.Method} · {model.TeachingRegion.Width:F0}×{model.TeachingRegion.Height:F0} px · 학습 방향 {model.TeachingRegion.Angle:F2}°" +
+            (IsTrainingDirty ? " · 학습 설정 변경: 재학습 필요" : "")
         : "CPU 템플릿 없음 · 마스크 없는 사각형 ROI를 선택해 학습하세요.";
     private string CpuLogText => _cpuLogs.LastOrDefault(log => log.Method == CpuMethod)?.Describe() ?? "CPU 검사 후 읽기·검색·게시·표시 시간이 기록됩니다.";
 
@@ -103,12 +184,13 @@ public sealed partial class ShapeMatchingViewModel
         var method = Method;
         var cpuMethod = CpuMethod;
         var state = ActiveCpuState;
+        var parameters = state.Parameters;
         var exclusion = _selectionExclusion;
         var id = _selectedRoiId;
         await RunAsync(async (token, epoch) =>
         {
             Status = $"{cpuMethod} 원본 템플릿 등록 중…";
-            var template = await _cpuService!.TrainAsync(image, live, roi, cpuMethod, token, exclusion);
+            var template = await _cpuService!.TrainAsync(image, live, roi, cpuMethod, token, exclusion, parameters);
             if (!Current(epoch, token, method))
             {
                 return;
@@ -135,16 +217,24 @@ public sealed partial class ShapeMatchingViewModel
         var exclusion = UseSelection ? _selectionExclusion : null;
         var live = _live;
         var options = CreateCpuOptions();
+        var useCuda = ComputeMode == InspectionComputeMode.GpuPreprocessing;
+        var execution = useCuda ? "CPU+CUDA" : "CPU";
         var id = Guid.NewGuid();
         if (_cpuLogs.Count == MaximumInspectionLogs)
         {
             _cpuLogs.RemoveAt(0);
         }
-        _cpuLogs.Add(new(id, startedTimestamp, model.Method, image.Key, image.Width, image.Height, model.TeachingRegion, region, options));
+        _cpuLogs.Add(new(id, startedTimestamp, model.Method, image.Key, image.Width, image.Height, model.TeachingRegion, region, options)
+        {
+            UseCuda = useCuda,
+            Parameters = model.Parameters
+        });
         await RunAsync(async (token, epoch) =>
         {
-            Status = $"{model.Method} CPU 검색 중…";
-            var output = await _cpuService!.SearchAsync(image, live, model, region, options, token, exclusion);
+            Status = $"{model.Method} {execution} 검색 중…";
+            var requestedMs = Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds;
+            var output = await _cpuService!.SearchAsync(image, live, model, region, options, token, exclusion, useCuda);
+            var resumedMs = Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds;
             if (!Current(epoch, token, method) || !ReferenceEquals(model, state.Template))
             {
                 UpdateCpuLog(id, log => log with { Outcome = "Discarded" });
@@ -159,7 +249,7 @@ public sealed partial class ShapeMatchingViewModel
                 new RoiGeometry(new(match.X, match.Y), model.TeachingRegion.Width * match.Scale,
                     model.TeachingRegion.Height * match.Scale, match.AngleDegrees).Outline.ToImmutableArray(),
                 new(match.X, match.Y), match.AngleDegrees * Math.PI / 180, $"#{index + 1} {match.Score:F3}", color, [])).ToImmutableArray();
-            _result = new($"{model.Method} CPU · {markers.Length}개", color, SearchBoundary(image, region), markers, false)
+            _result = new($"{model.Method} {execution} · {markers.Length}개", color, SearchBoundary(image, region), markers, false)
             {
                 BatchLabels = true
             };
@@ -169,7 +259,15 @@ public sealed partial class ShapeMatchingViewModel
             Status = $"{model.Method} · {markers.Length}개 · 서비스 {output.TotalMilliseconds:F1} ms (읽기 {output.ReadMilliseconds:F1}, 검색 {output.SearchMilliseconds:F1})" +
                 (result.CandidatesTruncated ? " · 후보 예산 초과: 검색 불완전" : "") +
                 (result.MatchLimitExceeded ? " · 결과 상한 초과: 일부 생략" : "");
-            UpdateCpuLog(id, log => log with { Output = output, PresentationId = _result.PresentationId, Outcome = incomplete ? "Incomplete" : "Completed" });
+            UpdateCpuLog(id, log => log with
+            {
+                Output = output,
+                PresentationId = _result.PresentationId,
+                Outcome = incomplete ? "Incomplete" : "Completed",
+                ServiceRequestedMilliseconds = requestedMs,
+                UiResumedMilliseconds = resumedMs,
+                ResultPreparedMilliseconds = Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds
+            });
             PublishResult();
             UpdateCpuLog(id, log => log with { PublishedMilliseconds = Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds });
         });

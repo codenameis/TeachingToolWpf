@@ -1,0 +1,12 @@
+{
+  "backbone": "torchvision ResNet18 IMAGENET1K_V1",
+  "torch": "2.14.1+cpu",
+  "shape": [
+    784,
+    96
+  ],
+  "input": "RGB 224x224 / ImageNet mean and std",
+  "maxAbsoluteError": 9.5367431640625e-07,
+  "sha256": "0cc430e32db637b744053dd544240262ef50bf9f4000aafa2cc33d1fa991a32f",
+  "scope": "Fixed feature extractor; normal memory bank is trained separately in C#."
+}

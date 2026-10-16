@@ -50,7 +50,12 @@ public sealed partial class ShapeMatchingViewModel
             {
                 if (IsCpuMethod)
                 {
+                    if (!Enum.IsDefined(ComputeMode))
+                    {
+                        return "CPU 또는 CPU+CUDA 실행 장치를 선택하세요.";
+                    }
                     CreateCpuOptions().Validate();
+                    ActiveCpuState.Parameters.Validate(CpuMethod);
                     if (MaximumMatches > 1000)
                     {
                         return "앱의 최대 결과 수는 1~1000입니다.";

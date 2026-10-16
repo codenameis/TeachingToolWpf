@@ -7,6 +7,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/CpuMatching.Core/CpuMatching.Core.csproj" />
+    <Project Path="src/CpuMatching.Cuda/CpuMatching.Cuda.csproj" />
     <Project Path="src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
     <Project Path="src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
     <Project Path="src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />

@@ -9,6 +9,7 @@
     <ProjectReference Include="../../src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
     <ProjectReference Include="../../src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
     <ProjectReference Include="../../src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
+    <ProjectReference Include="../../src/CpuMatching.Cuda/CpuMatching.Cuda.csproj" />
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
   </ItemGroup>
   <Import Project="../../build/InspectionNativeRuntime.props" />

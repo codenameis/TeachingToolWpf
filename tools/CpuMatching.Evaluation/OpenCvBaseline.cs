@@ -7,8 +7,12 @@ namespace CpuMatching.Evaluation;
 internal sealed class OpenCvBaseline(GrayImage template, bool rotated) : ITemplateMatcher
 {
     public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
-        Func<double, double, bool>? acceptCenter = null)
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
+        if (accelerator is not null)
+        {
+            throw new NotSupportedException("OpenCV baseline is CPU-only.");
+        }
         options ??= new SearchOptions();
         options.Validate();
         var region = options.Region ?? new SearchRegion(0, 0, image.Width, image.Height);

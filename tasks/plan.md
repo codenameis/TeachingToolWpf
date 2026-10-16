@@ -1,5 +1,13 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-16 매칭 성능·전체8K:** 준비/후보/보정/검증/UI 복귀를 측정하고 기존 점수·검색 조건·후보 예산을 유지해 최적화한다. 세 방식의8K 전체 검색과 개별 옵션/재학습 검증을 연결하고 Sub-NCC 축소 위상 누락을 원인 수정한다. 실제 버튼→표시를 제한 영역과 전체 영역으로 나눠 비교한다. [ADR-061](../docs/decisions/0061-full-image-matching-and-measured-optimization.md), [실측·미달 범위](../docs/cpu-matching-performance.md). 로컬 수정·검증만 진행한다.
+
+- **2026-10-16 ken32 첫 로딩:** 디코딩/원본 저장·준비/축소/재열기와 WPF 명령→캡처를 나누어 측정한다. 공통 삼각 축소의 정수 SIMD만 적용하고 원본 및 모든 축소 단계 전체 해시, 형식/경계/CPU 대체 경로를 검증한다. 기존 캐시와 MVVM 경계는 유지한다. [ADR-060](../docs/decisions/0060-bit-exact-first-image-load.md), [실측·한계](../docs/first-image-load.md). 로컬 작업만 진행한다.
+
+- **2026-10-16 세 매칭 CPU+CUDA:** 사용자 승인으로 세 방식의 후보 점수를 CUDA로 계산하고 원본 검증은 공통 CPU 경로를 유지한다. 알고리즘 단계/중복 계산을 읽기 쉽게 정리하되 같은 입력·옵션의 결과/평가 횟수와 전후 성능을 비교한다. 독립 CUDA 프로젝트로 ONNX 의존성을 피한다. [ADR-059](../docs/decisions/0059-cpu-matchers-cuda-and-readable-stages.md), [알고리즘 안내](../docs/cpu-matching-algorithm-guide.md), [실측](../docs/cpu-matching-cuda.md). 로컬 수정·검증만 진행한다.
+
+- **2026-10-16 독립 영상 이상 감지:** 관제실형 시안을 별도 WPF 앱/재사용 컨트롤로 구현한다. 실제 파일·USB·RTSP 입력 경로, 정상 패치/움직임 학습, 알람/증거/확인 저장을 제공한다. 기존 앱은 유지하고 이번 작업은 **로컬 구현·검증만** 한다. [계획](anomaly-monitor-plan.md), [ADR-058](../docs/decisions/0058-independent-anomaly-monitor.md), [사용법](../src/AnomalyMonitor/README.md), [검증](../docs/anomaly-monitor-validation.md).
+
 - **2026-10-16 검사 패널 정리:** 작업별 탭과 하단 실행 영역으로 기본 작업의 스크롤을 줄이고 Warning의 원인·해결 설정을 표시한다. 기존 모델/설정/판정은 유지한다. [ADR-057](../docs/decisions/0057-inspection-sidebar-workflow.md), [실제 WPF 검증](../docs/inspection-sidebar.md). 사용자 승인으로 현재 프로젝트 변경 전체를 커밋·푸시하고 이후 같은 정확도 조건에서 성능을 측정한다.
 
 - **2026-10-16 CPU 정확도 우선:** Chamfer의 추가 윤곽 오검출을 재현하고 원본 양방향 검증·거리 단위를 보정한다. 같은 점수와 검색 조건에서 제한 영역의 누락/오검출·위치/각도/배율을 확인한 후, 결과를 보존하는 버퍼/pose 재사용만 적용한다. 기존125/80ms 목표는 유지하되 정확도보다 앞세우지 않는다. [ADR-056](../docs/decisions/0056-cpu-matching-accuracy-first.md), [검증·범위](../docs/cpu-matching-accuracy.md). 로컬 작업만 진행한다.

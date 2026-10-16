@@ -47,18 +47,33 @@ public sealed record SearchOptions
     }
 }
 
-public sealed record SearchResult(IReadOnlyList<Match> Matches, bool CandidatesTruncated, bool MatchLimitExceeded, long Evaluations);
+public sealed record SearchResult(IReadOnlyList<Match> Matches, bool CandidatesTruncated, bool MatchLimitExceeded, long Evaluations)
+{
+    public SearchTimings? Timings
+    {
+        get; init;
+    }
+}
+
+/// <summary>같은 검색 안의 경과 시간(ms). 준비·전체 후보·정밀 보정·원본 검증·최종 중복 제거를 구분한다.</summary>
+public sealed record SearchTimings(double Preparation, double CoarseSearch, double Refinement, double Verification, double Suppression);
 
 public interface ITemplateMatcher
 {
-    /// <summary>acceptCenter는 입력 영상의 픽셀 인덱스 좌표로 최종 중심을 검사하며, 최종 NMS/출력 제한 전에 적용한다.</summary>
+    /// <summary>
+    /// acceptCenter는 입력 영상의 픽셀 인덱스 좌표로 최종 중심을 검사하며, 최종 NMS/출력 제한 전에 적용한다.
+    /// accelerator의 수명은 호출자가 소유한다. 생략하면 기존 CPU 경로이며 미지원 구현은 명시적으로 거부한다.
+    /// </summary>
     SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
-        Func<double, double, bool>? acceptCenter = null);
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null);
 }
 
 /// <summary>세 CPU 알고리즘의 공통 피라미드 검색에 쓰이는 레벨별 점수 전략.</summary>
 public interface IScoreLevel
 {
+    /// <summary>AtPose/Verify와 반환된 Score가 읽기 전용일 때만 허용한다. ScoreRow는 항상 순차 호출한다.</summary>
+    bool SupportsParallelEvaluation => false;
+
     IPoseScore AtPose(double angleDegrees, double scale);
 
     /// <summary>최종 자세에서 원본 검증 점수를 구한다. 후보 검색 점수와 별도의 검증을 둘 수 있다.</summary>

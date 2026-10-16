@@ -1,3 +1,4 @@
+using System.Numerics;
 using CpuMatching.Core;
 
 namespace CpuMatching.DirectionalChamfer;
@@ -6,10 +7,13 @@ namespace CpuMatching.DirectionalChamfer;
 public sealed class DirectionalChamferMatcher : ITemplateMatcher
 {
     private readonly GrayImage _template;
+    private readonly DirectionalChamferOptions _parameters;
 
-    public DirectionalChamferMatcher(GrayImage template)
+    public DirectionalChamferMatcher(GrayImage template, DirectionalChamferOptions? parameters = null)
     {
         ArgumentNullException.ThrowIfNull(template);
+        _parameters = parameters ?? new DirectionalChamferOptions();
+        _parameters.Validate();
         if (Edges.Extract(template, 0, 0).Length < 6)
         {
             throw new ArgumentException("Template needs at least six distinct edges.", nameof(template));
@@ -18,19 +22,20 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
     }
 
     public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
-        Func<double, double, bool>? acceptCenter = null)
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
         return PyramidSearch.Find(_template, image, options ?? new SearchOptions(),
-            (template, scene, cx, cy, fine) => new DistanceLevel(template, scene, cx, cy, fine), cancellationToken, refineEdges: true, acceptCenter: acceptCenter);
+            (template, scene, cx, cy, fine) => new DistanceLevel(template, scene, cx, cy, fine, _parameters, cancellationToken), cancellationToken,
+            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator);
     }
 
     private const int Bins = 16;
 
-    private readonly record struct Sample(double X, double Y, int Bin, int Next, double Fraction);
-
     private sealed class DistanceLevel : IScoreLevel
     {
+        public bool SupportsParallelEvaluation => true;
+
         private readonly float[][] _maps;
         private readonly EdgePoint[] _features;
         private readonly int _width;
@@ -41,30 +46,34 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
         private readonly int _templateWidth;
         private readonly int _templateHeight;
 
-        public DistanceLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine)
+        public DistanceLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, DirectionalChamferOptions parameters, CancellationToken token)
         {
             _width = scene.Width;
             _height = scene.Height;
-            _features = Edges.Extract(template, cx, cy, fine ? 128 : 64);
+            _features = Edges.Extract(template, cx, cy, fine ? parameters.FineFeatures : parameters.CoarseFeatures);
             // 원본 윤곽의 거리 단위는 물체 크기에 비례해 늘어나지 않는다.
             // 넓은 후보 탐색 허용은 축소 레벨에만 두고 원본에서는 1px 단위로 평가한다.
-            _tolerance = fine ? Math.Clamp(Math.Min(template.Width, template.Height) / 16.0, 0.6, 1) : 5;
+            _tolerance = fine ? Math.Clamp(Math.Min(template.Width, template.Height) / 16.0, 0.6, parameters.FineTolerance) : parameters.CoarseTolerance;
             var gradients = Edges.Gradients(scene);
-            _maps = CreateMaps(gradients, _width, _height, _tolerance);
+            _maps = CreateMaps(gradients, _width, _height, _tolerance, parameters.DirectionPenalty, token);
             if (fine)
             {
                 _gradients = gradients;
                 _templateWidth = template.Width;
                 _templateHeight = template.Height;
-                _templateMaps = CreateMaps(Edges.Gradients(template), template.Width, template.Height, _tolerance);
+                _templateMaps = CreateMaps(Edges.Gradients(template), template.Width, template.Height, _tolerance, parameters.DirectionPenalty, token);
             }
         }
 
-        private static float[][] CreateMaps((double X, double Y)[] gradients, int width, int height, double tolerance)
+        private static float[][] CreateMaps((double X, double Y)[] gradients, int width, int height, double tolerance, double directionPenalty, CancellationToken token)
         {
             var maps = Enumerable.Range(0, Bins).Select(_ => Enumerable.Repeat(32f, width * height).ToArray()).ToArray();
             for (var i = 0; i < gradients.Length; i++)
             {
+                if (i % 16_384 == 0)
+                {
+                    token.ThrowIfCancellationRequested();
+                }
                 var (gx, gy) = gradients[i];
                 if ((gx * gx) + (gy * gy) >= 144)
                 {
@@ -72,25 +81,55 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
                     maps[bin][i] = 0;
                 }
             }
-            foreach (var map in maps)
+            // 각 방향의 공간 거리는 서로 독립적이다. 큰 영상만 네 작업으로 나눈다.
+            if (gradients.Length >= 16_384)
             {
-                Transform(map, width, height);
+                Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token },
+                    bin => SpreadSpatialDistances(maps[bin], width, height, token));
             }
+            else
+            {
+                foreach (var map in maps)
+                {
+                    SpreadSpatialDistances(map, width, height, token);
+                }
+            }
+            SpreadAcrossDirections(maps, (float)directionPenalty, token);
+            ConvertDistanceToScore(maps, tolerance, token);
+            return maps;
+        }
+
+        private static void SpreadAcrossDirections(float[][] maps, float directionPenalty, CancellationToken token)
+        {
             // 순환 방향 축의 L1 거리 변환. 모든 bin 쌍을 비교하는 O(B²N)과 같은 최소 비용이다.
             for (var pass = 0; pass < 2; pass++)
             {
                 for (var bin = 0; bin < Bins * 2; bin++)
                 {
+                    token.ThrowIfCancellationRequested();
                     var current = pass == 0 ? bin % Bins : Bins - 1 - (bin % Bins);
                     var previous = (current + (pass == 0 ? Bins - 1 : 1)) % Bins;
-                    for (var i = 0; i < maps[current].Length; i++)
+                    var target = maps[current];
+                    var source = maps[previous];
+                    var penalty = new Vector<float>(directionPenalty);
+                    var i = 0;
+                    for (; i <= target.Length - Vector<float>.Count; i += Vector<float>.Count)
                     {
-                        maps[current][i] = Math.Min(maps[current][i], maps[previous][i] + 1.5f);
+                        Vector.Min(new Vector<float>(target, i), new Vector<float>(source, i) + penalty).CopyTo(target, i);
+                    }
+                    for (; i < target.Length; i++)
+                    {
+                        target[i] = Math.Min(target[i], source[i] + directionPenalty);
                     }
                 }
             }
+        }
+
+        private static void ConvertDistanceToScore(float[][] maps, double tolerance, CancellationToken token)
+        {
             for (var bin = 0; bin < Bins; bin++)
             {
+                token.ThrowIfCancellationRequested();
                 var map = maps[bin];
                 for (var i = 0; i < map.Length; i++)
                 {
@@ -98,7 +137,6 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
                     map[i] = (float)Math.Max(0, 1 - (map[i] / (tolerance * 4)));
                 }
             }
-            return maps;
         }
 
         public double Verify(Match match)
@@ -148,23 +186,16 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
 
         public IPoseScore AtPose(double angleDegrees, double scale)
         {
-            var angle = angleDegrees * Math.PI / 180;
-            var cos = Math.Cos(angle) * scale;
-            var sin = Math.Sin(angle) * scale;
-            var points = _features.Select(point =>
-            {
-                var orientation = (point.Angle + angle + (4 * Math.PI)) % (2 * Math.PI) * Bins / (2 * Math.PI);
-                var bin = (int)orientation;
-                return new Sample((point.X * cos) - (point.Y * sin), (point.X * sin) + (point.Y * cos),
-                    bin % Bins, (bin + 1) % Bins, orientation - bin);
-            }).ToArray();
-            return new DistancePose(_maps, points, _width, _height);
+            var points = DirectionalSample.Rotate(_features, angleDegrees, scale, Bins);
+            return new DirectionalPoseScore(_maps, points, _width, _height);
         }
 
-        private static void Transform(float[] map, int width, int height)
+        // 좌상단→우하단, 우하단→좌상단 순서로 이웃까지의 최소 거리를 전파한다.
+        private static void SpreadSpatialDistances(float[] map, int width, int height, CancellationToken token)
         {
             for (var y = 0; y < height; y++)
             {
+                token.ThrowIfCancellationRequested();
                 for (var x = 0; x < width; x++)
                 {
                     var index = (y * width) + x;
@@ -188,6 +219,7 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
             }
             for (var y = height - 1; y >= 0; y--)
             {
+                token.ThrowIfCancellationRequested();
                 for (var x = width - 1; x >= 0; x--)
                 {
                     var index = (y * width) + x;
@@ -212,27 +244,4 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
         }
     }
 
-    private sealed class DistancePose(float[][] maps, Sample[] points, int width, int height) : IPoseScore
-    {
-        public double Score(double x, double y)
-        {
-            if (points.Length == 0)
-            {
-                return 0;
-            }
-            double sum = 0;
-            foreach (var point in points)
-            {
-                var px = x + point.X;
-                var py = y + point.Y;
-                if (px < 1 || py < 1 || px >= width - 2 || py >= height - 2)
-                {
-                    return 0;
-                }
-                sum += ((1 - point.Fraction) * Edges.Bilinear(maps[point.Bin], width, height, px, py)) +
-                    (point.Fraction * Edges.Bilinear(maps[point.Next], width, height, px, py));
-            }
-            return sum / points.Length;
-        }
-    }
 }
