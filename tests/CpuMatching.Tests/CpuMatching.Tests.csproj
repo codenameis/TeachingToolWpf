@@ -14,5 +14,6 @@
     <ProjectReference Include="../../src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
     <ProjectReference Include="../../src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
     <Using Include="Xunit" />
+    <None Update="Data/*.gray" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

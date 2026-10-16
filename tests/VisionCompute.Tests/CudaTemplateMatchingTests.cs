@@ -9,6 +9,31 @@ namespace VisionCompute.Tests;
 public sealed class CudaTemplateMatchingTests
 {
     [Theory]
+    [InlineData("pin-crossing-256x256.gray", 135.018, 129.678)]
+    [InlineData("pin-lower-256x256.gray", 131.018, 127.678)]
+    [InlineData("pin-upper-256x256.gray", 131.018, 129.678)]
+    public void AmbiguousPinPeaksKeepAccuratePositionsOnCuda(string file, double x, double y)
+    {
+        var folder = Path.Combine(AppContext.BaseDirectory, "Data");
+        var template = new GrayImage(106, 129, File.ReadAllBytes(Path.Combine(folder, "pin-template-106x129.gray")));
+        var image = new GrayImage(256, 256, File.ReadAllBytes(Path.Combine(folder, file)));
+        var matcher = new SubNccMatcher(template);
+        var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6, CandidateLimit = 16 };
+        var cpu = matcher.Find(image, options);
+        using var session = new CudaTemplateScoreSession();
+        using var accelerator = session.Rent();
+        var gpu = matcher.Find(image, options, accelerator: accelerator);
+        var match = Assert.Single(gpu.Matches);
+        Assert.InRange(Math.Sqrt(Math.Pow(match.X - x, 2) + Math.Pow(match.Y - y, 2)), 0, 1);
+        Assert.InRange(Math.Abs(match.AngleDegrees), 0, 1);
+        Assert.Equal(cpu.Matches, gpu.Matches);
+        Assert.Equal(cpu.Evaluations, gpu.Evaluations);
+        Assert.Equal(cpu.CandidateCount, gpu.CandidateCount);
+        Assert.Equal(cpu.CandidateBatches, gpu.CandidateBatches);
+        Assert.False(gpu.CandidatesTruncated);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
@@ -74,6 +99,8 @@ public sealed class CudaTemplateMatchingTests
             Assert.Equal(cpu.Evaluations, gpu.Evaluations);
             Assert.Equal(cpu.CandidatesTruncated, gpu.CandidatesTruncated);
             Assert.Equal(cpu.MatchLimitExceeded, gpu.MatchLimitExceeded);
+            Assert.Equal(cpu.CandidateCount, gpu.CandidateCount);
+            Assert.Equal(cpu.CandidateBatches, gpu.CandidateBatches);
             Assert.True(accelerator.Diagnostics.Calls > 0);
             Assert.Contains("NVIDIA", accelerator.Diagnostics.Device);
         }
@@ -96,7 +123,8 @@ public sealed class CudaTemplateMatchingTests
         {
             for (var x = 0; x < Width; x++)
             {
-                Assert.InRange(Math.Abs(pose.Score(x, y) - output[(y * Width) + x]), 0, 1e-7);
+                // 작은 반올림 차이도 같은 점수의 봉우리 순서를 바꿔 후보를 추가/누락시킬 수 있다.
+                Assert.Equal(pose.Score(x, y), output[(y * Width) + x]);
             }
         }
         accelerator.ScoreDirections(maps, [], Width, Height, DirectionalSampling.Bilinear, output, default);

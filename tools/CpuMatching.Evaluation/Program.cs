@@ -10,11 +10,20 @@ using CpuMatching.SubNcc;
 
 if (args.Length < 2)
 {
-    Console.WriteLine("generate | accuracy-data | accuracy-validation | full-image-data <new-folder> [kensa.png]; phase-data <new-folder> <full-image-folder>; run <folder> <report.json> [case-name] [repeats=3] [cpu|cuda|compare]");
+    Console.WriteLine("generate | accuracy-data | accuracy-validation | full-image-data | module-data <new-folder> [kensa.png]; phase-data <new-folder> <full-image-folder>; run <folder> <report.json> [case-name] [repeats=3] [cpu|cuda|compare]; split <folder> <report.json> [case|all] [repeats=3] [method|all] [workers=4] [overlap|aligned]");
     return 1;
 }
 try
 {
+    if (args[0] == "split")
+    {
+        return SplitBenchmark.Run(args);
+    }
+    if (args[0] == "module-data")
+    {
+        FullModuleDataset.Create(Path.GetFullPath(args[1]), Path.GetFullPath(args.Length > 2 ? args[2] : "kensa.png"));
+        return 0;
+    }
     if (args[0] == "phase-data")
     {
         FullImageDataset.CreatePhaseCases(Path.GetFullPath(args[2]), Path.GetFullPath(args[1]));
@@ -43,7 +52,7 @@ try
     }
     if (args[0] != "run" || args.Length < 3)
     {
-        throw new ArgumentException("Use generate, accuracy-data, accuracy-validation or run.");
+        throw new ArgumentException("Use generate, accuracy-data, accuracy-validation, full-image-data, module-data, phase-data or run.");
     }
     var folder = Path.GetFullPath(args[1]);
     var cases = JsonSerializer.Deserialize<Case[]>(File.ReadAllText(Path.Combine(folder, "cases.json")))!;
@@ -180,6 +189,8 @@ try
                     result.CandidatesTruncated,
                     result.MatchLimitExceeded,
                     result.Evaluations,
+                    result.CandidateCount,
+                    result.CandidateBatches,
                     result.Timings,
                     ImageSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(folder, item.Image)))),
                     TemplateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(folder, item.Template))))

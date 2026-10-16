@@ -24,8 +24,11 @@ public sealed record SearchOptions
     public double ScaleStep { get; init; } = 0.1;
     public double MinimumScore { get; init; } = 0.75;
     public int MaximumMatches { get; init; } = 64;
+    /// <summary>한 번에 정밀 검사할 후보 수. 초과 후보도 다음 묶음에서 모두 검사한다.</summary>
     public int CandidateLimit { get; init; } = 2048;
     public int PyramidLevels { get; init; } = 3;
+    /// <summary>각 CPU 단계의 병렬 작업 상한. 여러 영역을 밖에서 병렬 검사할 때는 1로 둔다.</summary>
+    public int MaximumDegreeOfParallelism { get; init; } = 4;
     public double SuppressionRadius { get; init; } = 8;
     public SearchRegion? Region
     {
@@ -39,6 +42,7 @@ public sealed record SearchOptions
             !double.IsFinite(MinimumScale) || !double.IsFinite(MaximumScale) || MinimumScale < 0.5 || MaximumScale > 2 || MaximumScale < MinimumScale ||
             !double.IsFinite(ScaleStep) || ScaleStep is < 0.01 or > 0.5 || !double.IsFinite(MinimumScore) || MinimumScore is <= 0 or > 1 ||
             MaximumMatches is < 1 or > 4096 || CandidateLimit is < 16 or > 16384 || PyramidLevels is < 1 or > 5 ||
+            MaximumDegreeOfParallelism is < 1 or > 64 ||
             !double.IsFinite(SuppressionRadius) || SuppressionRadius < 1 ||
             (((MaximumAngle - MinimumAngle) / AngleStep) + 1) * (((MaximumScale - MinimumScale) / ScaleStep) + 1) > 4096)
         {
@@ -49,6 +53,15 @@ public sealed record SearchOptions
 
 public sealed record SearchResult(IReadOnlyList<Match> Matches, bool CandidatesTruncated, bool MatchLimitExceeded, long Evaluations)
 {
+    public long CandidateCount
+    {
+        get; init;
+    }
+    public int CandidateBatches
+    {
+        get; init;
+    }
+
     public SearchTimings? Timings
     {
         get; init;
@@ -71,7 +84,7 @@ public interface ITemplateMatcher
 /// <summary>세 CPU 알고리즘의 공통 피라미드 검색에 쓰이는 레벨별 점수 전략.</summary>
 public interface IScoreLevel
 {
-    /// <summary>AtPose/Verify와 반환된 Score가 읽기 전용일 때만 허용한다. ScoreRow는 항상 순차 호출한다.</summary>
+    /// <summary>AtPose/Verify와 반환된 Score가 읽기 전용일 때만 허용한다. 행 병렬화는 IRowScore에서 별도로 허용한다.</summary>
     bool SupportsParallelEvaluation => false;
 
     IPoseScore AtPose(double angleDegrees, double scale);
@@ -88,5 +101,8 @@ public interface IPoseScore
 /// <summary>연속 CPU 응답 맵을 한 행씩 누적할 수 있는 점수 구현의 선택형 계약.</summary>
 public interface IRowScore
 {
+    /// <summary>각 호출이 독립 버퍼를 사용할 때만 허용한다. 기존 구현은 순차 호출을 유지한다.</summary>
+    bool SupportsParallelRows => false;
+
     void ScoreRow(int y, Span<double> output);
 }

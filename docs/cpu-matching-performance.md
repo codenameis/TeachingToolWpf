@@ -1,5 +1,9 @@
 # 세 매칭의 속도 개선·8K 전체 검색·방식별 설정
 
+최신: [전체 검색 정확도 수정](cpu-matching-full-search-accuracy.md)은 Sub-NCC48개 위치 오류와 후보 잘림을 수정하고, 같은 정확한 전체 검사에서 캐시와 실행 순서를 개선한 결과다.
+
+후속: [반복 모듈 전체 검사](cpu-matching-repeated-modules.md)는 기본8K256핀의 별도 비용·정확도 실패와 동일 픽셀 맵 재사용을 기록한다. 아래 수치의 희소8K8개와 구별한다.
+
 2026-10-16, `main`에서 로컬 수정·검증. [ADR-061](decisions/0061-full-image-matching-and-measured-optimization.md). **CPU125ms/CUDA80ms 버튼→표시 목표는 아직 미달이다.**
 
 ## 사용

@@ -1,5 +1,13 @@
 # WPF 비전 티칭 툴 — 구현 계획
 
+- **2026-10-16 ken32 정확도·운영 방식:** 주 벤치마크를 원본17,280×30,720 `ken32.png`로 변경한다. 정답·오차 기준 → 메모리를 제한한 원본 전체 검색 → 보정 후 모든 검사 ROI의 실제 픽셀 검증 → 단계별/버튼→표시 측정 순서다. 전체 검색과 운영 ROI 검사는 조건이 다른 비교로 기록하며, 기존 Kensa/8K는 회귀 시험으로 유지한다. 현재 ken32 매칭은 NOT_RUN. [계획·Matrox 자료와 추정](../docs/ken32-inspection-plan.md).
+
+- **2026-10-16 위치 보정 후 분할 실험:** 보정 완료 이미지를 가정하고 전체/8분할/16분할을 같은 CPU 작업 수·점수·자세 범위로 비교한다. 원본 전체를 덮는 겹침 crop과 전역 병합, Kensa48·합성8K256·회전 경계8개 정확도를 먼저 확인한다. 독립 평가 도구에서 로컬 검증하며 제품 기본 경로는 유지한다. [실험](../docs/cpu-matching-split-experiment.md).
+
+- **2026-10-16 전체 후보·위치 정확도:** 원본 실패 픽셀 회귀 → 축소 후보 조기 억제 제거 →2048개씩 남은 후보 끝까지 처리 → Kensa48개 독립 정합 기준/8K256핀 전체 CPU·CUDA 검사 → 같은 정확한 실행에서 캐시 비용 개선. 점수/검색 조건과 기존 GPU 경로를 유지하고 로컬에서만 검증한다. [ADR-063](../docs/decisions/0063-exhaustive-candidates-and-fine-pose-ranking.md), [기록](../docs/cpu-matching-full-search-accuracy.md).
+
+- **2026-10-16 반복 모듈 후속:** 체크포인트 `f86e32d` 푸시 뒤 로컬에서 같은 검색 조건으로 Kensa 전체/기본8K256핀/희소8K8개를 나누어 측정한다. Line2D의 독립 행과 픽셀 전체가 같은 방향 맵만 재사용하며, 느려진 NCC 실험은 원복한다. 후보 잘림과 기존 위치 실패를 별도 유지한다. [ADR-062](../docs/decisions/0062-exact-repeated-tile-reuse.md), [검증](../docs/cpu-matching-repeated-modules.md).
+
 - **2026-10-16 매칭 성능·전체8K:** 준비/후보/보정/검증/UI 복귀를 측정하고 기존 점수·검색 조건·후보 예산을 유지해 최적화한다. 세 방식의8K 전체 검색과 개별 옵션/재학습 검증을 연결하고 Sub-NCC 축소 위상 누락을 원인 수정한다. 실제 버튼→표시를 제한 영역과 전체 영역으로 나눠 비교한다. [ADR-061](../docs/decisions/0061-full-image-matching-and-measured-optimization.md), [실측·미달 범위](../docs/cpu-matching-performance.md). 로컬 수정·검증만 진행한다.
 
 - **2026-10-16 ken32 첫 로딩:** 디코딩/원본 저장·준비/축소/재열기와 WPF 명령→캡처를 나누어 측정한다. 공통 삼각 축소의 정수 SIMD만 적용하고 원본 및 모든 축소 단계 전체 해시, 형식/경계/CPU 대체 경로를 검증한다. 기존 캐시와 MVVM 경계는 유지한다. [ADR-060](../docs/decisions/0060-bit-exact-first-image-load.md), [실측·한계](../docs/first-image-load.md). 로컬 작업만 진행한다.

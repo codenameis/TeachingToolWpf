@@ -25,9 +25,11 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
-        return PyramidSearch.Find(_template, image, options ?? new SearchOptions(),
-            (template, scene, cx, cy, fine) => new DistanceLevel(template, scene, cx, cy, fine, _parameters, cancellationToken), cancellationToken,
-            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator);
+        options ??= new SearchOptions();
+        return PyramidSearch.Find(_template, image, options,
+            (template, scene, cx, cy, fine) => new DistanceLevel(template, scene, cx, cy, fine, _parameters,
+                options.MaximumDegreeOfParallelism, cancellationToken), cancellationToken,
+            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
     }
 
     private const int Bins = 16;
@@ -46,7 +48,8 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
         private readonly int _templateWidth;
         private readonly int _templateHeight;
 
-        public DistanceLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, DirectionalChamferOptions parameters, CancellationToken token)
+        public DistanceLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, DirectionalChamferOptions parameters,
+            int workers, CancellationToken token)
         {
             _width = scene.Width;
             _height = scene.Height;
@@ -55,17 +58,18 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
             // 넓은 후보 탐색 허용은 축소 레벨에만 두고 원본에서는 1px 단위로 평가한다.
             _tolerance = fine ? Math.Clamp(Math.Min(template.Width, template.Height) / 16.0, 0.6, parameters.FineTolerance) : parameters.CoarseTolerance;
             var gradients = Edges.Gradients(scene);
-            _maps = CreateMaps(gradients, _width, _height, _tolerance, parameters.DirectionPenalty, token);
+            _maps = CreateMaps(gradients, _width, _height, _tolerance, parameters.DirectionPenalty, workers, token);
             if (fine)
             {
                 _gradients = gradients;
                 _templateWidth = template.Width;
                 _templateHeight = template.Height;
-                _templateMaps = CreateMaps(Edges.Gradients(template), template.Width, template.Height, _tolerance, parameters.DirectionPenalty, token);
+                _templateMaps = CreateMaps(Edges.Gradients(template), template.Width, template.Height, _tolerance, parameters.DirectionPenalty, workers, token);
             }
         }
 
-        private static float[][] CreateMaps((double X, double Y)[] gradients, int width, int height, double tolerance, double directionPenalty, CancellationToken token)
+        private static float[][] CreateMaps((double X, double Y)[] gradients, int width, int height, double tolerance, double directionPenalty,
+            int workers, CancellationToken token)
         {
             var maps = Enumerable.Range(0, Bins).Select(_ => Enumerable.Repeat(32f, width * height).ToArray()).ToArray();
             for (var i = 0; i < gradients.Length; i++)
@@ -81,10 +85,10 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
                     maps[bin][i] = 0;
                 }
             }
-            // 각 방향의 공간 거리는 서로 독립적이다. 큰 영상만 네 작업으로 나눈다.
-            if (gradients.Length >= 16_384)
+            // 각 방향의 공간 거리는 서로 독립적이다. 큰 영상만 지정한 작업 수로 나눈다.
+            if (workers > 1 && gradients.Length >= 16_384)
             {
-                Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token },
+                Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = workers, CancellationToken = token },
                     bin => SpreadSpatialDistances(maps[bin], width, height, token));
             }
             else

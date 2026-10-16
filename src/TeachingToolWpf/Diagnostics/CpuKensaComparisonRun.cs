@@ -21,7 +21,8 @@ namespace TeachingToolWpf.Diagnostics;
 /// <summary>실제 WPF 학습/검사 명령·원본 파일 reader·표시 경로를 통과하는 동일 조건 비교.</summary>
 internal static class CpuKensaComparisonRun
 {
-    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model, bool compareCuda = false, bool fullImage = false)
+    public static void Attach(Window window, Dx12Viewport viewport, MainWindowViewModel model, bool compareCuda = false,
+        bool fullImage = false, bool repeatedModules = false)
     {
         window.ShowInTaskbar = false;
         window.Left = -10000;
@@ -35,9 +36,36 @@ internal static class CpuKensaComparisonRun
             try
             {
                 var matching = model.Matching;
-                foreach (var test in fullImage ? FullImageCases() : Cases())
+                var arguments = Environment.GetCommandLineArgs();
+                var methodArgument = arguments.FirstOrDefault(value => value.StartsWith("--cpu-method=", StringComparison.Ordinal));
+                var repeatArgument = arguments.FirstOrDefault(value => value.StartsWith("--cpu-repeats=", StringComparison.Ordinal));
+                var repeats = repeatArgument is null ? 3 : int.Parse(repeatArgument.Split('=', 2)[1]);
+                if (repeats is < 1 or > 10)
                 {
-                    foreach (var method in new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc, PatternMatchingMethod.CpuDirectionalChamfer })
+                    throw new ArgumentOutOfRangeException(nameof(repeats));
+                }
+                var methods = new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc, PatternMatchingMethod.CpuDirectionalChamfer };
+                if (methodArgument is not null)
+                {
+                    methods = methods.Where(method => method.ToString() == methodArgument.Split('=', 2)[1]).ToArray();
+                    if (methods.Length == 0)
+                    {
+                        throw new ArgumentException("Unknown CPU comparison method.");
+                    }
+                }
+                var cases = (repeatedModules ? ModuleCases() : fullImage ? FullImageCases() : Cases()).ToArray();
+                var caseArgument = arguments.FirstOrDefault(value => value.StartsWith("--cpu-case=", StringComparison.Ordinal));
+                if (caseArgument is not null)
+                {
+                    cases = cases.Where(test => test.Name == caseArgument.Split('=', 2)[1]).ToArray();
+                    if (cases.Length == 0)
+                    {
+                        throw new ArgumentException("Unknown CPU comparison case.");
+                    }
+                }
+                foreach (var test in cases)
+                {
+                    foreach (var method in methods)
                     {
                         foreach (var useCuda in compareCuda ? new[] { false, true } : new[] { false })
                         {
@@ -128,7 +156,7 @@ internal static class CpuKensaComparisonRun
                             // 측정기는 일반 UI 우선순위로 실행하고 실제 버튼의 Automation Invoke를 사용한다.
                             await window.Dispatcher.InvokeAsync(async () =>
                             {
-                                for (var repeat = 0; repeat < 3; repeat++)
+                                for (var repeat = 0; repeat < repeats; repeat++)
                                 {
                                     var started = Stopwatch.GetTimestamp();
                                     await InvokeSearchButtonAsync(window, matching);
@@ -154,12 +182,22 @@ internal static class CpuKensaComparisonRun
                                     var posePassed = expectedCount == 0 || (log.Output.Result.Matches.Count > 0 && positionError <= 1 && angleError <= 1);
                                     var accuracyPassed = posePassed && (expectedCount is null || log.Output.Result.Matches.Count == expectedCount) &&
                                         !log.Output.Result.CandidatesTruncated && !log.Output.Result.MatchLimitExceeded;
+                                    var maximumPositionError = positionError;
+                                    var maximumAngleError = angleError;
                                     if (test.ExpectedMatches is { } expectedMatches)
                                     {
-                                        accuracyPassed &= expectedMatches.All(expected => log.Output.Result.Matches.Any(found =>
-                                            Math.Sqrt(Math.Pow(found.X - expected.X, 2) + Math.Pow(found.Y - expected.Y, 2)) <= 1 &&
-                                            CpuMatching.Core.PyramidSearch.AngleDistance(found.AngleDegrees, expected.AngleDegrees) <= 1 &&
-                                            Math.Abs(found.Scale - expected.Scale) <= .03));
+                                        var errors = expectedMatches.Select(expected =>
+                                        {
+                                            var found = log.Output.Result.Matches.Count == 0 ? default : log.Output.Result.Matches.MinBy(found =>
+                                                Math.Pow(found.X - expected.X, 2) + Math.Pow(found.Y - expected.Y, 2));
+                                            return (
+                                                Position: Math.Sqrt(Math.Pow(found.X - expected.X, 2) + Math.Pow(found.Y - expected.Y, 2)),
+                                                Angle: CpuMatching.Core.PyramidSearch.AngleDistance(found.AngleDegrees, expected.AngleDegrees),
+                                                Scale: Math.Abs(found.Scale - expected.Scale));
+                                        }).ToArray();
+                                        maximumPositionError = errors.Max(error => error.Position);
+                                        maximumAngleError = errors.Max(error => error.Angle);
+                                        accuracyPassed &= errors.All(error => error.Position <= 1 && error.Angle <= 1 && error.Scale <= .03);
                                     }
                                     if (!accuracyPassed || log.PresentedMilliseconds is null)
                                     {
@@ -172,11 +210,15 @@ internal static class CpuKensaComparisonRun
                                         useCuda,
                                         repeat,
                                         test.CompleteTruth,
+                                        referenceKind = test.Name == "kensa-full-modules" ? "Independent OpenCV ECC reference; not physical metrology" :
+                                            test.CompleteTruth ? "Generator-defined truth" : "Known targets only",
                                         expectedCount,
                                         test.Expected,
                                         expectedAngle = test.Angle,
                                         positionError,
                                         angleError,
+                                        maximumPositionError,
+                                        maximumAngleError,
                                         accuracyPassed,
                                         commandMs,
                                         displayedMs,
@@ -185,7 +227,7 @@ internal static class CpuKensaComparisonRun
                                         matching.Status
                                     });
                                     Save();
-                                    if (repeat == 2)
+                                    if (repeat == repeats - 1)
                                     {
                                         viewport.Capture(Path.GetFullPath($"artifacts/cpu-wpf-{test.Name}-{method}-{(useCuda ? "cuda" : "cpu")}.png"));
                                         await Task.Delay(150);
@@ -209,6 +251,11 @@ internal static class CpuKensaComparisonRun
 
             async Task Load(string file, int width, int height)
             {
+                if (file == "sample:8192:8192")
+                {
+                    await model.InitializeAsync();
+                    return;
+                }
                 var path = Path.GetFullPath(file);
                 await model.Images.ReplaceAsync(new(path, file, width, height, ImageFileVersion.Read(path)));
             }
@@ -216,14 +263,15 @@ internal static class CpuKensaComparisonRun
             void Save()
             {
                 Directory.CreateDirectory("artifacts");
-                File.WriteAllText(fullImage ? "artifacts/cpu-full8k-wpf.json" : compareCuda ? "artifacts/cpu-cuda-wpf.json" : "artifacts/cpu-wpf-kensa.json", JsonSerializer.Serialize(new
-                {
-                    created = DateTimeOffset.Now,
-                    renderer = model.GpuStatus,
-                    failure,
-                    rows,
-                    measurement = "실제 검사 버튼 Automation Invoke→원본 읽기/검색/결과 게시/Present fence 및 다음 WPF Rendering 관찰. offscreen 창, 물리 scan-out·하드웨어 입력 메시지 대기 제외. repeat 0은 첫 실행, 1~2 반복. 원본 Kensa는 알려진 대상만 확인하며 전수 정답 아님."
-                }, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(repeatedModules ? "artifacts/cpu-modules-wpf.json" : fullImage ? "artifacts/cpu-full8k-wpf.json" :
+                    compareCuda ? "artifacts/cpu-cuda-wpf.json" : "artifacts/cpu-wpf-kensa.json", JsonSerializer.Serialize(new
+                    {
+                        created = DateTimeOffset.Now,
+                        renderer = model.GpuStatus,
+                        failure,
+                        rows,
+                        measurement = "실제 검사 버튼 Automation Invoke→원본 읽기/검색/결과 게시/Present fence 및 다음 WPF Rendering 관찰. offscreen 창, 물리 scan-out·하드웨어 입력 메시지 대기 제외. repeat 0은 첫 실행. 원본 Kensa 전체는 독립 ECC 정합 기준, 그 외 원본 Kensa는 알려진 대상만 확인. 물리 교정 정답 아님."
+                    }, new JsonSerializerOptions { WriteIndented = true }));
             }
         };
     }
@@ -259,6 +307,27 @@ internal static class CpuKensaComparisonRun
         yield return new("8k-full-eight", "kensa.png", 1024, 1536, new(new(200.5, 184), 89, 52, 0),
             folder + "/8k-full-eight.png", 8192, 8192, 8192, 8192, new(expected[0].X, expected[0].Y), expected[0].AngleDegrees,
             true, ExpectedCount: expected.Length, ExpectedMatches: expected);
+    }
+
+    private static IEnumerable<Case> ModuleCases()
+    {
+        var part = new RoiGeometry(new(200.5, 184), 89, 52, 0);
+        // 검색과 별도로 만든 48개 OpenCV ECC 정합 기준이다. 물리 교정 정답과는 구별한다.
+        using var provenance = JsonDocument.Parse(File.ReadAllText("samples/CpuMatching.Modules/reference-provenance.json"));
+        var imageHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes("kensa.png")));
+        if (imageHash != provenance.RootElement.GetProperty("ImageSha256").GetString())
+        {
+            throw new InvalidOperationException("Kensa 원본과 정합 기준의 해시가 다릅니다. 현재 원본으로 기준 데이터를 다시 생성하세요.");
+        }
+        var kensaReference = JsonSerializer.Deserialize<CpuMatching.Core.Match[]>(
+            File.ReadAllText("samples/CpuMatching.Modules/kensa-reference.json"))!;
+        yield return new("kensa-full-modules", "kensa.png", 1024, 1536, part, "kensa.png", 1024, 1536,
+            1024, 1536, part.Center, 0, true, ExpectedCount: 48, ExpectedMatches: kensaReference);
+        var pin = new RoiGeometry(new(759.518, 546.178), 105.827, 129.459, 0);
+        var expected = TdcmAccuracy.SamplePins().Select(pose => new CpuMatching.Core.Match(
+            pose.Center.X, pose.Center.Y, pose.AngleDegrees, 1, 1)).ToArray();
+        yield return new("8k-full-modules", "sample:8192:8192", 8192, 8192, pin, "sample:8192:8192", 8192, 8192,
+            8192, 8192, pin.Center, 0, true, ExpectedCount: 256, ExpectedMatches: expected);
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

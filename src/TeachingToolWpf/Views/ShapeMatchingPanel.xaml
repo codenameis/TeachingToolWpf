@@ -195,7 +195,7 @@
                         <Expander Header="후보 예산 · 실행 제어" IsExpanded="False" Margin="0,0,0,10" IsEnabled="{Binding IsIdle}">
                             <StackPanel Margin="0,8,0,0">
                                 <ComboBox ItemsSource="{Binding SpeedProfiles}" DisplayMemberPath="Name" SelectedValuePath="Profile" SelectedValue="{Binding SpeedProfile}" AutomationProperties.Name="후보 예산 프리셋" Margin="0,0,0,8"/>
-                                <TextBlock Text="후보 예산은 검증할 후보 수를 정합니다. 확대하면 누락을 줄일 수 있지만 더 오래 걸릴 수 있습니다. 합격 점수·최대 결과 수와 원본 정밀화는 유지됩니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Line2D·Sub-NCC·Chamfer는 후보를 묶음으로 나누어 끝까지 검사합니다. 후보 수는 한 묶음의 크기이며 검출 개수를 제한하지 않습니다. 다른 방식은 기존 후보 예산을 사용합니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
                                 <StackPanel Visibility="{Binding IsCpuMethod, Converter={StaticResource BoolVisibility}}">
                                     <ComboBox ItemsSource="{Binding ComputeModes}" DisplayMemberPath="Name" SelectedValuePath="Mode" SelectedValue="{Binding ComputeMode}" AutomationProperties.Name="템플릿 검사 실행 장치" Margin="0,0,0,8"/>
                                     <TextBlock Text="CPU+CUDA: 모든 후보 위치의 점수를 GPU로 계산하고, 위치·각도 보정과 원본 검증은 CPU가 수행합니다. 첫 실행에는 장치 준비 시간이 포함됩니다." TextWrapping="Wrap" FontSize="10" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
@@ -213,11 +213,11 @@
                         </Expander>
                         <Expander Header="공통 검색 고급 · 후보 수와 중복" IsExpanded="False" Margin="0,0,0,10">
                             <StackPanel Margin="0,10,0,0">
-                                <TextBlock Text="최대 후보 수 (1~100000개)" Style="{StaticResource Caption}"/>
+                                <TextBlock Text="후보 수 (세 CPU 방식: 묶음 크기 16~16384, 그 외: 최대 수)" Style="{StaticResource Caption}"/>
                                 <TextBox Text="{Binding MaximumCandidates, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="최대 검색 후보 수" Margin="0,5,0,10"/>
                                 <TextBlock Text="허용 중복 비율 (IoU · 0~1)" Style="{StaticResource Caption}" Visibility="{Binding SupportsOverlapRatio, Converter={StaticResource BoolVisibility}}"/>
                                 <TextBox Text="{Binding MaximumOverlap, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="최대 검출 중복 비율" Margin="0,5,0,10" Visibility="{Binding SupportsOverlapRatio, Converter={StaticResource BoolVisibility}}" ToolTip="두 검출 영역의 교집합/합집합 비율입니다. 이 값을 넘는 중복 검출을 제거합니다."/>
-                                <TextBlock Text="후보 한도를 높이면 유사한 무늬가 많은 이미지에서 더 많은 위치를 확인합니다. 검사 시간과 메모리 사용이 늘어날 수 있습니다." FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBlock Text="세 CPU 방식은 이 값이 작아도 다음 묶음으로 계속 검사하며, 점수·검색 영역·각도 조건은 유지합니다. 다른 방식은 후보 한도를 높이면 확인하는 위치와 비용이 늘어날 수 있습니다." FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}"/>
                             </StackPanel>
                         </Expander>
                         <Expander Header="형상 검색 고급 · 후보와 방향" IsExpanded="False" Margin="0,0,0,10" Visibility="{Binding IsShapeMethod, Converter={StaticResource BoolVisibility}}">

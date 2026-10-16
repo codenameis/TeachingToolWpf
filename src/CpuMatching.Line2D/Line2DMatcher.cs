@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 using CpuMatching.Core;
 
@@ -25,8 +26,11 @@ public sealed class Line2DMatcher : ITemplateMatcher
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
-        return PyramidSearch.Find(_template, image, options ?? new SearchOptions(),
-            (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine, _parameters, cancellationToken), cancellationToken, refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator);
+        options ??= new SearchOptions();
+        return PyramidSearch.Find(_template, image, options,
+            (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine, _parameters,
+                options.MaximumDegreeOfParallelism, cancellationToken), cancellationToken,
+            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
     }
 
     private sealed class OrientationLevel : IScoreLevel
@@ -40,7 +44,8 @@ public sealed class Line2DMatcher : ITemplateMatcher
         private readonly int _height;
         private readonly bool _fine;
 
-        public OrientationLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, Line2DOptions parameters, CancellationToken token)
+        public OrientationLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, Line2DOptions parameters,
+            int workers, CancellationToken token)
         {
             _width = scene.Width;
             _height = scene.Height;
@@ -50,9 +55,9 @@ public sealed class Line2DMatcher : ITemplateMatcher
             var gradients = Edges.Gradients(scene);
             // 방향과 무관한 길이는 픽셀당 한 번만 구한다. 나눗셈/반올림 순서는 그대로다.
             var lengths = gradients.Select(gradient => Math.Sqrt((gradient.X * gradient.X) + (gradient.Y * gradient.Y))).ToArray();
-            if (gradients.Length >= 16_384)
+            if (workers > 1 && gradients.Length >= 16_384)
             {
-                Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token }, BuildMap);
+                Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = workers, CancellationToken = token }, BuildMap);
             }
             else
             {
@@ -117,9 +122,10 @@ public sealed class Line2DMatcher : ITemplateMatcher
     {
         private readonly float[][] _maps;
         private readonly DirectionalSample[] _points;
-        private readonly float[] _row;
         private readonly int _width;
         private readonly int _height;
+
+        public bool SupportsParallelRows => true;
 
         public CoarsePose(float[][] maps, DirectionalSample[] points, int width, int height)
         {
@@ -127,7 +133,6 @@ public sealed class Line2DMatcher : ITemplateMatcher
             _points = points.Select(point => point with { X = Math.Round(point.X), Y = Math.Round(point.Y) }).ToArray();
             _width = width;
             _height = height;
-            _row = new float[width];
         }
 
         public double Score(double x, double y)
@@ -153,7 +158,6 @@ public sealed class Line2DMatcher : ITemplateMatcher
         public void ScoreRow(int y, Span<double> output)
         {
             output.Clear();
-            Array.Clear(_row);
             var left = 0;
             var right = _width;
             foreach (var point in _points)
@@ -170,6 +174,21 @@ public sealed class Line2DMatcher : ITemplateMatcher
             {
                 return;
             }
+            // 한 행의 누적 버퍼만 빌린다. 다른 행과 공유하지 않으며 예외에서도 반환한다.
+            var row = ArrayPool<float>.Shared.Rent(_width);
+            try
+            {
+                row.AsSpan(left, right - left).Clear();
+                AccumulateRow(y, left, right, row, output);
+            }
+            finally
+            {
+                ArrayPool<float>.Shared.Return(row);
+            }
+        }
+
+        private void AccumulateRow(int y, int left, int right, float[] row, Span<double> output)
+        {
             foreach (var point in _points)
             {
                 var offset = ((y + (int)point.Y) * _width) + (int)point.X;
@@ -180,18 +199,18 @@ public sealed class Line2DMatcher : ITemplateMatcher
                 var x = left;
                 for (; x <= right - Vector<float>.Count; x += Vector<float>.Count)
                 {
-                    var sum = new Vector<float>(_row, x) + (new Vector<float>(first, offset + x) * inverse) +
+                    var sum = new Vector<float>(row, x) + (new Vector<float>(first, offset + x) * inverse) +
                         (new Vector<float>(second, offset + x) * weight);
-                    sum.CopyTo(_row, x);
+                    sum.CopyTo(row, x);
                 }
                 for (; x < right; x++)
                 {
-                    _row[x] += (float)(((1 - point.Fraction) * first[offset + x]) + (point.Fraction * second[offset + x]));
+                    row[x] += (float)(((1 - point.Fraction) * first[offset + x]) + (point.Fraction * second[offset + x]));
                 }
             }
             for (var x = left; x < right; x++)
             {
-                output[x] = _row[x] / _points.Length;
+                output[x] = row[x] / _points.Length;
             }
         }
     }

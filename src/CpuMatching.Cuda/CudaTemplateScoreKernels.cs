@@ -46,8 +46,8 @@ internal static class CudaTemplateScoreKernels
             }
             else
             {
-                sum += ((1 - point.Fraction) * Bilinear(maps, point.Bin * planeSize, grid.Width, px, py)) +
-                    (point.Fraction * Bilinear(maps, point.Next * planeSize, grid.Width, px, py));
+                sum += MultiplyRounded(1 - point.Fraction, Bilinear(maps, point.Bin * planeSize, grid.Width, px, py)) +
+                    MultiplyRounded(point.Fraction, Bilinear(maps, point.Next * planeSize, grid.Width, px, py));
             }
         }
         if (points.Length == 0)
@@ -110,7 +110,15 @@ internal static class CudaTemplateScoreKernels
         var dx = (float)(x - ix);
         var dy = (float)(y - iy);
         var index = start + (iy * width) + ix;
-        return ((1 - dy) * (((1 - dx) * maps[index]) + (dx * maps[index + 1]))) +
-            (dy * (((1 - dx) * maps[index + width]) + (dx * maps[index + width + 1])));
+        var top = MultiplyRounded(1 - dx, maps[index]) + MultiplyRounded(dx, maps[index + 1]);
+        var bottom = MultiplyRounded(1 - dx, maps[index + width]) + MultiplyRounded(dx, maps[index + width + 1]);
+        return MultiplyRounded(1 - dy, top) + MultiplyRounded(dy, bottom);
     }
+
+    // float 곱은 double에서 정확히 표현한 뒤 float로 반올림한다. GPU의 곱셈/덧셈 결합을 막아 CPU 보간과 맞춘다.
+    private static float MultiplyRounded(float left, float right) => (float)((double)left * right);
+
+    // 호출 경계로 double 곱셈도 먼저 반올림한다. 인라인하면 CUDA JIT가 뒤의 덧셈과 결합할 수 있다.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static double MultiplyRounded(double left, double right) => left * right;
 }

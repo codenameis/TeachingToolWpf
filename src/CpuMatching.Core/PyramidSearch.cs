@@ -5,9 +5,12 @@ namespace CpuMatching.Core;
 public static class PyramidSearch
 {
     public const int MaximumSearchPixels = 8192 * 8192;
+
+    /// <summary>동일 타일 공유는 prepare가 템플릿과 입력 픽셀만으로 읽기 전용 점수 맵을 만들 때만 허용한다.</summary>
     public static SearchResult Find(GrayImage template, GrayImage image, SearchOptions options,
         Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, CancellationToken token, bool refineEdges = false,
-        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null, bool refineCoarsePositions = false)
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null, bool refineCoarsePositions = false,
+        bool reuseIdenticalTiles = false)
     {
         options.Validate();
         token.ThrowIfCancellationRequested();
@@ -20,29 +23,36 @@ public static class PyramidSearch
         // 작게 줄인 영상부터 시작하고, 후보만 원본까지 따라 올라간다.
         var timer = Stopwatch.StartNew();
         var searchImage = image.Crop(region);
-        var (images, levels) = PreparePyramid(template, searchImage, options, prepare, refineCoarsePositions, token);
+        var (images, levels) = PreparePyramid(template, searchImage, options, prepare, refineCoarsePositions, reuseIdenticalTiles, token);
         var preparationMs = timer.Elapsed.TotalMilliseconds;
         long evaluations = 0;
-        timer.Restart();
-        var (candidates, truncated) = FindCoarseCandidates(images[^1], levels[^1], options, accelerator, token, ref evaluations);
-        var coarseMs = timer.Elapsed.TotalMilliseconds;
-        timer.Restart();
-        var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations);
-        var refinementMs = timer.Elapsed.TotalMilliseconds;
-        timer.Restart();
-        var refined = VerifyOriginal(template, searchImage, levels[0], current, region, options,
-            angleRadius, refineEdges, acceptCenter, token, ref evaluations);
-        var verificationMs = timer.Elapsed.TotalMilliseconds;
+        var refinementMs = 0d;
+        var verificationMs = 0d;
+        var refined = new List<Match>();
+        var coarse = VisitCoarseCandidates(images[^1], levels[^1], options, accelerator, token, candidates =>
+        {
+            timer.Restart();
+            var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations);
+            refinementMs += timer.Elapsed.TotalMilliseconds;
+            timer.Restart();
+            refined.AddRange(VerifyOriginal(template, searchImage, levels[0], current, region, options,
+                angleRadius, refineEdges, acceptCenter, token, ref evaluations));
+            verificationMs += timer.Elapsed.TotalMilliseconds;
+        });
+        evaluations += coarse.Evaluations;
         timer.Restart();
         var final = Suppress(refined, options.SuppressionRadius, 361, 10);
-        return new SearchResult(final.Take(options.MaximumMatches).ToArray(), truncated, final.Count > options.MaximumMatches, evaluations)
+        return new SearchResult(final.Take(options.MaximumMatches).ToArray(), false, final.Count > options.MaximumMatches, evaluations)
         {
-            Timings = new(preparationMs, coarseMs, refinementMs, verificationMs, timer.Elapsed.TotalMilliseconds)
+            CandidateCount = coarse.Candidates,
+            CandidateBatches = coarse.Batches,
+            Timings = new(preparationMs, coarse.Milliseconds, refinementMs, verificationMs, timer.Elapsed.TotalMilliseconds)
         };
     }
 
     private static (List<GrayImage> Images, IScoreLevel[] Levels) PreparePyramid(GrayImage template, GrayImage image,
-        SearchOptions options, Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, bool denseIntermediate, CancellationToken token)
+        SearchOptions options, Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, bool denseIntermediate,
+        bool reuseIdenticalTiles, CancellationToken token)
     {
         var images = new List<GrayImage> { image };
         var templates = new List<GrayImage> { template };
@@ -69,7 +79,7 @@ public static class PyramidSearch
                 // 최대 템플릿 반경과 거리 맵의 최대 전파 거리(32px), 미분 여백을 함께 보존한다.
                 var margin = (int)Math.Ceiling(Math.Sqrt((levelTemplate.Width * levelTemplate.Width) +
                     (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + 36;
-                levels[level] = new CachedLevel(new LocalScoreLevel(images[level], margin, Prepare, token), capacity);
+                levels[level] = new CachedLevel(new LocalScoreLevel(images[level], margin, Prepare, token, reuseIdenticalTiles), capacity);
             }
             else
             {
@@ -79,11 +89,14 @@ public static class PyramidSearch
         return (images, levels);
     }
 
-    private static (IEnumerable<Match> Candidates, bool Truncated) FindCoarseCandidates(GrayImage image, IScoreLevel level,
-        SearchOptions options, ICoarseScoreAccelerator? accelerator, CancellationToken token, ref long evaluations)
+    private static (long Evaluations, long Candidates, int Batches, double Milliseconds) VisitCoarseCandidates(GrayImage image, IScoreLevel level,
+        SearchOptions options, ICoarseScoreAccelerator? accelerator, CancellationToken token, Action<List<Match>> inspect)
     {
-        var candidates = new PriorityQueue<Match, double>();
-        var truncated = false;
+        var candidates = new List<Match>(options.CandidateLimit);
+        var timer = Stopwatch.StartNew();
+        long evaluations = 0;
+        long count = 0;
+        var batches = 0;
         // 조잡한 레벨의 점수는 최종 합격 점수가 아니다. 최종 원본 점수는 그대로 유지한다.
         var coarseThreshold = Math.Max(0.2, options.MinimumScore - 0.25);
         var width = image.Width;
@@ -96,10 +109,11 @@ public static class PyramidSearch
             {
                 token.ThrowIfCancellationRequested();
                 var scorer = level.AtPose(angle, scale);
-                ScoreGrid(scorer, scores, width, height, level.SupportsParallelEvaluation, accelerator, token);
+                ScoreGrid(scorer, scores, width, height, level.SupportsParallelEvaluation, options.MaximumDegreeOfParallelism, accelerator, token);
                 evaluations += scores.Length;
                 for (var y = 1; y < height - 1; y++)
                 {
+                    token.ThrowIfCancellationRequested();
                     for (var x = 1; x < width - 1; x++)
                     {
                         var score = scores[(y * width) + x];
@@ -107,22 +121,35 @@ public static class PyramidSearch
                         {
                             continue;
                         }
-                        var candidate = new Match(x, y, angle, scale, score);
-                        candidates.Enqueue(candidate, score);
-                        if (candidates.Count > options.CandidateLimit)
+                        candidates.Add(new Match(x, y, angle, scale, score));
+                        count++;
+                        if (candidates.Count == options.CandidateLimit)
                         {
-                            candidates.Dequeue();
-                            truncated = true;
+                            InspectBatch();
                         }
                     }
                 }
             }
         }
-        return (candidates.UnorderedItems.Select(item => item.Element), truncated);
+        if (candidates.Count > 0)
+        {
+            InspectBatch();
+        }
+        return (evaluations, count, batches, timer.Elapsed.TotalMilliseconds);
+
+        void InspectBatch()
+        {
+            // 상한은 대기 후보의 묶음 크기다. 가득 차면 검사하고 계속 탐색하며 후보를 버리지 않는다.
+            timer.Stop();
+            inspect(candidates);
+            candidates.Clear();
+            batches++;
+            timer.Start();
+        }
     }
 
     private static void ScoreGrid(IPoseScore scorer, double[] scores, int width, int height,
-        bool supportsParallel, ICoarseScoreAccelerator? accelerator, CancellationToken token)
+        bool supportsParallel, int workers, ICoarseScoreAccelerator? accelerator, CancellationToken token)
     {
         if (accelerator is not null)
         {
@@ -133,10 +160,11 @@ public static class PyramidSearch
             accelerated.ScoreGrid(accelerator, scores, token);
             return;
         }
-        // 행 버퍼를 가진 SIMD scorer는 순차 실행한다. 독립적인 점수만 행별로 나눈다.
-        if (supportsParallel && scorer is not IRowScore && scores.Length >= 16_384)
+        // 행 내부의 누적 순서는 유지하고, 독립 버퍼를 쓰는 행만 병렬로 계산한다.
+        var independentRows = scorer is not IRowScore row || row.SupportsParallelRows;
+        if (workers > 1 && supportsParallel && independentRows && scores.Length >= 16_384)
         {
-            Parallel.For(0, height, ParallelOptions(token), ScoreRow);
+            Parallel.For(0, height, ParallelOptions(workers, token), ScoreRow);
         }
         else
         {
@@ -169,13 +197,14 @@ public static class PyramidSearch
         // NCC의 가장 작은 영상에서는 픽셀 위상으로 이웃 봉우리 순위가 뒤집힐 수 있다.
         // 그 점수로 자세를 다시 이동시키지 않고, 더 큰 영상의 전체 템플릿으로 보정한다.
         var startAtFinerLevel = refineCoarsePositions && top > 0;
-        var current = Suppress(candidates,
-            Math.Max(1, options.SuppressionRadius / (1 << top)), options.AngleStep * 1.5, 0.15);
+        // 축소 점수의 순위로 다른 위치를 버리지 않는다. 같은 자세만 합치고
+        // 공간 중복 제거는 모든 후보의 원본 검증이 끝난 뒤에 수행한다.
+        var current = candidates.ToList();
         for (var level = startAtFinerLevel ? top - 1 : top; level >= 0; level--)
         {
             var next = new Match[current.Count];
             var counts = new long[current.Count];
-            ForEachCandidate(current.Count, levels[level], token, index =>
+            ForEachCandidate(current, levels[level], options.MaximumDegreeOfParallelism, token, index =>
             {
                 var candidate = current[index];
                 var center = level == top ? candidate : candidate with
@@ -189,7 +218,7 @@ public static class PyramidSearch
             });
             evaluations += counts.Sum();
             angleRadius = Math.Max(0.5, angleRadius / 2);
-            current = Suppress(next, Math.Max(1, options.SuppressionRadius / (1 << level)), options.AngleStep, 0.1);
+            current = next.DistinctBy(match => (match.X, match.Y, match.AngleDegrees, match.Scale)).ToList();
         }
         return (current, angleRadius);
     }
@@ -202,7 +231,7 @@ public static class PyramidSearch
         var counts = new long[candidates.Count];
         var localEdges = (long)image.Width * image.Height > 2_097_152;
         var refiner = refineEdges && !localEdges ? new EdgePoseRefiner(template, image) : null;
-        ForEachCandidate(candidates.Count, level, token, index =>
+        ForEachCandidate(candidates, level, options.MaximumDegreeOfParallelism, token, index =>
         {
             var match = Refine(level, candidates[index], options, angleRadius, 0.5, 1, ref counts[index]);
             match = Refine(level, match, options, 0.5, 0.25, 1, ref counts[index]);
@@ -260,11 +289,16 @@ public static class PyramidSearch
     }
 
     // 결과를 원래 후보 번호에 저장하므로 완료 순서가 동점 판정이나 NMS 순서를 바꾸지 않는다.
-    private static void ForEachCandidate(int count, IScoreLevel level, CancellationToken token, Action<int> evaluate)
+    private static void ForEachCandidate(IReadOnlyList<Match> candidates, IScoreLevel level, int workers, CancellationToken token, Action<int> evaluate)
     {
+        var count = candidates.Count;
         if (count >= 4 && level.SupportsParallelEvaluation)
         {
-            Parallel.For(0, count, ParallelOptions(token), evaluate);
+            // 같은 지역의 맵을 연달아 사용하되 출력은 원래 후보 번호에 저장한다.
+            var order = Enumerable.Range(0, count)
+                .OrderBy(index => Math.Floor(candidates[index].Y / LocalScoreLevel.CellSize))
+                .ThenBy(index => Math.Floor(candidates[index].X / LocalScoreLevel.CellSize)).ToArray();
+            Parallel.For(0, count, ParallelOptions(workers, token), index => evaluate(order[index]));
         }
         else
         {
@@ -276,9 +310,9 @@ public static class PyramidSearch
         }
     }
 
-    private static ParallelOptions ParallelOptions(CancellationToken token) => new()
+    private static ParallelOptions ParallelOptions(int workers, CancellationToken token) => new()
     {
-        MaxDegreeOfParallelism = 4,
+        MaxDegreeOfParallelism = workers,
         CancellationToken = token
     };
 
@@ -289,6 +323,7 @@ public static class PyramidSearch
     private sealed class CachedLevel(IScoreLevel inner, int capacity) : IScoreLevel
     {
         private readonly Dictionary<(double Angle, double Scale), IPoseScore> _poses = new();
+        private readonly Queue<(double Angle, double Scale)> _order = new();
         public bool SupportsParallelEvaluation => inner.SupportsParallelEvaluation;
 
         public IPoseScore AtPose(double angleDegrees, double scale)
@@ -301,10 +336,13 @@ public static class PyramidSearch
                     return pose;
                 }
                 pose = inner.AtPose(angleDegrees, scale);
-                if (_poses.Count < capacity)
+                if (_poses.Count == capacity)
                 {
-                    _poses.Add(key, pose);
+                    _poses.Remove(_order.Dequeue());
                 }
+                // 처음 본 자세만 영구 보관하면 이후 자세는 매 점수 계산마다 다시 만들어진다.
+                _poses.Add(key, pose);
+                _order.Enqueue(key);
                 return pose;
             }
         }

@@ -1,0 +1,5 @@
+{
+  "ImageSha256": "7EEED204BFE88C79F285D4F0AE195F954880984C58F59282B501965080846E77",
+  "Method": "OpenCV FindTransformECC / Euclidean / all pixels / 200 iterations / epsilon 1e-7 / Gaussian 5. Manual package centers seed reference registration only; never supplied to search.",
+  "Interpretation": "Kensa is an independent image-registration reference with all 48 instances. It is not a calibrated position/angle measurement. The 8K file uses generator-defined truth."
+}

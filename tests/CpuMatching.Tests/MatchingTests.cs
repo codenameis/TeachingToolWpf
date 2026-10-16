@@ -7,8 +7,90 @@ namespace CpuMatching.Tests;
 
 public sealed class MatchingTests
 {
+    [Theory]
+    [InlineData(false, 2)]
+    [InlineData(true, 3)]
+    public void IdenticalTileReusePreservesResultsAndSeparatesChangedPixelsAndBorders(bool changePixel, int expectedPreparations)
+    {
+        var pixels = new byte[2052 * 1024];
+        if (changePixel)
+        {
+            pixels[(300 * 2052) + 800] = 255;
+        }
+        var image = new GrayImage(2052, 1024, pixels);
+        var baseline = Run(false);
+        var shared = Run(true);
+        Assert.Equal(4, baseline.Preparations);
+        Assert.Equal(expectedPreparations, shared.Preparations);
+        Assert.Equal(4, shared.Result.Matches.Count);
+        Assert.Equal(baseline.Result.Matches, shared.Result.Matches);
+        Assert.Equal(baseline.Result.Evaluations, shared.Result.Evaluations);
+        Assert.Equal(baseline.Result.CandidatesTruncated, shared.Result.CandidatesTruncated);
+        Assert.Equal(baseline.Result.MatchLimitExceeded, shared.Result.MatchLimitExceeded);
+
+        (SearchResult Result, int Preparations) Run(bool reuse)
+        {
+            var preparations = 0;
+            var result = PyramidSearch.Find(new(32, 32, new byte[1024]), image,
+                new SearchOptions { MinimumAngle = 0, MaximumAngle = 0 },
+                (_, scene, _, _, fine) =>
+                {
+                    if (fine)
+                    {
+                        preparations++;
+                    }
+                    return new RepeatedLevel(fine, scene.Pixels.Span.Contains((byte)255) ? .95 : .9);
+                }, default, reuseIdenticalTiles: reuse);
+            return (result, preparations);
+        }
+    }
+
+    private sealed class RepeatedLevel(bool fine, double value) : IScoreLevel, IPoseScore
+    {
+        public bool SupportsParallelEvaluation => true;
+        public IPoseScore AtPose(double angleDegrees, double scale) => this;
+        public double Score(double x, double y)
+        {
+            if (fine)
+            {
+                return value;
+            }
+            return y == 200 && (x == 200 || x == 456 || x == 712 || x == 968) ? 1 : 0;
+        }
+    }
+
     [Fact]
-    public void LargeImageLocalMapsKeepNonParallelScoreAndSerialCenterCallbackContracts()
+    public void ExistingRowScorersKeepTheirSequentialCallingContract()
+    {
+        var ownerThread = Environment.CurrentManagedThreadId;
+        var rows = 0;
+        var result = PyramidSearch.Find(new(16, 16, new byte[256]), new(256, 128, new byte[256 * 128]),
+            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0, PyramidLevels = 1 },
+            (_, _, _, _, _) => new SerialRowLevel(() =>
+            {
+                Assert.Equal(ownerThread, Environment.CurrentManagedThreadId);
+                rows++;
+            }), default);
+        Assert.Equal(128, rows);
+        Assert.Empty(result.Matches);
+    }
+
+    private sealed class SerialRowLevel(Action checkSerial) : IScoreLevel, IPoseScore, IRowScore
+    {
+        public bool SupportsParallelEvaluation => true;
+        public IPoseScore AtPose(double angleDegrees, double scale) => this;
+        public double Score(double x, double y) => 0;
+        public void ScoreRow(int y, Span<double> output)
+        {
+            checkSerial();
+            output.Clear();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LargeImageLocalMapsKeepNonParallelScoreAndSerialCenterCallbackContracts(bool reuseIdenticalTiles)
     {
         var active = 0;
         var callbackThread = Environment.CurrentManagedThreadId;
@@ -25,7 +107,7 @@ public sealed class MatchingTests
                 Assert.Equal(callbackThread, Environment.CurrentManagedThreadId);
                 callbacks++;
                 return true;
-            });
+            }, reuseIdenticalTiles: reuseIdenticalTiles);
         Assert.Equal(4, result.Matches.Count);
         Assert.Equal(4, callbacks);
     }

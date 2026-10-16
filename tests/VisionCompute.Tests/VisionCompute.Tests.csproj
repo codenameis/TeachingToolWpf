@@ -17,5 +17,6 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <Using Include="Xunit" />
     <Compile Include="../VisionAlgorithm.Tests/SyntheticScene.cs" Link="Fixtures/SyntheticScene.cs" />
+    <None Include="../CpuMatching.Tests/Data/*.gray" Link="Data/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

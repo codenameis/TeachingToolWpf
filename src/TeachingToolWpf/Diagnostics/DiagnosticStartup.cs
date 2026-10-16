@@ -13,9 +13,12 @@ internal static class DiagnosticStartup
         {
             SidebarLayoutRun.Attach(window, viewport, model);
         }
-        else if (args.Contains("--cpu-kensa-comparison") || args.Contains("--cpu-cuda-comparison") || args.Contains("--cpu-full8k-comparison"))
+        else if (args.Contains("--cpu-kensa-comparison") || args.Contains("--cpu-cuda-comparison") ||
+            args.Contains("--cpu-full8k-comparison") || args.Contains("--cpu-modules-comparison"))
         {
-            CpuKensaComparisonRun.Attach(window, viewport, model, args.Contains("--cpu-cuda-comparison") || args.Contains("--cpu-full8k-comparison"), args.Contains("--cpu-full8k-comparison"));
+            var modules = args.Contains("--cpu-modules-comparison");
+            CpuKensaComparisonRun.Attach(window, viewport, model, modules || args.Contains("--cpu-cuda-comparison") ||
+                args.Contains("--cpu-full8k-comparison"), modules || args.Contains("--cpu-full8k-comparison"), modules);
         }
         else if (args.Contains("--tdcm-latency"))
         {

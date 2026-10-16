@@ -257,6 +257,7 @@ public sealed partial class ShapeMatchingViewModel
                 result.Matches.Select((match, index) =>
                     $"{index + 1} · X {match.X:F3} / Y {match.Y:F3}\n각도 {match.AngleDegrees:F3}° · 배율 {match.Scale:F4} · 점수 {match.Score:F3}"));
             Status = $"{model.Method} · {markers.Length}개 · 서비스 {output.TotalMilliseconds:F1} ms (읽기 {output.ReadMilliseconds:F1}, 검색 {output.SearchMilliseconds:F1})" +
+                $" · 후보 {result.CandidateCount}개 / {result.CandidateBatches}묶음" +
                 (result.CandidatesTruncated ? " · 후보 예산 초과: 검색 불완전" : "") +
                 (result.MatchLimitExceeded ? " · 결과 상한 초과: 일부 생략" : "");
             UpdateCpuLog(id, log => log with
