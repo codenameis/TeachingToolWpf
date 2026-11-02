@@ -1,0 +1,181 @@
+{
+  "Runtime": ".NET 10.0.13",
+  "ProcessorCount": 12,
+  "WarmupRounds": 3,
+  "MeasuredRounds": 7,
+  "Modules": 100,
+  "RoiGroups": 400,
+  "Leaves": 40000,
+  "CoordinateAndParentChecksPassed": 40000,
+  "Excludes": "mark detection, image I/O, inspection, rendering, document preparation, alignment registration and cached group transform preparation",
+  "Results": [
+    {
+      "Name": "Solve1Marks",
+      "Operations": 10000,
+      "MedianMilliseconds": 1.1766,
+      "Milliseconds": [
+        3.4354,
+        1.1495,
+        1.1501,
+        1.1766,
+        1.1258,
+        7.9004,
+        5.1503
+      ],
+      "AllocatedBytes": [
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600120,
+        1600000
+      ],
+      "Checksum": 3470600000
+    },
+    {
+      "Name": "Solve2Marks",
+      "Operations": 10000,
+      "MedianMilliseconds": 6.0072,
+      "Milliseconds": [
+        15.3888,
+        5.3782,
+        6.4552,
+        6.2796,
+        6.0072,
+        5.5341,
+        5.4788
+      ],
+      "AllocatedBytes": [
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000
+      ],
+      "Checksum": 2879800000
+    },
+    {
+      "Name": "Solve3Marks",
+      "Operations": 10000,
+      "MedianMilliseconds": 6.9252,
+      "Milliseconds": [
+        7.5721,
+        7.2703,
+        6.9252,
+        9.2132,
+        6.7186,
+        6.2653,
+        6.2746
+      ],
+      "AllocatedBytes": [
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000
+      ],
+      "Checksum": 1989866666.6664817
+    },
+    {
+      "Name": "Solve4Marks",
+      "Operations": 10000,
+      "MedianMilliseconds": 10.012,
+      "Milliseconds": [
+        13.6659,
+        11.1502,
+        9.976,
+        10.012,
+        8.443,
+        11.8062,
+        8.537
+      ],
+      "AllocatedBytes": [
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000,
+        1600000
+      ],
+      "Checksum": 1840300000
+    },
+    {
+      "Name": "ResolveParentsAndMap40000Centers",
+      "Operations": 40000,
+      "MedianMilliseconds": 12.5069,
+      "Milliseconds": [
+        12.1264,
+        21.5328,
+        18.2348,
+        16.4604,
+        12.5069,
+        12.3135,
+        12.4829
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Checksum": 9802240000
+    },
+    {
+      "Name": "Cached400GroupTransformsMap40000Centers",
+      "Operations": 40000,
+      "MedianMilliseconds": 0.334,
+      "Milliseconds": [
+        0.3543,
+        0.3303,
+        0.3334,
+        0.3281,
+        0.3431,
+        0.341,
+        0.334
+      ],
+      "AllocatedBytes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Checksum": 9802240000
+    },
+    {
+      "Name": "Map40000RoiRecordsWithParents",
+      "Operations": 40000,
+      "MedianMilliseconds": 21.1176,
+      "Milliseconds": [
+        20.4371,
+        20.5483,
+        21.8853,
+        21.1176,
+        21.6469,
+        21.358,
+        20.6517
+      ],
+      "AllocatedBytes": [
+        6720000,
+        6720000,
+        6720000,
+        6720000,
+        6720000,
+        6720000,
+        6720000
+      ],
+      "Checksum": 9802240000
+    }
+  ]
+}

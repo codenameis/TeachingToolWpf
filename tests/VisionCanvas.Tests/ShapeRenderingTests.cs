@@ -23,7 +23,7 @@ public class ShapeRenderingTests
         Assert.Equal(instances, combined.Instances);
         Assert.Equal(RoiInstance.ResolveRoles(block, 0, editor.State), combined.Roles);
         Assert.Equal(count, instances.Length);
-        Assert.All(instances, i => Assert.Equal(instanceKind, i.Summary));
+        Assert.All(instances, i => Assert.Equal((RoiInstanceKind)instanceKind, i.Kind));
         Assert.Equal(count, RoiInstance.ResolveRoles(block, 0, editor.State).Length);
         if (kind == RoiShapeKind.Circle)
         {

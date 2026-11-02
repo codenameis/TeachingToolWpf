@@ -50,20 +50,29 @@ public partial class App : Application
             closing = true;
             window.IsEnabled = false;
             model.Message = "영상 수집과 검사 작업을 종료하고 있습니다…";
-            await Task.WhenAll(sessions.Select(async session => await session.DisposeAsync()));
-            foreach (var link in links)
+            try
             {
-                link.Dispose();
-            }
+                await Task.WhenAll(sessions.Select(async session => await session.DisposeAsync()));
+                foreach (var link in links)
+                {
+                    link.Dispose();
+                }
 
-            model.Dispose();
-            foreach (var monitor in window.Monitors)
+                model.Dispose();
+                foreach (var monitor in window.Monitors)
+                {
+                    monitor.Dispose();
+                }
+            }
+            catch (Exception ex)
             {
-                monitor.Dispose();
+                System.Diagnostics.Trace.WriteLine($"AnomalyMonitor 종료 예외: {ex.Message}");
             }
-
-            closed = true;
-            window.Close();
+            finally
+            {
+                closed = true;
+                window.Close();
+            }
         };
         MainWindow = window;
         window.Show();

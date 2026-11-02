@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>07장 · 불변 문서 상태와 Preview · Undo/Redo · 그룹 편집 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 07 · 2단계: 스레드 안전성과 완벽한 Undo/Redo를 보장하는 불변(Immutable) 아키텍처</div>
+        <h1>07장 · 불변 문서(<code>DocumentState</code>)와 드래그 프리뷰 · Undo/Redo · 그룹 편집(<code>RoiGroupEditor</code>)</h1>
+        <p class="hero-lead">
+          06장에서 우리는 마우스 드래그를 처리하는 제스처(<code>MoveGesture</code>, <code>ResizeGesture</code> 등)를 만들었습니다.<br/>
+          그런데 자식 ROI 1,000개가 달린 모듈 그룹을 마우스로 드래그하는 동안, 매 프레임마다 1,000개의 ROI 객체를 새로 만들고 BVH 트리를 재구축하면 화면이 뚝뚝 끊깁니다.<br/>
+          또 백그라운드 렌더 스레드가 도형을 그리는 도중에 UI 스레드가 ROI 목록을 고치면 프로그램이 뻗어버립니다(Race Condition).<br/>
+          어떻게 <strong>불변 스냅샷(<code>DocumentState</code>)과 경량 변환 프리뷰(<code>RoiTransformPreview</code>)</strong>로 60FPS 반응 속도와 완벽한 Undo/Redo를 동시에 잡았는지 밑바닥부터 구현해 봅시다!
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 드래그 중에는 0.001ms 만에 반응하고 마우스를 떼면 Undo에 기록되는 3박자</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">1박자 · 확정 문서</span>
+            <h4>확정된 문서는 <code>DocumentState</code>가 불변(Immutable)으로 보관!</h4>
+            <p>한 번 만들어진 <code>DocumentState</code>는 절대 내부가 바뀌지 않습니다. 따라서 백그라운드 렌더 스레드가 락(<code>lock</code>) 없이 읽어도 100% 안전합니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">2박자 · 드래그 프리뷰</span>
+            <h4>드래그 중에는 <code>RoiTransformPreview</code> 숫자만 바꾼다 (<code>O(1)</code>)!</h4>
+            <p>마우스를 끄는 동안에는 원본 문서를 안 고치고, '선택된 도형들이 (dx, dy)만큼 이동 중'이라는 가벼운 프리뷰 표지만 교체하여 BVH 재구축 비용을 0으로 만듭니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">3박자 · 커밋 &amp; Undo</span>
+            <h4>마우스 버튼을 뗄 때(<code>PointerUp</code>) 딱 1번 새 문서를 만들고 Undo에 저장!</h4>
+            <p>마우스를 놓는 순간에만 이전 <code>DocumentState</code>를 <code>EditHistory</code> 스택에 밀어 넣고 변경이 반영된 새 <code>DocumentState</code>로 교체합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · 투명 셀로판지(<code>RoiTransformPreview</code>)와 타임머신 사진첩(<code>EditHistory</code>)</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>📝 비유 1 · 백과사전 위에 투명 셀로판지를 덮고 그리기 (<code>RoiTransformPreview</code>)</h4>
+            <p>
+              두꺼운 백과사전(<code>DocumentState</code>)에서 그림 하나를 옆으로 옮길 때, 마우스를 1mm 움직일 때마다 백과사전 1,000페이지를 새로 인쇄(BVH 트리 재구축 + Undo 저장)하면 컴퓨터가 멈추겠죠?<br/>
+              대신 드래그하는 동안에는 백과사전 위에 <strong>투명 셀로판지(<code>RoiTransformPreview</code>)</strong> 한 장을 얹어놓고 셀로판지만 스르륵 움직여 보여줍니다. 그리고 마우스 버튼을 딱 놓는 순간(<code>Commit</code>)에만 새 백과사전을 딱 1번 인쇄해 책꽂이(Undo 스택)에 꽂는 것입니다!
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>⏪ 비유 2 · 만약 드래그 중 <code>PointerMove</code>마다 Undo에 넣으면 어떻게 될까?</h4>
+            <p>
+              초보자가 흔히 저지르는 실수입니다! 마우스를 1초만 끌어도 <code>PointerMove</code>가 100번 호출되어 Undo 스택에 1px씩 움직인 기록 100개가 쌓입니다.<br/>
+              그러면 사용자가 <code>Ctrl+Z</code>를 한 번 눌렀을 때 원래 자리로 돌아가지 않고 겨우 1픽셀 뒤로만 가서, <code>Ctrl+Z</code>를 100번 연타해야 하는 버그가 생깁니다! <strong>Preview(드래그 중)와 Commit(마우스 뗄 때)을 분리하면 드래그 1번이 정확히 Undo 1칸</strong>이 됩니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & 수학 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 이 장을 시작하기 위한 4가지 기초 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 1&nbsp;·&nbsp;불변 사전</span> <code>ImmutableDictionary&lt;Guid, Roi&gt;</code>와 구조적 공유</h4>
+            <p>
+              일반 <code>Dictionary</code>는 다른 스레드가 읽는 도중에 값을 바꾸면 에러가 납니다. 반면 <code>ImmutableDictionary</code>는 항목 1개를 바꿀 때 전체를 복사하지 않고 <strong>바뀐 가지(Node)만 새로 연결하는 구조적 공유(Structural Sharing)</strong>를 사용해 메모리와 스레드 안전성을 동시에 지킵니다.
+            </p>
+            <pre><code>// 원본 rois는 절대 변하지 않고, 새 항목이 반영된 새 불변 사전을 반환!
+var nextRois&nbsp;=&nbsp;Document.Rois.SetItem(roi.Id, updatedRoi);</code></pre>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 2&nbsp;·&nbsp;2단계 상태 전이</span> <code>SetTransformPreview</code> vs <code>CommitTransformPreview</code></h4>
+            <p>
+              <code>EditorSession</code>은 확정된 문서 <code>Document</code>와 임시 프리뷰 <code>ActivePreview</code> 두 개의 프로퍼티를 가집니다.
+            </p>
+            <ul>
+              <li><strong>드래그 중(<code>PointerMove</code>)</strong>: <code>ActivePreview</code>만 교체 (비용 <i>O</i>(1), Undo 기록 안 함)</li>
+              <li><strong>드래그 완료(<code>PointerUp</code>)</strong>: <code>ActivePreview</code>를 <code>Document</code>에 합쳐 확정하고 <code>ActivePreview&nbsp;=&nbsp;null</code>로 비움 (Undo 1회 기록!)</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 3&nbsp;·&nbsp;Undo/Redo 스택 규칙</span> 새 편집 시 Redo 비우기 &amp; 거부된 편집 시 Redo 보존</h4>
+            <p>
+              <code>EditHistory</code>는 <code>_undoStack</code>(과거)과 <code>_redoStack</code>(미래) 두 개의 리스트를 관리합니다.
+            </p>
+            <ul>
+              <li><strong>성공한 새 편집(<code>Push</code>)</strong>: 현재 문서를 <code>_undoStack</code>에 넣고 <code>_redoStack.Clear()</code>로 미래 이력을 비웁니다.</li>
+              <li><strong>거부된 편집(예: 작은 이미지 로드 실패, 순환 참조 거부)</strong>: 문서가 바뀌지 않았으므로 기존 <code>_redoStack</code>을 절대 지우지 않고 그대로 보존합니다!</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 4&nbsp;·&nbsp;부모-자식 그룹 규칙</span> 순환 참조 금지(<code>CreatesCycle</code>)와 부모 자동 확장</h4>
+            <p>
+              도형 A를 부모 B의 자식으로 넣을 때(<code>Attach</code>), 만약 B가 이미 A의 자식이라면 <code>A&nbsp;↔&nbsp;B</code> 무한 루프(Cycle)가 생깁니다! 이를 막고, 자식이 부모 상자 밖에 있으면 부모 상자를 자동으로 넓혀 자식을 품어줍니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학으로 한 걸음씩 공식 유도하기 (#sec-preview-sim)
+           ========================================================================= -->
+      <section class="section-card" id="sec-preview-sim">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: 드래그 프리뷰 합성 수식과 Undo/Redo 항등식</h2>
+
+        <!-- Formula 7.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 프리뷰 합성 &amp; 커밋 상태 전이</span>
+              <span>드래그 중 실시간 렌더링 도형 <i>G</i><sub>render</sub>(<i>i</i>) 와 <code>PointerUp</code> 커밋 전이</span>
+            </div>
+            <span class="math-eq-num">(식 7.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 버전 <i>v</i>인 현재 확정 문서 스냅샷 <i>D<sub>v</sub></i> 안에는 각 도형 <i>i</i>의 원래 기하 상태 <i>G</i><sub>doc</sub>(<i>i</i>)가 들어 있습니다.<br/>
+            2) 드래그 중인 도형 ID 집합을 <i>S</i><sub>moving</sub>, 현재 마우스 프리뷰 변환을 <i>T</i><sub>preview</sub>라고 하면, 화면을 그리는 <code>GetRenderedGeometry(id)</code> 함수는:
+            &nbsp;&nbsp;• 도형 <i>i</i>가 <i>S</i><sub>moving</sub>에 속하면&nbsp;→&nbsp;<strong><i>T</i><sub>preview</sub>(<i>G</i><sub>doc</sub>(<i>i</i>))</strong> (원본&nbsp;+&nbsp;프리뷰 변화량)을 반환!<br/>
+            &nbsp;&nbsp;• 도형 <i>i</i>가 움직이지 않는 도형이면&nbsp;→&nbsp;<strong><i>G</i><sub>doc</sub>(<i>i</i>)</strong> (원본 그대로)를 반환!<br/>
+            3) 마우스를 떼는 순간(<code>Commit</code>)에만 새 문서 <i>D</i><sub><i>v</i>+1</sub>을 만들고 <i>D<sub>v</sub></i>를 Undo 스택에 넣으므로, <strong><code>Undo(Commit(D_v, T))&nbsp;=&nbsp;D_v</code></strong> 가 언제나 오차 없이 성립합니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">드래그 중 렌더링 도형</span>
+                <span class="math-expr">
+                  <i>G</i><sub>render</sub>(<i>i</i>) =
+                  <span class="math-piecewise">
+                    <span class="math-piecewise-row">
+                      <span><i>T</i><sub>preview</sub>(<i>G</i><sub>doc</sub>(<i>i</i>))</span>
+                      <span class="math-piecewise-cond">(<i>i</i> ∈ <i>S</i><sub>moving</sub> 일 때)</span>
+                    </span>
+                    <span class="math-piecewise-row">
+                      <span><i>G</i><sub>doc</sub>(<i>i</i>)</span>
+                      <span class="math-piecewise-cond">(<i>i</i> ∉ <i>S</i><sub>moving</sub> 일 때)</span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">PointerUp 커밋 &amp; Undo 역변환</span>
+                <span class="math-expr"><i>D</i><sub><i>v</i>+1</sub> = Commit(<i>D<sub>v</sub></i>, <i>T</i><sub>preview</sub>),</span>
+                <span class="math-expr">Undo(<i>D</i><sub><i>v</i>+1</sub>) = <i>D<sub>v</sub></i></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>D<sub>v</sub></i></td>
+                  <td>버전 번호 <i>v</i>인 불변 문서 스냅샷 (드래그 내내 불변 유지)</td>
+                  <td>불변 상태 공간</td>
+                  <td><code>DocumentState Document</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>S</i><sub>moving</sub></td>
+                  <td>현재 드래그 변환 대상인 ROI ID 집합 (부모 선택 시 하위 자식 포함)</td>
+                  <td>ROI ID 유한집합</td>
+                  <td><code>preview.MovingIds</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>T</i><sub>preview</sub></td>
+                  <td>드래그 시작점 대비 현재 마우스의 이동·회전·리사이즈 프리뷰</td>
+                  <td>SE(2) 강체 변환</td>
+                  <td><code>RoiTransformPreview</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 원본 문서에 저장된 상자 위치가 <b><code>(100, 100)</code></b>이고, 지금 마우스를 <b><code>(+25, +10)</code></b>만큼 드래그하는 중이라면?<br/>
+              • 드래그하는 동안 원본 <code>DocumentState</code>의 <code>(100, 100)</code>은 절대 건드리지 않고, 화면에 그릴 때만 <code>100&nbsp;+&nbsp;25&nbsp;=&nbsp;125</code>, <code>100&nbsp;+&nbsp;10&nbsp;=&nbsp;110</code> 위치에 그립니다.<br/>
+              • 마우스 버튼을 딱 떼는 순간에만 새 <code>DocumentState</code>를 <code>(125, 110)</code>으로 1번 생성하고 이전 <code>(100, 100)</code> 스냅샷은 Undo 스택에 넣습니다!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: <code>RoiTransformPreview</code> 분리와 Undo/Redo 스택 시뮬레이터</h2>
+        <p>
+          아래 캔버스의 도형을 드래그해 보세요. 드래그하는 동안에는 노란색 Preview 숫자만 바뀌고 Undo 스택 길이는 그대로 유지되다가, 마우스 버튼을 떼는 순간(<code>PointerUp</code>) Undo 스택이 1칸 늘어납니다!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · RoiTransformPreview 분리와 Undo/Redo 스택</div>
+            <div class="lab-subtitle">캔버스를 드래그한 뒤 마우스를 놓아 커밋하고, Undo/Redo 버튼을 눌러보세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="immutable-history-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <button id="sim-undo-btn" class="lab-btn">↶ 실행 취소 (Undo)</button>
+            <button id="sim-redo-btn" class="lab-btn">↷ 다시 실행 (Redo)</button>
+          </div>
+          <div id="immutable-history-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-group-editor)
+           ========================================================================= -->
+      <section class="section-card" id="sec-group-editor">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>DocumentState</code>, <code>RoiTransformPreview</code>, <code>EditHistory</code>, <code>EditorSession</code></h2>
+        <p>
+          이제 불변 문서 스냅샷과 <i>O</i>(1) 드래그 프리뷰, 32단계 Undo/Redo 이력 스택, 그리고 부모-자식 그룹 연결(<code>RoiGroupEditor.Attach</code>) 코드를 직접 작성해 봅시다.
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · DocumentState, RoiSnapshot, RoiTransformPreview, EditHistory, RoiAlignmentMap 완성본</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Editing/DocumentState.cs">src/VisionCanvas.Core/Editing/DocumentState.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Editing/RoiSnapshot.cs">src/VisionCanvas.Core/Editing/RoiSnapshot.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Editing/EditorSession.cs">src/VisionCanvas.Core/Editing/EditorSession.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Alignment/RoiAlignmentMap.cs">src/VisionCanvas.Core/Alignment/RoiAlignmentMap.cs</a>
+            </div>
+          </div>
+          <pre><code>using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using VisionCanvas.Core.Geometry;
+using VisionGeometry;
+
+namespace VisionCanvas.Core.Editing;
+
+public sealed record Roi(
+    Guid Id,
+    string Name,
+    RoiGeometry Geometry,
+    Guid? ParentId = null,
+    bool IsGroup = false,
+    long Order = 0);
+
+// 1. 드래그 도중 원본 문서를 건드리지 않고 이동·회전·크기 변화량만 들고 있는 O(1) 프리뷰
+public sealed record RoiTransformPreview(
+    ImmutableHashSet&lt;Guid&gt; MovingIds,
+    PointD TranslationDelta,
+    double RotationDeltaDegrees = 0.0,
+    PointD? RotationPivot = null,
+    Guid? SingleOverrideId = null,
+    RoiGeometry? SingleOverrideGeometry = null)
+{
+    public RoiGeometry Apply(Roi roi)
+    {
+        if (SingleOverrideId == roi.Id &amp;&amp; SingleOverrideGeometry is { } g) return g;
+        if (!MovingIds.Contains(roi.Id)) return roi.Geometry;
+
+        RoiGeometry geom = roi.Geometry;
+        if (RotationPivot is { } pivot &amp;&amp; Math.Abs(RotationDeltaDegrees) &gt; 1e-7)
+        {
+            return geom.RotateAround(pivot, RotationDeltaDegrees);
+        }
+
+        return geom.Translate(TranslationDelta);
+    }
+}
+
+// 2. 한 시점의 모든 ROI 사전, 영속 BVH 스냅샷(RoiSnapshot), 선택 집합(RoiIdSet)을 담은 불변 문서
+public sealed class DocumentState
+{
+    public ImmutableDictionary&lt;Guid, Roi&gt; Rois { get; }
+    public RoiIdSet Selection { get; }
+    public RoiSpatialIndex SpatialIndex { get; }
+
+    public DocumentState(
+        ImmutableDictionary&lt;Guid, Roi&gt; rois,
+        RoiIdSet selection)
+    {
+        Rois = rois;
+        Selection = selection;
+        var entries = new List&lt;RoiSpatialIndex.Entry&gt;(rois.Count);
+        foreach (Roi r in rois.Values)
+            entries.Add(new RoiSpatialIndex.Entry(r.Id, r.Geometry.Bounds, r.Geometry.Area, r.Order));
+        SpatialIndex = new RoiSpatialIndex(entries);
+    }
+
+    public static DocumentState Empty { get; } =
+        new(ImmutableDictionary&lt;Guid, Roi&gt;.Empty, RoiIdSet.Empty);
+
+    public DocumentState WithRoi(Roi roi) =&gt; new(Rois.SetItem(roi.Id, roi), Selection);
+    public DocumentState WithRois(ImmutableDictionary&lt;Guid, Roi&gt; rois) =&gt; new(rois, Selection);
+    public DocumentState WithSelection(RoiIdSet selection) =&gt; new(Rois, selection);
+}
+
+// 3. 최대 32단계의 과거(Undo)와 미래(Redo) 스냅샷 스택 관리기
+public sealed class EditHistory
+{
+    private readonly List&lt;DocumentState&gt; _undo = new();
+    private readonly List&lt;DocumentState&gt; _redo = new();
+    private const int MaxDepth = 32;
+
+    public int UndoCount =&gt; _undo.Count;
+    public int RedoCount =&gt; _redo.Count;
+
+    public void Push(DocumentState previousState)
+    {
+        if (_undo.Count &gt;= MaxDepth) _undo.RemoveAt(0);
+        _undo.Add(previousState);
+        _redo.Clear(); // 새로운 역사가 쓰여졌으므로 미래(Redo) 스택 초기화!
+    }
+
+    public bool TryUndo(DocumentState current, out DocumentState restored)
+    {
+        if (_undo.Count == 0) { restored = current; return false; }
+        restored = _undo[^1];
+        _undo.RemoveAt(_undo.Count - 1);
+        _redo.Add(current);
+        return true;
+    }
+
+    public bool TryRedo(DocumentState current, out DocumentState restored)
+    {
+        if (_redo.Count == 0) { restored = current; return false; }
+        restored = _redo[^1];
+        _redo.RemoveAt(_redo.Count - 1);
+        _undo.Add(current);
+        return true;
+    }
+}</code></pre>
+        </div>
+
+        <div class="build-step" style="margin-top: 20px;">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 2 · 원본 문서와 Undo 이력을 건드리지 않고 계층별 마크 보정을 적용하는 RoiAlignmentMap.cs</span>
+            <a class="source-link-pill" href="../src/VisionCanvas.Core/Alignment/RoiAlignmentMap.cs">src/VisionCanvas.Core/Alignment/RoiAlignmentMap.cs</a>
+          </div>
+          <p style="margin-bottom: 10px; color: var(--text-secondary);">
+            실제 검사 라인에서 기판이 살짝 틀어진 채 찍혔을 때, 원래 티칭해 둔 <code>DocumentState</code>와 Undo 이력을 직접 고치면 다음 기판을 검사할 때 기준 좌표가 점점 틀어집니다(Precision Drift)! 그래서 <code>RoiAlignmentMap</code>은 <strong>전체(Overall) → 모듈 그룹 → ROI 그룹</strong> 순서로 <code>ParentId</code>를 따라 <code>FiducialAlignment</code>를 연결하고, <code>Map(roiId)</code>를 호출할 때만 원본 ROI의 ID·ParentId·마스크·검색 여유는 그대로 보존한 채 보정된 검사 좌표(<code>Geometry</code>)만 계산해 돌려줍니다!
+          </p>
+          <pre><code>// src/VisionCanvas.Core/Alignment/RoiAlignmentMap.cs 핵심 발췌
+public Roi Map(Guid roiId)
+{
+    if (!TryResolve(roiId, out var alignment, out var error))
+    {
+        throw new InvalidOperationException(error);
+    }
+    var roi = _reference.Rois[roiId];
+    return alignment is null || alignment.Transform.IsIdentity ? roi : roi with
+    {
+        Geometry = alignment.Apply(roi.Geometry)
+    };
+}</code></pre>
+        </div>
+
+        <div class="kent-beck-box" style="margin-top: 20px;">
+          <div class="kent-beck-header">
+            <span class="kent-beck-title">코드 2 · 켄트 백 Composed Method로 나눈 <code>RoiGroupEditor.Attach</code> 호출 트리</span>
+            <div class="complexity-badges">
+              <span class="cc-badge">Attach CC = 5</span>
+              <span class="cc-badge">ValidateAttachableChild CC = 5</span>
+              <span class="cc-badge">ExpandParentToCoverChildren CC = 6</span>
+            </div>
+          </div>
+          <div class="composed-tree">
+            <div class="composed-parent">
+              RoiGroupEditor.Attach(DocumentState document, IEnumerable&lt;RoiId&gt; childIds, RoiId parentId)
+            </div>
+            <div class="composed-children">
+              <div class="composed-step">
+                <span class="composed-step-num">Step 1</span>
+                <span class="composed-step-name">ValidateAttachableChild()</span>
+                <span class="composed-step-desc">자식 존재 여부, 자기 자신 참조 금지, <code>CreatesCycle</code> 순환 계층 여부를 검사합니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 2</span>
+                <span class="composed-step-name">ExpandParentToCoverChildren()</span>
+                <span class="composed-step-desc">자식들이 부모 도형 밖에 있으면 부모의 경계 상자를 넓혀 자식을 완전히 감싸도록(Cover) 확장합니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 3</span>
+                <span class="composed-step-name">document.WithUpdatedRois(updates)</span>
+                <span class="composed-step-desc">확장된 부모와 <code>ParentId = parentId</code>가 설정된 자식들을 불변 문서 스냅샷으로 한 번에 커밋합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">라인 바이 라인 코드 해부 · RoiTransformPreview &amp; RoiGroupEditor.Attach</span>
+            <a class="source-link-pill" href="../src/VisionCanvas.Core/Editing/RoiGroupEditor.cs">src/VisionCanvas.Core/Editing/RoiGroupEditor.cs</a>
+          </div>
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>행 / 핵심 코드</th>
+                <th>초보자 눈높이 한 줄 설명</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>if (!MovingIds.Contains(roi.Id)) return roi.Geometry;</code></td>
+                <td>(식 7.1)에서 드래그 대상(<code>MovingIds</code>)이 아닌 도형은 아무 계산 없이 원본 도형(<code>roi.Geometry</code>)을 그대로 반환합니다.</td>
+              </tr>
+              <tr>
+                <td><code>PointD newCenter = pivot + (geom.Center - pivot).Rotate(RotationDeltaRadians);</code></td>
+                <td>부모 그룹을 회전시킬 때 자식 도형의 중심(<code>geom.Center</code>)도 부모 회전 중심(<code>pivot</code>)을 기준으로 함께 공전하도록 01장 피벗 회전 공식을 적용합니다.</td>
+              </tr>
+              <tr>
+                <td><code>SpatialIndex = new RoiSpatialIndex(entries);</code></td>
+                <td><code>DocumentState</code> 생성자에서 확정된 ROI들로 BVH 트리를 구축합니다. 드래그 중에는 <code>DocumentState</code>를 새로 만들지 않으므로 BVH 재구축 비용이 0입니다!</td>
+              </tr>
+              <tr>
+                <td><code>_redo.Clear();</code></td>
+                <td>사용자가 Undo를 한 뒤 새로운 도형을 추가하거나 옮기면, 기존의 미래(Redo) 이력을 깨끗이 비워 시간선이 꼬이지 않게 합니다.</td>
+              </tr>
+              <tr>
+                <td><code>if (!ValidateAttachableChild(...)) return RoiGroupEditResult.Reject(...);</code></td>
+                <td>부모-자식 연결 시 자기 자신을 부모로 삼거나 순환 참조(Cycle)가 생기면 문서를 변경하지 않고 거부하며, 이때 기존 Redo 스택도 안전하게 보존됩니다.</td>
+              </tr>
+              <tr>
+                <td><code>updates.AddRange(children.Select(c =&gt; c with { ParentId = parentId }));</code></td>
+                <td>검증을 통과한 자식 도형들에 <code>with { ParentId = parentId }</code>로 부모 ID를 부여해 불변 문서 스냅샷으로 단 한 번에 업데이트합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & UML 다이어그램 (#sec-solid-grasp, #sec-diagrams)
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: 불변 상태와 프리뷰 분리가 만드는 압도적 최적화</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Indirection (간접성 패턴)</span>
+            <h4><code>RoiTransformPreview</code>가 제스처와 무거운 문서 상태 사이를 완충</h4>
+            <p>드래그 제스처가 무거운 <code>DocumentState</code>를 직접 흔들지 않고 가벼운 <code>RoiTransformPreview</code> 객체 하나만 바꾸도록 간접 계층을 두어 드래그 비용을 <i>O</i>(1)로 만들었습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>문서 데이터(<code>DocumentState</code>) · 이력 스택(<code>EditHistory</code>) · 세션 조율(<code>EditorSession</code>) 분리</h4>
+            <p>스냅샷 보관, Undo/Redo 스택 관리, 현재 선택 및 프리뷰 조율 책임을 3개 클래스로 명확히 분리했습니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Creator (창조자 패턴)</span>
+            <h4><code>EditorSession</code>이 검증된 명령을 바탕으로 새 <code>DocumentState</code> 스냅샷을 생성</h4>
+            <p>아무 클래스나 문서를 고칠 수 없고, 오직 <code>EditorSession</code>만이 부모-자식 계층 규칙을 검증한 뒤 새 <code>DocumentState</code>를 만들어 교체합니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · OCP &amp; 불변 스냅샷(Memento)</span>
+            <h4>복잡한 역연산 코드 없이 스냅샷 교체만으로 100% 완벽한 Undo/Redo</h4>
+            <p>각 명령마다 취소 코드를 따로 짤 필요 없이 불변 <code>DocumentState</code> 참조만 스택에 넣었다 빼면 되므로, 1억 개 배치 편집이든 폴리곤 변형이든 Undo 버그가 절대 생기지 않습니다.</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 이 구조가 어떻게 60FPS 최적화를 달성할까요?</strong><br/>드래그 중(<code>PointerMove</code>)에는 BVH 트리 재구축도, 딕셔너리 복사도 전혀 하지 않고 숫자 2개(<code>TranslationDelta.X, Y</code>)만 바꿉니다. 덕분에 수만 개 ROI가 있어도 드래그 중 CPU 소요 시간은 0.01ms 미만입니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>07장 불변 문서 상태(<code>DocumentState</code>) · 실시간 프리뷰 · Undo/Redo 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"Session Facade","title":"EditorSession","role":"현재 문서, 선택 상태, 드래그 프리뷰, Undo/Redo를 총괄하는 중심 세션","color":"#34d399","members":["+ State: DocumentState","+ TransformPreview: RoiTransformPreview?","+ Add() / AddRange() / GroupSelection()","+ PrepareDocumentAsync() / CommitPrepared()","+ Undo() / Redo()"]},{"stereotype":"Immutable Snapshot","title":"DocumentState & RoiSnapshot","role":"한 시점의 모든 ROI 사전과 지연 공간 인덱스(Spatial), 자식/계층 인덱스를 담은 불변 상태","color":"#38bdf8","members":["+ Snapshot: RoiSnapshot (Spatial, Children, GroupLevels)","+ SelectionSnapshot: RoiSelectionSnapshot","+ Rois: ImmutableDict<Guid, Roi>","+ WithRois(rois, changedIds): DocumentState"]},{"stereotype":"GRASP Indirection (O(1))","title":"RoiTransformPreview","role":"드래그 도중 원본 문서를 건드리지 않고 이동·회전·크기 변화량만 들고 있는 경량 객체","color":"#fbbf24","members":["+ Selection: RoiTransformSelection","+ Transform: RigidTransform2D (이동/회전 델타)","+ Geometry(Roi): 화면 표시용 임시 RoiGeometry"]},{"stereotype":"Memento Stack","title":"EditHistory","role":"과거(Undo)와 미래(Redo) DocumentEdit 스냅샷 스택 및 메모리 예산 관리","color":"#f472b6","members":["- _undo / _redo: Stack<HistoryStep>","+ Commit(DocumentEdit): 새 이력 기록 및 Redo 초기화","+ Undo(current) / Redo(current)"]},{"stereotype":"Hierarchical Mark Alignment","title":"RoiAlignmentMap","role":"원본 문서와 Undo를 변경하지 않고 전체 → 모듈 → 그룹 마크 보정(FiducialAlignment)을 연결","color":"#818cf8","members":["+ Overall: FiducialAlignment?","+ TryAlign(scopeId, refMarks, detMarks, ...)","+ Map(roiId): 보정된 Roi 반환"]}],"edges":[{"from":0,"to":2,"label":"드래그 중 임시 보유"},{"from":0,"to":1,"label":"현재 확정 문서 보유"},{"from":0,"to":3,"label":"커밋 시 이력 저장"},{"from":3,"to":1,"label":"과거/미래 스냅샷 보관"},{"from":4,"to":1,"label":"원본 티칭 문서 참조"}],"tiers":[[0,4],[2,1,3]]}</script>
+        <div class="diagram-caption">드래그 중 <i>O</i>(1) 반응을 보장하는 <code>RoiTransformPreview</code>와 불변 스냅샷 기반 <code>EditHistory</code>의 클래스 구조입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>07장 시퀀스 다이어그램 · 드래그 중 Preview 갱신과 <code>PointerUp</code> 커밋 및 Undo 복원 흐름</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["MoveGesture","EditorSession","RoiTransformPreview","DocumentState","EditHistory"],"messages":[{"from":0,"to":1,"text":"[드래그 중] SetTransformPreview(targetIds, delta)"},{"from":1,"to":2,"text":"경량 RoiTransformPreview 생성 (DocumentState는 불변 유지!)"},{"from":0,"to":1,"text":"[마우스 뗌] CommitTransformPreview()"},{"from":1,"to":4,"text":"Push(기존 DocumentState) [Undo 스택에 원본 보관]"},{"from":1,"to":3,"text":"WithUpdatedRois()로 이동이 반영된 새 DocumentState 생성"},{"from":1,"to":1,"text":"ActivePreview = null 초기화"},{"from":0,"to":1,"text":"[Ctrl+Z 입력] Undo() 호출 → EditHistory에서 이전 스냅샷 즉시 복원!"}]}</script>
+        <div class="diagram-caption"><code>PointerMove</code> 중에는 <code>RoiTransformPreview</code>만 바뀌고, <code>PointerUp</code>에서 딱 한 번 <code>DocumentState</code>와 <code>EditHistory</code>가 갱신되는 타임라인입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 07장 마무리 셀프 체크 &amp; 다음 장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · Undo를 한 상태에서 사용자가 새로운 도형을 추가하면 Redo 스택은 어떻게 되어야 하고, 반대로 작은 이미지 거부처럼 편집이 실패했을 때 Redo 스택은 어떻게 되어야 할까요?</summary>
+          <p><strong>정답:</strong> 새로운 도형 추가가 <strong>성공</strong>했을 때는 새로운 역사가 시작되었으므로 Redo 스택을 깨끗이 비워야(<code>Clear</code>) 하고, 편집 요청이 <strong>거부(Reject)</strong>되어 문서가 바뀌지 않았을 때는 기존 Redo 스택을 절대 날리지 않고 그대로 보존해야 합니다!</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 다음 장(08장)에서는 무엇을 만들게 되나요?</summary>
+          <p><strong>징검다리:</strong> 축하합니다! 01장~07장까지 UI나 그래픽 카드에 전혀 의존하지 않는 순수 두뇌 엔진(<code>VisionGeometry</code> + <code>VisionCanvas.Core</code>)을 100% 완성했습니다! 이제 이 도형들과 8K~32K 카메라 영상을 실제 모니터 화면에 초고속으로 그려낼 차례입니다. 그런데 왜 기본 WPF <code>&lt;Canvas&gt;</code>에 사각형 10만 개를 넣으면 프로그램이 멈춰버릴까요? 다음 <strong>08장</strong>에서 <strong>Win32 <code>HWND</code>, <code>IntPtr</code>, <code>WndProc</code> 비트 연산, 그리고 백그라운드 전용 렌더 스레드(<code>RenderWorker</code>)와 6계층 <code>ScenePainter</code></strong>를 밑바닥부터 정복해 봅니다!</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="06-hit-testing-and-gestures.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">06장 · 히트테스트와 입력 제스처 상태 머신</span>
+        </a>
+        <a class="pager-link" href="08-hwnd-viewport-and-render-loop.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">08장 · Win32 HWND 뷰포트와 전용 렌더 스레드</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

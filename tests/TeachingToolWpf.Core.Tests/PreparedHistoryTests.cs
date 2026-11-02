@@ -12,10 +12,8 @@ public class PreparedHistoryTests
         var history = new EditHistory();
         var before = DocumentState.Empty;
         var roi = CreateRoi();
-        var after = before.WithRois(before.Rois.Add(roi.Id, roi), [roi.Id]) with
-        {
-            Selection = [roi.Id]
-        };
+        var after = before.WithRois(before.Rois.Add(roi.Id, roi), [roi.Id])
+            .WithSelection([roi.Id]);
         history.Push(new("add", before, after));
 
         var prepared = history.PreviewUndo(after);
@@ -41,11 +39,7 @@ public class PreparedHistoryTests
         var after = before.WithRois(before.Rois.Add(roi.Id, roi), [roi.Id]);
         history.Push(new("add", before, after));
         var oldTarget = history.PreviewUndo(after);
-        var changed = after with
-        {
-            Viewport = after.Viewport.Pan(new(25, 40)),
-            Image = new("current", "current", 500, 500)
-        };
+        var changed = after.WithImage(new("current", "current", 500, 500), after.Viewport.Pan(new(25, 40)));
         var target = history.PreviewUndo(changed);
         Assert.NotSame(oldTarget, target);
         Assert.Equal(changed.Viewport, target.Viewport);

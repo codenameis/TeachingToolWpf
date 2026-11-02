@@ -68,11 +68,16 @@ public sealed record SearchResult(IReadOnlyList<Match> Matches, bool CandidatesT
     }
 }
 
-/// <summary>같은 검색 안의 경과 시간(ms). 준비·전체 후보·정밀 보정·원본 검증·최종 중복 제거를 구분한다.</summary>
+/// <summary>같은 검색 안의 경과 시간(ms). 창 입력은 원본 정밀 보정과 검증을 이어서 수행하며 둘 다 Verification에 포함한다.</summary>
 public sealed record SearchTimings(double Preparation, double CoarseSearch, double Refinement, double Verification, double Suppression);
 
 public interface ITemplateMatcher
 {
+    /// <summary>전체 원본을 작은 창으로 읽으며 전역 후보와 최종 중복 제거를 유지한다.</summary>
+    SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
+        => throw new NotSupportedException("This matcher does not support windowed image input.");
+
     /// <summary>
     /// acceptCenter는 입력 영상의 픽셀 인덱스 좌표로 최종 중심을 검사하며, 최종 NMS/출력 제한 전에 적용한다.
     /// accelerator의 수명은 호출자가 소유한다. 생략하면 기존 CPU 경로이며 미지원 구현은 명시적으로 거부한다.

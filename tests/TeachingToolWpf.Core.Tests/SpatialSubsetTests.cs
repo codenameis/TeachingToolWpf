@@ -159,10 +159,7 @@ public class SpatialSubsetTests
         var originalBlocks = spatial.Blocks(spatial.Bounds, 8).ToArray();
         var kept = originalBlocks.Where((_, index) => index % 4 != 0).ToArray();
         var selected = kept.SelectMany(block => block.Detail(0)).Select(item => item.Roi!.Id).ToImmutableHashSet();
-        var after = before with
-        {
-            Selection = selected
-        };
+        var after = before.WithSelection(selected);
         var subset = after.SelectedSpatial;
         var blocks = subset.Blocks(subset.Bounds, 8).ToArray();
 

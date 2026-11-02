@@ -10,30 +10,12 @@ internal readonly record struct EdgePoint(double X, double Y, double NormalX, do
 
 internal sealed class GradientImage
 {
-    public int Width
-    {
-        get;
-    }
-    public int Height
-    {
-        get;
-    }
-    public float[] X
-    {
-        get;
-    }
-    public float[] Y
-    {
-        get;
-    }
-    public float[] Magnitude
-    {
-        get;
-    }
-    public byte[] Bits
-    {
-        get;
-    }
+    public int Width { get; }
+    public int Height { get; }
+    public float[] X { get; }
+    public float[] Y { get; }
+    public float[] Magnitude { get; }
+    public byte[] Bits { get; }
     private readonly int[] _edgeIndex;
     public EdgePoint[] EdgePoints { get; private set; } = [];
     internal double DirectionLengthUpperBound

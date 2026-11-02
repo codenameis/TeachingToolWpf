@@ -215,11 +215,8 @@ public class RotationPreviewTests
         Assert.NotSame(cache, editor.State.TransformSelection);
         var state = editor.State;
         cache = state.TransformSelection;
-        // A record copy must invalidate image-dependent constraints even when ROI/selection references are shared.
-        var changedImage = state with
-        {
-            Image = new("larger", "larger", 2000, 2000)
-        };
+        // A new image reference must invalidate image-dependent constraints even when ROI/selection references are shared.
+        var changedImage = state.WithImage(new("larger", "larger", 2000, 2000));
         Assert.NotSame(cache, changedImage.TransformSelection);
         editor.SetImage(new("new", "new", 1000, 1000), editor.State.Viewport);
         Assert.NotSame(cache, editor.State.TransformSelection);

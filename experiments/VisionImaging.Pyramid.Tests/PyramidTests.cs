@@ -49,15 +49,18 @@ public sealed class PyramidTests
         Assert.Single(Directory.EnumerateFiles(Cache, "image.json", SearchOption.AllDirectories));
     }
 
-    [Fact]
-    public void TileReadsCrossMappingWindowsInBothDirections()
+    [Theory]
+    [InlineData(24576, PixelKind.Gray16)]
+    [InlineData(32768, PixelKind.Rgba32)]
+    [InlineData(32769, PixelKind.Rgba32)]
+    public void TileReadsCrossMappingWindowsInBothDirections(int width, PixelKind kind)
     {
-        using var source = Open(Input(), new PatternDecoder(24576, 521, PixelKind.Gray16));
+        using var source = Open(Input(), new PatternDecoder(width, 521, kind));
         foreach (var key in new TileKey[] { new(0, 47, 1), new(0, 0, 0), new(0, 23, 1), new(0, 47, 0) })
         {
             using var tile = source.Read(key, CancellationToken.None);
             var expected = new byte[tile.Length];
-            PatternDecoder.Fill(key.X * 512, key.Y * 512, tile.Width, tile.Height, PixelKind.Gray16, expected);
+            PatternDecoder.Fill(key.X * 512, key.Y * 512, tile.Width, tile.Height, kind, expected);
             Assert.Equal(expected, tile.Span.ToArray());
         }
     }

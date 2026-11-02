@@ -1,31 +1,37 @@
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using OpenCvSharp;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
 
 namespace VisionAlgorithm.OpenSrc.PatternMatching.Imaging;
 
 internal sealed record PrimitiveContour(ImmutableArray<ImagePoint> Points, ImmutableArray<ImagePoint> Approximation,
-    ImagePoint Center, double Area, double Perimeter, bool Clipped, bool HasHole);
+    ImagePoint Center, double Area, double Perimeter, bool Clipped, bool HasHole)
+{
+    public ImmutableArray<PrimitiveContour> Holes { get; init; } = [];
+    public ImmutableArray<ImagePoint> FineApproximation { get; init; } = [];
+}
 
 /// <summary>OpenCV 객체와 네이티브 호출 수명을 이 경계에만 유지한다.</summary>
 internal static class PrimitiveContourExtractor
 {
-    public const int MaximumContours = 4096;
-
-    public static (ImmutableArray<PrimitiveContour> Contours, bool Limited) Extract(GrayImage image,
-        PrimitiveDetectionOptions options, CancellationToken token)
+    public static ImmutableArray<PrimitiveContour> Extract(GrayImage image,
+        PrimitiveDetectionOptions options, CancellationToken token, IPrimitivePreprocessor? preprocessor = null,
+        Memory<byte> preprocessingBuffer = default)
     {
         token.ThrowIfCancellationRequested();
-        var pixels = new byte[checked(image.Width * image.Height)];
-        for (var row = 0; row < image.Height; row++)
+        var prepared = preprocessor?.Median3x3(image, token, preprocessingBuffer);
+        if (prepared is not null && (prepared.Width != image.Width || prepared.Height != image.Height))
         {
-            token.ThrowIfCancellationRequested();
-            image.Pixels.Span.Slice(row * image.Stride, image.Width).CopyTo(pixels.AsSpan(row * image.Width));
+            throw new InvalidOperationException("도형 전처리 결과 크기가 원본과 다릅니다.");
         }
-        using var source = Mat.FromPixelData(image.Height, image.Width, MatType.CV_8UC1, pixels, image.Width);
-        using var filtered = new Mat();
+        using var filtered = prepared is null ? new Mat() : Source(prepared, token);
         using var binary = new Mat();
-        Cv2.MedianBlur(source, filtered, 3);
+        if (prepared is null)
+        {
+            using var source = Source(image, token);
+            Cv2.MedianBlur(source, filtered, 3);
+        }
         var masked = !image.ExcludedPixels.IsEmpty;
         var thresholdType = ThresholdTypes.Binary | (options.AutomaticThreshold && !masked ? ThresholdTypes.Otsu : 0);
         var threshold = options.AutomaticThreshold && masked ? MaskedThreshold(filtered, image, token) : options.Threshold;
@@ -40,34 +46,86 @@ internal static class PrimitiveContourExtractor
             RetrievalModes.CComp, ContourApproximationModes.ApproxSimple);
         token.ThrowIfCancellationRequested();
         var output = ImmutableArray.CreateBuilder<PrimitiveContour>();
-        var limited = contours.Length > MaximumContours;
-        for (var index = 0; index < Math.Min(contours.Length, MaximumContours); index++)
+        for (var index = 0; index < contours.Length; index++)
         {
             token.ThrowIfCancellationRequested();
-            if (hierarchy[index].Parent >= 0 || contours[index].Length < 3)
+            if (hierarchy[index].Parent >= 0 || CreateContour(index) is not { } outer)
             {
                 continue;
             }
+            var holes = ImmutableArray.CreateBuilder<PrimitiveContour>();
+            // CComp의 구멍 안에 있는 독립 전경은 다시 최상위 윤곽이다.
+            // 직접 자식만 묶어 구멍을 중복 집계하거나 내부 도형을 삼키지 않는다.
+            for (var child = hierarchy[index].Child; child >= 0; child = hierarchy[child].Next)
+            {
+                token.ThrowIfCancellationRequested();
+                if (CreateContour(child) is { } hole)
+                {
+                    holes.Add(hole);
+                }
+                else
+                {
+                    // 해석할 수 없는 구멍을 버려 채워진 도형으로 오인하지 않는다.
+                    holes.Clear();
+                    break;
+                }
+            }
+            output.Add(outer with
+            {
+                Holes = holes.ToImmutable()
+            });
+        }
+        return output.ToImmutable();
+
+        PrimitiveContour? CreateContour(int index)
+        {
             var contour = contours[index];
+            if (contour.Length < 3)
+            {
+                return null;
+            }
             var area = Math.Abs(Cv2.ContourArea(contour));
             if (area < 9)
             {
-                continue;
+                return null;
             }
             var moments = Cv2.Moments(contour);
             if (Math.Abs(moments.M00) < 1e-8)
             {
-                continue;
+                return null;
             }
             var perimeter = Cv2.ArcLength(contour, true);
             var approximation = Cv2.ApproxPolyDP(contour, options.ApproximationTolerance * perimeter, true);
-            output.Add(new(contour.Select(point => new ImagePoint(point.X + .5, point.Y + .5)).ToImmutableArray(),
+            return new(contour.Select(point => new ImagePoint(point.X + .5, point.Y + .5)).ToImmutableArray(),
                 approximation.Select(point => new ImagePoint(point.X + .5, point.Y + .5)).ToImmutableArray(),
                 new((moments.M10 / moments.M00) + .5, (moments.M01 / moments.M00) + .5), area, perimeter,
                 contour.Any(point => point.X <= 0 || point.Y <= 0 || point.X >= image.Width - 1 || point.Y >= image.Height - 1),
-                hierarchy[index].Child >= 0));
+                hierarchy[index].Child >= 0)
+            {
+                FineApproximation = approximation.Length >= 6 && !Cv2.IsContourConvex(approximation) &&
+                    (options.Shapes & (PrimitiveShapeKind.CrossHash | PrimitiveShapeKind.Star | PrimitiveShapeKind.Asterisk)) != 0
+                    ? Cv2.ApproxPolyDP(contour, Math.Min(.005, options.ApproximationTolerance) * perimeter, true)
+                        .Select(point => new ImagePoint(point.X + .5, point.Y + .5)).ToImmutableArray()
+                    : []
+            };
         }
-        return (output.ToImmutable(), limited);
+    }
+
+    private static Mat Source(GrayImage image, CancellationToken token)
+    {
+        // Mat pins this array only for the native call lifetime. The source remains read-only.
+        if (MemoryMarshal.TryGetArray(image.Pixels, out var segment) && segment.Offset == 0 &&
+            segment.Count >= (long)image.Stride * image.Height)
+        {
+            return Mat.FromPixelData(image.Height, image.Width, MatType.CV_8UC1, segment.Array!, image.Stride);
+        }
+        var pixels = new byte[checked(image.Width * image.Height)];
+        for (var row = 0; row < image.Height; row++)
+        {
+            token.ThrowIfCancellationRequested();
+            image.Pixels.Span.Slice(row * image.Stride, image.Width).CopyTo(pixels.AsSpan(row * image.Width));
+        }
+        return Mat.FromPixelData(image.Height, image.Width, MatType.CV_8UC1, pixels, image.Width);
     }
 
     private static double MaskedThreshold(Mat filtered, GrayImage image, CancellationToken token)

@@ -1,8 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionGeometry;
 using Vortice.Direct3D;
@@ -24,71 +21,51 @@ internal sealed class RoiPipeline : IDisposable
     private const int RegisterSpace = 0;
     // 사각형은 네 변, 선분/원은 첫 여섯 정점만 사용한다. 하나의 보관 배치로 제출한다.
     private const int VerticesPerInstance = 4 * 6;
-    private const long CacheBudgetBytes = 128L * 1024 * 1024;
-    private const double ViewportPaddingDip = 8;
-    private const double SummarySizeDip = 6;
-    private const double DetailPreparationBudget = 4; // milliseconds
 
-    private sealed class KeyComparer : IEqualityComparer<(object Identity, int? Level)>
+    private sealed class Block(
+        RoiBufferArena.Lease geometryAllocation,
+        RoiBufferArena.Lease roleAllocation,
+        PointD origin,
+        int count,
+        RoiRoleCache roles,
+        double aggregateSize)
+        : RoiCachedBlockBase(origin, count, roles, aggregateSize)
     {
-        public bool Equals((object Identity, int? Level) a, (object Identity, int? Level) b)
-            => ReferenceEquals(a.Identity, b.Identity) && a.Level == b.Level;
+        public RoiBufferArena.Lease GeometryAllocation { get; } = geometryAllocation;
 
-        public int GetHashCode((object Identity, int? Level) key)
-            => HashCode.Combine(RuntimeHelpers.GetHashCode(key.Identity), key.Level);
-    }
-    private sealed record Block(RoiBufferArena.Lease Allocation, PointD Origin, int Count, RoiRoleCache Roles) : IDisposable
-    {
-        public long LastUsed
-        {
-            get;
-            set;
-        }
-
-        public ulong RoleOffset => Allocation.Offset + ((ulong)Count * RoiInstance.SizeInBytes);
+        public RoiBufferArena.Lease RoleAllocation { get; set; } = roleAllocation;
 
         // 현재/직전 계층의 역할 배열 두 벌을 보수적으로 예약한다.
-        public long OwnedBytes => (long)Count * RoiInstance.RoleSizeInBytes * 2;
+        public override long OwnedBytes => (long)Count * RoiInstance.RoleSizeInBytes * 2;
 
-        public double FullDetailAggregateSize
+        public override object? PageIdentity => GeometryAllocation.Page;
+
+        public override object? SecondaryPageIdentity
+            => ReferenceEquals(RoleAllocation.Page, GeometryAllocation.Page) ? null : RoleAllocation.Page;
+
+        public void Retire()
         {
-            get;
-            set;
+            GeometryAllocation.Retire();
+            RoleAllocation.Retire();
         }
 
-        public double AggregateSize
+        public override void Dispose()
         {
-            get; init;
+            RoleAllocation.Dispose();
+            GeometryAllocation.Dispose();
         }
-
-        public void Dispose() => Allocation.Dispose();
     }
+
     private readonly bool _profileEnabled;
     private readonly ID3D12RootSignature _root;
     private readonly ID3D12PipelineState _pipeline;
     private readonly FrameUploadArena[] _uploads;
     private readonly RoiBufferArena _buffers;
-    // null 단계는 요약 없는 형상 한 벌이다. 다른 단계에 같은 Block 별칭을 등록하지 않는다.
-    private readonly Dictionary<(object Identity, int? Level), Block> _blocks = new(new KeyComparer());
-    private readonly Dictionary<object, Block> _lastDetails = new(ReferenceEqualityComparer.Instance);
-    private readonly RoiCacheMemory _cacheMemory = new();
-    private readonly RoiRoleLookup _roleLookup = new();
-    private readonly List<RoiInstance> _packingInstances = [];
-    private readonly List<uint> _packingRoles = [];
-    private readonly Dictionary<RoiGeometry, int> _packingUnique = [];
-    private long _frame;
-    private long _preparationStart;
-    private int _preparedBlocks;
+    private readonly RoiBlockCache<Block> _cache;
 
-    public bool HasPendingDetails
-    {
-        get; private set;
-    }
+    public bool HasPendingDetails => _cache.HasPendingDetails;
 
-    public int DeferredBlocks
-    {
-        get; private set;
-    }
+    public int DeferredBlocks => _cache.DeferredBlocks;
 
     public long UploadedBytes
     {
@@ -96,30 +73,20 @@ internal sealed class RoiPipeline : IDisposable
         private set;
     }
 
-    public long InstanceCount
-    {
-        get;
-        private set;
-    }
+    public long InstanceCount => _cache.InstanceCount;
 
-    public long CacheBytes => _cacheMemory.Bytes + _buffers.ActiveAllocationBytes + _roleLookup.EstimatedBytes;
+    public long CacheBytes => _cache.MemoryBytes + _buffers.ActiveAllocationBytes;
 
-    public double PackMilliseconds
-    {
-        get; private set;
-    }
-    public double CreateMilliseconds
-    {
-        get; private set;
-    }
-    public double UploadMilliseconds
-    {
-        get; private set;
-    }
+    public double PackMilliseconds => _cache.PackMilliseconds;
+
+    public double CreateMilliseconds { get; private set; }
+
+    public double UploadMilliseconds { get; private set; }
 
     public RoiPipeline(Dx12Device gpu, bool profileEnabled = false)
     {
         _profileEnabled = profileEnabled;
+        _cache = new(profileEnabled);
         _uploads = [new(gpu), new(gpu)];
         _buffers = new(gpu);
         _root = gpu.Device.CreateRootSignature(new RootSignatureDescription1(RootSignatureFlags.None,
@@ -151,70 +118,38 @@ internal sealed class RoiPipeline : IDisposable
 
     public void Draw(RenderScene scene, Dx12Surface surface)
     {
-        _frame++;
+        _cache.BeginFrame();
         UploadedBytes = 0;
-        InstanceCount = 0;
-        PackMilliseconds = 0;
         CreateMilliseconds = 0;
         UploadMilliseconds = 0;
-        HasPendingDetails = false;
-        DeferredBlocks = 0;
-        _preparedBlocks = 0;
-        _preparationStart = Stopwatch.GetTimestamp();
         _uploads[surface.FrameIndex].Reset();
 
-        var view = scene.Document.Viewport;
-        var topLeft = view.ScreenToImage(new(-ViewportPaddingDip, -ViewportPaddingDip));
-        var bottomRight = view.ScreenToImage(new(scene.Width + ViewportPaddingDip, scene.Height + ViewportPaddingDip));
-        var visible = new BoundsD(topLeft.X, topLeft.Y, bottomRight.X, bottomRight.Y);
-        var level = (int)Math.Floor(Math.Log2(SummarySizeDip / view.Scale));
-        var aggregateSize = Math.Pow(2, level);
+        RoiSpatialTraversal.GetLodMetrics(scene, out var visible, out var level, out var aggregateSize);
 
         surface.Commands.SetGraphicsRootSignature(_root);
         surface.Commands.SetPipelineState(_pipeline);
         surface.Commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-        if (scene.Transform is { } preview)
-        {
-            DrawIndex(preview.Selection.Stationary, selected: false, transform: default);
-            if (preview.Selection.Affected.Count != scene.Document.Selection.Count)
+        RoiSpatialTraversal.ForEachIndex(scene, DrawIndex);
+        _cache.EvictInactive(
+            memoryBytes => memoryBytes + _buffers.ActiveAllocationBytes,
+            block =>
             {
-                DrawIndex(preview.Selection.Moving, selected: false, preview.Transform);
-            }
+                block.Retire();
+                surface.Retire(block);
+            });
 
-            DrawIndex(scene.Document.SelectedSpatial, selected: true, preview.Transform);
-        }
-        else
-        {
-            if (scene.Document.Selection.Count != scene.Document.Rois.Count)
-            {
-                DrawIndex(scene.Document.Snapshot.Spatial, selected: false, transform: default);
-            }
-
-            if (scene.Document.Selection.Count > 0)
-            {
-                DrawIndex(scene.Document.SelectedSpatial, selected: true, transform: default);
-            }
-        }
-        if (scene.Transform is { } searchPreview)
-        {
-            DrawIndex(searchPreview.Selection.StationarySearch, false, default, searchRange: true);
-            DrawIndex(searchPreview.Selection.MovingSearch, false, searchPreview.Transform, searchRange: true);
-        }
-        else
-        {
-            DrawIndex(scene.Document.Snapshot.SearchSpatial, false, default, searchRange: true);
-        }
-        EvictInactiveBlocks(surface);
-
-        void DrawIndex(RoiSpatialIndex index, bool selected, RigidTransform2D transform, bool searchRange = false)
+        void DrawIndex(RoiSpatialIndex index, bool selected, RigidTransform2D transform, bool searchRange)
         {
             var query = transform.InverseTransformBounds(visible);
             foreach (var region in index.Blocks(query))
             {
-                var block = GetOrUploadBlock(region, level, aggregateSize, scene.Document, surface);
-                _lastDetails[region.Identity] = block;
-                block.LastUsed = _frame;
-                InstanceCount += block.Count;
+                var block = _cache.GetOrUpload(
+                    region,
+                    level,
+                    aggregateSize,
+                    scene.Document,
+                    (r, agg, instances, roles) => UploadBlock(r, agg, instances, roles, surface),
+                    b => UploadRoleChanges(b, surface));
                 if (searchRange)
                 {
                     DrawBlock(block, scene, surface, RoiDrawPass.SearchRange, selected, transform);
@@ -228,179 +163,67 @@ internal sealed class RoiPipeline : IDisposable
         }
     }
 
-    private Block GetOrUploadBlock(RoiSpatialBlock region, int level, double aggregateSize, DocumentState document, Dx12Surface surface)
-    {
-        var key = (region.Identity, (int?)level);
-        var fullDetailKey = (region.Identity, (int?)null);
-        _blocks.TryGetValue(fullDetailKey, out var fullDetail);
-        // BVH에서 T 크기에 요약이 없었다면 더 작은 크기에도 요약이 생기지 않는다.
-        var block = fullDetail is not null && aggregateSize <= fullDetail.FullDetailAggregateSize
-            ? fullDetail : _blocks.GetValueOrDefault(key);
-        if (block is not null)
-        {
-            var roleAggregate = ReferenceEquals(block, fullDetail) ? block.FullDetailAggregateSize : aggregateSize;
-            if (block.Roles.Refresh(region, roleAggregate, document, block.Count, _roleLookup))
-            {
-                UploadRoleChanges(block, surface);
-            }
-
-            return block;
-        }
-
-        // 같은 불변 형상 블록의 직전 LOD를 현재 view/preview로 그린다. 새 블록은 생략하지 않는다.
-        // 최소 한 블록은 진행해 지속 입력/느린 장치에서도 상세화가 굶지 않게 한다.
-        if (_preparedBlocks > 0 && Stopwatch.GetElapsedTime(_preparationStart).TotalMilliseconds >= DetailPreparationBudget
-            && _lastDetails.TryGetValue(region.Identity, out var fallback))
-        {
-            if (fallback.Roles.Refresh(region, fallback.AggregateSize, document, fallback.Count, _roleLookup))
-            {
-                UploadRoleChanges(fallback, surface);
-            }
-            HasPendingDetails = true;
-            DeferredBlocks++;
-            return fallback;
-        }
-
-        _preparedBlocks++;
-
-        var packStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
-        try
-        {
-            var hasSummary = RoiInstance.PackInto(region, aggregateSize, document, _packingInstances, _packingRoles, _packingUnique, _roleLookup);
-            // 역할은 보관 캐시가 소유한다. 형상 scratch는 아래 동기 업로드가 끝나면 바로 재사용한다.
-            var packedRoles = _packingRoles.ToArray();
-            if (!hasSummary && fullDetail is not null)
-            {
-                var rolesChanged = fullDetail.Roles.RefreshPacked(document, packedRoles, fullDetail.Count);
-                if (_profileEnabled)
-                {
-                    PackMilliseconds += Stopwatch.GetElapsedTime(packStart).TotalMilliseconds;
-                }
-                if (rolesChanged)
-                {
-                    UploadRoleChanges(fullDetail, surface);
-                }
-                fullDetail.FullDetailAggregateSize = aggregateSize;
-                return fullDetail;
-            }
-
-            var roles = new RoiRoleCache(document, packedRoles);
-            if (_profileEnabled)
-            {
-                PackMilliseconds += Stopwatch.GetElapsedTime(packStart).TotalMilliseconds;
-            }
-            block = UploadBlock(region, aggregateSize, CollectionsMarshal.AsSpan(_packingInstances), roles, surface);
-            if (!hasSummary)
-            {
-                block.FullDetailAggregateSize = aggregateSize;
-                key = fullDetailKey;
-            }
-        }
-        finally
-        {
-            RoiInstance.ReleasePackingBuffers(_packingInstances, _packingRoles, _packingUnique);
-        }
-        _blocks.Add(key, block);
-        _cacheMemory.Add(region.Identity, region.Count, region.ShapeBytes, block.OwnedBytes);
-        return block;
-    }
-
-    private void EvictInactiveBlocks(Dx12Surface surface)
-    {
-        if (CacheBytes <= CacheBudgetBytes)
-        {
-            return;
-        }
-
-        // 완전히 비활성인 페이지부터 비워 GPU 할당 비용도 함께 줄인다.
-        var coldPages = _blocks.GroupBy(p => p.Value.Allocation.Page)
-            .Where(page => page.All(p => p.Value.LastUsed != _frame))
-            .OrderBy(page => page.Max(p => p.Value.LastUsed)).ToArray();
-        foreach (var page in coldPages)
-        {
-            if (CacheBytes <= CacheBudgetBytes)
-            {
-                return;
-            }
-            foreach (var pair in page)
-            {
-                Retire(pair.Key, pair.Value);
-            }
-        }
-
-        // 같은 페이지의 hot 블록이 큰 CPU 원본까지 붙잡지 않도록 남은 cold 블록도 퇴출한다.
-        foreach (var pair in _blocks.Where(p => p.Value.LastUsed != _frame).OrderBy(p => p.Value.LastUsed).ToArray())
-        {
-            if (CacheBytes <= CacheBudgetBytes)
-            {
-                break;
-            }
-
-            Retire(pair.Key, pair.Value);
-        }
-
-        void Retire((object Identity, int? Level) key, Block block)
-        {
-            _blocks.Remove(key);
-            if (_lastDetails.TryGetValue(key.Identity, out var last) && ReferenceEquals(last, block))
-            {
-                _lastDetails.Remove(key.Identity);
-                foreach (var remaining in _blocks)
-                {
-                    if (ReferenceEquals(remaining.Key.Identity, key.Identity))
-                    {
-                        _lastDetails[key.Identity] = remaining.Value;
-                        break;
-                    }
-                }
-            }
-            _cacheMemory.Remove(key.Identity, block.OwnedBytes);
-            block.Allocation.Retire();
-            surface.Retire(block);
-        }
-    }
-
     private unsafe Block UploadBlock(RoiSpatialBlock region, double aggregateSize, ReadOnlySpan<RoiInstance> instances, RoiRoleCache roles, Dx12Surface surface)
     {
         var createStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
         var geometryBytes = checked((ulong)instances.Length * RoiInstance.SizeInBytes);
         var roleBytes = checked((ulong)roles.Values.Length * RoiInstance.RoleSizeInBytes);
-        // 작은 요약 블록도 공유 페이지의 [형상][역할] 구간만 차지한다.
-        var allocation = _buffers.Allocate(Math.Max(geometryBytes + roleBytes, RoiInstance.SizeInBytes));
-        if (_profileEnabled)
-        {
-            CreateMilliseconds += Stopwatch.GetElapsedTime(createStart).TotalMilliseconds;
-        }
-        var uploadStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
+        var geometryAllocation = _buffers.Allocate(Math.Max(geometryBytes, RoiInstance.SizeInBytes));
+        RoiBufferArena.Lease? roleAllocation = null;
         try
         {
-            allocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
+            roleAllocation = _buffers.Allocate(Math.Max(roleBytes, RoiInstance.RoleSizeInBytes));
+            if (_profileEnabled)
+            {
+                CreateMilliseconds += Stopwatch.GetElapsedTime(createStart).TotalMilliseconds;
+            }
+
+            var uploadStart = _profileEnabled ? Stopwatch.GetTimestamp() : 0;
+            geometryAllocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
+            if (!ReferenceEquals(roleAllocation.Page, geometryAllocation.Page))
+            {
+                roleAllocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
+            }
+
             if (geometryBytes > 0)
             {
                 var geometryUpload = _uploads[surface.FrameIndex].Allocate(geometryBytes);
                 instances.CopyTo(new Span<RoiInstance>((void*)geometryUpload.Pointer, instances.Length));
-                surface.Commands.CopyBufferRegion(allocation.Buffer, allocation.Offset, geometryUpload.Buffer, geometryUpload.Offset, geometryBytes);
+                surface.Commands.CopyBufferRegion(geometryAllocation.Buffer, geometryAllocation.Offset, geometryUpload.Buffer, geometryUpload.Offset, geometryBytes);
+            }
 
+            if (roleBytes > 0)
+            {
                 var roleUpload = _uploads[surface.FrameIndex].Allocate(roleBytes);
                 roles.Values.AsSpan().CopyTo(new Span<uint>((void*)roleUpload.Pointer, roles.Values.Length));
-                surface.Commands.CopyBufferRegion(allocation.Buffer, allocation.Offset + geometryBytes, roleUpload.Buffer, roleUpload.Offset, roleBytes);
+                surface.Commands.CopyBufferRegion(roleAllocation.Buffer, roleAllocation.Offset, roleUpload.Buffer, roleUpload.Offset, roleBytes);
             }
-            allocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
+
+            geometryAllocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
+            if (!ReferenceEquals(roleAllocation.Page, geometryAllocation.Page))
+            {
+                roleAllocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
+            }
+
             UploadedBytes += (long)(geometryBytes + roleBytes);
             if (_profileEnabled)
             {
                 UploadMilliseconds += Stopwatch.GetElapsedTime(uploadStart).TotalMilliseconds;
             }
-            return new(allocation, region.Bounds.Center, instances.Length, roles)
-            {
-                AggregateSize = aggregateSize
-            };
+
+            return new(geometryAllocation, roleAllocation, region.Bounds.Center, instances.Length, roles, aggregateSize);
         }
         catch
         {
             // 이미 기록한 복사 명령이 있을 수 있으므로 실패한 구간도 GPU 완료까지 보관한다.
-            allocation.Retire();
-            surface.Retire(allocation);
+            geometryAllocation.Retire();
+            surface.Retire(geometryAllocation);
+            if (roleAllocation is not null)
+            {
+                roleAllocation.Retire();
+                surface.Retire(roleAllocation);
+            }
+
             throw;
         }
     }
@@ -413,35 +236,42 @@ internal sealed class RoiPipeline : IDisposable
             return;
         }
 
-        var upload = _uploads[surface.FrameIndex].Allocate(roleBytes);
-        block.Roles.Values.AsSpan().CopyTo(new Span<uint>((void*)upload.Pointer, block.Roles.Values.Length));
-        // 같은 direct queue에서 이전 draw 뒤에 복사한다. 형상 구간은 쓰지 않는다.
-        block.Allocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
-        surface.Commands.CopyBufferRegion(block.Allocation.Buffer, block.RoleOffset, upload.Buffer, upload.Offset, roleBytes);
-        block.Allocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
-        UploadedBytes += (long)roleBytes;
+        var roleAllocation = _buffers.Allocate(Math.Max(roleBytes, RoiInstance.RoleSizeInBytes));
+        try
+        {
+            var upload = _uploads[surface.FrameIndex].Allocate(roleBytes);
+            block.Roles.Values.AsSpan().CopyTo(new Span<uint>((void*)upload.Pointer, block.Roles.Values.Length));
+            roleAllocation.Page.Transition(surface.Commands, ResourceStates.CopyDest);
+            surface.Commands.CopyBufferRegion(roleAllocation.Buffer, roleAllocation.Offset, upload.Buffer, upload.Offset, roleBytes);
+            roleAllocation.Page.Transition(surface.Commands, ResourceStates.NonPixelShaderResource);
+            UploadedBytes += (long)roleBytes;
+        }
+        catch
+        {
+            roleAllocation.Retire();
+            surface.Retire(roleAllocation);
+            throw;
+        }
+
+        var previousRoleAllocation = block.RoleAllocation;
+        block.RoleAllocation = roleAllocation;
+        previousRoleAllocation.Retire();
+        surface.Retire(previousRoleAllocation);
     }
 
     private unsafe void DrawBlock(Block block, RenderScene scene, Dx12Surface surface, RoiDrawPass pass, bool selected, RigidTransform2D transform)
     {
         var constants = new RoiDrawConstants(scene, block.Origin, transform, selected, pass);
         surface.Commands.SetGraphicsRoot32BitConstants(DrawConstantsRootParameter, RoiDrawConstants.RootConstantCount, &constants, 0);
-        surface.Commands.SetGraphicsRootShaderResourceView(GeometryRootParameter, block.Allocation.Buffer.GPUVirtualAddress + block.Allocation.Offset);
-        surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.Allocation.Buffer.GPUVirtualAddress + block.RoleOffset);
+        surface.Commands.SetGraphicsRootShaderResourceView(GeometryRootParameter, block.GeometryAllocation.Buffer.GPUVirtualAddress + block.GeometryAllocation.Offset);
+        surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.RoleAllocation.Buffer.GPUVirtualAddress + block.RoleAllocation.Offset);
         surface.Commands.DrawInstanced(VerticesPerInstance, (uint)block.Count, 0, 0);
     }
 
     public void Dispose()
     {
-        foreach (var block in _blocks.Values)
-        {
-            block.Dispose();
-        }
-        _blocks.Clear();
-        _lastDetails.Clear();
-        _cacheMemory.Clear();
+        _cache.Dispose();
         _buffers.Dispose();
-
         foreach (var upload in _uploads)
         {
             upload.Dispose();
@@ -450,60 +280,4 @@ internal sealed class RoiPipeline : IDisposable
         _pipeline.Dispose();
         _root.Dispose();
     }
-}
-
-/// <summary>같은 공간 블록의 CPU 원본은 확대 단계 사이에 공유하고, 역할 배열은 각각 계산한다.</summary>
-internal sealed class RoiCacheMemory
-{
-    private const int EstimatedSourceRoiBytes = 256;
-    private readonly Dictionary<object, Source> _sources = new(ReferenceEqualityComparer.Instance);
-
-    public long Bytes
-    {
-        get;
-        private set;
-    }
-
-    public void Add(object identity, int sourceCount, long shapeBytes, long ownedBytes)
-    {
-        if (_sources.TryGetValue(identity, out var source))
-        {
-            _sources[identity] = source with
-            {
-                References = source.References + 1
-            };
-            Bytes += ownedBytes;
-            return;
-        }
-
-        var sourceBytes = ((long)sourceCount * EstimatedSourceRoiBytes) + shapeBytes;
-        _sources.Add(identity, new(1, sourceBytes));
-        Bytes += sourceBytes + ownedBytes;
-    }
-
-    public void Remove(object identity, long ownedBytes)
-    {
-        var source = _sources[identity];
-        if (source.References == 1)
-        {
-            _sources.Remove(identity);
-            Bytes -= source.Bytes;
-        }
-        else
-        {
-            _sources[identity] = source with
-            {
-                References = source.References - 1
-            };
-        }
-        Bytes -= ownedBytes;
-    }
-
-    public void Clear()
-    {
-        _sources.Clear();
-        Bytes = 0;
-    }
-
-    private readonly record struct Source(int References, long Bytes);
 }

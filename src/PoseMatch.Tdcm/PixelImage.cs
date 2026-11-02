@@ -3,26 +3,11 @@ namespace PoseMatch.Tdcm;
 /// <summary>연산 중 호출자가 변경하지 않는 Gray8 또는 BGR24 영상.</summary>
 public sealed class PixelImage
 {
-    public ReadOnlyMemory<byte> Pixels
-    {
-        get;
-    }
-    public int Width
-    {
-        get;
-    }
-    public int Height
-    {
-        get;
-    }
-    public int Stride
-    {
-        get;
-    }
-    public int Channels
-    {
-        get;
-    }
+    public ReadOnlyMemory<byte> Pixels { get; }
+    public int Width { get; }
+    public int Height { get; }
+    public int Stride { get; }
+    public int Channels { get; }
 
     public PixelImage(ReadOnlyMemory<byte> pixels, int width, int height, int stride, int channels = 1)
     {

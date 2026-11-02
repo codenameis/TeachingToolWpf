@@ -41,11 +41,35 @@ public sealed class RoiIdSet : IReadOnlySet<Guid>
 
     public bool Contains(Guid item) => _added.Contains(item) || (_items.Contains(item) && !_removed.Contains(item));
 
-    public RoiIdSet Add(Guid item) => Contains(item) ? this : _items.Contains(item)
-        ? new(_items, _added, _removed.Remove(item)) : new(_items, _added.Add(item), _removed);
+    public RoiIdSet Add(Guid item)
+    {
+        if (Contains(item))
+        {
+            return this;
+        }
 
-    public RoiIdSet Remove(Guid item) => !Contains(item) ? this : _items.Contains(item)
-        ? new(_items, _added, _removed.Add(item)) : new(_items, _added.Remove(item), _removed);
+        if (_items.Contains(item))
+        {
+            return new(_items, _added, _removed.Remove(item));
+        }
+
+        return new(_items, _added.Add(item), _removed);
+    }
+
+    public RoiIdSet Remove(Guid item)
+    {
+        if (!Contains(item))
+        {
+            return this;
+        }
+
+        if (_items.Contains(item))
+        {
+            return new(_items, _added, _removed.Add(item));
+        }
+
+        return new(_items, _added.Remove(item), _removed);
+    }
 
     public RoiIdSet Union(IEnumerable<Guid> other)
     {
@@ -117,6 +141,36 @@ public sealed class RoiIdSet : IReadOnlySet<Guid>
     }
 
     public bool Overlaps(IEnumerable<Guid> other) => other.Any(Contains);
+
+    /// <summary>원소가 하나일 때 그 값을 반환한다. LINQ Single과 결과는 같고 반복자 할당이 없다.</summary>
+    /// <remarks>선택이 비었거나 둘 이상이면 false를 반환하고 <paramref name="id"/>는 기본값이 된다.</remarks>
+    public bool TryGetOnly(out Guid id)
+    {
+        if (Count != 1)
+        {
+            id = default;
+            return false;
+        }
+
+        // Count가 1이므로 _items에서 지워지지 않은 첫 값 또는 _added의 첫 값 하나만 유효하다.
+        foreach (var item in _items)
+        {
+            if (!_removed.Contains(item))
+            {
+                id = item;
+                return true;
+            }
+        }
+
+        foreach (var item in _added)
+        {
+            id = item;
+            return true;
+        }
+
+        id = default;
+        return false;
+    }
 
     public IEnumerator<Guid> GetEnumerator()
     {

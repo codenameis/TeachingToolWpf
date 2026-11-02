@@ -12,26 +12,11 @@ internal sealed partial class OrientationMaps
     private readonly byte[][] _linear;
     private readonly byte[] _spread;
     private readonly int _stepShift;
-    public int Width
-    {
-        get;
-    }
-    public int Height
-    {
-        get;
-    }
-    public int Step
-    {
-        get;
-    }
-    public int Columns
-    {
-        get;
-    }
-    public int Rows
-    {
-        get;
-    }
+    public int Width { get; }
+    public int Height { get; }
+    public int Step { get; }
+    public int Columns { get; }
+    public int Rows { get; }
     public int PlaneLength => Columns * Rows;
     public bool HasLinearResponses => _linear.Length != 0;
     public long EstimatedBytes => _linear.Sum(plane => plane.LongLength) + _spread.LongLength;

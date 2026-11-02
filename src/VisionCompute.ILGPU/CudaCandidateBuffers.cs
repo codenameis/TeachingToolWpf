@@ -8,30 +8,12 @@ internal sealed class CudaCandidateBuffers : IDisposable
 {
     private bool _disposed;
 
-    public MemoryBuffer1D<byte, Stride1D.Dense> Input
-    {
-        get;
-    }
-    public MemoryBuffer1D<byte, Stride1D.Dense> Horizontal
-    {
-        get;
-    }
-    public MemoryBuffer1D<byte, Stride1D.Dense> Responses
-    {
-        get;
-    }
-    public MemoryBuffer1D<CandidateScoreFeature, Stride1D.Dense> Features
-    {
-        get;
-    }
-    public MemoryBuffer1D<int, Stride1D.Dense> Offsets
-    {
-        get;
-    }
-    public MemoryBuffer1D<ushort, Stride1D.Dense> Scores
-    {
-        get;
-    }
+    public MemoryBuffer1D<byte, Stride1D.Dense> Input { get; }
+    public MemoryBuffer1D<byte, Stride1D.Dense> Horizontal { get; }
+    public MemoryBuffer1D<byte, Stride1D.Dense> Responses { get; }
+    public MemoryBuffer1D<CandidateScoreFeature, Stride1D.Dense> Features { get; }
+    public MemoryBuffer1D<int, Stride1D.Dense> Offsets { get; }
+    public MemoryBuffer1D<ushort, Stride1D.Dense> Scores { get; }
 
     public CudaCandidateBuffers(Accelerator accelerator, int pixels, int features, int templates, int scores)
     {

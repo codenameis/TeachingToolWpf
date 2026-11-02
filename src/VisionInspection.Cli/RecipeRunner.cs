@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionAlgorithm.OpenSrc.ShapeDetection;
 using VisionGeometry;
 using VisionImaging;
 using VisionImaging.Abstractions;
@@ -8,7 +9,8 @@ using VisionImaging.Abstractions;
 namespace VisionInspection.Cli;
 
 /// <summary>레시피 한 개를 원본 파일에서 실행한다. 결과 파일과 콘솔·UI 수명은 소유하지 않는다.</summary>
-public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePreprocessor>? createGpuPreprocessor = null)
+public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePreprocessor>? createGpuPreprocessor = null,
+    Func<IPrimitivePreprocessor>? createPrimitivePreprocessor = null)
 {
     private readonly string _cacheDirectory = Path.GetFullPath(cacheDirectory ?? Path.Combine(Path.GetTempPath(), "VisionInspection", "image-cache"));
 
@@ -102,6 +104,10 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
             }
             ArgumentNullException.ThrowIfNull(recipe.PrimitiveOptions);
             recipe.PrimitiveOptions.Validate();
+            if (recipe.PrimitiveOptions.UseGpu && createPrimitivePreprocessor is null)
+            {
+                throw new InvalidOperationException("CUDA 도형 전처리 구현이 등록되지 않았습니다. CPU 모드를 선택하세요.");
+            }
         }
         else if (string.IsNullOrWhiteSpace(recipe.TrainingImage) || recipe.TeachingRoi is null)
         {
@@ -140,10 +146,10 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
     private static ImageSummary? Summarize(ImageReference? image)
         => image is null ? null : new(image.Key, image.Width, image.Height, image.Version);
 
-    private static async Task<InspectionRunResult> RunPrimitivesAsync(InspectionRecipe recipe, ImageReference image,
+    private async Task<InspectionRunResult> RunPrimitivesAsync(InspectionRecipe recipe, ImageReference image,
         RoiGeometry? region, IImageLoader loader, CancellationToken token)
     {
-        var output = await new PrimitiveShapeDetectionService(loader, () => null)
+        var output = await new PrimitiveShapeDetectionService(loader, () => null, createPrimitivePreprocessor)
             .DetectAsync(image, false, region, recipe.PrimitiveOptions, token).ConfigureAwait(false);
         return new()
         {
@@ -157,13 +163,17 @@ public sealed class RecipeRunner(string? cacheDirectory = null, Func<IImagePrepr
                 Score = shape.Score,
                 AreaPixels = shape.AreaPixels,
                 ContourSource = "detectedBinaryContour",
-                Contour = shape.Contour.ToArray()
+                Contour = shape.Contour.ToArray(),
+                InnerContours = shape.InnerContours.Select(hole => hole.ToArray()).ToArray(),
+                AdditionalContours = shape.AdditionalContours.Select(component => component.ToArray()).ToArray()
             }).ToArray(),
             Diagnostics = new()
             {
                 Windows = output.Windows,
                 ClippedContours = output.ClippedContours,
-                SearchMilliseconds = output.Milliseconds
+                SearchMilliseconds = output.Milliseconds,
+                ReadMilliseconds = output.ReadMilliseconds,
+                PrimitivePreprocessing = output.Gpu
             }
         };
     }

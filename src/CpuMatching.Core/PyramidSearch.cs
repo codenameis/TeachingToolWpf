@@ -2,8 +2,9 @@ using System.Diagnostics;
 
 namespace CpuMatching.Core;
 
-public static class PyramidSearch
+public static partial class PyramidSearch
 {
+    /// <summary>연속 버퍼 경로의 예산. 더 큰 원본은 FindWindowed로 검색한다.</summary>
     public const int MaximumSearchPixels = 8192 * 8192;
 
     /// <summary>동일 타일 공유는 prepare가 템플릿과 입력 픽셀만으로 읽기 전용 점수 맵을 만들 때만 허용한다.</summary>
@@ -23,6 +24,7 @@ public static class PyramidSearch
         // 작게 줄인 영상부터 시작하고, 후보만 원본까지 따라 올라간다.
         var timer = Stopwatch.StartNew();
         var searchImage = image.Crop(region);
+        var original = new SearchImage(searchImage);
         var (images, levels) = PreparePyramid(template, searchImage, options, prepare, refineCoarsePositions, reuseIdenticalTiles, token);
         var preparationMs = timer.Elapsed.TotalMilliseconds;
         long evaluations = 0;
@@ -35,7 +37,7 @@ public static class PyramidSearch
             var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations);
             refinementMs += timer.Elapsed.TotalMilliseconds;
             timer.Restart();
-            refined.AddRange(VerifyOriginal(template, searchImage, levels[0], current, region, options,
+            refined.AddRange(VerifyOriginal(template, original, levels[0], current, region, options,
                 angleRadius, refineEdges, acceptCenter, token, ref evaluations));
             verificationMs += timer.Elapsed.TotalMilliseconds;
         });
@@ -190,7 +192,7 @@ public static class PyramidSearch
     }
 
     private static (List<Match> Matches, double AngleRadius) RefinePyramid(IScoreLevel[] levels, IEnumerable<Match> candidates,
-        SearchOptions options, bool refineCoarsePositions, CancellationToken token, ref long evaluations)
+        SearchOptions options, bool refineCoarsePositions, CancellationToken token, ref long evaluations, bool skipOriginal = false)
     {
         var top = levels.Length - 1;
         var angleRadius = options.AngleStep;
@@ -200,7 +202,7 @@ public static class PyramidSearch
         // 축소 점수의 순위로 다른 위치를 버리지 않는다. 같은 자세만 합치고
         // 공간 중복 제거는 모든 후보의 원본 검증이 끝난 뒤에 수행한다.
         var current = candidates.ToList();
-        for (var level = startAtFinerLevel ? top - 1 : top; level >= 0; level--)
+        for (var level = startAtFinerLevel ? top - 1 : top; level >= (skipOriginal ? 1 : 0); level--)
         {
             var next = new Match[current.Count];
             var counts = new long[current.Count];
@@ -223,33 +225,48 @@ public static class PyramidSearch
         return (current, angleRadius);
     }
 
-    private static List<Match> VerifyOriginal(GrayImage template, GrayImage image, IScoreLevel level, List<Match> candidates,
+    private static List<Match> VerifyOriginal(GrayImage template, SearchImage image, IScoreLevel level, List<Match> candidates,
         SearchRegion region, SearchOptions options, double angleRadius, bool refineEdges,
         Func<double, double, bool>? acceptCenter, CancellationToken token, ref long evaluations)
     {
         var checkedMatches = new Match[candidates.Count];
         var counts = new long[candidates.Count];
-        var localEdges = (long)image.Width * image.Height > 2_097_152;
-        var refiner = refineEdges && !localEdges ? new EdgePoseRefiner(template, image) : null;
+        var refiner = CreateOriginalRefiner(template, image, refineEdges);
         ForEachCandidate(candidates, level, options.MaximumDegreeOfParallelism, token, index =>
         {
-            var match = Refine(level, candidates[index], options, angleRadius, 0.5, 1, ref counts[index]);
-            match = Refine(level, match, options, 0.5, 0.25, 1, ref counts[index]);
-            if (refiner is not null)
-            {
-                match = refiner.Refine(match, options);
-            }
-            else if (refineEdges)
-            {
-                // 전체 탐색에서 선택된 후보는 모두 보정한다. 8K 전체의 희박한 경계 배열만 피한다.
-                match = RefineLocalEdges(template, image, match, options);
-            }
-            checkedMatches[index] = match with
-            {
-                Score = level.Verify(match)
-            };
+            checkedMatches[index] = VerifyPose(template, image, level, candidates[index], options, angleRadius,
+                refineEdges, refiner, ref counts[index]);
         });
         evaluations += counts.Sum();
+        return FilterOriginalMatches(checkedMatches, region, options, acceptCenter, token);
+    }
+
+    private static EdgePoseRefiner? CreateOriginalRefiner(GrayImage template, SearchImage image, bool refineEdges)
+        => refineEdges && (long)image.Width * image.Height <= 2_097_152 ? new EdgePoseRefiner(template, image.ReadAll()) : null;
+
+    private static Match VerifyPose(GrayImage template, SearchImage image, IScoreLevel level, Match seed, SearchOptions options,
+        double angleRadius, bool refineEdges, EdgePoseRefiner? refiner, ref long evaluations)
+    {
+        var match = Refine(level, seed, options, angleRadius, 0.5, 1, ref evaluations);
+        match = Refine(level, match, options, 0.5, 0.25, 1, ref evaluations);
+        if (refiner is not null)
+        {
+            match = refiner.Refine(match, options);
+        }
+        else if (refineEdges)
+        {
+            match = RefineLocalEdges(template, image, match, options);
+        }
+        return match with
+        {
+            Score = level.Verify(match)
+        };
+    }
+
+    private static List<Match> FilterOriginalMatches(Match[] checkedMatches, SearchRegion region, SearchOptions options,
+        Func<double, double, bool>? acceptCenter, CancellationToken token)
+    {
+        SearchDiagnostics.Write("Verified", checkedMatches);
         var refined = new List<Match>();
         foreach (var match in checkedMatches)
         {
@@ -268,7 +285,7 @@ public static class PyramidSearch
         return refined;
     }
 
-    private static Match RefineLocalEdges(GrayImage template, GrayImage image, Match match, SearchOptions options)
+    private static Match RefineLocalEdges(GrayImage template, SearchImage image, Match match, SearchOptions options)
     {
         var radius = Math.Ceiling(Math.Sqrt((template.Width * template.Width) + (template.Height * template.Height)) * options.MaximumScale / 2) + 12;
         var left = Math.Max(0, (int)Math.Floor(match.X - radius));

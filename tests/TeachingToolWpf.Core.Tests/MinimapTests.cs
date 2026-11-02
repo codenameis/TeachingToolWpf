@@ -8,6 +8,75 @@ namespace TeachingToolWpf.Core.Tests;
 public class MinimapTests
 {
     [Theory]
+    [InlineData(MinimapPosition.TopLeft, 12, 12)]
+    [InlineData(MinimapPosition.TopCenter, 384, 12)]
+    [InlineData(MinimapPosition.TopRight, 756, 12)]
+    [InlineData(MinimapPosition.MiddleRight, 756, 213)]
+    [InlineData(MinimapPosition.BottomRight, 756, 414)]
+    [InlineData(MinimapPosition.BottomCenter, 384, 414)]
+    [InlineData(MinimapPosition.BottomLeft, 12, 414)]
+    [InlineData(MinimapPosition.MiddleLeft, 12, 213)]
+    public void EachPositionUsesTheSameLayoutForNavigation(MinimapPosition position, double left, double top)
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("image", "image", 8192, 8192), ViewportTransform.Identity);
+        var input = new InteractionController(editor) { MinimapOptions = new(true, position) };
+        input.SetViewportSize(1000, 600);
+        var map = input.Minimap!;
+        Assert.Equal(new BoundsD(left, top, left + 232, top + 174), map.Panel);
+        var target = new PointD(5000, 4000);
+        var click = map.ImageToMap(target);
+        input.Down(click);
+        input.Up(click);
+        Assert.True((editor.State.Viewport.ScreenToImage(new(500, 300)) - target).Length < 1e-7);
+        input.SetViewportSize(600, 400);
+        Assert.InRange(input.Minimap!.Panel.Left, 12, 600 - input.Minimap.Panel.Width - 12);
+        Assert.InRange(input.Minimap.Panel.Top, 12, 400 - input.Minimap.Panel.Height - 12);
+    }
+
+    [Theory]
+    [InlineData(false, MinimapPosition.BottomRight)]
+    [InlineData(true, MinimapPosition.TopLeft)]
+    public void ChangingOptionsCancelsMinimapDragAndPreservesHistory(bool visible, MinimapPosition position)
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("image", "image", 8192, 8192), ViewportTransform.Identity);
+        var input = new InteractionController(editor);
+        input.SetViewportSize(1000, 600);
+        var before = editor.State;
+        var map = input.Minimap!;
+        input.Down(map.ImageBounds.Center);
+        input.Move(map.ImageBounds.Center + new PointD(20, 10));
+        input.MinimapOptions = new(visible, position);
+        Assert.False(input.IsDragging);
+        Assert.Equal(before.Viewport, editor.State.Viewport);
+        Assert.False(editor.CanUndo);
+        Assert.Equal(visible, input.Minimap is not null);
+    }
+
+    [Fact]
+    public void HiddenMinimapDoesNotInterceptDrawingAndInvalidOptionsAreAtomic()
+    {
+        var editor = new EditorSession();
+        editor.InitializeImage(new("image", "image", 8192, 8192), ViewportTransform.Identity);
+        var input = new InteractionController(editor) { Tool = EditorTool.Draw };
+        input.SetViewportSize(1000, 600);
+        var center = input.Minimap!.ImageBounds.Center;
+        input.MinimapOptions = new(false, MinimapPosition.BottomRight);
+        input.Down(center - new PointD(10, 10));
+        input.Up(center + new PointD(10, 10));
+        Assert.Single(editor.State.Rois);
+        var options = input.MinimapOptions;
+        Assert.Throws<ArgumentOutOfRangeException>(() => input.MinimapOptions = new(true, (MinimapPosition)100));
+        Assert.Same(options, input.MinimapOptions);
+        input.MinimapOptions = options with
+        {
+            IsVisible = true
+        };
+        Assert.NotNull(input.Minimap);
+    }
+
+    [Theory]
     [InlineData(8192, 8192)]
     [InlineData(24576, 131072)]
     [InlineData(32768, 512)]

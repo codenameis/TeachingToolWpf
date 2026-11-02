@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>03장 · 사각형·원·삼각형·폴리곤 도형 엔진과 폐루프 수학 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 03 · 1단계: 4가지 도형(사각형·원·삼각형·폴리곤)을 하나의 좌표계로 통일하기</div>
+        <h1>03장 · 도형 엔진(<code>RoiGeometry</code>, <code>RoiShape</code>)과 다각형 폐루프(<code>PolygonClosure</code>) 만들기</h1>
+        <p class="hero-lead">
+          02장까지 우리는 점(<code>PointD</code>)과 카메라 렌즈(<code>ViewportTransform</code>)를 완성했습니다.<br/>
+          이제 사진 위에 검사 영역(ROI) 도형을 그릴 차례입니다! 사각형도 그려야 하고, 원(타원)도 그려야 하고, 삼각형과 자유 다각형(Polygon)도 그려야 합니다.<br/>
+          만약 도형 종류마다 이동·크기 조절·회전 코드를 따로 짜면 코드가 4배로 불어나고 버그도 4배가 됩니다.<br/>
+          어떻게 하면 <strong>단 하나의 <code>RoiGeometry</code> 구조체로 4가지 도형의 이동·리사이즈·회전·클릭 판정을 완벽히 통합</strong>할 수 있을까요?
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 기울어진 사각형·원·폴리곤을 가장 쉽게 다루는 아이디어</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">어떤 문제일까?</span>
+            <h4>기울어진 타원이나 다각형 안에 마우스가 들어왔는지 어떻게 알까?</h4>
+            <p>반듯한 사각형은 <code>Left &lt;= x &lt;= Right</code>로 1초 만에 판정하지만, 35도 기울어진 타원이나 다각형은 가로·세로 부등식만으로는 판정할 수 없습니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">발상의 전환!</span>
+            <h4>도형을 돌리지 말고, 마우스 점 하나만 반대로 돌려라 (<code>ToLocal</code>)</h4>
+            <p>수백 개의 도형 테두리 점을 회전시키는 대신, <strong>마우스 클릭 점 딱 하나만 <code>-35도</code>로 역회전</strong>시키면 도형이 반듯하게 서 있는 상태에서 초등 산수로 즉시 판정됩니다!</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">폴리곤 그리기</span>
+            <h4>선이 모래시계(8자)처럼 꼬이지 않게 막아라 (<code>PolygonClosure</code>)</h4>
+            <p>다각형 점을 찍을 때 새로 그은 선분이 기존 변과 교차하는지 01장의 외적(<code>Cross</code>)으로 검사해 깔끔한 닫힌 다각형(폐루프)을 만듭니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · <code>ToLocal</code>(역회전)과 <code>Support</code>(끝점 줄자)</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>📖 비유 1 · 책상 위에 30도 삐딱하게 놓인 책 읽기 (<code>ToLocal</code>)</h4>
+            <p>
+              책상 위에 30도 비스듬하게 놓인 책의 글씨를 그냥 읽으려면 어지럽죠? 이때 무거운 책상을 돌리는 대신, <strong>내 고개를 똑같이 30도 기울여서 보면(<code>ToLocal</code> 역변환)</strong> 내 눈에는 책이 똑바로 서 있는 것처럼 보여서 아주 쉽게 읽을 수 있습니다!
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>🔦 비유 2 · 손전등을 비춰 도형의 가장 튀어나온 그림자 끝 재기 (<code>Support</code>)</h4>
+            <p>
+              기울어진 도형이 부모 상자 오른쪽 벽에 부딪혔는지 알려면 도형의 '가장 오른쪽 끝점'이 중심에서 몇 픽셀 떨어져 있는지 알아야 합니다.<br/>
+              <strong>서포트 함수(<code>Support(d)</code>)</strong>는 방향 <code>d</code> 쪽으로 도형이 중심에서 최대 몇 픽셀까지 뻗어 나가는지를 재는 '마법의 줄자'입니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & 수학 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 이 장을 시작하기 위한 4가지 기초 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 1&nbsp;·&nbsp;정규화 로컬 공간</span> 모든 도형을 <code>[-0.5, +0.5]²</code> 정사각형 안에 통일하기!</h4>
+            <p>
+              가로가 200이고 세로가 80인 도형이라도, 중심을 <code>(0, 0)</code>으로 잡고 가로 폭 <code>W</code>와 세로 높이 <code>H</code>로 나누어 주면 <strong>가로·세로가 모두 <code>-0.5 ~ +0.5</code> 사이인 크기 1×1 공간</strong>으로 바뀝니다. 이를 <strong>정규화 로컬 좌표 <code>(u, v)</code></strong>라고 부릅니다.
+            </p>
+            <ul>
+              <li><strong>사각형(Rectangle)</strong>: <code>|u| &lt;= 0.5</code> 이고 <code>|v| &lt;= 0.5</code></li>
+              <li><strong>원/타원(Circle)</strong>: 반지름이 <code>0.5</code>인 원이므로 <code>u²&nbsp;+&nbsp;v² &lt;= 0.25</code> (즉, <code>(2u)²&nbsp;+&nbsp;(2v)² &lt;= 1</code>)</li>
+              <li><strong>삼각형(Triangle)</strong>: 위 꼭짓점 <code>(0, -0.5)</code>, 왼쪽 아래 <code>(-0.5, +0.5)</code>, 오른쪽 아래 <code>(+0.5, +0.5)</code></li>
+              <li><strong>다각형(Polygon)</strong>: 꼭짓점 배열도 모두 <code>[-0.5, +0.5]</code> 비율로 저장! (덕분에 다각형 크기를 늘려도 배열을 새로 만들 필요가 없습니다!)</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 2&nbsp;·&nbsp;다각형 내부 판정</span> 반직선 교차법 (Ray Casting&nbsp;·&nbsp;홀짝 규칙)</h4>
+            <p>
+              별 모양이나 복잡한 다각형 안에 마우스 점 <code>P</code>가 들어있는지 어떻게 알 수 있을까요?<br/>
+              점 <code>P</code>에서 오른쪽(<code>+X</code> 방향)으로 레이저 광선을 쭉 쏘았을 때, <strong>다각형의 변(선분)을 몇 번 뚫고 지나가는지</strong> 세어 봅니다!
+            </p>
+            <ul>
+              <li>변을 <strong>홀수 번(1번, 3번...)</strong> 뚫고 나가면&nbsp;→&nbsp;점 <code>P</code>는 다각형 <strong>안쪽(Inside)</strong>!</li>
+              <li>변을 <strong>짝수 번(0번, 2번...)</strong> 뚫고 나가면&nbsp;→&nbsp;점 <code>P</code>는 다각형 <strong>바깥쪽(Outside)</strong>!</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 3&nbsp;·&nbsp;방향별 최대 돌출 거리</span> 서포트 함수 <i>h</i>(<b><i>d</i></b>)&nbsp;=&nbsp;<code>Support(direction)</code></h4>
+            <p>
+              회전된 도형의 가장 오른쪽 끝(<code>Right</code>), 왼쪽 끝(<code>Left</code>), 위쪽 끝(<code>Top</code>), 아래쪽 끝(<code>Bottom</code>)을 구할 때:
+            </p>
+            <pre><code>// 중심 Center에서 각 축 방향으로 얼마나 튀어나왔는지(Support)만 더하고 빼면 회전 AABB 완성!
+double ex&nbsp;=&nbsp;Support(new PointD(1, 0)); // 가로(+X) 방향 최대 돌출 반폭
+double ey&nbsp;=&nbsp;Support(new PointD(0, 1)); // 세로(+Y) 방향 최대 돌출 반높이
+BoundsD outer&nbsp;=&nbsp;new(Center.X - ex, Center.Y - ey, Center.X&nbsp;+&nbsp;ex, Center.Y&nbsp;+&nbsp;ey);</code></pre>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 4&nbsp;·&nbsp;C# 패턴 매칭</span> <code>switch</code> 식(Switch Expression)과 <code>[^1]</code> 인덱스</h4>
+            <p>
+              C# 최신 문법에서는 길고 복잡한 <code>switch-case-break</code> 대신 깔끔한 화살표(<code>=&gt;</code>) <code>switch</code> 식을 사용하며, 배열의 맨 마지막 원소는 <code>points[^1]</code>로 꺼냅니다.
+            </p>
+            <pre><code>PointD lastPoint&nbsp;=&nbsp;points[^1]; // points[points.Count - 1] 과 동일!
+bool isInside&nbsp;=&nbsp;Shape switch
+{
+    RoiShape.Rectangle =&gt; Math.Abs(u) &lt;= 0.5 &amp;&amp; Math.Abs(v) &lt;= 0.5,
+    RoiShape.Circle    =&gt; (u * u)&nbsp;+&nbsp;(v * v) &lt;= 0.25,
+    _                  =&gt; ContainsPolygon(u, v)
+};</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학으로 한 걸음씩 공식 유도하기 (#sec-shape-math)
+           ========================================================================= -->
+      <section class="section-card" id="sec-shape-math">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: 로컬↔월드 변환, 서포트 함수, 선분 교차 방정식</h2>
+        <p>
+          도형의 중심을 <b><i>c</i></b> = (<i>c<sub>x</sub></i>, <i>c<sub>y</sub></i>), 가로·세로 크기를 (<i>W</i>, <i>H</i>), 회전각을 <i>θ</i>라고 할 때, 로컬 정규화 점 (<i>u</i>, <i>v</i>) ∈ [−0.5, +0.5]<sup>2</sup>와 월드 이미지 점 <b><i>p</i></b> = (<i>x</i>, <i>y</i>) 사이의 변환 수식을 한 걸음씩 유도해 봅시다.
+        </p>
+
+        <!-- Formula 3.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 로컬↔월드 양방향 변환</span>
+              <span><code>ToWorld(u, v)</code> 정방향 변환과 <code>ToLocal(p)</code> 역변환</span>
+            </div>
+            <span class="math-eq-num">(식 3.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (01장 회전 공식의 응용):</strong><br/>
+            1) <strong>정방향(<code>ToWorld</code>)</strong>: 정규화 비율 (<i>u</i>, <i>v</i>)에 실제 가로·세로 크기 (<i>W</i>, <i>H</i>)를 곱하면 회전 전 로컬 픽셀 오프셋 (<i>uW</i>, <i>vH</i>)가 됩니다. 이 오프셋을 01장의 (식 1.4) 회전 공식으로 <i>θ</i>만큼 회전시킨 뒤 중심 좌표 (<i>c<sub>x</sub></i>, <i>c<sub>y</sub></i>)를 더하면 월드 이미지 좌표 (<i>x</i>, <i>y</i>)가 됩니다!<br/>
+            2) <strong>역방향(<code>ToLocal</code>)</strong>: 반대로 마우스 클릭 점 <b><i>p</i></b>&nbsp;=&nbsp;(<i>x</i>, <i>y</i>)가 들어왔을 때 (<i>u</i>, <i>v</i>)를 구하려면? 방금 한 순서를 완전히 거꾸로 밟으면 됩니다!<br/>
+            &nbsp;&nbsp;① 먼저 중심을 빼서 상대 벡터 <b><i>d</i></b>&nbsp;=&nbsp;(<i>x</i>&nbsp;−&nbsp;<i>c<sub>x</sub></i>, <i>y</i>&nbsp;−&nbsp;<i>c<sub>y</sub></i>)를 구합니다.<br/>
+            &nbsp;&nbsp;② 01장 (식 1.4)의 <strong>역회전(−<i>θ</i>)</strong>을 적용해 도형을 반듯하게 폅니다: (<i>d<sub>x</sub></i> cos&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>d<sub>y</sub></i> sin&nbsp;<i>θ</i>, &nbsp;−<i>d<sub>x</sub></i> sin&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>d<sub>y</sub></i> cos&nbsp;<i>θ</i>).<br/>
+            &nbsp;&nbsp;③ 마지막으로 가로 <i>W</i>와 세로 <i>H</i>로 나누면 정규화 로컬 좌표 (<i>u</i>, <i>v</i>)가 튀어나옵니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">ToWorld 정방향</span>
+                <span class="math-expr">
+                  <span class="matrix-wrap"><table class="matrix-table"><tr><td><i>x</i></td></tr><tr><td><i>y</i></td></tr></table></span>
+                  =
+                  <span class="matrix-wrap"><table class="matrix-table"><tr><td><i>c<sub>x</sub></i></td></tr><tr><td><i>c<sub>y</sub></i></td></tr></table></span>
+                  +
+                  <span class="matrix-wrap"><table class="matrix-table"><tr><td>cos <i>θ</i></td><td>−sin <i>θ</i></td></tr><tr><td>sin <i>θ</i></td><td>cos <i>θ</i></td></tr></table></span>
+                  <span class="matrix-wrap"><table class="matrix-table"><tr><td><i>u</i> · <i>W</i></td></tr><tr><td><i>v</i> · <i>H</i></td></tr></table></span>
+                </span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">ToLocal 역변환</span>
+                <span class="math-expr"><b><i>d</i></b> = <b><i>p</i></b> − <b><i>c</i></b> 일 때,</span>
+                <span class="math-expr"><i>u</i> = <span class="frac"><span class="num"><i>d<sub>x</sub></i> cos <i>θ</i> + <i>d<sub>y</sub></i> sin <i>θ</i></span><span class="den"><i>W</i></span></span>,</span>
+                <span class="math-expr"><i>v</i> = <span class="frac"><span class="num">−<i>d<sub>x</sub></i> sin <i>θ</i> + <i>d<sub>y</sub></i> cos <i>θ</i></span><span class="den"><i>H</i></span></span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col">(<i>u</i>, <i>v</i>)</td>
+                  <td>도형 내부 정규화 로컬 좌표 (중심 (0, 0), 모서리 ±0.5)</td>
+                  <td>[−0.5, +0.5]<sup>2</sup> (무차원 비율)</td>
+                  <td><code>PointD local = ToLocal(p)</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>c</i></b> = (<i>c<sub>x</sub></i>, <i>c<sub>y</sub></i>)</td>
+                  <td>도형의 회전 피벗이자 기하학적 중심 좌표</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>Geometry.Center</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>W</i>, <i>H</i></td>
+                  <td>회전하기 전 도형의 가로 폭과 세로 높이</td>
+                  <td>(0, ∞) (Image px)</td>
+                  <td><code>Geometry.Width, Height</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>θ</i></td>
+                  <td>도형의 회전 각도 (시계 방향 양수)</td>
+                  <td>(−π, π] rad</td>
+                  <td><code>Geometry.RotationRadians</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 중심이 <code>(100, 100)</code>이고 가로 폭 <code>W&nbsp;=&nbsp;40</code>, 세로 높이 <code>H&nbsp;=&nbsp;20</code>인 타원(Circle)이 있습니다.<br/>
+              • 마우스 클릭 점 <code>p</code>를 역회전(<code>ToLocal(p)</code>)했더니 정규화 좌표 <code>u&nbsp;=&nbsp;+0.3, v&nbsp;=&nbsp;-0.2</code>가 나왔다면?<br/>
+              • 사각형이라면: <code>|0.3| &lt;= 0.5</code> 이고 <code>|-0.2| &lt;= 0.5</code> 이므로 <b>안쪽(true)</b>!<br/>
+              • 타원(Circle)이라면: <code>u²&nbsp;+&nbsp;v²&nbsp;=&nbsp;0.09&nbsp;+&nbsp;0.04&nbsp;=&nbsp;0.13 &lt;= 0.25</code> 이므로 타원에서도 <b>안쪽(true)</b>!
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 3.2 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 2 · 방향별 최대 돌출 거리</span>
+              <span>방향 벡터 <b><i>d</i></b> 에 대한 도형별 서포트 함수 <i>h</i>(<b><i>d</i></b>) = <code>Support(d)</code></span>
+            </div>
+            <span class="math-eq-num">(식 3.2)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (내적 <code>Dot</code>의 최대값 구하기):</strong><br/>
+            1) 도형 내부의 임의의 점 (<i>u</i>, <i>v</i>)가 월드 공간에서 중심으로부터 떨어진 벡터는 (<i>uW</i>, <i>vH</i>)를 <i>θ</i>만큼 회전한 벡터입니다.<br/>
+            2) 이 점이 측정 방향 <b><i>d</i></b>&nbsp;=&nbsp;(<i>d<sub>x</sub></i>, <i>d<sub>y</sub></i>) 쪽으로 얼마나 멀리 나갔는지는 01장에서 배운 <strong>내적(그림자 길이)</strong>으로 계산합니다.<br/>
+            3) 내적 식을 (<i>u</i>, <i>v</i>)로 묶어 정리하면 <strong><i>u</i>&nbsp;·&nbsp;<i>q<sub>x</sub></i>&nbsp;+&nbsp;<i>v</i>&nbsp;·&nbsp;<i>q<sub>y</sub></i></strong> 가 됩니다. (여기서 <i>q<sub>x</sub></i>&nbsp;=&nbsp;<i>W</i>(<i>d<sub>x</sub></i> cos&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>d<sub>y</sub></i> sin&nbsp;<i>θ</i>), <i>q<sub>y</sub></i>&nbsp;=&nbsp;<i>H</i>(−<i>d<sub>x</sub></i> sin&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>d<sub>y</sub></i> cos&nbsp;<i>θ</i>)).<br/>
+            4) 이제 도형 안에서 <i>u</i>&nbsp;·&nbsp;<i>q<sub>x</sub></i>&nbsp;+&nbsp;<i>v</i>&nbsp;·&nbsp;<i>q<sub>y</sub></i> 가 언제 최대가 되는지 찾으면 됩니다:<br/>
+            &nbsp;&nbsp;• <strong>사각형</strong> (<i>u</i>, <i>v</i>&nbsp;∈&nbsp;[−0.5, +0.5]): <i>u</i>와 <i>v</i>가 각각 ±0.5 부호를 맞출 때 최대이므로 <strong>0.5&nbsp;×&nbsp;(|<i>q<sub>x</sub></i>|&nbsp;+&nbsp;|<i>q<sub>y</sub></i>|)</strong>!<br/>
+            &nbsp;&nbsp;• <strong>원/타원</strong> (<i>u</i><sup>2</sup>&nbsp;+&nbsp;<i>v</i><sup>2</sup>&nbsp;≤&nbsp;0.25): 벡터 (<i>q<sub>x</sub></i>, <i>q<sub>y</sub></i>) 방향으로 반지름 0.5만큼 갈 때 최대이므로 피타고라스 정리에 의해 <strong>0.5&nbsp;×&nbsp;√(<i>q<sub>x</sub></i><sup>2</sup>&nbsp;+&nbsp;<i>q<sub>y</sub></i><sup>2</sup>)</strong>!<br/>
+            &nbsp;&nbsp;• <strong>삼각형·폴리곤</strong>: 볼록한 끝점은 항상 꼭짓점 중 하나이므로 꼭짓점들의 <code>max(u_i * qx&nbsp;+&nbsp;v_i * qy)</code>를 구하면 끝!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">로컬 축 투영 벡터 <b><i>q</i></b> = (<i>q<sub>x</sub></i>, <i>q<sub>y</sub></i>)</span>
+                <span class="math-expr"><i>q<sub>x</sub></i> = <i>W</i> · (<i>d<sub>x</sub></i> cos <i>θ</i> + <i>d<sub>y</sub></i> sin <i>θ</i>),</span>
+                <span class="math-expr"><i>q<sub>y</sub></i> = <i>H</i> · (−<i>d<sub>x</sub></i> sin <i>θ</i> + <i>d<sub>y</sub></i> cos <i>θ</i>)</span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><span class="math-label">사각형</span><i>h</i>(<b><i>d</i></b>) = <span class="frac"><span class="num">1</span><span class="den">2</span></span> (|<i>q<sub>x</sub></i>| + |<i>q<sub>y</sub></i>|)</span>
+                <span class="math-expr"><span class="math-label">원/타원</span><i>h</i>(<b><i>d</i></b>) = <span class="frac"><span class="num">1</span><span class="den">2</span></span> <span class="math-sqrt">&radic;<span class="math-sqrt-radicand"><i>q<sub>x</sub></i><sup>2</sup> + <i>q<sub>y</sub></i><sup>2</sup></span></span></span>
+                <span class="math-expr"><span class="math-label">폴리곤</span><i>h</i>(<b><i>d</i></b>) = max<sub><i>i</i></sub> (<i>u<sub>i</sub> q<sub>x</sub></i> + <i>v<sub>i</sub> q<sub>y</sub></i>)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>d</i></b> = (<i>d<sub>x</sub></i>, <i>d<sub>y</sub></i>)</td>
+                  <td>측정하려는 월드 방향 단위 벡터 (예: +X축 (1, 0), +Y축 (0, 1))</td>
+                  <td>가로·세로 숫자 쌍 (X, Y)</td>
+                  <td><code>PointD direction</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">(<i>q<sub>x</sub></i>, <i>q<sub>y</sub></i>)</td>
+                  <td>월드 방향 <b><i>d</i></b>를 회전·스케일된 로컬 축으로 변환한 계수</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (px)</td>
+                  <td><code>double qx, qy</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>h</i>(<b><i>d</i></b>)</td>
+                  <td>중심 <b><i>c</i></b>에서 방향 <b><i>d</i></b>로 가장 멀리 뻗은 끝점까지의 거리</td>
+                  <td>[0, ∞) (Image px)</td>
+                  <td><code>Geometry.Support(direction)</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 가로 <code>W&nbsp;=&nbsp;40</code>, 세로 <code>H&nbsp;=&nbsp;20</code>인 사각형이 회전하지 않았을 때(<code>θ&nbsp;=&nbsp;0</code>), 오른쪽 방향 <code>d&nbsp;=&nbsp;(1, 0)</code>으로 얼마나 튀어나와 있을까요?<br/>
+              • <code>qx&nbsp;=&nbsp;40&nbsp;×&nbsp;1&nbsp;=&nbsp;40</code>, <code>qy&nbsp;=&nbsp;20&nbsp;×&nbsp;0&nbsp;=&nbsp;0</code> 이므로 <code>h(1, 0)&nbsp;=&nbsp;0.5&nbsp;×&nbsp;(|40|&nbsp;+&nbsp;|0|)&nbsp;=&nbsp;20 픽셀</code>!<br/>
+              • 만약 90도 회전(<code>cos&nbsp;90°&nbsp;=&nbsp;0, sin&nbsp;90°&nbsp;=&nbsp;1</code>)했다면 세로 방향 <code>d&nbsp;=&nbsp;(0, 1)</code>에 대해 <code>qx&nbsp;=&nbsp;40&nbsp;×&nbsp;1&nbsp;=&nbsp;40</code>이 되어 세로 돌출 길이가 자동으로 <code>20 픽셀</code>로 바뀝니다!
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 3.3 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 3 · 두 선분 교차 방정식</span>
+              <span>2D 외적(<code>Cross</code>)을 이용한 두 선분 AB 와 CD 의 교점 비율 <i>t</i>, <i>u</i> 계산</span>
+            </div>
+            <span class="math-eq-num">(식 3.3)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (외적으로 미지수 소거하기):</strong><br/>
+            1) 선분 AB 위의 점은 비율 <i>t</i>&nbsp;∈&nbsp;[0, 1]을 써서 <b><i>a</i></b>&nbsp;+&nbsp;<i>t</i><b><i>r</i></b> (단, <b><i>r</i></b>&nbsp;=&nbsp;<b><i>b</i></b>&nbsp;−&nbsp;<b><i>a</i></b>)로 쓸 수 있고, 선분 CD 위의 점은 비율 <i>u</i>&nbsp;∈&nbsp;[0, 1]을 써서 <b><i>c</i></b>&nbsp;+&nbsp;<i>u</i><b><i>s</i></b> (단, <b><i>s</i></b>&nbsp;=&nbsp;<b><i>d</i></b>&nbsp;−&nbsp;<b><i>c</i></b>)로 쓸 수 있습니다.<br/>
+            2) 두 선분이 만나는 교점에서는 두 식이 같아야 하므로 <strong><b><i>a</i></b>&nbsp;+&nbsp;<i>t</i><b><i>r</i></b>&nbsp;=&nbsp;<b><i>c</i></b>&nbsp;+&nbsp;<i>u</i><b><i>s</i></b></strong> 입니다.<br/>
+            3) 여기서 <i>u</i>를 한 방에 없애는 마법: 자기 자신과의 외적은 0(<b><i>s</i></b>&nbsp;×&nbsp;<b><i>s</i></b>&nbsp;=&nbsp;0)이라는 성질을 이용해 양변에 <b><i>s</i></b>를 외적(×)합니다!<br/>
+            4) 그러면 우변의 <i>u</i>(<b><i>s</i></b>&nbsp;×&nbsp;<b><i>s</i></b>)가 0으로 사라지고, <i>t</i>(<b><i>r</i></b>&nbsp;×&nbsp;<b><i>s</i></b>)&nbsp;=&nbsp;(<b><i>c</i></b>&nbsp;−&nbsp;<b><i>a</i></b>)&nbsp;×&nbsp;<b><i>s</i></b> 만 남아서 <strong><i>t</i>&nbsp;=&nbsp;((<b><i>c</i></b>&nbsp;−&nbsp;<b><i>a</i></b>)&nbsp;×&nbsp;<b><i>s</i></b>) / (<b><i>r</i></b>&nbsp;×&nbsp;<b><i>s</i></b>)</strong> 가 바로 구해집니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><span class="math-label">선분 1</span><b><i>P</i></b>(<i>t</i>) = <b><i>a</i></b> + <i>t</i> · <b><i>r</i></b> &nbsp;(<b><i>r</i></b> = <b><i>b</i></b> − <b><i>a</i></b>),</span>
+                <span class="math-expr"><span class="math-label">선분 2</span><b><i>Q</i></b>(<i>u</i>) = <b><i>c</i></b> + <i>u</i> · <b><i>s</i></b> &nbsp;(<b><i>s</i></b> = <b><i>d</i></b> − <b><i>c</i></b>)</span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><i>t</i> = <span class="frac"><span class="num">(<b><i>c</i></b> − <b><i>a</i></b>) × <b><i>s</i></b></span><span class="den"><b><i>r</i></b> × <b><i>s</i></b></span></span>,</span>
+                <span class="math-expr"><i>u</i> = <span class="frac"><span class="num">(<b><i>c</i></b> − <b><i>a</i></b>) × <b><i>r</i></b></span><span class="den"><b><i>r</i></b> × <b><i>s</i></b></span></span></span>
+                <span class="math-expr">(단, <b><i>r</i></b> × <b><i>s</i></b> ≠ 0 이고 0 ≤ <i>t</i> ≤ 1, &nbsp;0 ≤ <i>u</i> ≤ 1 일 때 교차)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 조건</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>a</i></b>, <b><i>b</i></b> 및 <b><i>r</i></b></td>
+                  <td>새로 긋고 있는 후보 선분의 시작점, 끝점 및 방향 벡터</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>candidateStart, candidateEnd</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>c</i></b>, <b><i>d</i></b> 및 <b><i>s</i></b></td>
+                  <td>이미 그려진 다각형의 <i>i</i>번째 변의 양 끝점 및 방향 벡터</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>edgeStart, edgeEnd</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>t</i>, <i>u</i></td>
+                  <td>두 선분 위에서 교점이 위치한 내분 비율 파라미터</td>
+                  <td>[0, 1] 구간이면 선분 내부 교차</td>
+                  <td><code>candidateFraction, edgeFraction</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 가로 선분 <code>A(0, 5)&nbsp;→&nbsp;B(10, 5)</code>와 세로 선분 <code>C(5, 0)&nbsp;→&nbsp;D(5, 10)</code>이 십자(+)로 만나는 경우:<br/>
+              • <code>r&nbsp;=&nbsp;(10, 0)</code>, <code>s&nbsp;=&nbsp;(0, 10)</code> 이므로 분모 외적 <code>r&nbsp;×&nbsp;s&nbsp;=&nbsp;10&nbsp;×&nbsp;10&nbsp;−&nbsp;0&nbsp;=&nbsp;100</code> 입니다.<br/>
+              • <code>c&nbsp;−&nbsp;a&nbsp;=&nbsp;(5, −5)</code> 이므로 <code>t&nbsp;=&nbsp;((5, −5)&nbsp;×&nbsp;(0, 10))&nbsp;÷&nbsp;100&nbsp;=&nbsp;50&nbsp;÷&nbsp;100&nbsp;=&nbsp;0.5</code>, <code>u&nbsp;=&nbsp;0.5</code> 가 나와서 두 선분의 정중앙(50% 지점 <code>(5, 5)</code>)에서 정확히 교차함을 찾아냅니다!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: 회전 도형 <code>ToLocal</code> · <code>Support</code> AABB &amp; 다각형 폐루프 시뮬레이터</h2>
+        <p>
+          모드 1에서는 회전각 <i>θ</i> 슬라이더를 움직이며 기울어진 도형의 바깥 경계 상자(AABB)가 <code>Support</code> 공식으로 어떻게 계산되는지 확인하고, 모드 2에서는 캔버스를 클릭해 다각형 선분 교차 스냅(<code>PolygonClosure</code>)을 직접 실험해 보세요!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · 서포트 함수 AABB &amp; 다각형 폐루프(PolygonClosure) 시뮬레이터</div>
+            <div class="lab-subtitle">모드를 전환하며 회전 AABB 판정과 다각형 선분 교차 스냅을 직접 실험해 보세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="shape-polygon-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <button class="lab-btn active" data-shape-mode="support">모드 1: 회전 도형 ToLocal &amp; Support AABB</button>
+            <button class="lab-btn" data-shape-mode="polygon">모드 2: PolygonClosure.Find 선분 교차 실험</button>
+            <div class="lab-control-group">
+              <label for="shape-rot-slider">회전각 θ:</label>
+              <input id="shape-rot-slider" type="range" min="-90" max="90" value="28" />
+            </div>
+            <button id="clear-poly-btn" class="lab-btn">다각형 점 초기화</button>
+          </div>
+          <div id="shape-polygon-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-kent-beck-poly)
+           ========================================================================= -->
+      <section class="section-card" id="sec-kent-beck-poly">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>RoiGeometry</code>와 <code>PolygonClosure</code> 전체 코드</h2>
+        <p>
+          이제 4가지 도형을 통합하는 <code>RoiGeometry</code>와 켄트 백의 Composed Method 패턴으로 나뉜 <code>PolygonClosure</code>를 직접 작성해 봅시다.
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · 4가지 도형을 하나로 통합한 RoiGeometry.cs · RoiShape.cs 완성본</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a class="source-link-pill" href="../src/VisionGeometry/RoiGeometry.cs">src/VisionGeometry/RoiGeometry.cs</a>
+              <a class="source-link-pill" href="../src/VisionGeometry/RoiShape.cs">src/VisionGeometry/RoiShape.cs</a>
+            </div>
+          </div>
+          <pre><code>using System;
+using System.Collections.Immutable;
+using VisionGeometry;
+
+namespace VisionCanvas.Core.Geometry;
+
+public enum RoiShape { Rectangle, Circle, Triangle, Polygon }
+
+public readonly record struct RoiGeometry(
+    RoiShape Shape,
+    double X,
+    double Y,
+    double Width,
+    double Height,
+    double RotationRadians = 0.0,
+    ImmutableArray&lt;PointD&gt; PolygonVertices = default)
+{
+    public PointD Center =&gt; new(X + (Width * 0.5), Y + (Height * 0.5));
+
+    // (식 3.1) 정방향: 정규화 로컬 좌표 (u, v) in [-0.5, +0.5]^2 → 월드 이미지 좌표
+    public PointD ToWorld(double u, double v)
+    {
+        PointD offset = new PointD(u * Width, v * Height).Rotate(RotationRadians);
+        return Center + offset;
+    }
+
+    // (식 3.1) 역방향: 월드 이미지 좌표 p → 정규화 로컬 좌표 (u, v)
+    public PointD ToLocal(PointD worldPoint)
+    {
+        PointD unrotated = (worldPoint - Center).InverseRotate(RotationRadians);
+        return new PointD(
+            unrotated.X / Math.Max(1e-6, Width),
+            unrotated.Y / Math.Max(1e-6, Height));
+    }
+
+    // 마우스 점 p가 회전된 도형 내부에 들어왔는지 판정합니다.
+    public bool Contains(PointD worldPoint)
+    {
+        PointD local = ToLocal(worldPoint);
+        return Shape switch
+        {
+            RoiShape.Rectangle =&gt; Math.Abs(local.X) &lt;= 0.5 &amp;&amp; Math.Abs(local.Y) &lt;= 0.5,
+            RoiShape.Circle    =&gt; (local.X * local.X) + (local.Y * local.Y) &lt;= 0.25,
+            RoiShape.Triangle  =&gt; local.Y &gt;= -0.5 &amp;&amp; local.Y &lt;= 0.5
+                                  &amp;&amp; Math.Abs(local.X) &lt;= (local.Y + 0.5) * 0.5,
+            RoiShape.Polygon   =&gt; ContainsNormalizedPolygon(local),
+            _                  =&gt; false
+        };
+    }
+
+    // (식 3.2) 중심 Center에서 월드 방향 d 쪽으로 도형이 가장 멀리 뻗은 거리(Support)를 반환합니다.
+    public double Support(PointD direction)
+    {
+        PointD localDir = direction.InverseRotate(RotationRadians);
+        double qx = Width * localDir.X;
+        double qy = Height * localDir.Y;
+
+        return Shape switch
+        {
+            RoiShape.Rectangle =&gt; 0.5 * (Math.Abs(qx) + Math.Abs(qy)),
+            RoiShape.Circle    =&gt; 0.5 * Math.Sqrt((qx * qx) + (qy * qy)),
+            RoiShape.Triangle  =&gt; Math.Max(-0.5 * qy, (0.5 * Math.Abs(qx)) + (0.5 * qy)),
+            RoiShape.Polygon   =&gt; SupportPolygon(qx, qy),
+            _                  =&gt; 0.0
+        };
+    }
+
+    // Support 함수를 이용해 회전된 도형의 바깥 축 정렬 경계 상자(AABB)를 단 2줄로 구합니다!
+    public BoundsD OuterBounds
+    {
+        get
+        {
+            double ex = Support(new PointD(1.0, 0.0));
+            double ey = Support(new PointD(0.0, 1.0));
+            PointD c = Center;
+            return new BoundsD(c.X - ex, c.Y - ey, c.X + ex, c.Y + ey);
+        }
+    }
+
+    // 다각형 내부 판정 (반직선 교차 홀짝 규칙 — Ray Casting)
+    private bool ContainsNormalizedPolygon(PointD p)
+    {
+        if (PolygonVertices.IsDefaultOrEmpty || PolygonVertices.Length &lt; 3) return false;
+        bool inside = false;
+        for (int i = 0, j = PolygonVertices.Length - 1; i &lt; PolygonVertices.Length; j = i++)
+        {
+            PointD a = PolygonVertices[i];
+            PointD b = PolygonVertices[j];
+            if (((a.Y &gt; p.Y) != (b.Y &gt; p.Y)) &amp;&amp;
+                (p.X &lt; ((b.X - a.X) * (p.Y - a.Y) / (b.Y - a.Y)) + a.X))
+            {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    private double SupportPolygon(double qx, double qy)
+    {
+        if (PolygonVertices.IsDefaultOrEmpty) return 0.0;
+        double maxProj = 0.0;
+        foreach (PointD v in PolygonVertices)
+        {
+            maxProj = Math.Max(maxProj, (v.X * qx) + (v.Y * qy));
+        }
+        return maxProj;
+    }
+}</code></pre>
+        </div>
+
+        <div class="kent-beck-box" style="margin-top: 20px;">
+          <div class="kent-beck-header">
+            <span class="kent-beck-title">코드 2 · 켄트 백 Composed Method로 나눈 <code>PolygonClosure.Find</code> 호출 트리</span>
+            <div class="complexity-badges">
+              <span class="cc-badge">Find CC = 4</span>
+              <span class="cc-badge">TryIntersectEdge CC = 5</span>
+            </div>
+          </div>
+          <div class="composed-tree">
+            <div class="composed-parent">
+              PolygonClosure.Find(IReadOnlyList&lt;PointD&gt; points, PointD candidateEnd, double snapRadius)
+            </div>
+            <div class="composed-children">
+              <div class="composed-step">
+                <span class="composed-step-num">Step 1</span>
+                <span class="composed-step-name">FindFirstIntersection()</span>
+                <span class="composed-step-desc">마지막 꼭짓점에서 <code>candidateEnd</code>로 긋는 선분과 가장 먼저 만나는 기존 변을 찾습니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 2</span>
+                <span class="composed-step-name">TryIntersectEdge()</span>
+                <span class="composed-step-desc">(식 3.3)의 외적(<b><i>r</i></b> × <b><i>s</i></b>)으로 선분 교차 비율 <i>t</i>, <i>u</i> ∈ [0, 1]을 계산합니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 3</span>
+                <span class="composed-step-name">SnapToEndpoint()</span>
+                <span class="composed-step-desc">교차점이 기존 꼭짓점에서 <code>snapRadius</code> 이내면 꼭짓점 좌표로 자석처럼 스냅합니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 4</span>
+                <span class="composed-step-name">BuildClosedLoop()</span>
+                <span class="composed-step-desc">교차된 변부터 마지막 점까지를 이어 넓이가 있는 유한한 폐다각형 꼭짓점 리스트를 반환합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 2 · PolygonClosure.cs 선분 교차 및 폐루프 조립 구현</span>
+            <a class="source-link-pill" href="../src/VisionCanvas.Core/Geometry/PolygonClosure.cs">src/VisionCanvas.Core/Geometry/PolygonClosure.cs</a>
+          </div>
+          <pre><code>public static PolygonClosureHit? Find(
+    IReadOnlyList&lt;PointD&gt; points,
+    PointD candidateEnd,
+    double snapRadius = 0.0)
+{
+    // Guard Clause: 점이 3개 미만이면 다각형 루프를 만들 수 없음
+    if (points.Count &lt; 3)
+    {
+        return null;
+    }
+
+    var start = points[^1];
+    if (start.DistanceTo(candidateEnd) &lt;= Epsilon)
+    {
+        return null;
+    }
+
+    // Step 1: 가장 먼저 교차하는 기존 변 탐색
+    if (FindFirstIntersection(points, start, candidateEnd) is not { } hit)
+    {
+        return null;
+    }
+
+    // Step 3 &amp; 4: 끝점 스냅 후 닫힌 다각형 루프 조립
+    var intersection = SnapToEndpoint(points, hit.EdgeIndex, hit.Point, snapRadius);
+    var loop = BuildClosedLoop(points, hit.EdgeIndex, intersection);
+    return loop is null ? null : new PolygonClosureHit(hit.EdgeIndex, intersection, loop);
+}
+
+// Step 2: (식 3.3) 2D 외적을 이용한 두 선분 교차 판정
+private static bool TryIntersectEdge(
+    PointD a, PointD b, PointD c, PointD d,
+    out double t, out PointD intersection)
+{
+    PointD r = b - a;
+    PointD s = d - c;
+    double rxs = r.Cross(s);
+    if (Math.Abs(rxs) &lt;= Epsilon)
+    {
+        t = 0; intersection = default; return false;
+    }
+
+    PointD cma = c - a;
+    t = cma.Cross(s) / rxs;
+    double u = cma.Cross(r) / rxs;
+    intersection = a + (r * t);
+    return t &gt;= 0.0 &amp;&amp; t &lt;= 1.0 &amp;&amp; u &gt;= 0.0 &amp;&amp; u &lt;= 1.0;
+}</code></pre>
+
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>핵심 코드 구문</th>
+                <th>무슨 역할을 하며 왜 이렇게 작성했을까요?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ToLocal(worldPoint)</code></td>
+                <td>(식 3.1)의 역변환입니다. 마우스 점에서 중심을 빼고 <code>InverseRotate</code>로 역회전한 뒤 <code>Width, Height</code>로 나누어 모든 도형을 <code>[-0.5, +0.5]²</code> 공간으로 데려옵니다.</td>
+              </tr>
+              <tr>
+                <td><code>(local.X * local.X) + (local.Y * local.Y) &lt;= 0.25</code></td>
+                <td>가로·세로 비율이 다른 타원이라도 정규화 공간에서는 반지름 <code>0.5</code>인 완벽한 원이 되므로, <code>u² + v² &lt;= 0.5²(= 0.25)</code> 한 줄로 타원 내부 판정이 끝납니다!</td>
+              </tr>
+              <tr>
+                <td><code>Support(new PointD(1.0, 0.0))</code></td>
+                <td>(식 3.2)를 이용해 회전된 도형이 가로(<code>+X</code>)와 세로(<code>+Y</code>) 방향으로 중심에서 최대 몇 픽셀까지 뻗어 있는지 구해 바깥 경계 상자(<code>OuterBounds</code>)를 만듭니다.</td>
+              </tr>
+              <tr>
+                <td><code>inside = !inside;</code></td>
+                <td>다각형 내부 판정(Ray Casting)에서 점 오른쪽으로 쏜 반직선이 다각형 변을 지날 때마다 <code>false ↔ true</code>를 뒤집어 홀수 번 교차하면 <code>true</code>를 반환합니다.</td>
+              </tr>
+              <tr>
+                <td><code>double rxs = r.Cross(s);</code></td>
+                <td>(식 3.3)의 분모 <b><i>r</i></b> × <b><i>s</i></b> 입니다. 이 값이 0에 가까우면 두 선분이 서로 평행하여 교차하지 않는다는 뜻이므로 즉시 <code>false</code>를 반환합니다.</td>
+              </tr>
+              <tr>
+                <td><code>t &gt;= 0.0 &amp;&amp; t &lt;= 1.0 &amp;&amp; u &gt;= 0.0 &amp;&amp; u &lt;= 1.0</code></td>
+                <td>직선의 연장선이 허공에서 만나는 경우가 아니라, 실제로 그려진 두 선분의 시작점(<code>0.0</code>)과 끝점(<code>1.0</code>) 사이에서 만났을 때만 교차(<code>true</code>)로 인정합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="build-step" style="margin-top: 20px;">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 3 · ROI 내부 제외 영역을 [0, 1]² 비율 좌표로 저장하는 MaskRegion.cs</span>
+            <a class="source-link-pill" href="../src/VisionGeometry/MaskRegion.cs">src/VisionGeometry/MaskRegion.cs</a>
+          </div>
+          <p style="margin-bottom: 10px; color: var(--text-secondary);">
+            검사 영역(ROI) 안에 있는 나사 구멍이나 글자처럼 <strong>"이 부분은 검사에서 빼라(Mask)"</strong>고 지정한 영역은 어떻게 저장할까요? <code>MaskRegion</code>은 ROI 프레임 좌상단을 <code>(0, 0)</code>, 우하단을 <code>(1, 1)</code>로 하는 <strong>0~1 정규화 비율 좌표</strong>로 사각형(<code>Rectangle</code>) 또는 타원(<code>Ellipse</code>)을 보관합니다. 덕분에 ROI를 이동·크기 조절·회전시켜도 마스크 좌표를 다시 계산할 필요 없이 <code>ToLocal(world)</code>과 결합해 자동으로 따라 움직입니다!
+          </p>
+          <pre><code>// src/VisionGeometry/MaskRegion.cs: ROI 프레임 좌상단 기준 0-1 좌표 (실제 ROI 도형과의 교집합)
+public bool Contains(RoiGeometry owner, PointD world)
+{
+    var local = owner.ToLocal(world);
+    return owner.Shape.ContainsLocal(local, owner.Width, owner.Height, 0) &amp;&amp;
+        ContainsNormalized(new((local.X / owner.Width) + .5, (local.Y / owner.Height) + .5));
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & UML 다이어그램 (#sec-solid-grasp, #sec-diagrams)
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: 왜 4가지 도형을 <code>RoiGeometry</code>로 통합했을까?</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Information Expert (정보 전문가)</span>
+            <h4><code>RoiGeometry</code>가 자기 도형의 포함(<code>Contains</code>)과 끝점(<code>Support</code>)을 직접 안다</h4>
+            <p>도형의 종류(<code>Shape</code>), 크기(<code>Width, Height</code>), 회전각(<code>RotationRadians</code>), 다각형 점 목록(<code>PolygonVertices</code>)을 모두 가진 <code>RoiGeometry</code>가 <code>Contains()</code>와 <code>Support()</code>를 직접 계산합니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Creator (창조자)</span>
+            <h4><code>PolygonClosure</code>가 꼭짓점들을 검증해 닫힌 다각형 루프를 창조</h4>
+            <p>폴리곤을 그리는 동안 찍은 점들이 최소 3개인지, 선분이 서로 교차해 닫혔는지 검사한 뒤 유효한 폐루프 꼭짓점 목록을 만들어내는 책임을 <code>PolygonClosure</code>가 맡습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>도형 수학(<code>RoiGeometry</code>)과 마우스 드래그 그리기(<code>DrawGesture</code>) 분리</h4>
+            <p><code>DrawGesture</code>는 마우스 시작점과 현재점으로부터 드래그 상자를 만드는 인터랙션만 담당하고, 실제 기하 연산은 <code>RoiGeometry</code>에 맡깁니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · OCP (개방-폐쇄 원칙)</span>
+            <h4>정규화 로컬 공간 <code>ToLocal</code> 덕분에 이동·회전·리사이즈 코드가 도형 종류와 무관!</h4>
+            <p>새로운 도형(예: 마름모, 별표)을 추가하더라도 이동·회전·리사이즈 코드는 단 한 줄도 고칠 필요 없이 <code>Contains</code>와 <code>Support</code>의 <code>switch</code> 분기만 한 줄 추가하면 됩니다!</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 왜 <code>Support</code>(끝점 길이) 함수를 쓰면 최적화가 될까요?</strong><br/>기울어진 원이나 사각형이 부모 상자 밖으로 나갔는지 검사할 때, 원을 수백 개 점으로 쪼개서 검사하면 엄청 느립니다. <code>Support</code> 공식을 쓰면 사칙연산 단 한 줄(<code>O(1)</code>)로 가장 멀리 튀어나온 끝점을 즉시 구할 수 있습니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>03장 도형 기하학(<code>RoiGeometry</code>) 및 그리기(<code>PolygonClosure</code>) 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"Immutable Record","title":"Roi","role":"ID, 부모 ID, 기하 도형(Geometry), 마스크 목록(Masks), 검색 범위를 담는 ROI 엔티티","color":"#34d399","members":["+ Id: Guid, ParentId: Guid?","+ Geometry: RoiGeometry","+ Masks: ImmutableArray<MaskRegion>","+ SearchRange: RoiSearchRange?"]},{"stereotype":"GRASP Information Expert","title":"RoiGeometry & RoiShape","role":"사각형·원·삼각형·폴리곤의 월드↔로컬 좌표 변환 및 포함/서포트 계산기","color":"#fbbf24","members":["+ Center: PointD, Width, Height, Angle: double","+ Shape: RoiShape (Rect / Circle / Tri / Poly)","+ ToWorld(local) / ToLocal(world)","+ Contains(PointD, tolerance): bool","+ Support(PointD dir): double / Covers(child)"]},{"stereotype":"Normalized Mask [0,1]²","title":"MaskRegion","role":"ROI 프레임 좌상단 기준 0~1 정규화 좌표로 표현되는 사각형/타원 제외 영역","color":"#818cf8","members":["+ Shape: MaskShape (Rectangle / Ellipse)","+ Bounds: BoundsD (0 <= L,T,R,B <= 1)","+ ContainsNormalized(PointD): bool","+ Contains(RoiGeometry owner, PointD world)"]},{"stereotype":"GRASP Creator / Validator","title":"PolygonClosure","role":"폴리곤 그리기 중 선분 자기교차(8자 꼬임) 검사 및 다각형 폐루프 조립","color":"#f472b6","members":["+ Find(points, candidateEnd, snapRadius)","- FindFirstIntersection()","- TryIntersectEdge(a, b, c, d)","- BuildClosedLoop()"]},{"stereotype":"IGesture (그리기 담당)","title":"DrawGesture & MaskDrawGesture","role":"캔버스에 새 ROI 도형 또는 ROI 내부 마스크 영역을 드래그해 그리는 제스처","color":"#38bdf8","members":["+ Move(PointD, InputModifiers)","+ Up(PointD) / Cancel()"]}],"edges":[{"from":4,"to":0,"label":"Up 시 새 Roi/Mask 커밋"},{"from":4,"to":3,"label":"폴리곤 폐루프 검증 요청"},{"from":0,"to":1,"label":"Geometry 보유 (has-a)"},{"from":0,"to":2,"label":"Masks 배열 보유"},{"from":2,"to":1,"label":"owner.ToLocal() 호출"}],"tiers":[[4],[0,3],[1,2]]}</script>
+        <div class="diagram-caption">사각형·원·폴리곤 데이터를 표현하는 <code>Roi</code> / <code>RoiGeometry</code>와, 마우스로 새 도형을 그리는 <code>DrawGesture</code> / <code>PolygonClosure</code>의 연결 구조입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>03장 시퀀스 다이어그램 · 사각형/원 드래그 그리기(<code>DrawGesture</code>) &amp; 폴리곤 닫기 흐름</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["InteractionController","DrawGesture","PolygonClosure","RoiGeometry","EditorSession"],"messages":[{"from":0,"to":1,"text":"PointerDown → new DrawGesture(startImg, shape)"},{"from":0,"to":1,"text":"PointerMove(currentDip) → Update() 드래그 영역 갱신"},{"from":1,"to":3,"text":"FromBounds(dragBounds, shape) 생성"},{"from":0,"to":2,"text":"[폴리곤일 때] 더블클릭/첫점 클릭 → TryCreateClosedPolygon(points)"},{"from":2,"to":2,"text":"SegmentsIntersect()로 꼬인 선분 없는지 검사"},{"from":1,"to":4,"text":"Commit() → AddRoi(newRoi) 문서에 최종 등록!"}]}</script>
+        <div class="diagram-caption">사용자가 그리기 도구를 선택하고 마우스를 드래그하거나 폴리곤 점을 찍어 새 ROI를 완성하는 시간 순서입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 03장 마무리 셀프 체크 &amp; 다음 장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · 기울어진 타원 안에 마우스 점 P가 들어왔는지 확인할 때, 타원을 돌리는 것과 점 P를 반대로 돌리는 것 중 어느 쪽이 계산이 훨씬 쉬울까요?</summary>
+          <p><strong>정답:</strong> 점 P 딱 하나만 반대로 돌려서(<code>ToLocal</code>) 정규화 원의 방정식 <code>u² + v² &lt;= 0.25</code>에 대입하는 것이 수백 배 쉽고 빠릅니다!</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 다음 장(04장)에서는 무엇을 만들게 되나요?</summary>
+          <p><strong>징검다리:</strong> 이제 사각형·원·삼각형·폴리곤을 자유자재로 만들고 클릭 판정까지 할 수 있게 되었습니다! 그런데 기판(부모 ROI) 안에 들어있는 부품 핀(자식 ROI)을 마우스로 드래그하거나 회전시킬 때, <strong>자식 도형이 부모 도형 벽을 뚫고 밖으로 탈출하지 못하게 막고 벽을 따라 부드럽게 미끄러지게(Wall Sliding)</strong> 하려면 어떻게 해야 할까요? 다음 <strong>04장</strong>에서 <code>RoiMotionBounds</code>로 이 물리 엔진 같은 충돌 제약을 직접 구현해 봅니다!</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="02-viewport-and-coordinates.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">02장 · 좌표계와 뷰포트 변환 직접 만들기</span>
+        </a>
+        <a class="pager-link" href="04-motion-bounds-and-collision.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">04장 · 부모-자식 경계 충돌과 이동·회전 한계 방정식</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

@@ -6,6 +6,12 @@ using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionGeometry;
 
+if (args.Contains("--fiducial-alignment-profile"))
+{
+    FiducialAlignmentProfile.Run(args);
+    return;
+}
+
 if (args.Contains("--selection-profile"))
 {
     await SelectionProfile.RunAsync(args);

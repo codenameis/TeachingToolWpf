@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-16T10:34:13.234Z",
+  "method": "Computer Use (@oai/sky), real WPF/DX12 window",
+  "executable": "artifacts/primitive-validation/bin/TeachingToolWpf/release/TeachingToolWpf.exe",
+  "fixture": "artifacts/primitive-nested-fixture.png",
+  "imageSize": [
+    640,
+    480
+  ],
+  "minimumScore": 0.8,
+  "maximumResults": 0,
+  "minimumSize": 12,
+  "maximumSize": 256,
+  "cases": [
+    {
+      "name": "cpu_all",
+      "observedText": [
+        "325 텍스트 도형 4개 · CPU · 500.9 ms · 원본 창 1개",
+        "330 텍스트 1 / 1 페이지 · 전체 4개",
+        "335 텍스트 #1 사각형 · 0.997 · X430.00 Y180.00 · 면적 470.0px² #2 사각 테두리 · 0.997 · X430.00 Y180.00 · 면적 4283.0px² #3 도넛 · 0.983 · X160.00 Y180.00 · 면적 5672.0px² #4 원 · 0.963 · X160.00 Y180.00 · 면적 415.0px²"
+      ]
+    },
+    {
+      "name": "cuda_all",
+      "observedText": [
+        "325 텍스트 도형 4개 · CPU + CUDA · 651.9 ms · 원본 창 1개",
+        "330 텍스트 1 / 1 페이지 · 전체 4개",
+        "335 텍스트 #1 사각형 · 0.997 · X430.00 Y180.00 · 면적 470.0px² #2 사각 테두리 · 0.997 · X430.00 Y180.00 · 면적 4283.0px² #3 도넛 · 0.983 · X160.00 Y180.00 · 면적 5672.0px² #4 원 · 0.963 · X160.00 Y180.00 · 면적 415.0px²"
+      ]
+    },
+    {
+      "name": "cuda_without_ring",
+      "observedText": [
+        "325 텍스트 도형 3개 · CPU + CUDA · 104.4 ms · 원본 창 1개",
+        "330 텍스트 1 / 1 페이지 · 전체 3개",
+        "335 텍스트 #1 사각형 · 0.997 · X430.00 Y180.00 · 면적 470.0px² #2 사각 테두리 · 0.997 · X430.00 Y180.00 · 면적 4283.0px² #3 원 · 0.963 · X160.00 Y180.00 · 면적 415.0px²"
+      ]
+    },
+    {
+      "name": "cuda_without_ring_and_frame",
+      "observedText": [
+        "325 텍스트 도형 2개 · CPU + CUDA · 118.3 ms · 원본 창 1개",
+        "330 텍스트 1 / 1 페이지 · 전체 2개",
+        "335 텍스트 #1 사각형 · 0.997 · X430.00 Y180.00 · 면적 470.0px² #2 원 · 0.963 · X160.00 Y180.00 · 면적 415.0px²"
+      ]
+    },
+    {
+      "name": "cpu_restored",
+      "observedText": [
+        "325 텍스트 도형 4개 · CPU · 6.2 ms · 원본 창 1개",
+        "330 텍스트 1 / 1 페이지 · 전체 4개",
+        "335 텍스트 #1 사각형 · 0.997 · X430.00 Y180.00 · 면적 470.0px² #2 사각 테두리 · 0.997 · X430.00 Y180.00 · 면적 4283.0px² #3 도넛 · 0.983 · X160.00 Y180.00 · 면적 5672.0px² #4 원 · 0.963 · X160.00 Y180.00 · 면적 415.0px²"
+      ]
+    }
+  ],
+  "visualChecks": [
+    "All six shape checkboxes enabled by default; CPU default; maximum results 0 visible",
+    "Ring and frame outer and hole boundaries shown separately, independent inner circle and rectangle labeled",
+    "Changing device or shape filters clears stale results and overlay",
+    "Overlay off hides contours while four results remain; overlay on restores contours"
+  ],
+  "limitations": [
+    "640x480 synthetic image; 32K button-to-display time not measured",
+    "UI ms is service time, not full button-to-display latency; observations are individual calls",
+    "Concurrent renderer refactor is outside the tested Release build"
+  ]
+}

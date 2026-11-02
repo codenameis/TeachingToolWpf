@@ -10,10 +10,7 @@ internal sealed class NormalTrainer
     private readonly double[] _motionM2 = new double[FlowFeatures.Dimensions];
     private int _seen;
     private int _motionSamples;
-    public int Count
-    {
-        get; private set;
-    }
+    public int Count { get; private set; }
 
     public void Add(float[] patches, float[]? motion)
     {

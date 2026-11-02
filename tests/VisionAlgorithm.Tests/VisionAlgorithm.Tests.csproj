@@ -12,6 +12,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <ProjectReference Include="../../src/VisionAlgorithm/VisionAlgorithm.csproj" />
     <Using Include="Xunit" />
+    <Compile Include="../Shared/PcbMarkFixture.cs" Link="Fixtures/PcbMarkFixture.cs" />
   </ItemGroup>
   <Import Project="../../build/InspectionNativeRuntime.props" />
 </Project>

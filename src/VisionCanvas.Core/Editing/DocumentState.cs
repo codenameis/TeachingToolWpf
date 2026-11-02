@@ -24,149 +24,160 @@ public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? Paren
 }
 
 /// <summary>Immutable image-space geometry prevents precision drift during reparenting.</summary>
-public sealed partial record DocumentState(
-    ImmutableDictionary<Guid, Roi> Rois,
-    RoiIdSet Selection,
-    ImageReference? Image,
-    ViewportTransform Viewport)
+public sealed record DocumentState
 {
-    private RoiSnapshot _snapshot = new(Rois);
-    private RoiIdSet _selection = Selection;
-    private Lazy<RoiSpatialIndex>? _selectedSpatial;
-    private Lazy<RoiSelectionFacts>? _selectionFacts;
-    private Lazy<RoiTransformSelection>? _transformSelection;
-    private ImageReference? _image = Image;
+    public RoiSnapshot Snapshot { get; }
 
-    public ImageReference? Image
+    public RoiSelectionSnapshot SelectionSnapshot { get; }
+
+    public ImageReference? Image { get; }
+
+    public ViewportTransform Viewport { get; init; }
+
+    public ImmutableDictionary<Guid, Roi> Rois => Snapshot.Rois;
+
+    public RoiIdSet Selection => SelectionSnapshot.Selection;
+
+    public int RoiCount => Rois.Count;
+
+    public int SelectionCount => Selection.Count;
+
+    public DocumentState(
+        ImmutableDictionary<Guid, Roi> rois,
+        RoiIdSet selection,
+        ImageReference? image,
+        ViewportTransform viewport)
+        : this(new RoiSnapshot(rois), selection, image, viewport)
     {
-        get => _image;
-        init
-        {
-            _image = value;
-            _transformSelection = null;
-        }
     }
 
-    public RoiIdSet Selection
+    public DocumentState(
+        RoiSnapshot snapshot,
+        RoiIdSet selection,
+        ImageReference? image,
+        ViewportTransform viewport)
+        : this(snapshot, new RoiSelectionSnapshot(snapshot, selection, image), image, viewport)
     {
-        get => _selection;
-        init
-        {
-            _selection = value;
-            _selectedSpatial = null;
-            _selectionFacts = null;
-            _transformSelection = null;
-        }
     }
 
-    public ImmutableDictionary<Guid, Roi> Rois
+    public DocumentState(
+        RoiSnapshot snapshot,
+        RoiSelectionSnapshot selectionSnapshot,
+        ImageReference? image,
+        ViewportTransform viewport)
     {
-        get => _snapshot.Rois;
-        init
-        {
-            _snapshot = new(value);
-            _selectedSpatial = null;
-            _selectionFacts = null;
-            _transformSelection = null;
-        }
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(selectionSnapshot);
+        Snapshot = snapshot;
+        SelectionSnapshot = selectionSnapshot;
+        Image = image;
+        Viewport = viewport;
     }
 
-    public RoiSnapshot Snapshot => _snapshot;
+    private DocumentState(DocumentState original)
+    {
+        Snapshot = original.Snapshot;
+        SelectionSnapshot = original.SelectionSnapshot;
+        Image = original.Image;
+        Viewport = original.Viewport;
+    }
 
     public bool IsGroupRoi(Guid id) => Rois[id].IsGroup || Snapshot.Children.ContainsKey(id);
 
-    public bool IsTransformSelectionPrepared
-    {
-        get
-        {
-            var value = Volatile.Read(ref _transformSelection);
-            return value?.IsValueCreated == true && value.Value.IsPrepared;
-        }
-    }
+    public bool IsTransformSelectionPrepared => SelectionSnapshot.IsTransformSelectionPrepared;
 
-    public RoiTransformSelection TransformSelection
-    {
-        get
-        {
-            var value = Volatile.Read(ref _transformSelection);
-            if (value is null)
-            {
-                value = new(() => new(this));
-                value = Interlocked.CompareExchange(ref _transformSelection, value, null) ?? value;
-            }
-            return value.Value;
-        }
-    }
+    public RoiTransformSelection TransformSelection => SelectionSnapshot.GetTransformSelection(this);
 
-    public RoiSelectionFacts SelectionFacts
-    {
-        get
-        {
-            var value = Volatile.Read(ref _selectionFacts);
-            if (value is null)
-            {
-                value = new(() => new(Rois, Selection, Snapshot));
-                value = Interlocked.CompareExchange(ref _selectionFacts, value, null) ?? value;
-            }
-            return value.Value;
-        }
-    }
+    public RoiSelectionFacts SelectionFacts => SelectionSnapshot.SelectionFacts;
 
-    public RoiSpatialIndex SelectedSpatial
-    {
-        get
-        {
-            if (Selection.Count == Rois.Count)
-            {
-                return Snapshot.Spatial;
-            }
+    public RoiSpatialIndex SelectedSpatial => SelectionSnapshot.SelectedSpatial;
 
-            var value = Volatile.Read(ref _selectedSpatial);
-            if (value is null)
-            {
-                value = new(() => Snapshot.IsSpatialCreated && Selection.Count > 64 && Selection.Count > Rois.Count / 8
-                    ? Snapshot.Spatial.Filter(Selection, include: true)
-                    : new RoiSpatialIndex(Selection.Select(id => Rois[id])));
-                value = Interlocked.CompareExchange(ref _selectedSpatial, value, null) ?? value;
-            }
-            return value.Value;
+    public bool SameContent(DocumentState other) => ReferenceEquals(Rois, other.Rois);
+
+    public bool SameSelection(DocumentState other) => ReferenceEquals(Selection, other.Selection);
+
+    public DocumentState WithViewport(ViewportTransform viewport)
+        => Viewport == viewport ? this : new DocumentState(Snapshot, SelectionSnapshot, Image, viewport);
+
+    public DocumentState WithSelection(RoiIdSet selection)
+        => ReferenceEquals(Selection, selection) ? this : new DocumentState(Snapshot, selection, Image, Viewport);
+
+    public DocumentState WithImage(ImageReference? image, ViewportTransform? viewport = null)
+    {
+        var nextViewport = viewport ?? Viewport;
+        if (Image == image && Viewport == nextViewport)
+        {
+            return this;
         }
+
+        return new DocumentState(Snapshot, SelectionSnapshot.WithImage(image), image, nextViewport);
     }
 
     /// <summary>changedIds must include every added, removed, geometric or metadata change.</summary>
     public DocumentState WithRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
-        => ReferenceEquals(Rois, rois) ? this : this with
+    {
+        if (ReferenceEquals(Rois, rois))
         {
-            _snapshot = new(_snapshot, rois, changedIds.Distinct().ToImmutableArray()),
-            _selectedSpatial = null,
-            _selectionFacts = null,
-            _transformSelection = null
-        };
+            return this;
+        }
+
+        var nextSnapshot = new RoiSnapshot(Snapshot, rois, changedIds.Distinct().ToImmutableArray());
+        return new DocumentState(nextSnapshot, Selection, Image, Viewport);
+    }
+
     // Whole-document edits and large coherent groups preserve BVH membership; refit bounds without sorting.
     internal DocumentState WithRigidRois(ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds, CancellationToken token = default)
-        => ReferenceEquals(Rois, rois) ? this : this with
+    {
+        if (ReferenceEquals(Rois, rois))
         {
-            _snapshot = new(_snapshot, rois, changedIds.ToImmutableArray(), refitSpatial: true, token: token),
-            _selectedSpatial = null,
-            _selectionFacts = null,
-            _transformSelection = null
-        };
+            return this;
+        }
+
+        var nextSnapshot = new RoiSnapshot(Snapshot, rois, changedIds.ToImmutableArray(), refitSpatial: true, token: token);
+        return new DocumentState(nextSnapshot, Selection, Image, Viewport);
+    }
 
     internal DocumentState WithRoisFrom(DocumentState before, ImmutableDictionary<Guid, Roi> rois, IEnumerable<Guid> changedIds)
-        => this with
+    {
+        var nextSnapshot = new RoiSnapshot(before.Snapshot, rois, changedIds.Distinct().ToImmutableArray(), Snapshot);
+        return new DocumentState(nextSnapshot, Selection, Image, Viewport);
+    }
+
+    /// <summary>입력·속성·렌더러가 즉시 참조하는 지연 공간 인덱스와 선택 통계를 백그라운드에서 미리 준비한다.</summary>
+    public void Warm(CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        _ = Snapshot.Spatial;
+        token.ThrowIfCancellationRequested();
+        _ = Snapshot.Children;
+        token.ThrowIfCancellationRequested();
+        _ = Snapshot.SearchSpatial;
+        token.ThrowIfCancellationRequested();
+        _ = SelectionFacts.HasMultipleRoots;
+        _ = SelectionFacts.CanGroup;
+        _ = Snapshot.GroupLevels;
+        token.ThrowIfCancellationRequested();
+        _ = SelectedSpatial;
+        if (SelectionCount != 0)
         {
-            _snapshot = new(before._snapshot, rois, changedIds.Distinct().ToImmutableArray(), _snapshot),
-            _selectedSpatial = null,
-            _selectionFacts = null,
-            _transformSelection = null
-        };
+            TransformSelection.Warm(token);
+        }
 
-    public bool Equals(DocumentState? other) => other is not null && ReferenceEquals(Rois, other.Rois) &&
-        ReferenceEquals(Selection, other.Selection) && ReferenceEquals(RepeatedRois, other.RepeatedRois) &&
-        ReferenceEquals(RepeatedSelection, other.RepeatedSelection) && Image == other.Image && Viewport == other.Viewport;
+        token.ThrowIfCancellationRequested();
+    }
 
-    public override int GetHashCode() => HashCode.Combine(Rois, Selection, RepeatedRois, RepeatedSelection, Image, Viewport);
+    public bool Equals(DocumentState? other)
+        => other is not null
+        && ReferenceEquals(Rois, other.Rois)
+        && ReferenceEquals(Selection, other.Selection)
+        && Image == other.Image
+        && Viewport == other.Viewport;
 
-    public static DocumentState Empty => new(ImmutableDictionary<Guid, Roi>.Empty,
-        ImmutableHashSet<Guid>.Empty, null, ViewportTransform.Identity);
+    public override int GetHashCode() => HashCode.Combine(Rois, Selection, Image, Viewport);
+
+    public static DocumentState Empty => new(
+        ImmutableDictionary<Guid, Roi>.Empty,
+        ImmutableHashSet<Guid>.Empty,
+        null,
+        ViewportTransform.Identity);
 }

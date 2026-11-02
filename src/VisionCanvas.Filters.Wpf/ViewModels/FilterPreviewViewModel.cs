@@ -12,33 +12,26 @@ public sealed record FilterOption(RoiFilterKind Kind, string Label)
 /// <summary>UI-owned preview session, with one worker and one replaceable pending request.</summary>
 public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposable
 {
+    private const string RequestedCpuOnlyReason = "CpuOnly was requested.";
+
     private readonly IRoiFilterPreview _processor;
     private readonly EditorSession _editor;
     private DocumentState _document = DocumentState.Empty;
     private bool _live;
-
     private bool _active;
-
     private bool _busy;
-
     private bool _disposed;
-
     private bool _previewEnabled = true;
-
     private bool _editing;
     private RoiFilterKind _selectedFilter;
     private string _threshold = "128";
-
     private string _edgeLow = "50";
-
     private string _edgeHigh = "150";
     private string _radius = "3";
     private string _sigma = "1";
     private RoiFilterExecution _execution;
-
     private string _status = "필터를 선택한 뒤 미리보기를 누르세요.";
     private FilterRequest? _pending;
-
     private FilterRequest? _requested;
     private CancellationTokenSource? _cancellation;
     private long _revision;
@@ -46,10 +39,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     private FilterPreviewResult? _result;
     private RoiTransformPreview? _transformPreview;
 
-    public IReadOnlyList<FilterOption> Options
-    {
-        get;
-    } =
+    public IReadOnlyList<FilterOption> Options { get; } =
     [
         new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화 (OpenCV)"),
         new(RoiFilterKind.Edge, "Edge · Canny (OpenCV)"),
@@ -115,10 +105,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     public bool IsBinarize => SelectedFilter == RoiFilterKind.Binarize;
 
     public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
-    public bool IsIndustrial => new FilterSettings(SelectedFilter).IsIndustrial;
-    public bool UsesRadius => new FilterSettings(SelectedFilter).UsesRadius;
-    public bool UsesSigma => new FilterSettings(SelectedFilter).UsesSigma;
-    public bool UsesThreshold => IsBinarize || new FilterSettings(SelectedFilter).UsesNativeThreshold;
+    public bool IsIndustrial => FilterSettings.IsIndustrialKind(SelectedFilter);
+    public bool UsesRadius => FilterSettings.UsesRadiusKind(SelectedFilter);
+    public bool UsesSigma => FilterSettings.UsesSigmaKind(SelectedFilter);
+    public bool UsesThreshold => IsBinarize || FilterSettings.UsesNativeThresholdKind(SelectedFilter);
     public string ThresholdCaption => IsBinarize ? "이진화 임계값 · 0–255" : "원본 명암 임계값 · Gray8 0–255 / Gray16 0–65535";
 
     public string Radius
@@ -207,25 +197,13 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public event Action? Changed;
 
-    public RelayCommand Preview
-    {
-        get;
-    }
+    public RelayCommand Preview { get; }
 
-    public RelayCommand Apply
-    {
-        get;
-    }
+    public RelayCommand Apply { get; }
 
-    public RelayCommand Stop
-    {
-        get;
-    }
+    public RelayCommand Stop { get; }
 
-    public RelayCommand ClearRegistration
-    {
-        get;
-    }
+    public RelayCommand ClearRegistration { get; }
 
     public Task WhenIdle => _pump ?? Task.CompletedTask;
 
@@ -245,10 +223,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         {
             IsPreviewEnabled = true;
             Register();
-        }, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && _document.RepeatedSelection.IsEmpty && !editor.IsPreviewing);
-        Apply = new(Register, () => _document.Selection.Count > 0 && _document.RepeatedSelection.IsEmpty && !editor.IsPreviewing);
+        }, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && !editor.IsPreviewing);
+        Apply = new(Register, () => _document.Selection.Count > 0 && !editor.IsPreviewing);
         BeginParameterEdit = new(StartParameterEdit, () => !_disposed && !_parameterEditing &&
-            !editor.IsPreviewing && _document.Selection.Count > 0 && _document.RepeatedSelection.IsEmpty && SelectedFilter != RoiFilterKind.None);
+            !editor.IsPreviewing && _document.Selection.Count > 0 && SelectedFilter != RoiFilterKind.None);
         EndParameterEdit = new(CompleteParameterEdit, () => _parameterEditing);
         CancelParameterEdit = new(CancelParameterChanges, () => _parameterEditing);
         Stop = new(StopPreview, () => IsActive);
@@ -257,34 +235,26 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
             editor.SetFilters(new(RoiFilterKind.None));
             Update(editor.State, _live);
         },
-            () => !editor.IsPreviewing && _document.RepeatedSelection.IsEmpty && !_document.SelectionFacts.RegisteredFilters.IsEmpty);
+            () => !editor.IsPreviewing && !_document.SelectionFacts.RegisteredFilters.IsEmpty);
     }
 
     public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null, PixelKind? pixelKind = null)
     {
-        var maximum = pixelKind is null ? _inputMaximum : pixelKind == PixelKind.Gray16 ? 65535 : 255;
-        if (_inputMaximum != maximum)
-        {
-            _inputMaximum = maximum;
-            Notify(nameof(ThresholdMaximum));
-        }
+        UpdateInputMaximum(pixelKind);
         var editingChanged = _editing != _editor.IsPreviewing;
         _editing = _editor.IsPreviewing;
-        if (ReferenceEquals(_document.Rois, state.Rois) && ReferenceEquals(_document.Selection, state.Selection) && ReferenceEquals(_document.RepeatedSelection, state.RepeatedSelection)
-            && _document.Image == state.Image && _live == isLive && _transformPreview == preview)
+        if (IsViewOnlyNavigation(state, isLive, preview))
         {
             _document = state;
             if (editingChanged)
             {
                 RefreshCommands();
             }
-
             return;
-        } // View-only navigation cannot change image-local filter pixels.
-        var selectionChanged = _document.Image != state.Image || !_document.Selection.SetEquals(state.Selection)
-            || !ReferenceEquals(_document.RepeatedSelection, state.RepeatedSelection);
-        var settingsChanged = !selectionChanged && !ReferenceEquals(_document.Rois, state.Rois) &&
-            state.Selection.Any(id => !_document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
+        }
+
+        var selectionChanged = HasSelectionChanged(state);
+        var settingsChanged = !selectionChanged && HasSelectedFilterSettingsChanged(state);
         var sourceChanged = _live != isLive;
         _document = state;
         _live = isLive;
@@ -293,13 +263,46 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         if (selectionChanged || settingsChanged)
         {
             ResetParameterEdit();
-            var settings = state.SelectionFacts.First?.Filter ?? new(RoiFilterKind.None);
-            LoadSettings(settings);
+            LoadSettings(state.SelectionFacts.First?.Filter ?? new(RoiFilterKind.None));
         }
         var invalidate = selectionChanged || settingsChanged || sourceChanged;
         Schedule(invalidate: invalidate, keepVisible: !invalidate);
         RefreshCommands();
     }
+
+    private void UpdateInputMaximum(PixelKind? pixelKind)
+    {
+        int maximum;
+        if (pixelKind is null)
+        {
+            maximum = _inputMaximum;
+        }
+        else if (pixelKind == PixelKind.Gray16)
+        {
+            maximum = 65535;
+        }
+        else
+        {
+            maximum = 255;
+        }
+
+        if (_inputMaximum != maximum)
+        {
+            _inputMaximum = maximum;
+            Notify(nameof(ThresholdMaximum));
+        }
+    }
+
+    private bool IsViewOnlyNavigation(DocumentState state, bool isLive, RoiTransformPreview? preview)
+        => ReferenceEquals(_document.Rois, state.Rois) && ReferenceEquals(_document.Selection, state.Selection) &&
+           _document.Image == state.Image && _live == isLive && _transformPreview == preview;
+
+    private bool HasSelectionChanged(DocumentState state)
+        => _document.Image != state.Image || !_document.Selection.SetEquals(state.Selection);
+
+    private bool HasSelectedFilterSettingsChanged(DocumentState state)
+        => !ReferenceEquals(_document.Rois, state.Rois) &&
+           state.Selection.Any(id => !_document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
 
     private void DraftChanged()
     {
@@ -322,7 +325,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     private void Register()
     {
-        if (_disposed || _editor.IsPreviewing || _document.Selection.Count == 0 || !_document.RepeatedSelection.IsEmpty)
+        if (_disposed || _editor.IsPreviewing || _document.Selection.Count == 0)
         {
             return;
         }
@@ -372,46 +375,65 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         IsActive = IsPreviewEnabled && _document.Image is not null && rois.Count > 0;
         if (!IsActive)
         {
-            _revision++;
-            _pending = _requested = null;
-            _cancellation?.Cancel();
-            ClearResult();
-            Status = !IsPreviewEnabled ? "미리보기 꺼짐 · 등록 설정 유지" : "등록된 필터 없음 · 필터 선택 후 설정을 적용하세요.";
+            var idleStatus = !IsPreviewEnabled
+                ? "미리보기 꺼짐 · 등록 설정 유지"
+                : "등록된 필터 없음 · 필터 선택 후 설정을 적용하세요.";
+            ResetPendingSchedule(idleStatus);
             return;
         }
+
         try
         {
             var next = new FilterRequest(_document.Image!, _live, rois, _transformPreview) { OverrideSettings = _draftSettings };
-            if (!force && _requested is { } old && old.Image == next.Image && old.IsLive == next.IsLive &&
-                old.Transform == next.Transform && old.OverrideSettings == next.OverrideSettings && old.Rois.SequenceEqual(next.Rois))
+            if (!force && IsSameFilterRequest(_requested, next))
             {
                 return;
             }
 
-            _pending = _requested = next;
-            if (invalidate)
-            {
-                _revision++;
-                _cancellation?.Cancel();
-            }
-            if (!keepVisible)
-            {
-                ClearResult();
-                Status = "선택 영역을 처리하고 있습니다…";
-            }
-            if (_pump is null || _pump.IsCompleted)
-            {
-                _pump = RunAsync();
-            }
+            QueueFilterRequest(next, keepVisible, invalidate);
         }
         catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
         {
-            _revision++;
-            _pending = _requested = null;
-            _cancellation?.Cancel();
-            ClearResult();
-            Status = "임계값을 확인하세요. 0–255 숫자를 입력하세요.";
+            ResetPendingSchedule("임계값을 확인하세요. 0–255 숫자를 입력하세요.");
         }
+    }
+
+    private static bool IsSameFilterRequest(FilterRequest? previous, FilterRequest next) =>
+        previous is not null &&
+        previous.Image == next.Image &&
+        previous.IsLive == next.IsLive &&
+        previous.Transform == next.Transform &&
+        previous.OverrideSettings == next.OverrideSettings &&
+        previous.Rois.SequenceEqual(next.Rois);
+
+    private void QueueFilterRequest(FilterRequest next, bool keepVisible, bool invalidate)
+    {
+        _pending = _requested = next;
+        if (invalidate)
+        {
+            _revision++;
+            _cancellation?.Cancel();
+        }
+
+        if (!keepVisible)
+        {
+            ClearResult();
+            Status = "선택 영역을 처리하고 있습니다…";
+        }
+
+        if (_pump is null || _pump.IsCompleted)
+        {
+            _pump = RunAsync();
+        }
+    }
+
+    private void ResetPendingSchedule(string status)
+    {
+        _revision++;
+        _pending = _requested = null;
+        _cancellation?.Cancel();
+        ClearResult();
+        Status = status;
     }
 
     private async Task RunAsync()
@@ -426,7 +448,6 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
                 _cancellation = current;
                 try
                 {
-                    // A bounded refresh interval, not a debounce restarted on every pointer event.
                     await Task.Delay(100, current.Token);
                     if (_pending is not { } request)
                     {
@@ -489,7 +510,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         }
         var stages = reports.SelectMany(report => report.Stages).ToArray();
         var devices = string.Join(", ", stages.Select(stage => stage.Device == "CPU" ? "CPU" : "CUDA · " + stage.Device).Distinct());
-        var fallback = string.Join("\n", stages.Where(stage => stage.Device == "CPU" && stage.Reason != "CpuOnly was requested.")
+        var fallback = string.Join("\n", stages.Where(stage => stage.Device == "CPU" && stage.Reason != RequestedCpuOnlyReason)
             .Select(stage => $"{stage.Filter}: CPU 전환 · {stage.Reason}").Distinct());
         var legacy = reports.Length < output.Regions.Count ? " + OpenCV CPU" : "";
         var memory = reports.Max(report => report.HostWorkingBytes + report.GpuWorkingBytes) / (1024d * 1024);

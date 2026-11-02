@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>01. 고1 수학 &amp; 벡터 기하학 — ManualGemini</title>
+  <link rel="stylesheet" href="assets/manual-gemini.css" />
+</head>
+<body>
+  <header class="top-header">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">CHAPTER 01</span>
+      <span>고1 수학 &amp; 벡터 기하학</span>
+    </a>
+    <nav class="top-nav-links">
+      <a href="index.html">홈·전체 구조</a>
+      <a href="01-math-and-vectors.html" class="active">01. 수학·벡터</a>
+      <a href="02-hwnd-intptr-simd.html">02. HWND·SIMD</a>
+      <a href="03-code-rules-and-architecture.html">03. 코드규칙·구조</a>
+      <a href="04-core-algorithms-and-bvh.html">04. 타일링·BVH</a>
+      <a href="05-practical-usage-mvvm.html">05. 실전 MVVM</a>
+      <a href="06-from-scratch-implementation.html">06. 밑바닥 구현</a>
+    </nav>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">🌙 다크 모드</button>
+  </header>
+
+  <div class="layout-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">교재 목차 (Curriculum)</div>
+      <ul class="sidebar-nav">
+        <li><a href="index.html"><span class="chap-num">00</span>전체 구조 한눈에 보기</a></li>
+        <li><a href="01-math-and-vectors.html" class="active"><span class="chap-num">01</span>수학 &amp; 벡터 기하학</a></li>
+        <li><a href="02-hwnd-intptr-simd.html"><span class="chap-num">02</span>HWND · IntPtr · SIMD</a></li>
+        <li><a href="03-code-rules-and-architecture.html"><span class="chap-num">03</span>코드 규칙 &amp; 클래스 구조</a></li>
+        <li><a href="04-core-algorithms-and-bvh.html"><span class="chap-num">04</span>이미지 타일링 &amp; BVH</a></li>
+        <li><a href="05-practical-usage-mvvm.html"><span class="chap-num">05</span>실전 MVVM 사용법</a></li>
+        <li><a href="06-from-scratch-implementation.html"><span class="chap-num">06</span>밑바닥부터 직접 구현</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-banner">
+        <div class="hero-eyebrow">CHAPTER 01 · HIGH SCHOOL MATH TO C# STRUCT</div>
+        <h1>고등학교 1학년 수학으로 만드는 2D 기하 엔진</h1>
+        <p class="hero-subtitle">
+          "그래픽 엔진 수학"이라고 하면 어렵게 느껴지지만, 실제로는 <strong>중학교 피타고라스 정리</strong>, <strong>고1 일차함수</strong>, 그리고 <strong>삼각비(sin, cos)</strong> 딱 세 가지만 있으면 충분합니다.<br/>이 세 가지 공식이 <code>VisionGeometry</code> 프로젝트의 C# 코드로 어떻게 바뀌는지 하나씩 따라가 봅시다.
+        </p>
+      </section>
+
+      <!-- 0. 워밍업: 이 장을 시작하기 전에 꼭 알아야 할 기초 C# & 화면 좌표계 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 0 · WARM-UP PREREQUISITES</span>
+        <h2>0. 워밍업: 수학 공식을 보기 전에 꼭 알아야 할 2가지 기초</h2>
+        <div class="story-lead">
+          <strong>잠깐!</strong> 바로 수식부터 보면 어지럽습니다. 먼저 <strong>① 왜 컴퓨터 화면은 Y축이 아래로 내려가는지</strong>, 그리고 <strong>② 왜 C#에서 <code>class</code> 대신 <code>readonly record struct</code>를 쓰는지</strong>부터 1분 만에 감을 잡아 봅시다!
+        </div>
+        <div class="grid-2">
+          <div class="concept-card">
+            <h4>① 수학 교과서 좌표계 vs 모니터 화면 좌표계</h4>
+            <p>
+              학교 수학 시간의 그래프는 왼쪽 아래가 <code>(0, 0)</code>이고 위로 갈수록 <code>+Y</code>가 커지죠?<br/>
+              하지만 <strong>모든 컴퓨터 모니터와 카메라 사진은 공책 글씨를 읽듯이 '왼쪽 맨 위 모서리'가 원점 <code>(0, 0)</code>이고, 아래로 내려갈수록 <code>+Y</code>가 커집니다!</strong> 이 차이 때문에 각도 <code>+θ</code>는 <strong>시계 방향</strong> 회전이 됩니다.
+            </p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>② 왜 <code>class</code> 대신 <code>readonly record struct</code>를 쓸까요?</h4>
+            <p>
+              마우스를 움직일 때 점 <code>(X, Y)</code> 계산은 1초에 수백만 번 일어납니다. 만약 점을 <code>class</code>로 만들면 힙(Heap) 메모리에 쓰레기가 쌓여 가비지 컬렉터(GC) 때문에 화면이 뚝뚝 끊깁니다.<br/>
+              반면 <strong><code>readonly record struct</code></strong>는 함수가 끝나면 즉시 사라지는 초고속 스택(Stack) 메모리에 놓이고, <code>==</code> 비교와 <code>with</code> 복사 문법까지 자동으로 만들어 줍니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. 점(Point)과 벡터(Vector) -->
+      <section class="content-section">
+        <span class="section-badge">STEP 1 · POINT &amp; VECTOR</span>
+        <h2>1. 점(Point)과 화살표(Vector), 그리고 내적·외적 한 걸음씩 유도하기</h2>
+        <div class="story-lead">
+          <strong>한 줄 요약:</strong> 화면 위의 <strong>위치</strong>를 나타내면 '점(Point)'이고, 한 점에서 다른 점으로 향하는 <strong>이동량(방향과 거리)</strong>을 나타내면 '벡터(Vector)'입니다.</div>
+        <p>
+          도착점 <code>B(x₂, y₂)</code>에서 출발점 <code>A(x₁, y₁)</code>를 빼면(<code>B - A</code>), A에서 B로 향하는 화살표 벡터 <code>(Δx, Δy) = (x₂ - x₁, y₂ - y₁)</code>이 만들어집니다.
+        </p>
+
+        <div class="grid-3">
+          <div class="concept-card">
+            <h4>① 두 점 사이의 거리와 <code>LengthSquared</code></h4>
+            <p>
+              중학교 2학년 때 배운 피타고라스 정리 <i>c</i><sup>2</sup>&nbsp;=&nbsp;<i>a</i><sup>2</sup>&nbsp;+&nbsp;<i>b</i><sup>2</sup> 입니다!<br/>
+              단순히 "마우스가 반지름 6픽셀 안에 들어왔니?"만 비교할 때는 계산이 느린 루트(<code>Math.Sqrt</code>)를 씌우지 않고 <strong>거리의 제곱(<code>dx*dx&nbsp;+&nbsp;dy*dy &lt;= 36</code>)</strong>끼리 비교하면 훨씬 빠릅니다.
+            </p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>② 내적 (Dot Product)&nbsp;=&nbsp;그림자 길이</h4>
+            <p>
+              위에서 손전등을 수직으로 비췄을 때 한 화살표가 다른 화살표 바닥에 만드는 <strong>그림자 길이</strong>입니다.<br/>
+              계산식은 <code>A.X * B.X&nbsp;+&nbsp;A.Y * B.Y</code>이며, 도형이 부모 벽에 부딪혀 <strong>벽을 따라 미끄러질 거리(Wall Sliding)</strong>를 구할 때 핵심으로 쓰입니다.
+            </p>
+          </div>
+          <div class="concept-card amber">
+            <h4>③ 2D 외적 (Cross Product)&nbsp;=&nbsp;좌우 방향 판별기</h4>
+            <p>
+              두 화살표가 이루는 평행사변형의 넓이이자, <strong>시계 방향(+)으로 꺾였는지 반시계 방향(-)으로 꺾였는지</strong> 알려주는 나침반입니다.<br/>
+              계산식은 <code>A.X * B.Y - A.Y * B.X</code>이며, 다각형 선분이 8자로 꼬였는지 검사할 때 쓰입니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="math-box">
+          <div class="math-box-title">📐 핵심 공식 1 — 거리·내적·외적 (PointD 구조체)</div>
+          <div class="math-formula">
+            <span class="math-expr"><span class="math-label">거리</span><i>d</i> = <span class="math-sqrt">&radic;<span class="math-sqrt-radicand">(&Delta;<i>x</i>)<sup>2</sup> + (&Delta;<i>y</i>)<sup>2</sup></span></span></span>
+            <span class="math-sep">|</span>
+            <span class="math-expr"><span class="math-label">내적</span><b>A &middot; B</b> = <i>A<sub>x</sub>B<sub>x</sub></i> + <i>A<sub>y</sub>B<sub>y</sub></i></span>
+            <span class="math-sep">|</span>
+            <span class="math-expr"><span class="math-label">외적</span><b>A &times; B</b> = <i>A<sub>x</sub>B<sub>y</sub></i> &minus; <i>A<sub>y</sub>B<sub>x</sub></i></span>
+          </div>
+          <p style="margin-top:8px; font-size:0.9rem;">
+            <strong>🔢 실제 숫자 대입 연습:</strong> 점 <code>A(10, 20)</code>과 <code>B(13, 24)</code>가 있을 때 <code>Δx = 3, Δy = 4</code>이므로 거리 제곱은 <code>3² + 4² = 25</code>이고 실제 거리는 <code>√25 = 5</code>픽셀입니다!
+          </p>
+        </div>
+
+        <div class="code-header">
+          <span>src/VisionGeometry/PointD.cs</span>
+          <span>불변(readonly) 2D 좌표 구조체</span>
+        </div>
+        <pre><code><span class="kw">public readonly record struct</span> <span class="ty">PointD</span>(<span class="kw">double</span> X, <span class="kw">double</span> Y)
+{
+    <span class="kw">public static</span> <span class="ty">PointD</span> <span class="kw">operator</span> +(<span class="ty">PointD</span> a, <span class="ty">PointD</span> b) =&gt; <span class="kw">new</span>(a.X + b.X, a.Y + b.Y);
+    <span class="kw">public static</span> <span class="ty">PointD</span> <span class="kw">operator</span> -(<span class="ty">PointD</span> a, <span class="ty">PointD</span> b) =&gt; <span class="kw">new</span>(a.X - b.X, a.Y - b.Y);
+
+    <span class="cm">// 내적: 두 벡터가 얼마나 같은 방향인지 계산</span>
+    <span class="kw">public static double</span> <span class="fn">Dot</span>(<span class="ty">PointD</span> a, <span class="ty">PointD</span> b) =&gt; (a.X * b.X) + (a.Y * b.Y);
+
+    <span class="cm">// 외적: 회전 방향(부호)과 평행사변형 넓이 계산</span>
+    <span class="kw">public static double</span> <span class="fn">Cross</span>(<span class="ty">PointD</span> a, <span class="ty">PointD</span> b) =&gt; (a.X * b.Y) - (a.Y * b.X);
+
+    <span class="cm">// 제곱근(Sqrt) 없이 빠르게 거리 비교할 때 사용</span>
+    <span class="kw">public double</span> <span class="fn">DistanceSquaredTo</span>(<span class="ty">PointD</span> other)
+    {
+        <span class="kw">double</span> dx = X - other.X;
+        <span class="kw">double</span> dy = Y - other.Y;
+        <span class="kw">return</span> (dx * dx) + (dy * dy);
+    }
+}</code></pre>
+      </section>
+
+      <!-- 2. 마우스 커서 기준 줌 (ZoomAt) -->
+      <section class="content-section">
+        <span class="section-badge">STEP 2 · VIEWPORT TRANSFORM &amp; ZOOMAT</span>
+        <h2>2. 일차함수로 이해하는 화면 확대·축소 (ZoomAt)</h2>
+        <div class="story-lead">
+          <strong>왜 중요할까요?</strong> 지도 앱에서 마우스 커서를 특정 건물 위에 두고 휠을 굴리면, <strong>그 건물이 마우스 커서 밑에 딱 붙어 있는 채로</strong> 주변만 확대됩니다.<br/>이 마법이 바로 고1 일차함수입니다!</div>
+        <p>
+          원본 이미지 좌표 <code>P<sub>img</sub></code>를 화면 픽셀 좌표 <code>P<sub>scr</sub></code>로 바꾸는 식은 기울기가 <code>S</code>(배율, Scale)이고 y절편이 <code>T</code>(이동량, Offset)인 일차함수 <code>y = Sx + T</code>와 똑같습니다.</p>
+
+        <div class="math-box">
+          <div class="math-box-title">📐 핵심 공식 2 — 정변환 · 역변환 · 마우스 기준 줌(ZoomAt)</div>
+          <div class="math-formula">
+            <span class="math-label">① 이미지 &rarr; 화면 (정변환)</span>
+            <span class="math-expr"><i>P</i><sub>scr</sub> = <i>P</i><sub>img</sub> &times; <i>S</i> + <i>T</i></span>
+          </div>
+          <div class="math-formula">
+            <span class="math-label">② 화면 &rarr; 이미지 (역변환)</span>
+            <span class="math-expr"><i>P</i><sub>img</sub> = <span class="frac"><span class="num"><i>P</i><sub>scr</sub> &minus; <i>T</i></span><span class="den"><i>S</i></span></span></span>
+          </div>
+          <div class="math-formula">
+            <div style="font-family: var(--font-sans); font-size: 0.92rem; margin-bottom: 6px; color: var(--text-secondary);">
+              <strong>③ 마우스 고정 줌(ZoomAt):</strong> 배율이 <span class="m-inline"><i>S</i> &rarr; <i>S'</i></span>으로 바뀔 때, 커서 아래 이미지 점 <span class="m-inline"><i>P</i><sub>img</sub></span>가 화면 커서 위치 <span class="m-inline"><i>P</i><sub>cursor</sub></span>에 그대로 남으려면 새 이동량 <span class="m-inline"><i>T'</i></span>은 다음과 같습니다.
+            </div>
+            <span class="math-expr"><b><i>T'</i> = <i>P</i><sub>cursor</sub> &minus; (<i>P</i><sub>img</sub> &times; <i>S'</i>)</b></span>
+          </div>
+        </div>
+
+        <div class="code-header">
+          <span>src/VisionGeometry/ViewportTransform.cs</span>
+          <span>마우스 커서 고정 줌(ZoomAt) 구현</span>
+        </div>
+        <pre><code><span class="kw">public readonly record struct</span> <span class="ty">ViewportTransform</span>(<span class="kw">double</span> Scale, <span class="kw">double</span> OffsetX, <span class="kw">double</span> OffsetY)
+{
+    <span class="kw">public</span> <span class="ty">PointD</span> <span class="fn">ImageToScreen</span>(<span class="ty">PointD</span> imagePt) =&gt;
+        <span class="kw">new</span>((imagePt.X * Scale) + OffsetX, (imagePt.Y * Scale) + OffsetY);
+
+    <span class="kw">public</span> <span class="ty">PointD</span> <span class="fn">ScreenToImage</span>(<span class="ty">PointD</span> screenPt) =&gt;
+        <span class="kw">new</span>((screenPt.X - OffsetX) / Scale, (screenPt.Y - OffsetY) / Scale);
+
+    <span class="kw">public</span> <span class="ty">ViewportTransform</span> <span class="fn">ZoomAt</span>(<span class="ty">PointD</span> screenAnchor, <span class="kw">double</span> newScale)
+    {
+        <span class="cm">// 1. 줌 하기 직전, 마우스 커서 아래에 있던 이미지 좌표를 구합니다.</span>
+        <span class="ty">PointD</span> anchorImage = <span class="fn">ScreenToImage</span>(screenAnchor);
+
+        <span class="cm">// 2. 새 배율(newScale)에서도 그 이미지 좌표가 같은 화면 위치에 오도록 Offset을 역산합니다.</span>
+        <span class="kw">double</span> newOffsetX = screenAnchor.X - (anchorImage.X * newScale);
+        <span class="kw">double</span> newOffsetY = screenAnchor.Y - (anchorImage.Y * newScale);
+
+        <span class="kw">return new</span> <span class="ty">ViewportTransform</span>(newScale, newOffsetX, newOffsetY);
+    }
+}</code></pre>
+      </section>
+
+      <!-- 3. 회전 행렬과 역변환 충돌 판정 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 3 · 2D ROTATION &amp; INVERSE HIT-TEST</span>
+        <h2>3. 삐딱하게 돌아간 상자(ROI)를 클릭했는지 어떻게 알까요?</h2>
+        <div class="story-lead">
+          <strong>발상의 전환:</strong> 30도 기울어진 사각형 안에 마우스가 들어왔는지 직접 계산하려면 부등식이 아주 복잡해집니다.<br/>대신 <strong>마우스 좌표를 반대 방향(-30도)으로 되돌려 놓으면</strong> 반듯한 사각형 검사가 됩니다!</div>
+        <p>
+          점 <code>(x, y)</code>를 원점 기준으로 각도 <code>&theta;</code>만큼 회전시키는 공식은 삼각비 <code>cos &theta;</code>와 <code>sin &theta;</code>로 이루어집니다.<br/>그리고 반대 방향(<code>&minus;&theta;</code>)으로 되돌릴 때는 <code>cos(&minus;&theta;) = cos &theta;</code>, <code>sin(&minus;&theta;) = &minus;sin &theta;</code> 성질 덕분에 부호 하나만 바꾸면 즉시 역변환이 완성됩니다.</p>
+
+        <div class="math-box">
+          <div class="math-box-title">📐 핵심 공식 3 — 2D 회전 정변환과 역변환 (RigidTransform2D &amp; RoiGeometry)</div>
+          <div class="math-formula" style="font-family: var(--font-sans); font-size: 0.94rem; text-align: left;">
+            <b>✏️ 한 걸음씩 유도하기:</b> 가로 단위벡터 <code>(1, 0)</code>을 <code>θ</code>만큼 돌리면 <code>(cos θ, sin θ)</code>가 되고, 세로 단위벡터 <code>(0, 1)</code>을 <code>θ</code>만큼 돌리면 <code>(-sin θ, cos θ)</code>가 됩니다. 따라서 점 <code>(x, y)</code>를 회전한 위치는 두 벡터에 각각 <code>x</code>와 <code>y</code>를 곱해 더한 값입니다!
+          </div>
+          <div class="math-formula">
+            <span class="math-label">정변환 (+&theta; 회전 후 이동)</span>
+            <span class="math-expr"><i>x'</i> = <i>x</i> cos &theta; &minus; <i>y</i> sin &theta; + <i>T<sub>x</sub></i>,</span>
+            <span class="math-expr"><i>y'</i> = <i>x</i> sin &theta; + <i>y</i> cos &theta; + <i>T<sub>y</sub></i></span>
+          </div>
+          <div class="math-formula">
+            <span class="math-label">역변환 (이동 제거 후 &minus;&theta; 역회전, &Delta;<i>x</i> = <i>x'</i> &minus; <i>T<sub>x</sub></i>, &Delta;<i>y</i> = <i>y'</i> &minus; <i>T<sub>y</sub></i>)</span>
+            <span class="math-expr"><i>x</i> = &Delta;<i>x</i> cos &theta; + &Delta;<i>y</i> sin &theta;,</span>
+            <span class="math-expr"><i>y</i> = &minus;&Delta;<i>x</i> sin &theta; + &Delta;<i>y</i> cos &theta;</span>
+          </div>
+        </div>
+
+        <div class="code-header">
+          <span>src/VisionGeometry/RigidTransform2D.cs</span>
+          <span>정회전(Transform) 및 역회전(InverseTransform) 구현</span>
+        </div>
+        <pre><code><span class="kw">public readonly record struct</span> <span class="ty">RigidTransform2D</span>(<span class="kw">double</span> Dx, <span class="kw">double</span> Dy, <span class="kw">double</span> DTheta)
+{
+    <span class="cm">// 정변환: 원점 기준 +DTheta 회전 후 (Dx, Dy) 평행이동</span>
+    <span class="kw">public</span> <span class="ty">PointD</span> <span class="fn">Transform</span>(<span class="ty">PointD</span> p)
+    {
+        <span class="kw">double</span> c = <span class="ty">Math</span>.<span class="fn">Cos</span>(DTheta), s = <span class="ty">Math</span>.<span class="fn">Sin</span>(DTheta);
+        <span class="kw">return new</span> <span class="ty">PointD</span>((p.X * c) - (p.Y * s) + Dx, (p.X * s) + (p.Y * c) + Dy);
+    }
+
+    <span class="cm">// 역변환: (Dx, Dy) 이동을 먼저 빼고 -DTheta 역회전 (기울어진 도형 히트테스트의 핵심!)</span>
+    <span class="kw">public</span> <span class="ty">PointD</span> <span class="fn">InverseTransform</span>(<span class="ty">PointD</span> p)
+    {
+        <span class="kw">double</span> rx = p.X - Dx, ry = p.Y - Dy;
+        <span class="kw">double</span> c = <span class="ty">Math</span>.<span class="fn">Cos</span>(DTheta), s = <span class="ty">Math</span>.<span class="fn">Sin</span>(DTheta);
+        <span class="kw">return new</span> <span class="ty">PointD</span>((rx * c) + (ry * s), (-rx * s) + (ry * c));
+    }
+}</code></pre>
+
+        <div class="anim-stage">
+          <div class="anim-header">
+            <div class="anim-title">🎮 인터랙티브 실험실: ZoomAt 고정점 줌 &amp; 회전 행렬</div>
+            <div class="anim-controls">
+              <label style="font-size:0.8rem; color:#cbd5e1;">배율(S):
+                <input id="math-scale-slider" type="range" min="0.6" max="2.4" step="0.05" value="1.5" style="vertical-align:middle;" />
+              </label>
+              <label style="font-size:0.8rem; color:#cbd5e1;">회전(&theta;):
+                <input id="math-angle-slider" type="range" min="-90" max="90" step="1" value="25" style="vertical-align:middle;" />
+              </label>
+              <button id="math-btn-reset" class="anim-btn" type="button">초기화</button>
+            </div>
+          </div>
+          <div class="anim-canvas-wrap">
+            <canvas id="math-zoom-canvas" width="860" height="270"></canvas>
+          </div>
+          <div id="math-zoom-readout" class="anim-readout">슬라이더를 조절하거나 캔버스 오른쪽 위에서 마우스를 움직여 보세요.</div>
+        </div>
+      </section>
+
+      <nav class="chapter-pager">
+        <a href="index.html" class="pager-card">
+          <span class="pager-label">이전 챕터 (Overview)</span>
+          <span class="pager-title">← 00. 전체 구조 한눈에 보기</span>
+        </a>
+        <a href="02-hwnd-intptr-simd.html" class="pager-card" style="text-align: right;">
+          <span class="pager-label">다음 챕터 (Chapter 02)</span>
+          <span class="pager-title">02. HWND · IntPtr · SIMD →</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/manual-gemini.js"></script>
+</body>
+</html>

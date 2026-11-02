@@ -9,6 +9,55 @@ namespace VisionCompute.Tests;
 public sealed class CudaTemplateMatchingTests
 {
     [Theory]
+    [InlineData(0, 1)]
+    [InlineData(0, 3)]
+    [InlineData(1, 1)]
+    [InlineData(1, 3)]
+    [InlineData(2, 1)]
+    [InlineData(2, 3)]
+    public void WindowedCpuAndCudaKeepBoundaryMatchesAndCandidateCounts(int algorithm, int levels)
+    {
+        var (template, small) = Scene();
+        var pixels = new byte[600 * 520];
+        for (var row = 0; row < small.Height; row++)
+        {
+            small.Pixels.Span.Slice(row * small.Width, small.Width).CopyTo(pixels.AsSpan(((row + 420) * 600) + 470));
+        }
+        var source = new WindowedSource(new(600, 520, pixels));
+        ITemplateMatcher matcher = algorithm switch
+        {
+            0 => new Line2DMatcher(template),
+            1 => new SubNccMatcher(template),
+            _ => new DirectionalChamferMatcher(template)
+        };
+        var options = new SearchOptions { MinimumAngle = 0, MaximumAngle = 90, PyramidLevels = levels, SuppressionRadius = 16 };
+        var cpu = matcher.FindWindowed(source, options);
+        using var session = new CudaTemplateScoreSession();
+        using var accelerator = session.Rent();
+        var cuda = matcher.FindWindowed(source, options, accelerator: accelerator);
+        Assert.Equal(2, cpu.Matches.Count);
+        Assert.Equal(cpu.Matches, cuda.Matches);
+        Assert.Equal(cpu.Evaluations, cuda.Evaluations);
+        Assert.Equal(cpu.CandidateCount, cuda.CandidateCount);
+    }
+
+    private sealed class WindowedSource(GrayImage image) : IGrayImageSource
+    {
+        public int Width => image.Width;
+        public int Height => image.Height;
+        public GrayImage Read(SearchRegion region, int reduction, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            var crop = image.Crop(region);
+            for (var step = 1; step < reduction; step *= 2)
+            {
+                crop = crop.Half();
+            }
+            return crop;
+        }
+    }
+
+    [Theory]
     [InlineData("pin-crossing-256x256.gray", 135.018, 129.678)]
     [InlineData("pin-lower-256x256.gray", 131.018, 127.678)]
     [InlineData("pin-upper-256x256.gray", 131.018, 129.678)]

@@ -130,4 +130,25 @@ public class SpatialIndexTests
         Assert.Single(index.At(new(roi.Geometry.Bounds.Right, 0)));
         Assert.Empty(index.At(new(100, 100)));
     }
+
+    [Fact]
+    public void BvhNodePathDefaultIsValidRootAndRejectsDepthOverflow()
+    {
+        var defaultPath = default(BvhNodePath);
+        Assert.Equal(BvhNodePath.Root, defaultPath);
+        Assert.Equal(1UL, defaultPath.RawValue);
+        Assert.Equal(0, defaultPath.Depth);
+        Assert.Equal(2UL, defaultPath.LeftChild.RawValue);
+        Assert.Equal(3UL, defaultPath.RightChild.RawValue);
+
+        var current = BvhNodePath.Root;
+        for (var i = 0; i < 62; i++)
+        {
+            current = current.LeftChild;
+        }
+
+        Assert.Equal(62, current.Depth);
+        Assert.Throws<InvalidOperationException>(() => _ = current.LeftChild);
+        Assert.Throws<InvalidOperationException>(() => _ = current.RightChild);
+    }
 }

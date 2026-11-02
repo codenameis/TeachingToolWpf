@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisionCanvas 고1 눈높이 완전 정복 교재 — ManualGemini</title>
+  <link rel="stylesheet" href="assets/manual-gemini.css" />
+</head>
+<body>
+  <header class="top-header">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">MANUAL GEMINI</span>
+      <span>VisionCanvas 밑바닥부터 구현하기</span>
+    </a>
+    <nav class="top-nav-links">
+      <a href="index.html" class="active">홈·전체 구조</a>
+      <a href="01-math-and-vectors.html">01. 수학·벡터</a>
+      <a href="02-hwnd-intptr-simd.html">02. HWND·SIMD</a>
+      <a href="03-code-rules-and-architecture.html">03. 코드규칙·구조</a>
+      <a href="04-core-algorithms-and-bvh.html">04. 타일링·BVH</a>
+      <a href="05-practical-usage-mvvm.html">05. 실전 MVVM</a>
+      <a href="06-from-scratch-implementation.html">06. 밑바닥 구현</a>
+    </nav>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">🌙 다크 모드</button>
+  </header>
+
+  <div class="layout-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">교재 목차 (Curriculum)</div>
+      <ul class="sidebar-nav">
+        <li><a href="index.html" class="active"><span class="chap-num">00</span>전체 구조 한눈에 보기</a></li>
+        <li><a href="01-math-and-vectors.html"><span class="chap-num">01</span>수학 &amp; 벡터 기하학</a></li>
+        <li><a href="02-hwnd-intptr-simd.html"><span class="chap-num">02</span>HWND · IntPtr · SIMD</a></li>
+        <li><a href="03-code-rules-and-architecture.html"><span class="chap-num">03</span>코드 규칙 &amp; 클래스 구조</a></li>
+        <li><a href="04-core-algorithms-and-bvh.html"><span class="chap-num">04</span>이미지 타일링 &amp; BVH</a></li>
+        <li><a href="05-practical-usage-mvvm.html"><span class="chap-num">05</span>실전 MVVM 사용법</a></li>
+        <li><a href="06-from-scratch-implementation.html"><span class="chap-num">06</span>밑바닥부터 직접 구현</a></li>
+      </ul>
+      <div class="sidebar-title">마크다운 레퍼런스</div>
+      <ul class="sidebar-nav">
+        <li><a href="README.md"><span class="chap-num">MD</span>README 안내서</a></li>
+        <li><a href="ARCHITECTURE.md"><span class="chap-num">MD</span>ARCHITECTURE 설계서</a></li>
+        <li><a href="USAGE-GUIDE.md"><span class="chap-num">MD</span>USAGE-GUIDE 사용법</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-banner">
+        <div class="hero-eyebrow">HIGH SCHOOL LEVEL · ZERO TO PRODUCTION ENGINE</div>
+        <h1>고1 눈높이로 배우는 초고속 비전 캔버스 엔진</h1>
+        <p class="hero-subtitle">
+          기본적인 C# 문법과 WPF MVVM 패턴은 알고 있지만, 회전 행렬이나 <code>HWND</code>, <code>IntPtr</code>, <code>SIMD</code>, 이미지 타일 피라미드가 낯설어도 괜찮습니다.<br/>고등학교 1학년 수학 개념부터 출발해, 5억 화소 이미지와 1억 개의 ROI 도형을 60FPS로 그리는 <strong>VisionCanvas</strong>를 밑바닥부터 직접 만들 수 있도록 차근차근 안내합니다.</p>
+      </section>
+
+      <!-- 1. 왜 일반 WPF Canvas 대신 VisionCanvas를 만들었을까? -->
+      <section class="content-section">
+        <span class="section-badge">WHY VISIONCANVAS</span>
+        <h2>1. 왜 기본 WPF Canvas로는 안 될까요?</h2>
+        <div class="story-lead">
+          <strong>핵심 질문:</strong> "그냥 WPF의 기본 <code>&lt;Canvas&gt;</code>에 이미지 한 장 올리고, <code>&lt;Rectangle&gt;</code>을 추가하면 안 되나요?"
+        </div>
+        <p>
+          도형이 10개, 20개일 때는 기본 <code>&lt;Canvas&gt;</code>로도 충분합니다.<br/>하지만 반도체·기판(PCB) 검사 장비에서는 한 장에 <strong>17,280 × 30,720 픽셀(약 5.3억 화소)</strong>짜리 초대형 이미지를 띄우고, 그 위에 검사 영역(ROI)을 <strong>수만 개에서 최대 1억 개</strong>까지 올려놓아야 합니다.</p>
+        <p>
+          이 상황에서 기본 WPF 컨트롤을 그대로 쓰면 세 가지 큰 벽에 부딪힙니다.<br/>VisionCanvas가 이 세 가지 문제를 어떻게 해결했는지 나란히 비교해 볼까요?</p>
+
+        <div class="grid-3">
+          <div class="concept-card">
+            <h4>벽 1. 무거운 UI 객체</h4>
+            <p>
+              WPF의 <code>Shape</code> 컨트롤은 하나당 수백 바이트의 메모리를 쓰고 레이아웃 계산까지 거칩니다.<br/>반면 VisionCanvas는 ROI를 가벼운 불변 데이터(<code>Roi</code>), 영속 선택 집합(<code>RoiIdSet</code>), 2,048개 단위 BVH 블록(<code>RoiSpatialBlock</code>&nbsp;·&nbsp;<code>RoiBlockCache</code>)으로 다뤄 <strong>1억 개 ROI</strong>도 고속으로 처리합니다.</p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>벽 2. 느린 마우스 이벤트</h4>
+            <p>
+              WPF 기본 마우스 이벤트는 시각 트리를 타고 오르락내리락(라우팅)하느라 바쁩니다.<br/>VisionCanvas는 운영체제 창 번호(<code>HWND</code>)에서 마우스 신호(<code>WndProc</code>)를 직접 받아 지연 없이 즉시 처리합니다.</p>
+          </div>
+          <div class="concept-card amber">
+            <h4>벽 3. 초대형 이미지 메모리 폭발</h4>
+            <p>
+              5.3억 화소 이미지를 통째로 그래픽카드(GPU)에 올리면 메모리가 바로 넘칩니다.<br/>그래서 지도 앱처럼 화면에 보이는 조각만 <strong>512&nbsp;×&nbsp;512 타일</strong>로 잘라 그때그때 스트리밍합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 인터랙티브 5단계 실행 파이프라인 -->
+      <section class="content-section">
+        <span class="section-badge">INTERACTIVE PIPELINE</span>
+        <h2>2. 마우스 클릭부터 화면 출력까지 5단계 흐름</h2>
+        <p>
+          사용자가 캔버스 위에서 마우스를 움직이거나 휠을 굴릴 때, 엔진 내부에서는 불과 <strong>16.6밀리초(1/60초)</strong> 안에 아래의 5단계 파이프라인이 차례대로 실행됩니다.<br/>버튼을 눌러 한 단계씩 신호가 어떻게 흘러가는지 확인해 보세요.
+        </p>
+
+        <div class="anim-stage">
+          <div class="anim-header">
+            <div class="anim-title">⚡ 실시간 5단계 파이프라인 시뮬레이터</div>
+            <div class="anim-controls">
+              <button id="arch-btn-play" class="anim-btn primary" type="button">⏸ 일시정지</button>
+              <button id="arch-btn-step" class="anim-btn" type="button">⏭ 한 단계씩 보기</button>
+            </div>
+          </div>
+          <div class="anim-canvas-wrap">
+            <canvas id="arch-anim-canvas" width="860" height="210"></canvas>
+          </div>
+          <div id="arch-anim-readout" class="anim-readout">파이프라인 초기화 중...</div>
+        </div>
+      </section>
+
+      <!-- 3. 전체 아키텍처 UML 클래스 다이어그램 (직교 채널 라우팅) -->
+      <section class="content-section">
+        <span class="section-badge">UML CLASS ARCHITECTURE</span>
+        <h2>3. 전체 아키텍처 4계층 UML 클래스 다이어그램</h2>
+        <p>
+          VisionCanvas는 역할이 뒤섞이지 않도록 <strong>4개의 층(Tier)</strong>으로 깔끔하게 나뉘어 있습니다.<br/>위층은 사용자 화면(MVVM)을 담당하고, 아래층으로 내려갈수록 운영체제 창, 핵심 편집 규칙, 그리고 순수 수학 계산을 담당합니다.</p>
+        <p>
+          아래 다이어그램의 화살표들은 <strong>계층 사이의 빈 통로(Gutter Channel)</strong>로만 정돈되어 지나가므로, 어떤 클래스 상자도 가리지 않습니다.</p>
+
+        <div class="uml-diagram-box">
+          <div class="uml-diagram-header">
+            <div class="uml-diagram-title">📐 VisionCanvas 4-Tier 핵심 클래스 구조도</div>
+            <div class="uml-diagram-sub">Tier 1 (MVVM) → Tier 2 (Host &amp; GPU) → Tier 3 (Core &amp; Imaging) → Tier 4 (Geometry)</div>
+          </div>
+          <script type="application/json" class="structure-spec">
+          {
+            "tiers": [
+              [0, 1],
+              [3, 2, 4],
+              [5, 6, 7],
+              [8, 9, 10]
+            ],
+            "nodes": [
+              {
+                "stereotype": "WPF View",
+                "title": "EditorView",
+                "role": "XAML 화면 및 캔버스 호스팅",
+                "color": "#38bdf8",
+                "members": [
+                  "- _canvasControl : VisionCanvasControl",
+                  "- _coordinator : ImageCoordinator",
+                  "+ OnLoaded() : void",
+                  "+ BindSession() : void"
+                ]
+              },
+              {
+                "stereotype": "ViewModel",
+                "title": "EditorViewModel",
+                "role": "화면 상태 및 ICommand 바인딩",
+                "color": "#38bdf8",
+                "members": [
+                  "+ Session : EditorSession",
+                  "+ ActiveTool : RoiShapeKind",
+                  "+ LoadSampleAsync() : Task",
+                  "+ Undo() / Redo() : void"
+                ]
+              },
+              {
+                "stereotype": "HWND Control",
+                "title": "ViewportControlBase",
+                "role": "Win32 창 호스트 및 입력 연결",
+                "color": "#c084fc",
+                "members": [
+                  "- _hwnd : ViewportWindow",
+                  "- _interaction : InteractionController",
+                  "+ Session : EditorSession",
+                  "+ RequestRender() : void"
+                ]
+              },
+              {
+                "stereotype": "Tile Engine",
+                "title": "TilePlanner",
+                "role": "가시 영역 512px 타일 계산",
+                "color": "#c084fc",
+                "members": [
+                  "+ TileSize : int = 512",
+                  "+ SelectLevel(scale) : int",
+                  "+ PlanVisibleTiles() : ReadOnlySpan"
+                ]
+              },
+              {
+                "stereotype": "Scene Builder",
+                "title": "ScenePainter",
+                "role": "6단계 프레임 그리기 명령 조립",
+                "color": "#c084fc",
+                "members": [
+                  "+ DrawBackgroundTiles() : void",
+                  "+ DrawRoiOverlays() : void",
+                  "+ DrawHandlesAndMinimap() : void"
+                ]
+              },
+              {
+                "stereotype": "Core Facade",
+                "title": "EditorSession",
+                "role": "편집 명령·선택·Undo/Redo 총괄",
+                "color": "#34d399",
+                "members": [
+                  "- _history : UndoRedoHistory",
+                  "+ Document : DocumentState",
+                  "+ Execute(cmd) : bool",
+                  "+ HitTest(imgPt) : HitResult"
+                ]
+              },
+              {
+                "stereotype": "Immutable State",
+                "title": "DocumentState",
+                "role": "불변 ROI 목록 및 BVH 인덱스 보유",
+                "color": "#34d399",
+                "members": [
+                  "+ Rois : ImmutableArray<Roi>",
+                  "+ SpatialIndex : RoiSpatialIndex",
+                  "+ WithUpdatedRoi(roi) : DocumentState"
+                ]
+              },
+              {
+                "stereotype": "Tile Stream",
+                "title": "DiskPyramidSource",
+                "role": "다중 해상도 타일 디스크 스트리밍",
+                "color": "#fbbf24",
+                "members": [
+                  "+ LevelCount : int",
+                  "+ ReadTile(key, dst) : bool",
+                  "+ BuildWithSimd() : void"
+                ]
+              },
+              {
+                "stereotype": "readonly struct",
+                "title": "ViewportTransform",
+                "role": "Image ↔ Screen 좌표 변환·ZoomAt",
+                "color": "#818cf8",
+                "members": [
+                  "+ Scale : double",
+                  "+ OffsetX / OffsetY : double",
+                  "+ ImageToScreen(pt) : PointD",
+                  "+ ZoomAt(anchor, factor) : ViewportTransform"
+                ]
+              },
+              {
+                "stereotype": "readonly struct",
+                "title": "RigidTransform2D",
+                "role": "2D 회전(θ) 및 평행이동 행렬",
+                "color": "#818cf8",
+                "members": [
+                  "+ Cos / Sin : double",
+                  "+ Tx / Ty : double",
+                  "+ TransformPoint(pt) : PointD",
+                  "+ InverseTransform(pt) : PointD"
+                ]
+              },
+              {
+                "stereotype": "BVH Tree",
+                "title": "RoiSpatialIndex",
+                "role": "O(log N) 고속 충돌 판정 트리",
+                "color": "#818cf8",
+                "members": [
+                  "- _nodes : Node[]",
+                  "+ QueryPoint(pt) : ReadOnlySpan",
+                  "+ QueryRect(aabb) : ReadOnlySpan"
+                ]
+              }
+            ],
+            "edges": [
+              { "from": 0, "to": 2, "label": "소유 (호스팅)" },
+              { "from": 1, "to": 2, "label": "바인딩 전달" },
+              { "from": 2, "to": 3, "label": "타일 요청" },
+              { "from": 2, "to": 4, "label": "렌더 조립" },
+              { "from": 2, "to": 5, "label": "소유·구독" },
+              { "from": 3, "to": 7, "label": "타일 읽기" },
+              { "from": 5, "to": 6, "label": "소유 (불변 상태)" },
+              { "from": 5, "to": 8, "label": "뷰포트 변환" },
+              { "from": 6, "to": 9, "label": "회전 기하 계산" },
+              { "from": 6, "to": 10, "label": "소유 (BVH 트리)" }
+            ]
+          }
+          </script>
+        </div>
+      </section>
+
+      <!-- 4. 6단계 학습 로드맵 안내 -->
+      <section class="content-section">
+        <span class="section-badge">CURRICULUM ROADMAP</span>
+        <h2>4. 어떤 순서로 읽으면 좋을까요?</h2>
+        <p>
+          각 장은 앞 장의 개념을 징검다리 삼아 한 걸음씩 나아가도록 설계되어 있습니다.<br/>관심 있는 주제를 먼저 펼쳐 보아도 좋고, <strong>01장부터 06장까지 순서대로</strong> 읽으면 마지막 장에서 직접 동작하는 미니 엔진을 완성할 수 있습니다.</p>
+
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>장(Chapter)</th>
+                <th>핵심 질문 (배우는 내용)</th>
+                <th>연결되는 실제 C# 코드</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="01-math-and-vectors.html"><strong>01. 수학 &amp; 벡터 기하학</strong></a></td>
+                <td>마우스 커서를 기준으로 확대할 때 왜 이미지가 도망가지 않을까? 회전된 상자 클릭은 어떻게 판정할까?</td>
+                <td><code>PointD</code>, <code>ViewportTransform</code>, <code>RigidTransform2D</code></td>
+              </tr>
+              <tr>
+                <td><a href="02-hwnd-intptr-simd.html"><strong>02. HWND · IntPtr · SIMD</strong></a></td>
+                <td>운영체제 창 번호(<code>HWND</code>)와 포인터(<code>IntPtr</code>)란 무엇이고, CPU가 픽셀 16개를 한 번에 계산하는 비결은?</td>
+                <td><code>ViewportWindow</code>, <code>NativeMethods</code>, <code>TrianglePyramid</code></td>
+              </tr>
+              <tr>
+                <td><a href="03-code-rules-and-architecture.html"><strong>03. 코드 규칙 &amp; 클래스 구조</strong></a></td>
+                <td>왜 모든 메서드를 20줄 이내로 쪼갤까? 드래그 도중 Undo 기록이 폭발하지 않게 막는 불변 구조란?</td>
+                <td><code>EditorSession</code>, <code>DocumentState</code>, <code>UndoRedoHistory</code></td>
+              </tr>
+              <tr>
+                <td><a href="04-core-algorithms-and-bvh.html"><strong>04. 이미지 타일링 &amp; BVH</strong></a></td>
+                <td>5억 화소 이미지를 어떻게 512px 타일로 쪼개고, 1만 개의 ROI 중 클릭된 1개를 8번 만에 찾을까?</td>
+                <td><code>TilePlanner</code>, <code>RoiSpatialIndex</code>, <code>RoiMotionBounds</code></td>
+              </tr>
+              <tr>
+                <td><a href="05-practical-usage-mvvm.html"><strong>05. 실전 MVVM 사용법</strong></a></td>
+                <td>내 WPF 앱에 캔버스를 붙이고, 키보드 1px 미세 이동과 입력 잠금, 1억 ROI 배치를 어떻게 제어할까?</td>
+                <td><code>EditorView</code>, <code>EditorViewModel</code>, <code>ImageCoordinator</code></td>
+              </tr>
+              <tr>
+                <td><a href="06-from-scratch-implementation.html"><strong>06. 밑바닥부터 직접 구현</strong></a></td>
+                <td>빈 C# 프로젝트에서 시작해 지금까지 배운 6가지 핵심 부품을 내 손으로 직접 조립해 보자!</td>
+                <td>Step 1 ~ Step 6 완주 블루프린트</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <nav class="chapter-pager">
+        <a href="README.md" class="pager-card">
+          <span class="pager-label">📄 마크다운 요약본</span>
+          <span class="pager-title">← ManualGemini README 보기</span>
+        </a>
+        <a href="01-math-and-vectors.html" class="pager-card" style="text-align: right;">
+          <span class="pager-label">다음 챕터 (Chapter 01)</span>
+          <span class="pager-title">01. 고1 수학 &amp; 벡터 기하학 →</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/manual-gemini.js"></script>
+</body>
+</html>

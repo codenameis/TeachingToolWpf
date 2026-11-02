@@ -60,28 +60,28 @@ public sealed class RoiPropertiesTests
     }
 
     [Fact]
-    public void RepeatedCellGeometryUsesTheCommonPropertiesAndHistory()
+    public void BatchCellGeometryUsesTheCommonPropertiesAndHistory()
     {
         var editor = new EditorSession();
         editor.InitializeImage(new("image", "image", 8192, 8192), VisionGeometry.ViewportTransform.Identity);
-        var id = editor.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
-        var cell = new RepeatedRoiCell(id, 50010000);
-        editor.SelectRepeated(cell);
-        var original = editor.State.RepeatedRois[id].Geometry(cell.Index);
+        var ids = editor.AddRange(MainWindowViewModel.CreateGridGeometries(101, 101, 8, new(4096, 4096)), selectAdded: true, isNameVisible: false).ToArray();
+        var cellId = ids[50 * 101 + 50];
+        editor.Select([cellId]);
+        var original = editor.State.Rois[cellId].Geometry;
         var properties = new RoiPropertiesViewModel(editor);
         properties.Refresh();
         Assert.True(properties.HasSingleSelection);
-        Assert.False(properties.CanEditMetadata);
-        Assert.False(properties.CanChangeType);
+        Assert.True(properties.CanEditMetadata);
+        Assert.True(properties.CanChangeType);
         properties.X = "4010";
         properties.Y = "4020";
         properties.Width = "40";
         properties.Height = "20";
         properties.Angle = "35";
         properties.Apply();
-        Assert.Equal(new VisionGeometry.RoiGeometry(new(4010, 4020), 40, 20, 35), editor.State.RepeatedRois[id].Geometry(cell.Index));
+        Assert.Equal(new VisionGeometry.RoiGeometry(new(4010, 4020), 40, 20, 35), editor.State.Rois[cellId].Geometry);
         editor.Undo();
-        Assert.Equal(original, editor.State.RepeatedRois[id].Geometry(cell.Index));
+        Assert.Equal(original, editor.State.Rois[cellId].Geometry);
         properties.X = "invalid";
         Assert.Throws<ArgumentException>(properties.Apply);
         Assert.True(editor.CanRedo);

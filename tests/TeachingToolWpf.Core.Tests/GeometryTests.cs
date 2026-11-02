@@ -38,4 +38,33 @@ public sealed class GeometryTests
     [InlineData(double.NaN)]
     public void InvalidSizesAreRejected(double width) =>
         Assert.Throws<ArgumentOutOfRangeException>(() => new RoiGeometry(new PointD(0, 0), width, 10, 0));
+
+    [Fact]
+    public void RigidTransformIdentityEqualsExplicitZeroAndFullRotation()
+    {
+        var identity = RigidTransform2D.Identity;
+        var explicitZero = new RigidTransform2D(default, 0);
+        var rotated360 = new RigidTransform2D(new PointD(100, 200), 360);
+
+        Assert.Equal(identity, explicitZero);
+        Assert.True(identity == explicitZero);
+        Assert.Equal(identity.GetHashCode(), explicitZero.GetHashCode());
+
+        Assert.Equal(identity, rotated360);
+        Assert.True(identity == rotated360);
+        Assert.Equal(identity.GetHashCode(), rotated360.GetHashCode());
+
+        var p = new PointD(10, 20);
+        var t = new PointD(5, 5);
+        var rotated45 = new RigidTransform2D(p, 45, t);
+        var rotated405 = new RigidTransform2D(p, 405, t);
+        var rotated46 = new RigidTransform2D(p, 46, t);
+
+        Assert.Equal(rotated45, rotated405);
+        Assert.True(rotated45 == rotated405);
+        Assert.Equal(rotated45.GetHashCode(), rotated405.GetHashCode());
+
+        Assert.NotEqual(rotated45, rotated46);
+        Assert.True(rotated45 != rotated46);
+    }
 }

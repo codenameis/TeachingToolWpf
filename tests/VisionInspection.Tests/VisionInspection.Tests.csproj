@@ -17,6 +17,7 @@
     <Using Include="TeachingToolWpf.Imaging" />
     <Compile Include="../VisionAlgorithm.Tests/SyntheticScene.cs" Link="Fixtures/SyntheticScene.cs" />
     <Compile Include="../Shared/PrimitiveShapeFixture.cs" Link="Fixtures/PrimitiveShapeFixture.cs" />
+    <Compile Include="../Shared/PcbMarkFixture.cs" Link="Fixtures/PcbMarkFixture.cs" />
   </ItemGroup>
   <Import Project="../../build/InspectionNativeRuntime.props" />
 </Project>

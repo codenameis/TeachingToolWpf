@@ -47,13 +47,13 @@ public class RoiDetailLevelTests
         var roles = new List<uint>();
         var unique = new Dictionary<RoiGeometry, int>();
         Assert.True(RoiInstance.PackInto(block, 10, state, instances, roles, unique));
-        Assert.Contains(instances, instance => instance.Summary == 1);
-        Assert.Contains(instances, instance => instance.Summary != 1);
+        Assert.Contains(instances, instance => instance.Kind == RoiInstanceKind.Summary);
+        Assert.Contains(instances, instance => instance.Kind != RoiInstanceKind.Summary);
         Assert.Equal(RoiInstance.Pack(block, 10), instances);
 
         Assert.False(RoiInstance.PackInto(block, 0, state, instances, roles, unique));
         Assert.Equal(values.Length, instances.Count);
-        Assert.DoesNotContain(instances, instance => instance.Summary == 1);
+        Assert.DoesNotContain(instances, instance => instance.Kind == RoiInstanceKind.Summary);
     }
 
     [Fact]

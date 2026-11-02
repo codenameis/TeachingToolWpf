@@ -1,9 +1,14 @@
+using System.Diagnostics;
+
 namespace CpuMatching.Core;
 
 /// <summary>전체 후보 탐색 이후의 원본/중간 점수 맵만 필요한 주변에 준비한다.</summary>
-internal sealed class LocalScoreLevel(GrayImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
+internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
     bool reuseIdenticalTiles = false) : IScoreLevel
 {
+    public LocalScoreLevel(GrayImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
+        bool reuseIdenticalTiles = false) : this(new SearchImage(image), margin, prepare, token, reuseIdenticalTiles) { }
+
     internal const int CellSize = 256;
     private const int MaximumCacheBytes = 512 * 1024 * 1024;
     private const int MaximumCachedTiles = 32;
@@ -12,10 +17,34 @@ internal sealed class LocalScoreLevel(GrayImage image, int margin, Func<GrayImag
     private readonly Dictionary<(int X, int Y), Tile> _tiles = new();
     private readonly Queue<(int X, int Y)> _order = new();
     private readonly Queue<Tile> _contentMaps = new();
+    private readonly bool _profile = SearchDiagnostics.Listener.IsEnabled();
+    private long _reads;
+    private long _builds;
+    private long _clearedAliases;
+    private double _readMs;
+    private double _buildMs;
     private readonly int _capacity = Math.Clamp(MaximumCacheBytes /
         checked((CellSize + (2 * margin)) * (CellSize + (2 * margin)) * EstimatedBytesPerPixel), 1, MaximumCachedTiles);
 
     public bool SupportsParallelEvaluation => true;
+
+    internal void ReportProfile()
+    {
+        if (_profile)
+        {
+            SearchDiagnostics.Write("Maps", new
+            {
+                image.Width,
+                image.Height,
+                Capacity = _capacity,
+                Reads = _reads,
+                Builds = _builds,
+                ClearedAliases = _clearedAliases,
+                ReadMilliseconds = _readMs,
+                BuildMilliseconds = _buildMs
+            });
+        }
+    }
 
     public IPoseScore AtPose(double angleDegrees, double scale) => new Pose(this, angleDegrees, scale);
 
@@ -51,7 +80,13 @@ internal sealed class LocalScoreLevel(GrayImage image, int margin, Func<GrayImag
             var top = Math.Max(0, (key.Y * CellSize) - margin);
             var right = Math.Min(image.Width, ((key.X + 1) * CellSize) + margin);
             var bottom = Math.Min(image.Height, ((key.Y + 1) * CellSize) + margin);
+            var started = _profile ? Stopwatch.GetTimestamp() : 0;
             var pixels = image.Crop(new(left, top, right - left, bottom - top));
+            if (_profile)
+            {
+                _reads++;
+                _readMs += Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            }
             var hash = 0;
             Tile? identical = null;
             if (reuseIdenticalTiles)
@@ -64,15 +99,18 @@ internal sealed class LocalScoreLevel(GrayImage image, int margin, Func<GrayImag
                     tile.Hash == hash && tile.Pixels.Width == pixels.Width && tile.Pixels.Height == pixels.Height &&
                     tile.Pixels.Pixels.Span.SequenceEqual(pixels.Pixels.Span));
             }
+            started = _profile ? Stopwatch.GetTimestamp() : 0;
             var tile = new Tile(left, top, identical?.Level ?? prepare(pixels), identical?.Pixels ?? pixels, hash);
+            if (_profile && identical is null)
+            {
+                _builds++;
+                _buildMs += Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            }
             if (reuseIdenticalTiles && identical is null)
             {
                 if (_contentMaps.Count == _capacity)
                 {
-                    _contentMaps.Dequeue();
-                    // 위치 별칭이 퇴출된 맵을 붙잡아 실제 맵 예산을 넘지 않도록 비운다.
-                    _tiles.Clear();
-                    _order.Clear();
+                    RemoveAliases(_contentMaps.Dequeue());
                 }
                 // 같은 맵을 가리키는 여러 위치가 서로 다른 맵의 자리를 차지하지 않는다.
                 _contentMaps.Enqueue(tile);
@@ -84,6 +122,26 @@ internal sealed class LocalScoreLevel(GrayImage image, int margin, Func<GrayImag
             _tiles.Add(key, tile);
             _order.Enqueue(key);
             return tile;
+        }
+    }
+
+    private void RemoveAliases(Tile evicted)
+    {
+        // 퇴출된 맵의 위치만 제거한다. 나머지 위치의 원본 재읽기와 맵 재생성을 피한다.
+        // 큐 순서와 기존 맵/위치 용량은 유지하며, 사라진 맵의 별칭이 메모리를 붙잡지 않는다.
+        var count = _order.Count;
+        for (var index = 0; index < count; index++)
+        {
+            var key = _order.Dequeue();
+            if (ReferenceEquals(_tiles[key].Level, evicted.Level))
+            {
+                _tiles.Remove(key);
+                _clearedAliases++;
+            }
+            else
+            {
+                _order.Enqueue(key);
+            }
         }
     }
 

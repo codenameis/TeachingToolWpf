@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CpuMatching.Cuda\CpuMatching.Cuda.csproj" />
+    <ProjectReference Include="..\PoseMatch.Tdcm.TorchSharp\PoseMatch.Tdcm.TorchSharp.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Host\VisionCanvas.Host.csproj" />
+    <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
+    <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
+    <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
+    <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
+    <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
+    <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TeachingToolWpf" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Diagnostics" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />
+  </ItemGroup>
+
+  <!-- 파일 로더 선택(스트리밍/스키아)은 화면 계층의 조립 지점이 담당한다. 정의는 여기 한 곳에만 존재한다. -->
+  <Import Project="..\..\build\ImageLoaderHost.props" />
+</Project>

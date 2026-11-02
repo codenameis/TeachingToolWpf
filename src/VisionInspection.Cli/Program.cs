@@ -23,7 +23,8 @@ public static class Program
         {
             var (recipe, output) = ParseArguments(args);
             using var compute = new CudaInspectionSession();
-            var runner = new RecipeRunner(createGpuPreprocessor: compute.Rent);
+            var runner = new RecipeRunner(createGpuPreprocessor: compute.Rent,
+                createPrimitivePreprocessor: () => new CudaPrimitivePreprocessor());
             var result = await new RecipeFileRunner(runner).RunAsync(recipe, output, cancellation.Token).ConfigureAwait(false);
             Console.WriteLine($"{result.Status}: {result.Matches.Length}개, {result.Diagnostics.TotalMilliseconds:F1} ms · {Path.GetFullPath(output)}");
             if (result.Error is not null)

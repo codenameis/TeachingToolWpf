@@ -4,6 +4,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:canvas="clr-namespace:VisionCanvas.Controls;assembly=VisionCanvas"
+        xmlns:host="clr-namespace:VisionCanvas.Controls;assembly=VisionCanvas.Host"
 
         Background="#F4F5F7" FontFamily="Malgun Gothic" FontSize="13"
         PreviewKeyDown="OnPreviewKeyDown">
@@ -50,6 +51,7 @@
                 <Button Content="붙여넣기" Command="{Binding PasteCommand}" ToolTip="Ctrl+V" />
                 <Button Content="삭제" Command="{Binding DeleteCommand}" ToolTip="Delete" />
             </WrapPanel>
+            <host:ViewportNavigationBar DataContext="{Binding Navigation}" />
             <TextBlock Text="{Binding ToolDescription}" FontWeight="SemiBold" Margin="0,2,0,8" />
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
@@ -79,7 +81,7 @@
             </ListBox>
             <TextBlock Text="{Binding SelectedRoi.Parameters}" TextWrapping="Wrap" MinHeight="20" Margin="0,4,0,4" />
             <!-- VM이 PropertyChanged 알림을 보내면 Binding이 바뀐 문자열을 다시 읽어 표시한다. -->
-            <TextBlock Text="휠: 확대·축소  ·  가운데 버튼: 화면 이동  ·  Ctrl+클릭: 복수 선택  ·  Esc: 취소"
+            <TextBlock Text="방향키: 1px · Shift: 10px  ·  휠: 확대·축소  ·  가운데 버튼: 화면 이동  ·  Ctrl+클릭: 복수 선택  ·  Esc: 취소"
                        Foreground="#4B5563" TextWrapping="Wrap" />
             <TextBlock Text="{Binding Summary}" Margin="0,4,0,0" TextWrapping="Wrap" />
             <TextBlock Text="{Binding Status}" Margin="0,4,0,0" TextWrapping="Wrap" />
@@ -91,7 +93,7 @@
                  이미지 원본의 소유권 전달은 App이 연결한 ImageCoordinator가 담당한다. -->
             <canvas:Dx12Viewport x:Name="Canvas" Scene="{Binding Scene}" PointerInput="{Binding Input}"
                                  LayoutState="{Binding Layout}" KeyAction="{Binding KeyAction}"
-                                 IsInputEnabled="{Binding IsInputEnabled}" />
+                                 IsInputEnabled="{Binding IsNavigationEnabled}" />
         </Border>
     </DockPanel>
 </UserControl>

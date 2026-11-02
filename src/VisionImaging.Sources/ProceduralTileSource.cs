@@ -8,10 +8,7 @@ namespace VisionImaging;
 /// <summary>Deterministic, full-resolution sample surface. No source-sized allocation.</summary>
 public sealed class ProceduralTileSource : ITileSource, IOriginalGrayTileSource
 {
-    public ImageInfo Info
-    {
-        get;
-    }
+    public ImageInfo Info { get; }
 
     public ProceduralTileSource(int width = 8192, int height = 8192)
         => Info = new($"sample:{width}:{height}", $"검사 샘플 · {width:N0} × {height:N0}", width, height,

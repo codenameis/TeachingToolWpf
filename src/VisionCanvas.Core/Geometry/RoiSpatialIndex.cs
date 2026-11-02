@@ -1,13 +1,11 @@
 using System.Collections.Immutable;
-using System.Numerics;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
-using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Core.Geometry;
 
 /// <summary>Persistent BVH: edits copy affected paths; prior render snapshots remain valid.</summary>
-public sealed class RoiSpatialIndex
+public sealed partial class RoiSpatialIndex
 {
     private readonly record struct Entry(Roi Roi, BoundsD Bounds);
     private sealed record Node(BoundsD Bounds, int Count, int Height, double MaxArea, Roi? FirstHit, Roi? Representative, Entry[]? Entries, Node? Left, Node? Right)
@@ -19,7 +17,7 @@ public sealed class RoiSpatialIndex
         }
     }
     private readonly Node _root;
-    private readonly Lazy<ImmutableDictionary<Guid, ulong>> _locations;
+    private readonly Lazy<ImmutableDictionary<Guid, BvhNodePath>> _locations;
     private readonly ImmutableDictionary<Guid, Roi>? _values;
 
     public BoundsD Bounds => _root.Bounds;
@@ -27,23 +25,24 @@ public sealed class RoiSpatialIndex
     public RoiSpatialIndex(IEnumerable<Roi> rois)
     {
         var entries = rois.Select(r => new Entry(r, r.Geometry.Bounds)).ToArray();
-        var paths = ImmutableDictionary.CreateBuilder<Guid, ulong>();
-        _root = Build(entries, 0, entries.Length, 1, paths);
+        var paths = ImmutableDictionary.CreateBuilder<Guid, BvhNodePath>();
+        _root = Build(entries, 0, entries.Length, BvhNodePath.Root, paths);
         var locations = paths.ToImmutable();
         _locations = new(() => locations);
     }
 
-    private RoiSpatialIndex(Node root, ImmutableDictionary<Guid, ulong> locations, ImmutableDictionary<Guid, Roi>? values = null)
-        : this(root, new Lazy<ImmutableDictionary<Guid, ulong>>(() => locations), values)
+    private RoiSpatialIndex(Node root, ImmutableDictionary<Guid, BvhNodePath> locations, ImmutableDictionary<Guid, Roi>? values = null)
+        : this(root, new Lazy<ImmutableDictionary<Guid, BvhNodePath>>(() => locations), values)
     {
     }
 
-    private RoiSpatialIndex(Node root, Lazy<ImmutableDictionary<Guid, ulong>> locations, ImmutableDictionary<Guid, Roi>? values = null)
+    private RoiSpatialIndex(Node root, Lazy<ImmutableDictionary<Guid, BvhNodePath>> locations, ImmutableDictionary<Guid, Roi>? values = null)
     {
         _root = root;
         _locations = locations;
         _values = values;
     }
+
     // Metadata can change without rebuilding geometry. The value map belongs to this immutable snapshot.
     internal RoiSpatialIndex WithValues(ImmutableDictionary<Guid, Roi> rois) => new(_root, _locations, rois);
 
@@ -63,7 +62,7 @@ public sealed class RoiSpatialIndex
         var empty = Leaf([]);
         var root = FilterNode(_root) ?? empty;
         // 선택용 부분 인덱스는 조회만 한다. 실제 수정 시에만 ID→경로 사전을 만든다.
-        return new(root, new Lazy<ImmutableDictionary<Guid, ulong>>(() => IndexLocations(root)), _values);
+        return new(root, new Lazy<ImmutableDictionary<Guid, BvhNodePath>>(() => IndexLocations(root)), _values);
 
         Node? FilterNode(Node node)
         {
@@ -109,13 +108,13 @@ public sealed class RoiSpatialIndex
         }
     }
 
-    private static ImmutableDictionary<Guid, ulong> IndexLocations(Node root)
+    private static ImmutableDictionary<Guid, BvhNodePath> IndexLocations(Node root)
     {
-        var paths = ImmutableDictionary.CreateBuilder<Guid, ulong>();
-        Visit(root, 1);
+        var paths = ImmutableDictionary.CreateBuilder<Guid, BvhNodePath>();
+        Visit(root, BvhNodePath.Root);
         return paths.ToImmutable();
 
-        void Visit(Node node, ulong path)
+        void Visit(Node node, BvhNodePath path)
         {
             if (node.Entries is { } entries)
             {
@@ -125,279 +124,12 @@ public sealed class RoiSpatialIndex
                 }
                 return;
             }
-            Visit(node.Left!, path << 1);
-            Visit(node.Right!, (path << 1) | 1);
+            Visit(node.Left!, path.Left);
+            Visit(node.Right!, path.Right);
         }
     }
 
     private Roi Value(Entry entry) => _values is null ? entry.Roi : _values[entry.Roi.Id];
-
-    /// <summary>Exact rotated rectangle union bounds, using four branch-and-bound support queries.</summary>
-    public BoundsD RotatedBounds(PointD pivot, double angleDegrees)
-    {
-        if (!pivot.IsFinite)
-        {
-            throw new ArgumentOutOfRangeException(nameof(pivot));
-        }
-
-        if (!double.IsFinite(angleDegrees))
-        {
-            throw new ArgumentOutOfRangeException(nameof(angleDegrees));
-        }
-
-        if (_root.Count == 0)
-        {
-            return default;
-        }
-
-        var angle = angleDegrees % 360;
-        if (angle == 0)
-        {
-            return _root.Bounds;
-        }
-
-        var (sin, cos) = Math.SinCos(angle * Math.PI / 180);
-        return new(pivot.X - Support(pivot, new(-cos, sin)), pivot.Y - Support(pivot, new(-sin, -cos)),
-            pivot.X + Support(pivot, new(cos, -sin)), pivot.Y + Support(pivot, new(sin, cos)));
-    }
-
-    private double Support(PointD pivot, PointD direction)
-    {
-        var best = double.NegativeInfinity;
-        Search(_root, ProjectionUpperBound(_root.Bounds, pivot, direction));
-        return best;
-
-        void Search(Node node, double upperBound)
-        {
-            if (node.Count == 0 || upperBound <= best)
-            {
-                return;
-            }
-
-            if (node.Entries is { } entries)
-            {
-                foreach (var entry in entries)
-                {
-                    var rectangle = entry.Roi.Geometry;
-                    var projection = rectangle.Support(direction) - (pivot.X * direction.X) - (pivot.Y * direction.Y);
-                    best = Math.Max(best, projection);
-                }
-                return;
-            }
-            var left = node.Left!;
-            var right = node.Right!;
-            var leftBound = ProjectionUpperBound(left.Bounds, pivot, direction);
-            var rightBound = ProjectionUpperBound(right.Bounds, pivot, direction);
-            if (leftBound >= rightBound)
-            {
-                Search(left, leftBound);
-                Search(right, rightBound);
-            }
-            else
-            {
-                Search(right, rightBound);
-                Search(left, leftBound);
-            }
-        }
-    }
-
-    private static double ProjectionUpperBound(BoundsD bounds, PointD pivot, PointD direction)
-    {
-        var x = direction.X >= 0 ? bounds.Right : bounds.Left;
-        var y = direction.Y >= 0 ? bounds.Bottom : bounds.Top;
-        var projection = ((x - pivot.X) * direction.X) + ((y - pivot.Y) * direction.Y);
-        // Only the pruning bound is expanded; the returned support still uses the actual rectangle.
-        return projection + CoordinateRoundoff(bounds, pivot);
-    }
-
-    private static double CoordinateRoundoff(BoundsD bounds, PointD pivot)
-        => 32 * 2.2204460492503131e-16 * Math.Max(1,
-            Math.Max(Math.Max(Math.Abs(bounds.Left), Math.Abs(bounds.Right)),
-                Math.Max(Math.Max(Math.Abs(bounds.Top), Math.Abs(bounds.Bottom)), Math.Max(Math.Abs(pivot.X), Math.Abs(pivot.Y)))));
-
-    /// <summary>
-    /// First image-boundary exit in each direction. Compute once per immutable selection/pivot;
-    /// later drag samples can clamp without visiting ROI. Worst-case preparation remains O(N).
-    /// </summary>
-    public RotationRange RotationLimits(PointD pivot, ImageReference image, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!pivot.IsFinite)
-        {
-            throw new ArgumentOutOfRangeException(nameof(pivot));
-        }
-
-        ArgumentNullException.ThrowIfNull(image);
-        if (image.Width <= 0 || image.Height <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(image));
-        }
-
-        if (_root.Count == 0)
-        {
-            return RotationRange.Unbounded;
-        }
-
-        var limits = new BoundsD(-1e-7 - pivot.X, -1e-7 - pivot.Y,
-            image.Width + 1e-7 - pivot.X, image.Height + 1e-7 - pivot.Y);
-        var best = RotationExits.Unbounded;
-        Search(_root, BoundsExits(_root.Bounds));
-        return new(SafeEndpoint(best.Counterclockwise, -1), SafeEndpoint(best.Clockwise, 1));
-
-        double SafeEndpoint(double radians, int direction)
-        {
-            if (double.IsPositiveInfinity(radians))
-            {
-                return direction * double.PositiveInfinity;
-            }
-            // The analytic root is an equality. Keep the published rectangle on its inside even when
-            // angle normalization, SinCos, and final world-coordinate additions round differently.
-            var degrees = Math.Max(0, (radians * 180 / Math.PI) - 1e-10);
-            if (degrees == 0 || FitsWithRoundoff(degrees * direction))
-            {
-                return degrees * direction;
-            }
-
-            var inside = 0d;
-            var outside = degrees;
-            for (var iteration = 0; iteration < 48; iteration++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var middle = (inside + outside) / 2;
-                if (FitsWithRoundoff(middle * direction))
-                {
-                    inside = middle;
-                }
-                else
-                {
-                    outside = middle;
-                }
-            }
-            return inside * direction;
-        }
-
-        bool FitsWithRoundoff(double degrees)
-        {
-            var bounds = RotatedBounds(pivot, degrees);
-            var error = CoordinateRoundoff(bounds, pivot);
-            return bounds.Left >= -1e-7 + error && bounds.Top >= -1e-7 + error
-                && bounds.Right <= image.Width + 1e-7 - error && bounds.Bottom <= image.Height + 1e-7 - error;
-        }
-
-        RotationExits BoundsExits(BoundsD bounds)
-        {
-            // An outward-rounded AABB contains every descendant corner, so its first exit is a lower bound.
-            var margin = CoordinateRoundoff(bounds, pivot);
-            var left = bounds.Left - pivot.X - margin;
-            var right = bounds.Right - pivot.X + margin;
-            var top = bounds.Top - pivot.Y - margin;
-            var bottom = bounds.Bottom - pivot.Y + margin;
-            var exits = RotationExits.Unbounded;
-            IncludePoint(ref exits, new(left, top), limits);
-            IncludePoint(ref exits, new(right, top), limits);
-            IncludePoint(ref exits, new(right, bottom), limits);
-            IncludePoint(ref exits, new(left, bottom), limits);
-            return exits;
-        }
-
-        void Search(Node node, RotationExits lowerBound)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (node.Count == 0 || (lowerBound.Clockwise >= best.Clockwise && lowerBound.Counterclockwise >= best.Counterclockwise))
-            {
-                return;
-            }
-
-            if (node.Entries is { } entries)
-            {
-                foreach (var entry in entries)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var rectangle = entry.Roi.Geometry;
-                    var center = rectangle.Center - pivot;
-                    if (rectangle.Radius > 0)
-                    {
-                        var radius = rectangle.Radius;
-                        IncludePoint(ref best, center, new(limits.Left + radius, limits.Top + radius, limits.Right - radius, limits.Bottom - radius));
-                        continue;
-                    }
-                    if (rectangle.Shape.Kind != RoiShapeKind.Rectangle)
-                    {
-                        foreach (var point in rectangle.Outline)
-                        {
-                            IncludePoint(ref best, point - pivot, limits);
-                        }
-
-                        continue;
-                    }
-                    var (sin, cos) = Math.SinCos(rectangle.Angle * Math.PI / 180);
-                    var horizontal = new PointD(cos * (rectangle.Width / 2), sin * (rectangle.Width / 2));
-                    var vertical = new PointD(-sin * (rectangle.Height / 2), cos * (rectangle.Height / 2));
-                    IncludePoint(ref best, center - horizontal - vertical, limits);
-                    IncludePoint(ref best, center + horizontal - vertical, limits);
-                    IncludePoint(ref best, center + horizontal + vertical, limits);
-                    IncludePoint(ref best, center - horizontal + vertical, limits);
-                }
-                return;
-            }
-            var left = node.Left!;
-            var right = node.Right!;
-            var leftBound = BoundsExits(left.Bounds);
-            var rightBound = BoundsExits(right.Bounds);
-            if (leftBound.Earliest <= rightBound.Earliest)
-            {
-                Search(left, leftBound);
-                Search(right, rightBound);
-            }
-            else
-            {
-                Search(right, rightBound);
-                Search(left, leftBound);
-            }
-        }
-    }
-
-    private readonly record struct RotationExits(double Clockwise, double Counterclockwise)
-    {
-        public static RotationExits Unbounded => new(double.PositiveInfinity, double.PositiveInfinity);
-
-        public double Earliest => Math.Min(Clockwise, Counterclockwise);
-    }
-
-    private static void IncludePoint(ref RotationExits exits, PointD point, BoundsD limits)
-    {
-        IncludeEdge(ref exits, point.X, -point.Y, limits.Right);
-        IncludeEdge(ref exits, -point.X, point.Y, -limits.Left);
-        IncludeEdge(ref exits, point.Y, point.X, limits.Bottom);
-        IncludeEdge(ref exits, -point.Y, -point.X, -limits.Top);
-    }
-
-    private static void IncludeEdge(ref RotationExits exits, double a, double b, double limit)
-    {
-        // A corner follows a*cos(theta)+b*sin(theta). The forbidden arc starts at phase-acos(limit/radius).
-        var radius = double.Hypot(a, b);
-        if (radius <= limit)
-        {
-            return; // Tangency alone never leaves the image.
-        }
-
-        if (a > limit || limit <= -radius)
-        {
-            exits = new(0, 0);
-            return;
-        }
-        var phase = Math.Atan2(b, a);
-        var halfArc = Math.Acos(Math.Clamp(limit / radius, -1, 1));
-        var clockwise = a == limit && b >= 0 ? 0 : PositiveAngle(phase - halfArc);
-        var counterclockwise = a == limit && b <= 0 ? 0 : PositiveAngle(-phase - halfArc);
-        exits = new(Math.Min(exits.Clockwise, clockwise), Math.Min(exits.Counterclockwise, counterclockwise));
-    }
-
-    private static double PositiveAngle(double radians)
-    {
-        var result = radians % (2 * Math.PI);
-        return result < 0 ? result + (2 * Math.PI) : result;
-    }
 
     private static BoundsD Union(BoundsD a, BoundsD b) => new(Math.Min(a.Left, b.Left), Math.Min(a.Top, b.Top), Math.Max(a.Right, b.Right), Math.Max(a.Bottom, b.Bottom));
 
@@ -436,14 +168,51 @@ public sealed class RoiSpatialIndex
         };
     }
 
-    private static Node Branch(Node left, Node right) => new(left.Count == 0 ? right.Bounds : right.Count == 0 ? left.Bounds : Union(left.Bounds, right.Bounds),
-        left.Count + right.Count, 1 + Math.Max(left.Height, right.Height), Math.Max(left.MaxArea, right.MaxArea),
-        CompareHit(left.FirstHit, right.FirstHit) <= 0 ? left.FirstHit : right.FirstHit,
-        left.MaxArea > right.MaxArea || (left.MaxArea == right.MaxArea && (left.Representative?.Order ?? long.MaxValue) <= (right.Representative?.Order ?? long.MaxValue))
-            ? left.Representative : right.Representative, null, left, right)
+    private static Node Branch(Node left, Node right)
     {
-        ShapeBytes = left.ShapeBytes + right.ShapeBytes
-    };
+        var bounds = MergeBranchBounds(left, right);
+        var count = left.Count + right.Count;
+        var height = 1 + Math.Max(left.Height, right.Height);
+        var maxArea = Math.Max(left.MaxArea, right.MaxArea);
+        var firstHit = CompareHit(left.FirstHit, right.FirstHit) <= 0 ? left.FirstHit : right.FirstHit;
+        var representative = SelectRepresentative(left, right);
+        return new(bounds, count, height, maxArea, firstHit, representative, null, left, right)
+        {
+            ShapeBytes = left.ShapeBytes + right.ShapeBytes
+        };
+    }
+
+    private static BoundsD MergeBranchBounds(Node left, Node right)
+    {
+        if (left.Count == 0)
+        {
+            return right.Bounds;
+        }
+
+        if (right.Count == 0)
+        {
+            return left.Bounds;
+        }
+
+        return Union(left.Bounds, right.Bounds);
+    }
+
+    private static Roi? SelectRepresentative(Node left, Node right)
+    {
+        if (left.MaxArea > right.MaxArea)
+        {
+            return left.Representative;
+        }
+
+        if (left.MaxArea < right.MaxArea)
+        {
+            return right.Representative;
+        }
+
+        var leftOrder = left.Representative?.Order ?? long.MaxValue;
+        var rightOrder = right.Representative?.Order ?? long.MaxValue;
+        return leftOrder <= rightOrder ? left.Representative : right.Representative;
+    }
 
     private static int CompareHit(Roi? a, Roi? b)
     {
@@ -461,7 +230,7 @@ public sealed class RoiSpatialIndex
         return area != 0 ? area : b.Order.CompareTo(a.Order);
     }
 
-    private static Node Build(Entry[] entries, int start, int count, ulong path, ImmutableDictionary<Guid, ulong>.Builder paths)
+    private static Node Build(Entry[] entries, int start, int count, BvhNodePath path, ImmutableDictionary<Guid, BvhNodePath>.Builder paths)
     {
         if (count <= 8)
         {
@@ -482,7 +251,7 @@ public sealed class RoiSpatialIndex
         var horizontal = bounds.Width >= bounds.Height;
         Array.Sort(entries, start, count, Comparer<Entry>.Create((a, b) => horizontal ? a.Bounds.Center.X.CompareTo(b.Bounds.Center.X) : a.Bounds.Center.Y.CompareTo(b.Bounds.Center.Y)));
         var middle = count / 2;
-        return Branch(Build(entries, start, middle, path << 1, paths), Build(entries, start + middle, count - middle, (path << 1) | 1, paths));
+        return Branch(Build(entries, start, middle, path.Left, paths), Build(entries, start + middle, count - middle, path.Right, paths));
     }
 
     /// <summary>
@@ -542,7 +311,7 @@ public sealed class RoiSpatialIndex
                 }
             }
             // Rebalance before a long insertion sequence can exhaust the path representation.
-            if (next.Height >= 48)
+            if (next.Height >= BvhNodePath.MaxSupportedHeight)
             {
                 var balanced = new RoiSpatialIndex(Enumerate(next));
                 next = balanced._root;
@@ -550,8 +319,7 @@ public sealed class RoiSpatialIndex
             }
             if (paths.TryGetValue(id, out var path))
             {
-                var depth = BitOperations.Log2(path);
-                next = Replace(next, path, depth == 0 ? 0 : 1UL << (depth - 1), id, value);
+                next = Replace(next, path, path.FirstStepBit, id, value);
                 if (value is null)
                 {
                     paths.Remove(id);
@@ -559,7 +327,7 @@ public sealed class RoiSpatialIndex
             }
             else if (value is not null)
             {
-                next = Insert(next, new(value, value.Geometry.Bounds), 1, paths);
+                next = Insert(next, new(value, value.Geometry.Bounds), BvhNodePath.Root, paths);
             }
         }
         return new(next, paths.ToImmutable(), currentValues?.ToImmutable());
@@ -588,18 +356,22 @@ public sealed class RoiSpatialIndex
         }
     }
 
-    private static Node Replace(Node node, ulong path, ulong bit, Guid id, Roi? value)
+    private static Node Replace(Node node, BvhNodePath path, ulong stepBit, Guid id, Roi? value)
     {
         if (node.Entries is { } entries)
         {
             return Leaf(entries.Where(e => e.Roi.Id != id).Concat(value is null ? [] : new[] { new Entry(value, value.Geometry.Bounds) }).ToArray());
         }
 
-        return (path & bit) == 0 ? Branch(Replace(node.Left!, path, bit >> 1, id, value), node.Right!)
-            : Branch(node.Left!, Replace(node.Right!, path, bit >> 1, id, value));
+        if (path.IsRightBranch(stepBit))
+        {
+            return Branch(node.Left!, Replace(node.Right!, path, stepBit >> 1, id, value));
+        }
+
+        return Branch(Replace(node.Left!, path, stepBit >> 1, id, value), node.Right!);
     }
 
-    private static Node Insert(Node node, Entry entry, ulong path, ImmutableDictionary<Guid, ulong>.Builder paths)
+    private static Node Insert(Node node, Entry entry, BvhNodePath path, ImmutableDictionary<Guid, BvhNodePath>.Builder paths)
     {
         if (node.Entries is { } entries)
         {
@@ -616,8 +388,12 @@ public sealed class RoiSpatialIndex
         static double Area(BoundsD bounds) => bounds.Width * bounds.Height;
         var leftCost = left.Count == 0 ? 0 : Area(Union(left.Bounds, entry.Bounds)) - Area(left.Bounds);
         var rightCost = right.Count == 0 ? 0 : Area(Union(right.Bounds, entry.Bounds)) - Area(right.Bounds);
-        return leftCost < rightCost || (leftCost == rightCost && left.Count <= right.Count)
-            ? Branch(Insert(left, entry, path << 1, paths), right) : Branch(left, Insert(right, entry, (path << 1) | 1, paths));
+        if (leftCost < rightCost || (leftCost == rightCost && left.Count <= right.Count))
+        {
+            return Branch(Insert(left, entry, path.Left, paths), right);
+        }
+
+        return Branch(left, Insert(right, entry, path.Right, paths));
     }
 
     public IEnumerable<Roi> At(PointD point, double minimumArea = 0) => Intersecting(new(point.X, point.Y, point.X, point.Y), minimumArea);
@@ -804,25 +580,13 @@ public sealed class RoiSpatialIndex
 /// <summary>Geometry-only immutable block; metadata is read from the current document by ID.</summary>
 public sealed class RoiSpatialBlock(object identity, BoundsD bounds, int count, Func<double, IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)>> enumerate, long shapeBytes = 0)
 {
-    public long ShapeBytes
-    {
-        get;
-    } = shapeBytes;
+    public long ShapeBytes { get; } = shapeBytes;
 
-    public object Identity
-    {
-        get;
-    } = identity;
+    public object Identity { get; } = identity;
 
-    public BoundsD Bounds
-    {
-        get;
-    } = bounds;
+    public BoundsD Bounds { get; } = bounds;
 
-    public int Count
-    {
-        get;
-    } = count;
+    public int Count { get; } = count;
 
     public IEnumerable<(Roi? Roi, BoundsD Bounds, int Count)> Detail(double aggregateSize) => enumerate(aggregateSize);
 }

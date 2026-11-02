@@ -1,0 +1,216 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
+namespace CpuMatching.Core;
+
+public static partial class PyramidSearch
+{
+    /// <summary>영상 크기 제한 없이 전역 피라미드 격자를 순회하고 원본 후보 주변만 읽는다.</summary>
+    public static SearchResult FindWindowed(GrayImage template, IGrayImageSource source, SearchOptions options,
+        Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, CancellationToken token, bool refineEdges = false,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null, bool refineCoarsePositions = false,
+        bool reuseIdenticalTiles = false)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        options.Validate();
+        token.ThrowIfCancellationRequested();
+        var region = options.Region ?? new SearchRegion(0, 0, source.Width, source.Height);
+        if (region.X < 0 || region.Y < 0 || region.Width < 4 || region.Height < 4 ||
+            (long)region.X + region.Width > source.Width || (long)region.Y + region.Height > source.Height ||
+            template.Width > 512 || template.Height > 512)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "Search region must be inside the image; template <=512px per side.");
+        }
+        var timer = Stopwatch.StartNew();
+        var templates = new List<GrayImage> { template };
+        while (templates.Count < options.PyramidLevels && Math.Min(templates[^1].Width, templates[^1].Height) >= 24 &&
+            Math.Min(region.Width, region.Height) / (1 << (templates.Count - 1)) >= 32)
+        {
+            templates.Add(templates[^1].Half());
+        }
+        var images = new SearchImage[templates.Count];
+        var levels = new IScoreLevel[templates.Count];
+        var preparations = new Func<GrayImage, IScoreLevel>[templates.Count];
+        var margins = new int[templates.Count];
+        var localLevels = new List<LocalScoreLevel>();
+        for (var level = 0; level < levels.Length; level++)
+        {
+            var factor = 1 << level;
+            var levelTemplate = templates[level];
+            var fine = level == 0 || (refineCoarsePositions && level < levels.Length - 1);
+            var capacity = Math.Clamp(65_536 / (levelTemplate.Width * levelTemplate.Height), 1, 128);
+            var image = new SearchImage(region.Width / factor, region.Height / factor, area => source.Read(new(
+                region.X + (area.X * factor), region.Y + (area.Y * factor), area.Width * factor, area.Height * factor), factor, token));
+            IScoreLevel Prepare(GrayImage scene) => new CachedLevel(prepare(levelTemplate, scene,
+                (template.Width / (2.0 * factor)) - .5, (template.Height / (2.0 * factor)) - .5, fine), capacity);
+            // 템플릿 반경, 32px 거리 전파, 미분과 봉우리의 이웃까지 포함한다.
+            var margin = (int)Math.Ceiling(Math.Sqrt((levelTemplate.Width * levelTemplate.Width) +
+                (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + 36;
+            images[level] = image;
+            preparations[level] = Prepare;
+            margins[level] = margin;
+            if ((long)image.Width * image.Height <= 2_097_152)
+            {
+                levels[level] = Prepare(image.ReadAll());
+            }
+            else
+            {
+                var local = new LocalScoreLevel(image, margin, Prepare, token, reuseIdenticalTiles);
+                localLevels.Add(local);
+                levels[level] = new CachedLevel(local, capacity);
+            }
+        }
+        var preparationMs = timer.Elapsed.TotalMilliseconds;
+        long evaluations = 0;
+        var refinementMs = 0d;
+        var verificationMs = 0d;
+        var refined = new List<Match>();
+        var coarse = VisitWindowedCoarse(images[^1], preparations[^1], margins[^1], options, accelerator, token, candidates =>
+        {
+            SearchDiagnostics.Write("Candidates", candidates);
+            timer.Restart();
+            var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations, skipOriginal: true);
+            refinementMs += timer.Elapsed.TotalMilliseconds;
+            timer.Restart();
+            refined.AddRange(RefineAndVerifyOriginal(template, images[0], levels[0], current, region, options,
+                angleRadius, levels.Length > 1, refineCoarsePositions && levels.Length == 2,
+                refineEdges, acceptCenter, token, ref evaluations));
+            verificationMs += timer.Elapsed.TotalMilliseconds;
+            foreach (var local in localLevels)
+            {
+                local.ReportProfile();
+            }
+        });
+        evaluations += coarse.Evaluations;
+        timer.Restart();
+        var final = Suppress(refined, options.SuppressionRadius, 361, 10);
+        SearchDiagnostics.Write("Accepted", refined);
+        SearchDiagnostics.Write("Suppressed", final);
+        return new SearchResult(final.Take(options.MaximumMatches).ToArray(), false, final.Count > options.MaximumMatches, evaluations)
+        {
+            CandidateCount = coarse.Candidates,
+            CandidateBatches = coarse.Batches,
+            Timings = new(preparationMs, coarse.Milliseconds, refinementMs, verificationMs, timer.Elapsed.TotalMilliseconds)
+        };
+    }
+
+    private static List<Match> RefineAndVerifyOriginal(GrayImage template, SearchImage image, IScoreLevel level, List<Match> candidates,
+        SearchRegion region, SearchOptions options, double angleRadius, bool scaleCenters, bool densePositions,
+        bool refineEdges, Func<double, double, bool>? acceptCenter, CancellationToken token, ref long evaluations)
+    {
+        var original = new Match[candidates.Count];
+        var counts = new long[candidates.Count];
+        var checks = new ConcurrentDictionary<(double X, double Y, double Angle, double Scale), Lazy<(Match Match, long Evaluations)>>();
+        var refiner = CreateOriginalRefiner(template, image, refineEdges);
+        ForEachCandidate(candidates, level, options.MaximumDegreeOfParallelism, token, index =>
+        {
+            var seed = scaleCenters ? candidates[index] with
+            {
+                X = (candidates[index].X * 2) + 0.5,
+                Y = (candidates[index].Y * 2) + 0.5
+            } : candidates[index];
+            var pose = Refine(level, seed, options, angleRadius, 1, densePositions ? 6 : 2, ref counts[index]);
+            original[index] = pose;
+            // 원본 맵이 아직 캐시에 있을 때 검증한다. 기존 DistinctBy와 같은 자세만 공유한다.
+            // Lazy는 동시에 같은 자세에 도착해도 검증과 점수 평가를 정확히 한 번 수행한다.
+            _ = checks.GetOrAdd((pose.X, pose.Y, pose.AngleDegrees, pose.Scale), _ => new(() =>
+            {
+                long count = 0;
+                var match = VerifyPose(template, image, level, pose, options, Math.Max(0.5, angleRadius / 2),
+                    refineEdges, refiner, ref count);
+                return (match, count);
+            })).Value;
+        });
+        evaluations += counts.Sum();
+        // 완료 순서가 아닌 기존 후보 순서로 복원한 뒤 같은 위치/자세만 합친다.
+        var distinct = original.DistinctBy(match => (match.X, match.Y, match.AngleDegrees, match.Scale)).ToArray();
+        SearchDiagnostics.Write("Refined", distinct);
+        var checkedMatches = new Match[distinct.Length];
+        for (var index = 0; index < distinct.Length; index++)
+        {
+            var pose = distinct[index];
+            var result = checks[(pose.X, pose.Y, pose.AngleDegrees, pose.Scale)].Value;
+            checkedMatches[index] = result.Match;
+            evaluations += result.Evaluations;
+        }
+        return FilterOriginalMatches(checkedMatches, region, options, acceptCenter, token);
+    }
+
+    private static (long Evaluations, long Candidates, int Batches, double Milliseconds) VisitWindowedCoarse(
+        SearchImage image, Func<GrayImage, IScoreLevel> prepare, int margin, SearchOptions options,
+        ICoarseScoreAccelerator? accelerator, CancellationToken token, Action<List<Match>> inspect)
+    {
+        const int Cell = 256;
+        var timer = Stopwatch.StartNew();
+        var candidates = new List<Match>(options.CandidateLimit);
+        long evaluations = 0;
+        long count = 0;
+        var batches = 0;
+        var threshold = Math.Max(.2, options.MinimumScore - .25);
+        // 한 띠의 후보도 제한된 높이로 모으고, 기존 angle/scale/y/x 순서로 다음 단계에 전달한다.
+        var bandHeight = Math.Clamp(1_048_576 / image.Width, 1, Cell);
+        foreach (var scale in Samples(options.MinimumScale, options.MaximumScale, options.ScaleStep))
+        {
+            foreach (var angle in Samples(options.MinimumAngle, options.MaximumAngle, options.AngleStep))
+            {
+                for (var y = 0; y < image.Height;)
+                {
+                    var endY = y + Math.Min(bandHeight, image.Height - y);
+                    var band = new List<Match>();
+                    for (var x = 0; x < image.Width;)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var endX = x + Math.Min(Cell, image.Width - x);
+                        var left = Math.Max(0, x - margin);
+                        var top = Math.Max(0, y - margin);
+                        var right = (int)Math.Min(image.Width, (long)endX + margin);
+                        var bottom = (int)Math.Min(image.Height, (long)endY + margin);
+                        var pixels = image.Crop(new(left, top, right - left, bottom - top));
+                        var level = prepare(pixels);
+                        var scores = new double[pixels.Width * pixels.Height];
+                        ScoreGrid(level.AtPose(angle, scale), scores, pixels.Width, pixels.Height,
+                            level.SupportsParallelEvaluation, options.MaximumDegreeOfParallelism, accelerator, token);
+                        evaluations += scores.Length;
+                        for (var row = Math.Max(1, y); row < Math.Min(endY, image.Height - 1); row++)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            for (var column = Math.Max(1, x); column < Math.Min(endX, image.Width - 1); column++)
+                            {
+                                var score = scores[((row - top) * pixels.Width) + column - left];
+                                if (score >= threshold && IsPeak(scores, pixels.Width, column - left, row - top))
+                                {
+                                    band.Add(new(column, row, angle, scale, score));
+                                }
+                            }
+                        }
+                        x = endX;
+                    }
+                    foreach (var candidate in band.OrderBy(match => match.Y).ThenBy(match => match.X))
+                    {
+                        candidates.Add(candidate);
+                        count++;
+                        if (candidates.Count == options.CandidateLimit)
+                        {
+                            InspectBatch();
+                        }
+                    }
+                    y = endY;
+                }
+            }
+        }
+        if (candidates.Count > 0)
+        {
+            InspectBatch();
+        }
+        return (evaluations, count, batches, timer.Elapsed.TotalMilliseconds);
+
+        void InspectBatch()
+        {
+            timer.Stop();
+            inspect(candidates);
+            candidates.Clear();
+            batches++;
+            timer.Start();
+        }
+    }
+}

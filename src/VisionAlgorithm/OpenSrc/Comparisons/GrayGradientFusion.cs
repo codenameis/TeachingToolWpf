@@ -6,10 +6,7 @@ namespace VisionAlgorithm.OpenSrc.Comparisons;
 
 public sealed class GrayFusionModel
 {
-    public ShapeModel Shape
-    {
-        get;
-    }
+    public ShapeModel Shape { get; }
     internal ImmutableArray<(double X, double Y, double Value)> Samples
     {
         get;

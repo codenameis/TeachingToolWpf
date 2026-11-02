@@ -19,6 +19,8 @@ using VisionCanvas.Rendering;
 using VisionImaging;
 using VisionImaging.Abstractions;
 
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace VisionCanvas.MvvmSample.Tests;
 
 public sealed partial class EditorWindowTests

@@ -21,7 +21,7 @@ public sealed class ShapeMatchingIntegrationTests
         editor.InitializeImage(new("fixture", "fixture", 1536, 256), ViewportTransform.Identity);
         editor.Add(new(new(80, 90), 65, 65, 0));
         using var viewModel = new ShapeMatchingViewModel(new ShapeMatchingService(loader, () => null), new TemplateMatchingService(loader, () => null));
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Train.ExecuteAsync();
         var shape = viewModel.Model;
         var state = editor.State;
@@ -43,7 +43,7 @@ public sealed class ShapeMatchingIntegrationTests
         Assert.Empty(viewModel.Markers);
         viewModel.Method = PatternMatchingMethod.OpenCvTemplate;
         Assert.Same(template, viewModel.TemplateModel);
-        viewModel.Update(editor.State, 2, false, true);
+        viewModel.Update(new(editor.State, 2, false, true));
         Assert.Same(template, viewModel.TemplateModel);
     }
 
@@ -55,8 +55,8 @@ public sealed class ShapeMatchingIntegrationTests
         var editor = new EditorSession();
         editor.InitializeImage(new("fixture", "fixture", 1536, 256), ViewportTransform.Identity);
         editor.Add(new(new(80, 90), 65, 65, 17));
-        using var model = new ShapeMatchingViewModel(service) { MinimumAngle = -40, MaximumAngle = 40, AngleStep = 5 };
-        model.Update(editor.State, 1, false, true);
+        using var model = new ShapeMatchingViewModel(service) { MinimumAngle = -40, MaximumAngle = 40, AngleStep = 5, UseSelection = false };
+        model.Update(new(editor.State, 1, false, true));
         var state = editor.State;
         await model.Train.ExecuteAsync();
         Assert.NotNull(model.Model);
@@ -66,9 +66,9 @@ public sealed class ShapeMatchingIntegrationTests
         Assert.Same(state, editor.State);
         Assert.Equal(loader.Opened, loader.Disposed);
         editor.Select([]);
-        model.Update(editor.State, 1, false, true);
+        model.Update(new(editor.State, 1, false, true));
         Assert.Equal(2, model.Markers.Length);
-        model.Update(editor.State, 2, false, true);
+        model.Update(new(editor.State, 2, false, true));
         Assert.Empty(model.Markers);
         Assert.NotNull(model.Model);
     }
@@ -81,9 +81,9 @@ public sealed class ShapeMatchingIntegrationTests
         var editor = new EditorSession();
         editor.InitializeImage(new("fixture", "fixture", 200, 200), ViewportTransform.Identity);
         editor.Add(new(new(80, 90), 60, 60, 0));
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         var pending = viewModel.Train.ExecuteAsync();
-        viewModel.Update(editor.State, 2, false, true);
+        viewModel.Update(new(editor.State, 2, false, true));
         delayed.Completion.SetResult(new(ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
             new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()), 0, 0));
         await pending;
@@ -108,7 +108,7 @@ public sealed class ShapeMatchingIntegrationTests
         var loader = new Loader();
         var service = new ShapeMatchingService(loader, () => null);
         var image = new ImageReference("fixture", "fixture", 1536, 256);
-        var outside = new RoiGeometry(new(1530, 128), 100, 100, 0);
+        var outside = new RoiGeometry(new(training ? 1530 : 1600, 128), 100, 100, 0);
         if (training)
         {
             await Assert.ThrowsAsync<ArgumentException>(() => service.TrainAsync(image, false, outside, new(), default));

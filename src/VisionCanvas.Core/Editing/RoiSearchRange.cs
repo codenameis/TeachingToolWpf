@@ -5,15 +5,12 @@ namespace VisionCanvas.Core.Editing;
 /// <summary>ROI 로컬 축 양쪽의 검색 여유(px). 실행 객체와 검사 결과를 보관하지 않는다.</summary>
 public sealed record RoiSearchRange
 {
-    public double Horizontal
-    {
-        get;
-    }
+    /// <summary>검색 여유를 처음 켤 때 넣는 기본값(px). 도구 모음에서 여유를 켜면 이 값이 들어간다.</summary>
+    public static RoiSearchRange Default { get; } = new(20, 20);
 
-    public double Vertical
-    {
-        get;
-    }
+    public double Horizontal { get; }
+
+    public double Vertical { get; }
 
     public RoiSearchRange(double horizontal, double vertical)
     {

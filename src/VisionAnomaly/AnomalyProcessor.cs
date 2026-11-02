@@ -22,10 +22,7 @@ public sealed class AnomalyProcessor : IDisposable
         _features = new(featurePath);
     }
 
-    public NormalModel? Model
-    {
-        get; private set;
-    }
+    public NormalModel? Model { get; private set; }
     public int TrainingFrames => _trainer?.Count ?? Model?.TrainingFrames ?? 0;
 
     public void BeginLearning(int width, int height, AnalysisRegion region)

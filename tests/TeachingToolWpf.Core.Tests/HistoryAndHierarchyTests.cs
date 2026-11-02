@@ -68,10 +68,7 @@ public class HistoryAndHierarchyTests
         for (var i = 0; i < 3; i++)
         {
             var roi = new Roi(Guid.NewGuid(), "roi", new(new(i * 100, 0), 10, 10, 0), null, false, i);
-            var next = state with
-            {
-                Rois = state.Rois.Add(roi.Id, roi)
-            };
+            var next = state.WithRois(state.Rois.Add(roi.Id, roi), [roi.Id]);
             history.Push(new("add", state, next));
             state = next;
         }
@@ -80,10 +77,7 @@ public class HistoryAndHierarchyTests
         Assert.Single(state.Rois);
         Assert.False(history.CanUndo);
         Assert.True(history.CanRedo);
-        var huge = state with
-        {
-            Rois = state.Rois.ToImmutableDictionary(pair => pair.Key, pair => pair.Value with { Name = new string('X', 2000) })
-        };
+        var huge = state.WithRois(state.Rois.ToImmutableDictionary(pair => pair.Key, pair => pair.Value with { Name = new string('X', 2000) }), state.Rois.Keys);
         Assert.Throws<InvalidOperationException>(() => history.Push(new("too large", state, huge)));
         Assert.True(history.CanRedo);
         Assert.Equal(2, history.Redo(state).Rois.Count);

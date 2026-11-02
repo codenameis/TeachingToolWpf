@@ -109,7 +109,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
             }
             if (region is not null)
             {
-                ShapeMatchingService.ValidateRegion(image, region);
+                ShapeMatchingService.ValidateSearchRegion(image, region);
             }
             var teaching = template.TeachingRegion;
             var bounds = region?.Bounds ?? new BoundsD(0, 0, image.Width, image.Height);
@@ -119,10 +119,6 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
             var top = Math.Max(0, (int)Math.Floor(bounds.Top - halo));
             var right = Math.Min(image.Width, (int)Math.Ceiling(bounds.Right + halo));
             var bottom = Math.Min(image.Height, (int)Math.Ceiling(bounds.Bottom + halo));
-            if ((long)(right - left) * (bottom - top) > PyramidSearch.MaximumSearchPixels)
-            {
-                throw new ArgumentException("검색은 템플릿 여백을 포함해 67,108,864 px(8192×8192)까지입니다. 영역을 자동 축소하지 않습니다.");
-            }
             var readTimer = Stopwatch.StartNew();
             SearchResult result;
             double readMs;
@@ -131,7 +127,9 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
             using (var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false))
             {
                 reader.PreferDirectGray = true;
-                var gray = Read(reader, left, top, right - left, bottom - top, token);
+                var windowed = (long)(right - left) * (bottom - top) > PyramidSearch.MaximumSearchPixels;
+                var gray = windowed ? null : Read(reader, left, top, right - left, bottom - top, token);
+                var source = new CpuMatchingImageSource(reader, new(left, top, right - left, bottom - top));
                 readMs = readTimer.Elapsed.TotalMilliseconds;
                 var searchTimer = Stopwatch.StartNew();
                 token.ThrowIfCancellationRequested();
@@ -142,14 +140,19 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
                     // UI 각도는 학습 ROI에 대한 상대 각도, 결과는 영상 기준 절대 각도다.
                     var middle = (options.MinimumAngle + options.MaximumAngle) / 2;
                     var offset = PyramidSearch.Wrap(middle + teaching.Angle) - middle;
-                    result = template.Matcher.Find(gray, options with
+                    var searchOptions = options with
                     {
                         MinimumAngle = options.MinimumAngle + offset,
                         MaximumAngle = options.MaximumAngle + offset
-                    }, token, region is null ? null : (x, y) => region.Contains(new PointD(x + left + .5, y + top + .5)), accelerator);
+                    };
+                    Func<double, double, bool>? accept = region is null ? null
+                        : (x, y) => region.Contains(new PointD(x + left + .5, y + top + .5));
+                    result = windowed ? template.Matcher.FindWindowed(source, searchOptions, token, accept, accelerator)
+                        : template.Matcher.Find(gray!, searchOptions, token, accept, accelerator);
                     acceleration = accelerator?.Diagnostics;
                 }
-                searchMs = searchTimer.Elapsed.TotalMilliseconds;
+                readMs += source.ReadMilliseconds;
+                searchMs = Math.Max(0, searchTimer.Elapsed.TotalMilliseconds - source.ReadMilliseconds);
             }
             token.ThrowIfCancellationRequested();
             var worldMatches = result.Matches.Select(match => match with { X = match.X + left + .5, Y = match.Y + top + .5 }).ToArray();

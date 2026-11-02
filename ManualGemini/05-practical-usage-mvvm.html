@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>05. 실전 MVVM 사용법 — ManualGemini</title>
+  <link rel="stylesheet" href="assets/manual-gemini.css" />
+</head>
+<body>
+  <header class="top-header">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">CHAPTER 05</span>
+      <span>실전 MVVM 사용법</span>
+    </a>
+    <nav class="top-nav-links">
+      <a href="index.html">홈·전체 구조</a>
+      <a href="01-math-and-vectors.html">01. 수학·벡터</a>
+      <a href="02-hwnd-intptr-simd.html">02. HWND·SIMD</a>
+      <a href="03-code-rules-and-architecture.html">03. 코드규칙·구조</a>
+      <a href="04-core-algorithms-and-bvh.html">04. 타일링·BVH</a>
+      <a href="05-practical-usage-mvvm.html" class="active">05. 실전 MVVM</a>
+      <a href="06-from-scratch-implementation.html">06. 밑바닥 구현</a>
+    </nav>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">🌙 다크 모드</button>
+  </header>
+
+  <div class="layout-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">교재 목차 (Curriculum)</div>
+      <ul class="sidebar-nav">
+        <li><a href="index.html"><span class="chap-num">00</span>전체 구조 한눈에 보기</a></li>
+        <li><a href="01-math-and-vectors.html"><span class="chap-num">01</span>수학 &amp; 벡터 기하학</a></li>
+        <li><a href="02-hwnd-intptr-simd.html"><span class="chap-num">02</span>HWND · IntPtr · SIMD</a></li>
+        <li><a href="03-code-rules-and-architecture.html"><span class="chap-num">03</span>코드 규칙 &amp; 클래스 구조</a></li>
+        <li><a href="04-core-algorithms-and-bvh.html"><span class="chap-num">04</span>이미지 타일링 &amp; BVH</a></li>
+        <li><a href="05-practical-usage-mvvm.html" class="active"><span class="chap-num">05</span>실전 MVVM 사용법</a></li>
+        <li><a href="06-from-scratch-implementation.html"><span class="chap-num">06</span>밑바닥부터 직접 구현</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-banner">
+        <div class="hero-eyebrow">CHAPTER 05 · PRACTICAL WPF MVVM INTEGRATION</div>
+        <h1>내 WPF 앱에 VisionCanvas 붙이기 (실전 사용법)</h1>
+        <p class="hero-subtitle">
+          내부 원리를 이해했으니, 이제 <strong>실제 사용하는 개발자 입장에서</strong> VisionCanvas를 내 WPF MVVM 프로젝트에 어떻게 조립하고 제어하는지 알아봅니다.<br/><code>samples/VisionCanvas.MvvmSample</code>에 들어 있는 표준 패턴을 그대로 따라가면 실수 없이 깔끔하게 연동할 수 있습니다.</p>
+      </section>
+
+      <!-- 1. MVVM 3계층 역할 분담 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 1 · MVVM ROLES</span>
+        <h2>1. App · ViewModel · View는 각각 무엇을 맡을까요?</h2>
+        <div class="story-lead">
+          <strong>핵심 원칙:</strong> ViewModel이 그래픽카드(GPU)나 Win32 창(<code>HWND</code>)을 직접 알면 안 됩니다!<br/>ViewModel은 순수 C# 객체인 <code>EditorSession</code>만 들고 있고, View가 그 세션을 캔버스 컨트롤에 연결해 줍니다.</div>
+
+        <div class="grid-3">
+          <div class="concept-card">
+            <h4>① App.xaml.cs (조립·수명)</h4>
+            <p>
+              앱이 켜질 때 <code>EditorSession</code>과 <code>ImageCoordinator</code>를 생성해 ViewModel에 주입하고, 앱이 꺼질 때 GPU/타일 자원을 안전하게 정리(<code>Dispose</code>)합니다.</p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>② EditorViewModel (상태·명령)</h4>
+            <p>
+              <code>EditorSession</code>을 속성으로 노출하고, 도구 선택, Undo/Redo, 이미지 열기, 1억 ROI 추가 등의 <code>ICommand</code>를 제공합니다.</p>
+          </div>
+          <div class="concept-card amber">
+            <h4>③ EditorView (화면·입력 전달)</h4>
+            <p>
+              XAML에 배치된 캔버스 컨트롤에 <code>Session</code>을 연결하고, 외부 목록에서 요청한 화면 이동(<code>FocusRoi</code>, <code>FitImage</code>)을 호출합니다.</p>
+          </div>
+        </div>
+
+        <div class="code-header">
+          <span>samples/VisionCanvas.MvvmSample/ViewModels/EditorViewModel.cs</span>
+          <span>ViewModel에서 EditorSession과 ImageCoordinator 다루기</span>
+        </div>
+        <pre><code><span class="kw">public sealed class</span> <span class="ty">EditorViewModel</span> : <span class="ty">INotifyPropertyChanged</span>
+{
+    <span class="kw">private readonly</span> <span class="ty">ImageCoordinator</span> _imageCoordinator;
+
+    <span class="kw">public</span> <span class="fn">EditorViewModel</span>(<span class="ty">EditorSession</span> session, <span class="ty">ImageCoordinator</span> imageCoordinator)
+    {
+        Session = session;
+        _imageCoordinator = imageCoordinator;
+    }
+
+    <span class="kw">public</span> <span class="ty">EditorSession</span> Session { <span class="kw">get</span>; }
+
+    <span class="cm">// 새 이미지와 문서를 비동기로 준비한 뒤 캔버스에 한 번에 교체</span>
+    <span class="kw">public async</span> <span class="ty">Task</span> <span class="fn">LoadImageFileAsync</span>(<span class="kw">string</span> filePath, <span class="ty">CancellationToken</span> ct)
+    {
+        <span class="ty">PreparedDocument</span> prepared = <span class="kw">await</span> Session.<span class="fn">PrepareDocumentAsync</span>(filePath, ct);
+        <span class="kw">await</span> _imageCoordinator.<span class="fn">LoadDocumentAsync</span>(prepared, ct);
+    }
+
+    <span class="kw">public void</span> <span class="fn">Undo</span>() =&gt; Session.<span class="fn">Undo</span>();
+    <span class="kw">public void</span> <span class="fn">Redo</span>() =&gt; Session.<span class="fn">Redo</span>();
+}</code></pre>
+      </section>
+
+      <!-- 2. 입력 잠금 모드와 화면 네비게이션 API -->
+      <section class="content-section">
+        <span class="section-badge">STEP 2 · INPUT MODES &amp; NAVIGATION</span>
+        <h2>2. 검사 중 입력 잠금과 외부 ROI 목록 맞춤 보기</h2>
+        <p>
+          실제 검사 장비에서는 <strong>티칭(편집) 화면</strong>과 <strong>자동 검사(Run) 화면</strong>의 입력 권한이 달라야 합니다.<br/>검사 도중에 작업자가 실수로 ROI를 드래그해서 옮기면 큰일 나기 때문이지요!
+          VisionCanvas는 이를 위해 두 가지 스위치를 구분해서 제공합니다.</p>
+
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>속성 / 메서드</th>
+                <th>동작 설명</th>
+                <th>언제 사용하나요?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>InteractionController.IsEnabled = false</code></td>
+                <td>마우스·키보드 입력을 완전히 차단하고, 진행 중이던 드래그 프리뷰/캡처를 즉시 취소합니다. (단, 카메라 실시간 영상 게시는 계속 유지!)</td>
+                <td>무인 자동 검사 중 조작을 완전히 잠글 때</td>
+              </tr>
+              <tr>
+                <td><code>InteractionController.NavigationOnly = true</code></td>
+                <td>ROI 이동·크기 변경·삭제는 막고, <strong>마우스 휠 줌과 화면 패닝(이동)만 허용</strong>합니다.</td>
+                <td>검사 결과를 확대해서 관찰만 하고 싶을 때</td>
+              </tr>
+              <tr>
+                <td><code>FocusRoi(roiId)</code> / <code>FocusBounds(rect)</code></td>
+                <td><strong>현재 선택 상태나 Undo 이력을 전혀 바꾸지 않고</strong> 해당 ROI가 화면 중앙에 오도록 부드럽게 줌·이동합니다.</td>
+                <td>오른쪽 ROI 목록이나 불량 목록을 클릭했을 때</td>
+              </tr>
+              <tr>
+                <td><code>FitImage()</code></td>
+                <td>선택 상태나 Undo 이력을 건드리지 않고 전체 이미지가 창 안에 딱 맞게 배율을 맞춥니다.</td>
+                <td>'전체 보기' 버튼을 눌렀을 때</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. 키보드 단축키 & 1억 ROI 압축 배치 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 3 · KEYBOARD NUDGE &amp; 100M ROI</span>
+        <h2>3. 방향키 1px 미세 이동과 1억 ROI 압축 배치</h2>
+        <div class="grid-2">
+          <div class="concept-card">
+            <h4>⌨️ 방향키 1px / Shift&nbsp;+&nbsp;방향키 10px</h4>
+            <p>
+              마우스로 1픽셀 단위를 정밀하게 맞추기 힘들 때는 ROI를 선택한 뒤 키보드 <strong>방향키(↑↓←→)</strong>를 누르면 정확히 <code>1px</code>씩 이동합니다.<br/><code>Shift</code> 키를 누른 채 방향키를 누르면 <code>10px</code>씩 빠르게 이동합니다.</p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>🚀 1억 ROI(100,020,001셀) 추가와 개별 편집</h4>
+            <p>
+              샘플의 <code>1억 ROI</code> 버튼을 누르면 일반 객체 1억 개를 메모리에 할당하는 대신, 공통 Core의 압축 배치(<code>10001&nbsp;×&nbsp;10001&nbsp;=&nbsp;100,020,001</code>셀)를 추가합니다.<br/>그러면서도 개별 셀 포인터 이동·크기 조절·회전·삭제와 5천만 셀 부분 복붙(총 1.5억 개), Undo/Redo가 그대로 동작합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <nav class="chapter-pager">
+        <a href="04-core-algorithms-and-bvh.html" class="pager-card">
+          <span class="pager-label">이전 챕터 (Chapter 04)</span>
+          <span class="pager-title">← 04. 이미지 타일링 &amp; BVH</span>
+        </a>
+        <a href="06-from-scratch-implementation.html" class="pager-card" style="text-align: right;">
+          <span class="pager-label">다음 챕터 (Chapter 06)</span>
+          <span class="pager-title">06. 밑바닥부터 직접 구현 →</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/manual-gemini.js"></script>
+</body>
+</html>

@@ -9,6 +9,49 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class ResultOverlayRenderingTests
 {
+    [Fact]
+    public void DisconnectedSquareContoursAreClosedWithoutAnArtificialBridge()
+    {
+        var color = new Vector4(0, 1, 0, 1);
+        var marker = new MatchMarker([new(50, 50), new(90, 50), new(90, 90), new(50, 90)],
+            new(-100, -100), 0, "double", color, [])
+        {
+            AdditionalContours = [[new(110, 110), new(150, 110), new(150, 150), new(110, 150)]]
+        };
+        var mesh = Draw(Scene(new("status", Vector4.One, [], [marker])), []);
+        foreach (var outline in new[] { marker.Bounds, marker.AdditionalContours[0] })
+        {
+            for (var index = 0; index < outline.Length; index++)
+            {
+                Assert.True(Covers(mesh, (outline[index] + outline[(index + 1) % outline.Length]) * .5, color));
+            }
+        }
+
+        Assert.False(Covers(mesh, new(100, 100), color));
+        Assert.False(Covers(mesh, new(80, 100), color));
+    }
+
+    [Fact]
+    public void InnerContourIsClosedWithoutConnectingItToTheOuterContour()
+    {
+        var color = new Vector4(0, 1, 0, 1);
+        var marker = new MatchMarker([new(50, 60), new(180, 60), new(180, 180), new(50, 180)],
+            new(-100, -100), 0, "frame", color, [])
+        {
+            InnerContours = [[new(80, 90), new(150, 90), new(150, 150), new(80, 150)]]
+        };
+        var mesh = Draw(Scene(new("status", Vector4.One, [], [marker])), []);
+        foreach (var outline in new[] { marker.Bounds, marker.InnerContours[0] })
+        {
+            for (var index = 0; index < outline.Length; index++)
+            {
+                Assert.True(Covers(mesh, (outline[index] + outline[(index + 1) % outline.Length]) * .5, color));
+            }
+        }
+        Assert.False(Covers(mesh, new(65, 75), color));
+        Assert.False(Covers(mesh, new(115, 120), color));
+    }
+
     [Theory]
     [InlineData(.25, 1)]
     [InlineData(2, 1.5)]
@@ -80,6 +123,20 @@ public sealed class ResultOverlayRenderingTests
         Assert.Equal(66, (textTopLeft.X + 1) * 100, .001);
         Assert.Equal(58, (1 - textTopLeft.Y) * 100, .001);
         Assert.Equal(color, LastColorAt(mesh, new(100, 60)));
+    }
+
+    [Fact]
+    public void CompoundLabelClearsBothForegroundComponents()
+    {
+        var color = new Vector4(0, 1, 0, 1);
+        var marker = new MatchMarker([new(60, 80), new(100, 80), new(100, 100), new(60, 100)], new(100, 90), 0, "pair", color, [])
+        {
+            AdditionalContours = [[new(110, 60), new(150, 60), new(150, 100), new(110, 100)]]
+        };
+        var mesh = Draw(Scene(new("status", Vector4.One, [], [marker])), []);
+        var textBatch = Assert.Single(mesh.Batches, batch => batch.Texture.Width == 40 && batch.Start < 20);
+        var textTopLeft = mesh.Vertices[textBatch.Start].Position;
+        Assert.Equal(110, (1 - textTopLeft.Y) * 100, .001);
     }
 
     [Theory]

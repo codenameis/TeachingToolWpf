@@ -13,10 +13,7 @@ public sealed class PreparedHistoryStep
         get;
     }
 
-    public DocumentState Target
-    {
-        get;
-    }
+    public DocumentState Target { get; }
 
     internal bool CanReuseSnapshotPair
     {

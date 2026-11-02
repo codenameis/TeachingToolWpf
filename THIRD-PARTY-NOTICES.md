@@ -1,5 +1,17 @@
 # Third-party dependencies
 
+## Vulkan Canvas (2026-10-16)
+
+`VisionCanvas.Vulkan`과 전용 샘플은 다음 패키지를 추가한다. 네이티브 바이너리를 수정하지 않았다. 기존 Canvas의 DX12 전이 참조와 영상 코덱 고지도 함께 유지한다.
+
+| 구성요소 | 버전 | 출처·라이선스 |
+|---|---|---|
+| Vortice.Vulkan | 3.2.3 | MIT, Amer Koleci and Contributors · [고정 소스](https://github.com/amerkoleci/Vortice.Vulkan/tree/ef01519051c1ea9ab92cf6f381ab7ca897ab293f), [전문](licenses/Vortice.Vulkan-LICENSE.txt) |
+| Vortice.ShaderCompiler | 1.9.0 | MIT · 패키지 제공 [전문](licenses/Vortice.ShaderCompiler-LICENSE.txt), [고정 소스](https://github.com/amerkoleci/Vortice.Vulkan/tree/b9b56b6bf23bd119a22f519631d88b911bf9fa4e) |
+| Silk.NET.Shaderc.Native | 2.23.0 | 패키지 nuspec의 Apache-2.0. `shaderc_shared.dll` · [패키지](https://www.nuget.org/packages/Silk.NET.Shaderc.Native/2.23.0), [shaderc 전문](licenses/Shaderc-LICENSE.txt) |
+
+shaderc의 포함 의존성을 위해 공식 프로젝트의 [glslang 고지](licenses/Glslang-LICENSE.txt), [SPIRV-Tools Apache-2.0](licenses/SPIRV-Tools-LICENSE.txt), [SPIRV-Headers 고지](licenses/SPIRV-Headers-LICENSE.txt)를 함께 둔다. 원문 출처는 [shaderc](https://github.com/google/shaderc/blob/main/LICENSE), [glslang](https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt), [SPIRV-Tools](https://github.com/KhronosGroup/SPIRV-Tools/blob/main/LICENSE), [SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers/blob/main/LICENSE)이며 2026-10-16에 보관했다. native 패키지가 개별 포함 구성요소의 버전 목록을 제공하지 않으므로 현재 upstream 버전을 바이너리의 정확한 내부 버전으로 단정하지 않는다. GPU 드라이버의 Vulkan loader는 별도 설치하며 앱에서 재배포하지 않는다.
+
 이 샘플은 아래 패키지와 네이티브 라이브러리를 사용합니다. 패키지 nuspec 및 배포자가 제공한 고지를 기준으로 기록했습니다. `licenses/`와 네이티브 라이브러리를 배포 폴더에 함께 유지합니다. framework-dependent 배포는 .NET 10 Runtime을 별도 설치합니다. Publish-LoaderComparison.ps1의 self-contained 배포는 .NET runtime을 포함하며 라이선스와 제공되는 제3자 고지를 licenses/Microsoft.NETCore.App 및 licenses/Microsoft.WindowsDesktop.App에 복사합니다.
 
 | Runtime component | Version | License / source |
@@ -55,6 +67,16 @@ THE SOFTWARE.
 테스트 도구(xUnit, Microsoft.NET.Test.Sdk 및 전이 의존성)는 앱 publish에 포함하지 않습니다. 이 문서는 앱 자체의 별도 오픈소스 라이선스를 지정하지 않습니다.
 
 2026-10-04 사용 범위 추가: 동일 OpenCV/OpenCvSharp 패키지를 ROI 필터와 `VisionAlgorithm`의 CCOEFF_NORMED 템플릿 매칭에 사용합니다. Mat은 각 영상 처리 경계 안에 유지합니다. 논문 기반 C# 형상 매칭은 외부 소스의 복사/포팅이 아닌 독립 결합 구현이며 [논문 대조 기록](docs/decisions/0016-template-matching-and-pyramid-search.md)에 차이를 명시합니다.
+
+## wgpu Canvas (2026-10-16)
+
+`VisionCanvas.Wgpu`와 독립 WPF 샘플은 `Alimer.Bindings.WebGPU 1.6.0`과 `Alimer.WebGPU.Native 1.0.4`를 고정 참조한다. 실제 `wgpuGetVersion()` 결과는 **27.0.4.0**이다. 바인딩은 MIT [전문](licenses/Alimer.Bindings-LICENSE.txt), wgpu-native는 MIT 또는 Apache-2.0 [MIT 전문](licenses/wgpu-native-MIT.txt) / [Apache 전문](licenses/wgpu-native-APACHE.txt)을 따른다. 라이선스 파일은 앱 출력과 publish에 복사한다.
+
+바인딩 출처는 [패키지가 기록한 고정 커밋](https://github.com/amerkoleci/Alimer.Bindings/tree/eedec82d8cb7845f713e668e8dad2df3aaec8893), native는 [공식 wgpu-native v27.0.4.0](https://github.com/gfx-rs/wgpu-native/tree/v27.0.4.0)이다. native 전문은 고정 NuGet 패키지에서 복사했다. `wgpu_native.dll`을 수정 없이 동적으로 사용한다. Windows DX12 backend와 WGSL을 사용하며 기존 영상 코덱·WPF·공통 Canvas 전이 의존성의 고지도 유지한다. 패키지 README의 이전 native 버전 설명은 실제 배포 버전으로 사용하지 않는다.
+
+## Skia Canvas (2026-10-16)
+
+`VisionCanvas.Skia`와 WPF 샘플은 SkiaSharp 및 SkiaSharp.NativeAssets.Win32 **3.119.2**를 사용한다. .NET10 Windows x64에서 빌드/실행을 확인했다. MIT [관리 코드 전문](licenses/skia-canvas/SkiaSharp-LICENSE.txt), 네이티브 포함 구성요소의 [고지 전문](licenses/skia-canvas/Win32-THIRD-PARTY-NOTICES.txt)을 고정 NuGet 패키지에서 복사하여 앱 출력/배포에 포함한다. 출처는 [공식 패키지](https://www.nuget.org/packages/SkiaSharp/3.119.2)이며 `libSkiaSharp.dll`을 변경하지 않고 동적으로 사용한다. 기존 비교 실험의4.153.1과 별도 버전이며 해당 고지를 덮어쓰지 않는다. Canvas는 CPU raster, 파일 디코드는 기존 VisionImaging 경로다.
 
 ## SkiaSharp 비교 실험 (2026-10-14)
 

@@ -7,6 +7,13 @@ using VisionGeometry;
 using VisionImaging;
 using VisionImaging.Abstractions;
 
+if (args.Length > 3 && args[1] == "cpu-windowed")
+{
+    await CpuWindowedBenchmark.RunAsync(args[0], args[2], args[3], args.Length > 4 && args[4] == "cuda",
+        args.Length > 5 ? int.Parse(args[5]) : 0);
+    return;
+}
+
 if (args.Length > 1 && args[1] == "rotation-diagnosis")
 {
     await RotationDiagnosisBenchmark.RunAsync(args[0]);

@@ -1,7 +1,5 @@
 using System.IO;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using VisionGeometry;
 using Vortice.Direct3D;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
@@ -11,20 +9,6 @@ namespace VisionCanvas.Rendering;
 /// <summary>단일 선택 ROI의 마스크 합집합을 그린다. 원본 영상과 ROI 윤곽은 변경하지 않는다.</summary>
 internal sealed class MaskPipeline : IDisposable
 {
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct DrawConstants
-    {
-        public Vector2 Center;
-        public Vector2 AxisX;
-        public Vector2 AxisY;
-        public uint MaskCount;
-        public uint VertexCount;
-        public uint IsCircle;
-        public uint SelectedIndex;
-        public float Dpi;
-        public uint Padding;
-    }
-
     private const uint ConstantCount = 12;
     private readonly ID3D12RootSignature _root;
     private readonly ID3D12PipelineState _pipeline;
@@ -62,54 +46,19 @@ internal sealed class MaskPipeline : IDisposable
 
     public unsafe void Draw(RenderScene scene, Dx12Surface surface)
     {
-        if (!scene.ShowMasks || scene.Document.SelectionCount != 1 || scene.Document.Selection.Count != 1)
+        if (!MaskDrawConstants.TryResolveActiveMaskTarget(scene, out var roi, out var geometry, out var draft, out var maskCount, out var vertexCount))
         {
             return;
         }
-        var roi = scene.Document.Rois[scene.Document.Selection.Single()];
-        if (scene.Document.IsGroupRoi(roi.Id))
-        {
-            return;
-        }
-        var draft = scene.Overlay.MaskDraft;
-        var count = roi.Masks.Length + (draft is null ? 0 : 1);
-        if (count == 0)
-        {
-            return;
-        }
-        var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
+
         var arena = _uploads[surface.FrameIndex];
         arena.Reset();
-        // float4 경계 + float4 도형 종류. 프레임 fence가 완료된 영역만 재사용한다.
-        var masks = arena.Allocate((ulong)count * 32);
-        var maskData = new Span<Vector4>((void*)masks.Pointer, count * 2);
-        for (var index = 0; index < count; index++)
-        {
-            var mask = index < roi.Masks.Length ? roi.Masks[index] : draft!;
-            maskData[index * 2] = new((float)mask.Bounds.Left, (float)mask.Bounds.Top, (float)mask.Bounds.Right, (float)mask.Bounds.Bottom);
-            maskData[(index * 2) + 1] = new(mask.Shape == MaskShape.Ellipse ? 1 : 0, 0, 0, 0);
-        }
-        var vertices = geometry.Shape.Vertices;
-        var outline = arena.Allocate((ulong)vertices.Length * 8);
-        var points = new Span<Vector2>((void*)outline.Pointer, vertices.Length);
-        for (var index = 0; index < vertices.Length; index++)
-        {
-            points[index] = new((float)vertices[index].X, (float)vertices[index].Y);
-        }
-        var center = scene.Document.Viewport.ImageToScreen(geometry.Center);
-        var scale = scene.Document.Viewport.Scale;
-        var (sin, cos) = Math.SinCos(geometry.Angle * Math.PI / 180);
-        var constants = new DrawConstants
-        {
-            Center = new((float)((center.X * 2 / scene.Width) - 1), (float)(1 - (center.Y * 2 / scene.Height))),
-            AxisX = new((float)(cos * geometry.Width * scale / scene.Width), (float)(-sin * geometry.Width * scale / scene.Height)),
-            AxisY = new((float)(-sin * geometry.Height * scale / scene.Width), (float)(-cos * geometry.Height * scale / scene.Height)),
-            MaskCount = (uint)count,
-            VertexCount = (uint)vertices.Length,
-            IsCircle = geometry.Shape.Kind == RoiShapeKind.Circle ? 1u : 0u,
-            SelectedIndex = draft is null ? unchecked((uint)scene.SelectedMaskIndex) : (uint)roi.Masks.Length,
-            Dpi = (float)scene.Dpi
-        };
+        var masks = arena.Allocate((ulong)maskCount * 32);
+        var maskData = new Span<Vector4>((void*)masks.Pointer, maskCount * 2);
+        var outline = arena.Allocate((ulong)vertexCount * 8);
+        var points = new Span<Vector2>((void*)outline.Pointer, vertexCount);
+        MaskDrawConstants.Pack(scene, roi, geometry, draft, maskCount, maskData, points, out var constants);
+
         var commands = surface.Commands;
         commands.SetGraphicsRootSignature(_root);
         commands.SetPipelineState(_pipeline);

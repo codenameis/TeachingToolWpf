@@ -1,4 +1,5 @@
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionAlgorithm.OpenSrc.ShapeDetection;
 
 namespace VisionInspection.Cli;
 
@@ -79,6 +80,8 @@ public sealed record DetectionResult
     }
     public string ContourSource { get; init; } = "transformedTeachingRoi";
     public ImagePoint[] Contour { get; init; } = [];
+    public ImagePoint[][] InnerContours { get; init; } = [];
+    public ImagePoint[][] AdditionalContours { get; init; } = [];
     public RefinementSummary? Refinement
     {
         get; init;
@@ -90,6 +93,10 @@ public sealed record RefinementSummary(string Status, double? InitialResidual, d
 
 public sealed record RunDiagnostics
 {
+    public PrimitivePreprocessingDiagnostics? PrimitivePreprocessing
+    {
+        get; init;
+    }
     public double TotalMilliseconds
     {
         get; init;

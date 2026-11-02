@@ -11,6 +11,24 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class PatternMatchingModeTests
 {
+    [Theory]
+    [InlineData(PatternMatchingMethod.Shape)]
+    [InlineData(PatternMatchingMethod.OpenCvTemplate)]
+    [InlineData(PatternMatchingMethod.PoseMatchTdcm)]
+    [InlineData(PatternMatchingMethod.CpuLine2D)]
+    [InlineData(PatternMatchingMethod.CpuSubNcc)]
+    [InlineData(PatternMatchingMethod.CpuDirectionalChamfer)]
+    public void EveryPatternModeDefaultsToRoiAndRetainsExplicitFullImageChoice(PatternMatchingMethod method)
+    {
+        var (_, editor, model) = Create();
+        using var lifetime = model;
+        model.Method = method;
+        Assert.True(model.UseSelection);
+        model.UseSelection = false;
+        model.Update(new(editor.State, 2, false, true));
+        Assert.False(model.UseSelection);
+    }
+
     [Fact]
     public void PaperOpenCvAndTdcmAreSelectableAndRemovedValueIsRejected()
     {
@@ -34,16 +52,16 @@ public sealed class PatternMatchingModeTests
         var id = editor.State.Selection.Single();
         editor.AddMask(id, new(MaskShape.Rectangle, new(.1, .1, .2, .2)));
         editor.Select([]);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         Assert.True(viewModel.IsTrainingDirty);
         Assert.False(viewModel.Search.CanExecute(null));
         editor.Undo();
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         Assert.False(viewModel.IsTrainingDirty);
         Assert.True(viewModel.Search.CanExecute(null));
         editor.Redo();
         editor.Select([id]);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Train.ExecuteAsync();
         Assert.False(viewModel.IsTrainingDirty);
     }
@@ -58,7 +76,7 @@ public sealed class PatternMatchingModeTests
         var id = editor.State.Selection.Single();
         var geometry = editor.State.Rois[id].Geometry;
         editor.SetProperties(id, "검색", geometry, new(25, 15), true);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         viewModel.Method = method;
         viewModel.UseSelection = true;
         await viewModel.Train.ExecuteAsync();
@@ -70,12 +88,12 @@ public sealed class PatternMatchingModeTests
             Assert.Equal(new RoiSearchRange(25, 15).Expand(geometry), service.SearchRegion);
         }
         editor.SetProperties(id, "검색", geometry, new(30, 15), false);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         Assert.Null(viewModel.Overlay);
         Assert.True(viewModel.HasModel);
         editor.AddChild(id, new(new(100, 100), 10, 10, 0));
         editor.Select([id]);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         Assert.False(viewModel.Train.CanExecute(null));
         Assert.False(viewModel.Search.CanExecute(null));
         viewModel.UseSelection = false;
@@ -195,7 +213,7 @@ public sealed class PatternMatchingModeTests
         var template = viewModel.TemplateModel;
         Assert.NotNull(template);
         editor.SetImage(new("replacement", "replacement", 512, 512), ViewportTransform.Identity);
-        viewModel.Update(editor.State, 2, false, true);
+        viewModel.Update(new(editor.State, 2, false, true));
         Assert.Same(template, viewModel.TemplateModel);
 
         viewModel.Method = PatternMatchingMethod.Shape;
@@ -457,7 +475,7 @@ public sealed class PatternMatchingModeTests
         editor.InitializeImage(new("fixture", "fixture", 256, 256), ViewportTransform.Identity);
         editor.Add(new(new(100, 100), 70, 60, 15));
         var viewModel = new ShapeMatchingViewModel(service, new TemplateService());
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         return (service, editor, viewModel);
     }
 
@@ -467,7 +485,7 @@ public sealed class PatternMatchingModeTests
         var (_, editor, _) = Create();
         var tdcm = new TdcmService();
         using var model = new ShapeMatchingViewModel(new ShapeService(), new TemplateService(), tdcm);
-        model.Update(editor.State, 1, false, true);
+        model.Update(new(editor.State, 1, false, true));
         model.Method = PatternMatchingMethod.PoseMatchTdcm;
         model.TdcmWindowSize = 256;
         model.TdcmRefinePose = true;
@@ -497,7 +515,7 @@ public sealed class PatternMatchingModeTests
         Assert.Equal(.7, model.MinimumScore);
         var id = editor.State.Selection.Single();
         editor.AddMask(id, new(MaskShape.Rectangle, new(.1, .1, .2, .2)));
-        model.Update(editor.State, 1, false, true);
+        model.Update(new(editor.State, 1, false, true));
         Assert.True(model.IsTrainingDirty);
         Assert.False(model.Search.CanExecute(null));
         model.TdcmWindowSize = 225;

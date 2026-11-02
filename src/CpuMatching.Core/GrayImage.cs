@@ -16,15 +16,9 @@ public sealed class GrayImage
         _pixels = pixels.ToArray();
     }
 
-    public int Width
-    {
-        get;
-    }
+    public int Width { get; }
 
-    public int Height
-    {
-        get;
-    }
+    public int Height { get; }
 
     public ReadOnlyMemory<byte> Pixels => _pixels;
 

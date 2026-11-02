@@ -14,7 +14,10 @@ public sealed record TdcmSearchOptions
     public int Threads { get; init; } = 4;
     public TdcmDevice Device { get; init; } = TdcmDevice.Cpu;
     public TdcmBackend Backend { get; init; } = TdcmBackend.OnnxRuntime;
-    public string? WeightsPath { get; init; }
+    public string? WeightsPath
+    {
+        get; init;
+    }
     public int MaximumWindows { get; init; } = 4096;
     public void Validate()
     {
@@ -24,7 +27,10 @@ public sealed record TdcmSearchOptions
             throw new ArgumentOutOfRangeException(nameof(Device));
         }
         if (Backend == TdcmBackend.OnnxRuntime && !string.IsNullOrWhiteSpace(WeightsPath))
+        {
             throw new ArgumentException("사용자 가중치 파일은 TorchSharp에서 선택하세요.");
+        }
+
         if (WindowSize is < 224 or > 1024 || WindowSize % 4 != 0 || Threads is < 1 or > 32 || MaximumWindows is < 1 or > 65536 || Matching.MaximumMatches > 1000)
         {
             throw new ArgumentOutOfRangeException(nameof(WindowSize), "창 224~1024 (4 배수), 스레드 1~32, 최대 창 1~65536, 최대 결과 1~1000이 필요합니다.");
@@ -86,12 +92,12 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
                         for (var sx = 0; sx < samplesX; sx++)
                         {
                             var world = roi.ToWorld(new(
-                                ((x + (sx + .5) / samplesX) / 36 - .5) * roi.Width,
-                                ((y + (sy + .5) / samplesY) / 36 - .5) * roi.Height));
+                                (((x + ((sx + .5) / samplesX)) / 36) - .5) * roi.Width,
+                                (((y + ((sy + .5) / samplesY)) / 36) - .5) * roi.Height));
                             sum += Sample(world);
                         }
                     }
-                    pixels[y * 36 + x] = (byte)Math.Round(sum / (samplesX * samplesY));
+                    pixels[(y * 36) + x] = (byte)Math.Round(sum / (samplesX * samplesY));
                 }
             }
 
@@ -105,8 +111,8 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
                 var y1 = Math.Min(y0 + 1, crop.Height - 1);
                 var fx = px - x0;
                 var fy = py - y0;
-                return (crop.Pixels.Span[y0 * crop.Stride + x0] * (1 - fx) + crop.Pixels.Span[y0 * crop.Stride + x1] * fx) * (1 - fy) +
-                    (crop.Pixels.Span[y1 * crop.Stride + x0] * (1 - fx) + crop.Pixels.Span[y1 * crop.Stride + x1] * fx) * fy;
+                return (((crop.Pixels.Span[(y0 * crop.Stride) + x0] * (1 - fx)) + (crop.Pixels.Span[(y0 * crop.Stride) + x1] * fx)) * (1 - fy)) +
+                    (((crop.Pixels.Span[(y1 * crop.Stride) + x0] * (1 - fx)) + (crop.Pixels.Span[(y1 * crop.Stride) + x1] * fx)) * fy);
             }
             var factor = 1;
             while (Math.Max(roi.Width, roi.Height) / factor > 54 && factor < 32)
@@ -135,7 +141,7 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
 
                 if (region is not null)
                 {
-                    ShapeMatchingService.ValidateRegion(image, region);
+                    ShapeMatchingService.ValidateSearchRegion(image, region);
                 }
 
                 var readStart = Stopwatch.StartNew();
@@ -180,8 +186,8 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
                         }
                         var left = Math.Max(0, x - 64);
                         var top = Math.Max(0, y - 64);
-                        var width = Math.Min(options.WindowSize, (image.Width + factor - 1) / factor - left);
-                        var height = Math.Min(options.WindowSize, (image.Height + factor - 1) / factor - top);
+                        var width = Math.Min(options.WindowSize, ((image.Width + factor - 1) / factor) - left);
+                        var height = Math.Min(options.WindowSize, ((image.Height + factor - 1) / factor) - top);
                         var read = Stopwatch.StartNew();
                         var pixels = ReadWindow(reader, image, left, top, width, height, factor, options.WindowSize, token);
                         readMs += read.Elapsed.TotalMilliseconds;
@@ -253,7 +259,10 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
                 }
             }
         }, token).ConfigureAwait(false);
-        return completed with { TotalMilliseconds = timer.Elapsed.TotalMilliseconds };
+        return completed with
+        {
+            TotalMilliseconds = timer.Elapsed.TotalMilliseconds
+        };
     }
 
     public void Dispose()
@@ -276,8 +285,8 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
 
     private static PixelImage ReadWindow(MatchingImageReader reader, ImageReference image, int left, int top, int width, int height, int factor, int windowSize, CancellationToken token)
     {
-        var rawWidth = Math.Min(width * factor, image.Width - left * factor);
-        var rawHeight = Math.Min(height * factor, image.Height - top * factor);
+        var rawWidth = Math.Min(width * factor, image.Width - (left * factor));
+        var rawHeight = Math.Min(height * factor, image.Height - (top * factor));
         var fullWidth = rawWidth / factor;
         var fullHeight = rawHeight / factor;
         // GRN은 창 전체 통계를 사용한다. 작은 창으로 줄이면 같은 대상도 점수/검출이 바뀐다.
@@ -302,8 +311,8 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
                     continue;
                 }
 
-                var w = Math.Min(factor, rawWidth - x * factor);
-                var h = Math.Min(factor, rawHeight - y * factor);
+                var w = Math.Min(factor, rawWidth - (x * factor));
+                var h = Math.Min(factor, rawHeight - (y * factor));
                 var edge = reader.Read((left + x) * factor, (top + y) * factor, w, h, token);
                 var sum = 0;
                 foreach (var value in edge.Pixels.Span)
@@ -311,7 +320,7 @@ public sealed class TdcmMatchingService(IImageLoader loader, Func<VideoFrame?> r
                     sum += value;
                 }
 
-                pixels[y * outputWidth + x] = (byte)(sum / (w * h));
+                pixels[(y * outputWidth) + x] = (byte)(sum / (w * h));
             }
         }
 

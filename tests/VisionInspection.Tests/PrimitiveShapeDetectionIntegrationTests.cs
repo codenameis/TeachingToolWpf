@@ -11,6 +11,158 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class PrimitiveShapeDetectionIntegrationTests
 {
     [Fact]
+    public async Task PcbCompoundCrossesWindowOwnershipSeamOnceAndRoiMustContainBothComponents()
+    {
+        const int Width = 1800;
+        const int Height = 320;
+        var pixels = new byte[Width * Height];
+        Array.Fill(pixels, (byte)25);
+        foreach (var (kind, center) in new[] { (PrimitiveShapeKind.DoubleSquare, 768), (PrimitiveShapeKind.CrossHash, 1536) })
+        {
+            var mark = VisionAlgorithm.Tests.PcbMarkFixture.Create(kind, 27);
+            for (var row = 0; row < mark.Height; row++)
+            {
+                mark.Pixels.Span.Slice(row * mark.Stride, mark.Width).CopyTo(pixels.AsSpan((row * Width) + center - 120));
+            }
+        }
+        var service = new PrimitiveShapeDetectionService(new Loader(new(pixels, Width, Height, Width)), () => null);
+        var reference = new ImageReference("fixture", "pcb seams", Width, Height);
+        var result = await service.DetectAsync(reference, false, null, new(), default);
+        Assert.False(result.Incomplete);
+        Assert.Equal(2, result.Shapes.Length);
+        var pair = Assert.Single(result.Shapes, shape => shape.Kind == PrimitiveShapeKind.DoubleSquare);
+        Assert.Single(pair.AdditionalContours);
+        Assert.InRange(Math.Abs(pair.Center.X - 768), 0, 1);
+        Assert.All(pair.AdditionalContours[0], point => Assert.InRange(point.X, 700, 840));
+        var serial = await service.DetectAsync(reference, false, null, new()
+        {
+            MaximumParallelism = 1
+        }, default);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(result.Shapes), System.Text.Json.JsonSerializer.Serialize(serial.Shapes));
+        var partial = await service.DetectAsync(reference, false, new(new(743, 125), 45, 100, 0),
+            new()
+            {
+                Shapes = PrimitiveShapeKind.DoubleSquare
+            }, default);
+        Assert.Empty(partial.Shapes);
+    }
+
+    [Fact]
+    public async Task CancellationDuringParallelProcessingDrainsAndDisposesReaderAndPreprocessor()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var loader = new Loader(PrimitiveShapeFixture.Create(4096, 256, new PrimitiveFixtureShape(PrimitiveShapeKind.Ring, 128, 128)));
+        var preprocessor = new CancelingPreprocessor(cancellation);
+        var service = new PrimitiveShapeDetectionService(loader, () => null, () => preprocessor);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.DetectAsync(new("fixture", "fixture", 4096, 256),
+            false, null, new()
+            {
+                UseGpu = true
+            }, cancellation.Token));
+        Assert.Equal(1, loader.Disposed);
+        Assert.Equal(1, preprocessor.Disposals);
+    }
+
+    private sealed class CancelingPreprocessor(CancellationTokenSource cancellation) : IPrimitivePreprocessor
+    {
+        public int Disposals;
+        public PrimitivePreprocessingDiagnostics Diagnostics { get; } = new("cancellation probe", 0, 0, 0, 0, 0);
+        public GrayImage Median3x3(GrayImage image, CancellationToken token, Memory<byte> destination = default)
+        {
+            cancellation.Cancel();
+            token.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("Cancellation must be observed.");
+        }
+        public void Dispose() => Disposals++;
+    }
+
+    [Theory]
+    [InlineData(128)]
+    [InlineData(512)]
+    public async Task ParallelWindowsPreserveExactOrderContoursAndSeams(int maximumSize)
+    {
+        var image = PrimitiveShapeFixture.Create(8192, 768,
+            new(PrimitiveShapeKind.Cross, 768, 300, 6), new(PrimitiveShapeKind.Rectangle, 1536, 300, 1),
+            new(PrimitiveShapeKind.Circle, 4096, 300), new(PrimitiveShapeKind.Triangle, 7900, 300, 35),
+            new(PrimitiveShapeKind.Ring, 2304, 300), new(PrimitiveShapeKind.Circle, 2304, 300, Scale: .3),
+            new(PrimitiveShapeKind.RectangleFrame, 3072, 300, 27), new(PrimitiveShapeKind.Rectangle, 3072, 300, 27, .3));
+        var loader = new Loader(image);
+        var service = new PrimitiveShapeDetectionService(loader, () => null);
+        var reference = new ImageReference("fixture", "seams", image.Width, image.Height);
+        var options = new PrimitiveDetectionOptions { MaximumParallelism = 1, MaximumSize = maximumSize };
+        var serial = await service.DetectAsync(reference, false, null, options, default);
+        var parallel = await service.DetectAsync(reference, false, null, options with
+        {
+            MaximumParallelism = 4
+        }, default);
+        Assert.Equal(8, serial.Shapes.Length);
+        Assert.Equal(serial.Windows, parallel.Windows);
+        Assert.False(parallel.Incomplete);
+        Assert.Equal(2, loader.Disposed);
+        for (var index = 0; index < serial.Shapes.Length; index++)
+        {
+            var expected = serial.Shapes[index];
+            var actual = parallel.Shapes[index];
+            Assert.Equal(expected with
+            {
+                Contour = actual.Contour,
+                InnerContours = actual.InnerContours
+            }, actual);
+            Assert.Equal(expected.Contour.ToArray(), actual.Contour.ToArray());
+            Assert.Equal(expected.InnerContours.Length, actual.InnerContours.Length);
+            for (var hole = 0; hole < expected.InnerContours.Length; hole++)
+            {
+                Assert.Equal(expected.InnerContours[hole].ToArray(), actual.InnerContours[hole].ToArray());
+                Assert.All(actual.InnerContours[hole], point =>
+                {
+                    Assert.InRange(Math.Abs(point.X - actual.Center.X), 0, 40);
+                    Assert.InRange(Math.Abs(point.Y - actual.Center.Y), 0, 40);
+                });
+            }
+        }
+    }
+
+    [Fact]
+    public async Task GpuRequestWithoutProviderFailsExplicitlyAndCancellationDoesNotPublishResults()
+    {
+        var image = PrimitiveShapeFixture.Mixed();
+        var loader = new Loader(image);
+        var service = new PrimitiveShapeDetectionService(loader, () => null);
+        var reference = new ImageReference("fixture", "fixture", image.Width, image.Height);
+        await Assert.ThrowsAsync<NotSupportedException>(() => service.DetectAsync(reference, false, null, new() { UseGpu = true }, default));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.DetectAsync(reference, false, null, new(), new(true)));
+        Assert.Equal(0, loader.Disposed);
+    }
+
+    [Fact]
+    public async Task UnlimitedSearchDoesNotApplyAHiddenPerWindowLimit()
+    {
+        const int Side = 900;
+        var pixels = new byte[Side * Side];
+        for (var row = 0; row < 40; row++)
+        {
+            for (var column = 0; column < 40; column++)
+            {
+                for (var y = 0; y < 20; y++)
+                {
+                    pixels.AsSpan(((10 + (row * 22) + y) * Side) + 10 + (column * 22), 20).Fill(220);
+                }
+            }
+        }
+        var service = new PrimitiveShapeDetectionService(new Loader(new(pixels, Side, Side, Side)), () => null);
+        var result = await service.DetectAsync(new("fixture", "dense", Side, Side), false, null,
+            new()
+            {
+                MinimumSize = 6,
+                MaximumSize = 24,
+                Polarity = ForegroundPolarity.Bright
+            }, default);
+        Assert.Equal(1600, result.Shapes.Length);
+        Assert.All(result.Shapes, shape => Assert.Equal(PrimitiveShapeKind.Rectangle, shape.Kind));
+        Assert.False(result.Incomplete);
+    }
+
+    [Fact]
     public async Task ExclusionInsideSolidShapeRejectsItWithoutCreatingCutContours()
     {
         var image = PrimitiveShapeFixture.Create(512, 256, new(PrimitiveShapeKind.Circle, 128, 128),
@@ -38,7 +190,8 @@ public sealed class PrimitiveShapeDetectionIntegrationTests
         var result = await new PrimitiveShapeDetectionService(loader, () => null)
             .DetectAsync(new("fixture", "fixture", image.Width, image.Height), false, null, new(), default);
         Assert.Equal(4, result.Shapes.Length);
-        Assert.Equal(PrimitiveShapeKind.All, result.Shapes.Aggregate(PrimitiveShapeKind.None, (set, shape) => set | shape.Kind));
+        Assert.Equal(PrimitiveShapeKind.Triangle | PrimitiveShapeKind.Rectangle | PrimitiveShapeKind.Circle | PrimitiveShapeKind.Cross,
+            result.Shapes.Aggregate(PrimitiveShapeKind.None, (set, shape) => set | shape.Kind));
         Assert.False(result.Incomplete);
         Assert.Equal(1, loader.Disposed);
     }
@@ -66,7 +219,8 @@ public sealed class PrimitiveShapeDetectionIntegrationTests
         var output = await new PrimitiveShapeDetectionService(loader, () => null)
             .DetectAsync(reference, false, null, new(), default);
         Assert.Equal(4, output.Shapes.Length);
-        Assert.Equal(PrimitiveShapeKind.All, output.Shapes.Aggregate(PrimitiveShapeKind.None, (set, shape) => set | shape.Kind));
+        Assert.Equal(PrimitiveShapeKind.Triangle | PrimitiveShapeKind.Rectangle | PrimitiveShapeKind.Circle | PrimitiveShapeKind.Cross,
+            output.Shapes.Aggregate(PrimitiveShapeKind.None, (set, shape) => set | shape.Kind));
         Assert.False(output.Incomplete);
     }
 

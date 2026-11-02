@@ -28,8 +28,9 @@ public sealed class RotationInspectionTests
             MinimumAcceptedAngle = minimumAccepted,
             MaximumAcceptedAngle = 10
         };
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         var unchanged = editor.State;
+        viewModel.UseSelection = false;
         await viewModel.Train.ExecuteAsync();
         Assert.False(viewModel.IsTrainingDirty);
         Assert.NotNull(viewModel.Model);

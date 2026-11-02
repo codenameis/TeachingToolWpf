@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>01장 · 컴퓨터 화면 좌표계, struct 메모리, 2D 벡터와 회전 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 01 · 1층 기초 공사 (VisionGeometry) · 고1 눈높이에서 한 걸음씩</div>
+        <h1>01장 · 컴퓨터 화면 좌표계, struct 메모리, 그리고 2D 벡터와 회전</h1>
+        <p class="hero-lead">
+          우리의 첫 번째 목표는 화면 위의 점 하나를 나타내는 <code>PointD</code>, 반듯한 네모 상자를 나타내는 <code>BoundsD</code>, 그리고 도형을 회전시키는 <code>RigidTransform2D</code> 세 가지를 직접 만드는 것입니다.<br/>
+          행렬이나 어려운 공식이 갑자기 튀어나오지 않도록, <strong>컴퓨터 모니터의 좌표축 방향</strong>부터 시작해 <strong>C# <code>struct</code> 메모리 원리</strong>와 <strong>고1 삼각비 유도 과정</strong>까지 차근차근 밟아 올라갑니다.
+        </p>
+      </section>
+
+      <!-- STEP 1: 이전 장과의 연결 & 왜 배울까? -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 출발점 이해하기: 학교 수학 공책과 컴퓨터 모니터는 무엇이 다를까?</h2>
+          <span class="topdown-badge">가장 먼저 알아야 할 화면 상식</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">차이점 ① · 원점 (0, 0)과 Y축 방향</span>
+            <h4>왼쪽 맨 위가 (0, 0)이고, 아래로 내려갈수록 Y가 커진다!</h4>
+            <p>학교 수학 시간에는 원점 <code>(0, 0)</code>이 한가운데에 있고 위로 올라갈수록 <code>Y</code>가 커집니다. 하지만 모든 컴퓨터 모니터와 디지털 사진은 옛날 브라운관 TV가 맨 위 왼쪽 줄부터 아래로 주사선을 그렸던 전통 때문에 <strong>왼쪽 맨 위 모서리가 <code>(0, 0)</code>이고, 오른쪽으로 갈수록 <code>X</code>가 커지며, 아래로 내려갈수록 <code>Y</code>가 커집니다!</strong></p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">차이점 ② · 왜 int가 아니라 double일까?</span>
+            <h4>100배 확대해도 덜덜 떨리지 않는 소수점 좌표 (Sub-pixel)</h4>
+            <p>만약 좌표를 정수(<code>int</code>)로만 저장하면, 사진을 20배 확대해서 도형을 천천히 움직일 때 <code>100 → 101</code>처럼 1픽셀 단위로 뚝뚝 끊기며 계단처럼 튱니다. 반면 실수(<code>double</code>)로 <code>100.375</code>처럼 소수점까지 정밀하게 저장하면 아무리 확대하고 회전해도 오차 없이 매끄럽게 움직입니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">차이점 ③ · 점(Point)과 화살표(Vector)</span>
+            <h4>숫자 두 개 (X, Y)는 '위치'도 되고 '이동 화살표'도 된다!</h4>
+            <p><code>PointD(100, 50)</code>은 원점에서 가로 100, 세로 50에 찍힌 <strong>'점(위치)'</strong>을 뜻하기도 하고, 마우스를 오른쪽으로 +100, 아래로 +50만큼 끌었다는 <strong>'이동 화살표(벡터)'</strong>를 뜻하기도 합니다. 그래서 <code>점 + 이동량 = 새 점</code>이라는 산수가 그대로 성립합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 미리 감 잡기 · 손전등 그림자(내적)와 압정 꽂고 돌리기(피벗 회전)</h2>
+          <span class="feynman-badge">일상 비유 워밍업</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>비유 1 · 내적(Dot Product)은 '손전등 그림자 길이'다!</h4>
+            <p>
+              수식에서 <code>내적(p · u)</code>이라는 말이 나오면 겁먹지 말고 <strong>'그림자 길이'</strong>라고 바꿔 읽으세요!<br/>
+              바닥에 놓인 자(축 <b>u</b>) 위로 공중의 막대기(벡터 <b>p</b>)에 수직으로 손전등을 비췄을 때, <strong>바닥 자 위에 맺히는 그림자의 길이가 몇 칸인가</strong>를 구하는 아주 단순한 곱셈·덧셈입니다.
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>비유 2 · 도형을 제자리에서 돌리려면 '가운데에 압정을 꽂아야' 한다!</h4>
+            <p>
+              기본 회전 공식(<code>x cos θ - y sin θ</code>)은 무조건 화면 왼쪽 맨 위 구석 <code>(0, 0)</code>에 압정을 꽂고 돌립니다. 그냥 돌리면 화면 한가운데 있던 상자가 큰 원을 그리며 화면 밖으로 날아갑니다!<br/>
+              그래서 <strong>① 상자 중심점(Pivot)을 원점 <code>(0, 0)</code>으로 잠시 데려왔다가(<code>point - Pivot</code>), ② 돌린 다음, ③ 원래 중심점 자리로 다시 돌려놓아야(<code>+ Pivot</code>)</strong> 상자가 제자리에서 빙글 돕니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2: 필수 C# 문법 워밍업 (가장 먼저 설명!) -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · C# 문법 워밍업: 왜 <code>class</code> 대신 <code>readonly record struct</code>를 쓸까?</h2>
+          <span class="prereq-badge">코드를 읽기 전에 꼭 알아야 할 C# 문법 4가지</span>
+        </div>
+        <p style="margin-bottom: 14px; color: var(--text-secondary);">
+          학교나 기초 강의에서는 모든 것을 <code>class</code>로 만들지만, 1초에 수백만 번 계산되는 좌표 <code>PointD</code>를 <code>class</code>로 만들면 프로그램이 심하게 버벅입니다. 그 이유를 컴퓨터 메모리 구조로 먼저 이해해 봅시다.
+        </p>
+
+        <table class="data-table" style="margin-bottom: 18px;">
+          <thead>
+            <tr>
+              <th>비교 항목</th>
+              <th>일반 <code>class</code> (참조 타입 = 복도 사물함)</th>
+              <th><code>readonly record struct</code> (불변 값 타입 = 내 책상 위 포스트잇)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>메모리 저장 위치</strong></td>
+              <td>멀리 있는 <strong>힙(Heap) 사물함</strong>에 데이터를 넣고, 변수에는 사물함 번호표(주소)만 들고 다닙니다.</td>
+              <td>CPU가 지금 바로 읽는 <strong>스택(Stack) 책상 위</strong>나 배열 칸 안에 숫자 <code>(X, Y)</code>가 직접 들어갑니다.</td>
+            </tr>
+            <tr>
+              <td><strong>10만 번 계산할 때</strong></td>
+              <td><code>new PointClass()</code>를 10만 번 부르면 일회용 사물함이 10만 개 생겨나고, 청소부(<strong>가비지 컬렉터, GC</strong>)가 청소하느라 화면이 뚝뚝 멈춥니다.</td>
+              <td>사물함을 전혀 만들지 않고 책상 위 숫자만 바로 계산하므로 <strong>청소할 쓰레기(힙 할당)가 0바이트</strong>입니다!</td>
+            </tr>
+            <tr>
+              <td><strong>값 변경 규칙</strong></td>
+              <td>누군가 내 사물함 열쇠를 복사해 가서 안의 숫자를 몰래 바꾸면 내 화면도 같이 망가집니다(버그 위험).</td>
+              <td><code>readonly</code>가 붙어 있어 한 번 적힌 숫자는 절대 못 바꿉니다. 멀티스레드에서도 100% 안전합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">문법 1</span> 한 줄로 완성하는 <code>readonly record struct</code></h4>
+            <p>
+              예전 C#에서는 <code>X</code>, <code>Y</code> 프로퍼티와 생성자, <code>==</code> 비교 함수를 30줄에 걸쳐 직접 짜야 했습니다.<br/>
+              최신 C#에서는 아래 단 한 줄만 적으면 컴파일러가 생성자와 값 비교(<code>a == b</code>)까지 자동으로 만들어 줍니다.
+            </p>
+            <pre><code>// 단 한 줄로 불변 X, Y 속성과 생성자, == 비교가 완성됩니다!
+public readonly record struct PointD(double X, double Y);</code></pre>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">문법 2</span> 원본은 지켜주고 원하는 값만 바꾼 새 복사본 뽑기: <code>with</code></h4>
+            <p>
+              불변 객체는 <code>roi.Width&nbsp;=&nbsp;200;</code>처럼 원본을 직접 고칠 수 없습니다(그래야 <code>Ctrl+Z</code>로 예전 상태를 되돌릴 수 있으니까요!).<br/>
+              대신 <code>with</code>를 쓰면 <strong>원본은 그대로 둔 채 중괄호 안의 속성만 바뀐 새 복사본</strong>을 찰칵 찍어냅니다.
+            </p>
+            <pre><code>// original은 그대로 보존되고, Center만 이동된 새 객체 moved가 만들어집니다.
+RoiGeometry moved&nbsp;=&nbsp;original with { Center&nbsp;=&nbsp;original.Center&nbsp;+&nbsp;delta };</code></pre>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">문법 3</span> Null 검사와 변수 꺼내기를 동시에: <code>is { }</code> 와 <code>switch</code> 식</h4>
+            <p>
+              <code>if (hit is { } point)</code>는 한국어로 읽으면 <strong>"만약 <code>hit</code>가 비어있지(<code>null</code>) 않다면, 그 안의 진짜 값을 꺼내어 <code>point</code>라고 부르자!"</strong>라는 뜻입니다.<br/>
+              또한 <code>switch</code> 식(<code>=&gt;</code>)을 쓰면 수학의 조건부 함수처럼 깔끔하게 값을 계산할 수 있습니다.
+            </p>
+            <pre><code>double area&nbsp;=&nbsp;shape switch
+{
+    RoiShape.Rectangle =&gt; w * h,
+    RoiShape.Circle    =&gt; Math.PI * (w * 0.5) * (h * 0.5),
+    _                  =&gt; 0.0 // 그 외의 경우(_)
+};</code></pre>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">문법 4</span> <code>if</code> 중첩 지옥을 없애는 보호절 (Guard Clause)</h4>
+            <p>
+              <code>if</code> 안에 또 <code>if</code>를 넣어 오른쪽으로 깊게 들어가는 코드는 읽기가 너무 힘듭니다.<br/>
+              계산할 필요가 없는 예외 상황(예: 회전 각도가 0도일 때)은 <strong>함수 맨 위에서 바로 <code>return</code>해서 내보내는 것</strong>을 <strong>보호절(Guard Clause)</strong>이라고 부릅니다.
+            </p>
+            <pre><code>// 각도가 0도에 가까우면 무거운 삼각함수(sin, cos)를 부르지 않고 즉시 반환!
+if (Math.Abs(RotationRadians) &lt;= 1e-12)
+{
+    return Pivot&nbsp;+&nbsp;shifted;
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: 고1 수학으로 한 걸음씩 공식 유도하기 -->
+      <section class="section-card" id="sec-math-prereq">
+        <h2>3단계 · 고1 수학으로 한 줄씩 유도하기: 점·거리·그림자·나침반·회전 공식</h2>
+        <p>
+          이제 도형을 움직이고 돌리는 데 필요한 4가지 수학 공식을 하나씩 만들어 봅시다.<br/>
+          외우려고 하지 마세요! <strong>"왜 이런 식이 나왔는지" 유도 과정</strong>을 따라 읽고 바로 아래의 <strong>실제 숫자 대입 예제</strong>를 보면 중학생도 10초 만에 이해할 수 있습니다.
+        </p>
+
+        <!-- Formula 1.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 중2 피타고라스 정리</span>
+              <span>두 점 사이의 이동 화살표(변위 벡터)와 직선 거리</span>
+            </div>
+            <span class="math-eq-num">(식 1.1)</span>
+          </div>
+          <div class="math-explain" style="margin-bottom: 10px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 마우스를 시작점 <b><i>a</i></b>&nbsp;=&nbsp;(<i>a<sub>x</sub></i>, <i>a<sub>y</sub></i>)에서 끝점 <b><i>b</i></b>&nbsp;=&nbsp;(<i>b<sub>x</sub></i>, <i>b<sub>y</sub></i>)까지 끌었다면, 가로로 움직인 양은 <i>Δ<sub>x</sub></i>&nbsp;=&nbsp;<i>b<sub>x</sub></i>&nbsp;−&nbsp;<i>a<sub>x</sub></i>이고 세로로 움직인 양은 <i>Δ<sub>y</sub></i>&nbsp;=&nbsp;<i>b<sub>y</sub></i>&nbsp;−&nbsp;<i>a<sub>y</sub></i>입니다.<br/>
+            2) 가로 밑변이 <i>Δ<sub>x</sub></i>이고 세로 높이가 <i>Δ<sub>y</sub></i>인 직각삼각형의 빗변 길이는 중학교 때 배운 <strong>피타고라스 정리(밑변²&nbsp;+&nbsp;높이²&nbsp;=&nbsp;빗변²)</strong>에 의해 √(<i>Δ<sub>x</sub></i>²&nbsp;+&nbsp;<i>Δ<sub>y</sub></i>²)이 됩니다!<br/>
+            3) <strong>실전 최적화 팁:</strong> 컴퓨터 CPU에게 루트(<code>Math.Sqrt</code>) 계산은 덧셈·곱셈보다 느립니다. 그래서 단순히 "거리가 5픽셀 이하인가?"만 비교할 때는 양변을 제곱해 <strong><i>Δ<sub>x</sub></i>²&nbsp;+&nbsp;<i>Δ<sub>y</sub></i>²&nbsp;≤&nbsp;25 (<code>LengthSquared &lt;= 25</code>)</strong>로 비교하면 루트 계산을 아예 생략할 수 있습니다!
+          </div>
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><b><i>Δ</i></b> = <b><i>b</i></b> − <b><i>a</i></b> = (<i>b<sub>x</sub></i> − <i>a<sub>x</sub></i>, &nbsp;<i>b<sub>y</sub></i> − <i>a<sub>y</sub></i>),</span>
+                <span class="math-expr">‖<b><i>Δ</i></b>‖<sub>2</sub> = <span class="math-sqrt">&radic;<span class="math-sqrt-radicand"><i>Δ<sub>x</sub></i><sup>2</sup> + <i>Δ<sub>y</sub></i><sup>2</sup></span></span></span>
+              </div>
+            </div>
+          </div>
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>a</i></b>, <b><i>b</i></b></td>
+                  <td>2차원 평면 위의 시작점과 끝점 위치</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) [단위: 픽셀 또는 DIP]</td>
+                  <td><code>PointD a, PointD b</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>Δ</i></b> = (<i>Δ<sub>x</sub></i>, <i>Δ<sub>y</sub></i>)</td>
+                  <td>점 <b><i>a</i></b>에서 점 <b><i>b</i></b>로 향하는 이동 화살표(변위 벡터)</td>
+                  <td>가로·세로 숫자 쌍 (X, Y)</td>
+                  <td><code>PointD delta = b - a</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">‖<b><i>Δ</i></b>‖<sub>2</sub></td>
+                  <td>두 점 사이의 직선 거리 (피타고라스 빗변 길이)</td>
+                  <td>0 이상의 실수</td>
+                  <td><code>delta.Length</code> (<code>Math.Sqrt</code>)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="math-example-box"><span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span><div><strong>초간단 숫자 대입:</strong> 시작점 <b>a</b>&nbsp;=&nbsp;(10, 20)에서 끝점 <b>b</b>&nbsp;=&nbsp;(13, 24)까지 마우스를 끌었다면?<br>• 가로 이동량 <i>Δ<sub>x</sub></i>&nbsp;=&nbsp;13&nbsp;−&nbsp;10&nbsp;=&nbsp;<b>3</b>, 세로 이동량 <i>Δ<sub>y</sub></i>&nbsp;=&nbsp;24&nbsp;−&nbsp;20&nbsp;=&nbsp;<b>4</b><br>• 두 점 사이 직선 거리&nbsp;=&nbsp;√(3²&nbsp;+&nbsp;4²)&nbsp;=&nbsp;√(9&nbsp;+&nbsp;16)&nbsp;=&nbsp;√25&nbsp;=&nbsp;<b>5 픽셀</b>! (중학교 때 배운 3:4:5 직각삼각형 그대로입니다!)</div></div>
+        </div>
+
+        <!-- Formula 1.2 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 2 · 그림자 길이 재기 (내적)</span>
+              <span>벡터의 내적(Dot Product) — 기울어진 기준 축 위로 드리운 그림자 길이</span>
+            </div>
+            <span class="math-eq-num">(식 1.2)</span>
+          </div>
+          <div class="math-explain" style="margin-bottom: 10px;">
+            <strong>✏️ 왜 내적이 필요할까요? (단계별 이해):</strong><br/>
+            1) 상자가 반듯하게 서 있을 때는 마우스 점 <b><i>p</i></b>&nbsp;=&nbsp;(7, 5)가 가로로 몇 칸 갔는지 보려면 그냥 X좌표 <code>7</code>을 읽으면 됩니다. 이는 가로 방향 단위 화살표 <b><i>u</i></b>&nbsp;=&nbsp;(1, 0)과 <code>7×1&nbsp;+&nbsp;5×0&nbsp;=&nbsp;7</code>을 계산한 것과 같습니다.<br/>
+            2) 그렇다면 상자가 각도 <i>θ</i>만큼 비스듬히 기울어져 있어서, 상자의 가로축 방향 화살표가 <b><i>u</i></b>&nbsp;=&nbsp;(<i>u<sub>x</sub></i>, <i>u<sub>y</sub></i>)&nbsp;=&nbsp;(cos&nbsp;<i>θ</i>, sin&nbsp;<i>θ</i>)가 되었다면 어떨까요?<br/>
+            3) 이때도 똑같이 <strong>가로 성분끼리 곱하고(<i>p<sub>x</sub> u<sub>x</sub></i>) 세로 성분끼리 곱해서 더하면(<i>p<sub>y</sub> u<sub>y</sub></i>)</strong>, 기울어진 축 <b><i>u</i></b> 위로 수직 손전등을 비췄을 때 맺히는 <strong>정확한 그림자 길이(정사영 길이, ‖<b><i>p</i></b>‖&nbsp;cos&nbsp;<i>α</i>)</strong>가 나옵니다!
+          </div>
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><b><i>p</i></b> · <b><i>u</i></b> = <i>p<sub>x</sub> u<sub>x</sub></i> + <i>p<sub>y</sub> u<sub>y</sub></i> = ‖<b><i>p</i></b>‖ ‖<b><i>u</i></b>‖ cos <i>α</i></span>
+              </div>
+            </div>
+          </div>
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 판정 의미</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>p</i></b> = (<i>p<sub>x</sub></i>, <i>p<sub>y</sub></i>)</td>
+                  <td>측정하려는 대상 벡터 (예: 도형 중심에서 마우스까지의 화살표)</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) [단위: 픽셀]</td>
+                  <td><code>PointD p = point - center</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>u</i></b> = (cos <i>θ</i>, sin <i>θ</i>)</td>
+                  <td>길이가 1인 기준 방향 화살표 (예: 기울어진 상자의 가로축)</td>
+                  <td>길이 ‖<b><i>u</i></b>‖ = 1인 단위 벡터</td>
+                  <td><code>new PointD(Math.Cos(rad), Math.Sin(rad))</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>p</i></b> · <b><i>u</i></b></td>
+                  <td>축 <b><i>u</i></b> 방향으로 드리운 그림자 길이 (양수면 앞쪽, 음수면 반대쪽)</td>
+                  <td>실수 (double)</td>
+                  <td><code>PointD.Dot(p, u)</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="math-example-box"><span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span><div><strong>초간단 숫자 대입:</strong> 기준 화살표 <b>u</b>가 오른쪽 가로 방향 (1, 0)이고, 마우스 점 <b>p</b>가 (7, 5)라면?<br>• 내적 <b>p</b>&nbsp;·&nbsp;<b>u</b>&nbsp;=&nbsp;(7&nbsp;×&nbsp;1)&nbsp;+&nbsp;(5&nbsp;×&nbsp;0)&nbsp;=&nbsp;<b>+7</b>! (오른쪽 방향으로 딱 7칸 갔다는 뜻)<br>• 만약 마우스 점 <b>p</b>가 왼쪽인 (−4, 5)라면? (−4&nbsp;×&nbsp;1)&nbsp;+&nbsp;(5&nbsp;×&nbsp;0)&nbsp;=&nbsp;<b>−4</b>! (부호가 음수이므로 기준 화살표 반대쪽으로 4칸 갔다는 뜻입니다!)</div></div>
+        </div>
+
+        <!-- Formula 1.3 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 3 · 좌회전/우회전 나침반 (외적)</span>
+              <span>2D 외적(Cross Product) — 선분이 어느 쪽으로 꺾였는지 알려주는 판별식</span>
+            </div>
+            <span class="math-eq-num">(식 1.3)</span>
+          </div>
+          <div class="math-explain" style="margin-bottom: 10px;">
+            <strong>✏️ 왜 엇갈려 곱해 뺄까요? (<i>a<sub>x</sub> b<sub>y</sub></i>&nbsp;−&nbsp;<i>a<sub>y</sub> b<sub>x</sub></i>):</strong><br/>
+            1) 두 화살표 <b><i>a</i></b>&nbsp;=&nbsp;(<i>a<sub>x</sub></i>, <i>a<sub>y</sub></i>)와 <b><i>b</i></b>&nbsp;=&nbsp;(<i>b<sub>x</sub></i>, <i>b<sub>y</sub></i>)의 기울기를 비교해 봅시다. <b><i>b</i></b>가 <b><i>a</i></b>보다 더 아래쪽(시계 방향)으로 꺾여 있다는 것은 기울기 <i>b<sub>y</sub> / b<sub>x</sub></i>&nbsp;&gt;&nbsp;<i>a<sub>y</sub> / a<sub>x</sub></i>라는 뜻입니다.<br/>
+            2) 양변에 분모를 곱해 이항하면 바로 <strong><i>a<sub>x</sub> b<sub>y</sub></i>&nbsp;−&nbsp;<i>a<sub>y</sub> b<sub>x</sub></i>&nbsp;&gt;&nbsp;0</strong>이 됩니다!<br/>
+            3) 따라서 이 값 하나만 계산해 보면 두 선분이 서로 교차하는지(03장 다각형 8자 꼬임 검사)를 나눗셈(0으로 나누기 위험) 없이 즉시 판별할 수 있습니다!
+          </div>
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr">Cross(<b><i>a</i></b>, <b><i>b</i></b>) = <i>a<sub>x</sub> b<sub>y</sub></i> − <i>a<sub>y</sub> b<sub>x</sub></i> = ‖<b><i>a</i></b>‖ ‖<b><i>b</i></b>‖ sin <i>α</i></span>
+              </div>
+            </div>
+          </div>
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>부호 판정 기준 (화면 Y↓ 기준)</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col">Cross(<b><i>a</i></b>, <b><i>b</i></b>)</td>
+                  <td>두 벡터가 만드는 평행사변형의 부호 있는 넓이</td>
+                  <td>양수(+): 시계 방향, 음수(−): 반시계 방향, 0: 평행</td>
+                  <td><code>(a.X * b.Y) - (a.Y * b.X)</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="math-example-box"><span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span><div><strong>초간단 숫자 대입:</strong> 정면 오른쪽 화살표 <b>a</b>&nbsp;=&nbsp;(1, 0) 기준에서 점 <b>b</b>&nbsp;=&nbsp;(1, 3)이 어느 쪽으로 꺾였는지 확인해 볼까요?<br>• 외적&nbsp;=&nbsp;(1&nbsp;×&nbsp;3)&nbsp;−&nbsp;(0&nbsp;×&nbsp;1)&nbsp;=&nbsp;<b>+3 (양수)</b>!<br>• 컴퓨터 화면에서는 아래쪽이 +Y이므로, 결과가 양수(+)면 정면 화살표보다 오른쪽 아래(시계 방향)로 꺾여 있다는 뜻입니다.</div></div>
+        </div>
+
+        <!-- Formula 1.4 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 4 · 고1 삼각비(sin, cos) 회전</span>
+              <span>도형을 +θ만큼 돌리는 회전 공식과 −θ만큼 되돌리는 역회전 공식</span>
+            </div>
+            <span class="math-eq-num">(식 1.4)</span>
+          </div>
+          <div class="math-explain" style="margin-bottom: 10px;">
+            <strong>✏️ 행렬을 몰라도 10초 만에 이해하는 고1 삼각비 유도 과정:</strong><br/>
+            1) 가로로 1칸 간 점 <b>(1, 0)</b>을 각도 <i>θ</i>만큼 돌리면 어디로 갈까요? 반지름이 1인 원 위의 점이므로 <b>(cos&nbsp;<i>θ</i>, sin&nbsp;<i>θ</i>)</b>가 됩니다.<br/>
+            2) 세로로 1칸 간 점 <b>(0, 1)</b>을 똑같이 <i>θ</i>만큼 돌리면, X축은 왼쪽(−)으로 가고 Y축은 줄어들어 <b>(−sin&nbsp;<i>θ</i>, cos&nbsp;<i>θ</i>)</b>가 됩니다.<br/>
+            3) 그렇다면 가로로 <i>x</i>칸, 세로로 <i>y</i>칸 간 점 <b>(<i>x</i>, <i>y</i>)</b>를 돌리면? 1번에 <i>x</i>배, 2번에 <i>y</i>배를 해서 더해주면 끝납니다!<br/>
+            &nbsp;&nbsp;&nbsp;👉 <strong>새 가로 <i>x'</i>&nbsp;=&nbsp;<i>x</i> cos&nbsp;<i>θ</i>&nbsp;−&nbsp;<i>y</i> sin&nbsp;<i>θ</i></strong>, &nbsp;&nbsp;<strong>새 세로 <i>y'</i>&nbsp;=&nbsp;<i>x</i> sin&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>y</i> cos&nbsp;<i>θ</i></strong><br/>
+            4) 반대로 <strong>원래 자리로 되돌리는 역회전(−<i>θ</i>)</strong>은 각도에 <code>−θ</code>를 넣으면 됩니다. 삼각함수에서 <code>cos(−θ)&nbsp;=&nbsp;cos&nbsp;θ</code>이고 <code>sin(−θ)&nbsp;=&nbsp;−sin&nbsp;θ</code>이므로, <strong>가운데 부호(−와 +) 두 개만 서로 맞바꾸면 즉시 역회전 공식</strong>이 완성됩니다!
+          </div>
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">정방향 회전 +<i>θ</i></span>
+                <span class="math-expr"><i>x'</i> = <i>x</i> cos <i>θ</i> − <i>y</i> sin <i>θ</i>,</span>
+                <span class="math-expr"><i>y'</i> = <i>x</i> sin <i>θ</i> + <i>y</i> cos <i>θ</i></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">역방향 회전 −<i>θ</i></span>
+                <span class="math-expr"><i>x</i> = <i>x'</i> cos <i>θ</i> + <i>y'</i> sin <i>θ</i>,</span>
+                <span class="math-expr"><i>y</i> = −<i>x'</i> sin <i>θ</i> + <i>y'</i> cos <i>θ</i></span>
+              </div>
+            </div>
+          </div>
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>주의사항 (도 vs 라디안)</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>θ</i> (라디안)</td>
+                  <td>회전 각도. C#의 <code>Math.Cos</code>는 360도(Degree)가 아니라 <strong>라디안(180° = π)</strong>을 입력받습니다!</td>
+                  <td><code>rad = deg * Math.PI / 180.0</code></td>
+                  <td><code>double RotationRadians</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">(<i>x</i>, <i>y</i>) ↔ (<i>x'</i>, <i>y'</i>)</td>
+                  <td>회전 전 반듯한 로컬 좌표 ↔ 회전 후 기울어진 월드 좌표</td>
+                  <td>픽셀 좌표 쌍</td>
+                  <td><code>Apply(local)</code> / <code>ApplyInverse(world)</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="math-example-box"><span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span><div><strong>초간단 숫자 대입:</strong> 점 (10, 0)을 90°(cos&nbsp;90°&nbsp;=&nbsp;0, sin&nbsp;90°&nbsp;=&nbsp;1)만큼 회전시키면?<br>• 새 X&nbsp;=&nbsp;10&nbsp;×&nbsp;0&nbsp;−&nbsp;0&nbsp;×&nbsp;1&nbsp;=&nbsp;<b>0</b>, 새 Y&nbsp;=&nbsp;10&nbsp;×&nbsp;1&nbsp;+&nbsp;0&nbsp;×&nbsp;0&nbsp;=&nbsp;<b>10</b>&nbsp;→&nbsp;<b>(0, 10)</b>으로 정확히 90도 돌아갑니다!<br>• 다시 역회전 공식에 (0, 10)을 넣으면? 원래 X&nbsp;=&nbsp;0&nbsp;×&nbsp;0&nbsp;+&nbsp;10&nbsp;×&nbsp;1&nbsp;=&nbsp;<b>10</b>, 원래 Y&nbsp;=&nbsp;−0&nbsp;×&nbsp;1&nbsp;+&nbsp;10&nbsp;×&nbsp;0&nbsp;=&nbsp;<b>0</b>&nbsp;→&nbsp;<b>(10, 0)</b>으로 완벽하게 복구됩니다!</div></div>
+        </div>
+      </section>
+
+      <!-- STEP 4: 인터랙티브 실험실 -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 손으로 만져보는 실험실: 회전 축과 내적 그림자 길이 직접 실험하기</h2>
+        <p>
+          방금 배운 내적(그림자 길이)과 회전 변환이 실제로 어떻게 작동하는지 아래 캔버스에서 노란 점 <code>P</code>를 마우스로 드래그하고 회전 각도 슬라이더를 움직여 확인해 보세요!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · 내적 투영(Projection)과 회전 기저 벡터 직접 만져보기</div>
+            <div class="lab-subtitle">캔버스 위에서 노란 점 P를 드래그하고 아래 슬라이더로 축 회전 각도 θ를 바꿔보세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="prereq-vector-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-control-group">
+              <label for="prereq-angle-slider">회전 각도 θ:</label>
+              <input id="prereq-angle-slider" type="range" min="-90" max="90" value="35" />
+            </div>
+          </div>
+          <div id="prereq-vector-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- STEP 5: 밑바닥부터 코드로 구현하기 & 라인 바이 라인 해부 -->
+      <section class="section-card" id="sec-build-pointd">
+        <h2>5단계 · 직접 손으로 구현하기: <code>PointD</code> · <code>BoundsD</code> · <code>RigidTransform2D</code> 전체 코드와 한 줄씩 해부</h2>
+        <p>
+          이제 우리가 배운 C# 문법과 4가지 공식을 합쳐서 1층(<code>VisionGeometry</code>)의 가장 밑바탕 구조체 3개를 완성합니다.<br/>
+          먼저 전체 코드를 살펴본 뒤, 아래 표에서 각 줄이 왜 그렇게 작성되었는지 한 줄씩 뜯어봅시다.
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">완성 코드 1 · 점/벡터(PointD)와 반듯한 상자(BoundsD)</span>
+            <a class="source-link-pill" href="../src/VisionGeometry/PointD.cs">src/VisionGeometry/PointD.cs</a>
+          </div>
+          <pre><code>using System;
+
+namespace VisionGeometry;
+
+public readonly record struct PointD(double X, double Y)
+{
+    public double LengthSquared =&gt; (X * X) + (Y * Y);
+    public double Length =&gt; Math.Sqrt(LengthSquared);
+    public bool IsFinite =&gt; double.IsFinite(X) &amp;&amp; double.IsFinite(Y);
+
+    public static double Dot(PointD a, PointD b) =&gt; (a.X * b.X) + (a.Y * b.Y);
+    public static double Cross(PointD a, PointD b) =&gt; (a.X * b.Y) - (a.Y * b.X);
+
+    public static PointD operator +(PointD a, PointD b) =&gt; new(a.X + b.X, a.Y + b.Y);
+    public static PointD operator -(PointD a, PointD b) =&gt; new(a.X - b.X, a.Y - b.Y);
+    public static PointD operator *(PointD a, double s) =&gt; new(a.X * s, a.Y * s);
+    public static PointD operator /(PointD a, double s) =&gt; new(a.X / s, a.Y / s);
+}
+
+public readonly record struct BoundsD(double Left, double Top, double Right, double Bottom)
+{
+    public double Width =&gt; Math.Max(0.0, Right - Left);
+    public double Height =&gt; Math.Max(0.0, Bottom - Top);
+    public PointD Center =&gt; new((Left + Right) * 0.5, (Top + Bottom) * 0.5);
+
+    public bool Contains(PointD pt) =&gt;
+        pt.X &gt;= Left &amp;&amp; pt.X &lt;= Right &amp;&amp; pt.Y &gt;= Top &amp;&amp; pt.Y &lt;= Bottom;
+
+    public bool Intersects(BoundsD other) =&gt;
+        Left &lt;= other.Right &amp;&amp; Right &gt;= other.Left &amp;&amp; Top &lt;= other.Bottom &amp;&amp; Bottom &gt;= other.Top;
+}</code></pre>
+        </div>
+
+        <div class="build-step" style="margin-top: 20px;">
+          <div class="build-step-header">
+            <span class="build-step-badge">완성 코드 2 · 2D 강체 회전·이동 변환기 (RigidTransform2D)</span>
+            <a class="source-link-pill" href="../src/VisionGeometry/RigidTransform2D.cs">src/VisionGeometry/RigidTransform2D.cs</a>
+          </div>
+          <pre><code>using System;
+
+namespace VisionGeometry;
+
+public readonly record struct RigidTransform2D(
+    PointD Translation,
+    double RotationRadians,
+    PointD Pivot)
+{
+    public static readonly RigidTransform2D Identity = new(new PointD(0, 0), 0.0, new PointD(0, 0));
+
+    public PointD Apply(PointD point)
+    {
+        // 1단계: 평행이동을 적용한 뒤 회전 중심(Pivot)을 원점 (0, 0)으로 당겨옵니다.
+        var shifted = point + Translation - Pivot;
+
+        // 보호절(Guard Clause): 회전 각도가 0이면 삼각함수 계산 없이 즉시 반환!
+        if (Math.Abs(RotationRadians) &lt;= 1e-12)
+        {
+            return Pivot + shifted;
+        }
+
+        // 2단계: (식 1.4) 2D 정방향 회전 공식 적용
+        var cos = Math.Cos(RotationRadians);
+        var sin = Math.Sin(RotationRadians);
+        var rotated = new PointD(
+            (shifted.X * cos) - (shifted.Y * sin),
+            (shifted.X * sin) + (shifted.Y * cos));
+
+        // 3단계: 다시 회전 중심(Pivot) 위치를 더해 원래 자리로 돌려놓습니다.
+        return Pivot + rotated;
+    }
+}</code></pre>
+
+          <table class="line-by-line" style="margin-top: 14px;">
+            <thead>
+              <tr>
+                <th>단계</th>
+                <th>C# 실제 코드</th>
+                <th>고1 눈높이 한 줄 해부 설명</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="lbl-num">1</td>
+                <td class="lbl-code">public readonly record struct PointD(double X, double Y)</td>
+                <td class="lbl-desc">힙 메모리 할당이 전혀 없는 불변 값 구조체로 선언하여, 1초에 수백만 번 계산해도 가비지 컬렉터(GC) 멈춤이 발생하지 않습니다.</td>
+              </tr>
+              <tr>
+                <td class="lbl-num">2</td>
+                <td class="lbl-code">public double LengthSquared =&gt; (X * X) + (Y * Y);
+public double Length =&gt; Math.Sqrt(LengthSquared);</td>
+                <td class="lbl-desc">거리 제곱(<code>LengthSquared</code>)을 먼저 만들어 두면, 단순 거리 비교에서는 느린 <code>Math.Sqrt</code>를 생략할 수 있고 진짜 길이가 필요할 때만 <code>Length</code>를 부릅니다.</td>
+              </tr>
+              <tr>
+                <td class="lbl-num">3</td>
+                <td class="lbl-code">public static PointD operator -(PointD a, PointD b)
+    =&gt; new(a.X - b.X, a.Y - b.Y);</td>
+                <td class="lbl-desc">연산자 오버로딩 덕분에 <code>Subtract(a, b)</code>처럼 길게 쓰지 않고 수학 책처럼 <code>b - a</code>로 두 점 사이의 이동 화살표를 구합니다.</td>
+              </tr>
+              <tr>
+                <td class="lbl-num">4</td>
+                <td class="lbl-code">public bool Intersects(BoundsD other) =&gt;
+    Left &lt;= other.Right &amp;&amp; Right &gt;= other.Left
+    &amp;&amp; Top &lt;= other.Bottom &amp;&amp; Bottom &gt;= other.Top;</td>
+                <td class="lbl-desc">두 사각형이 겹치는지 확인하는 조건입니다. 내 왼쪽이 상대방 오른쪽보다 왼쪽에 있고, 내 오른쪽이 상대방 왼쪽보다 오른쪽에 있으면 가로로 겹칩니다!</td>
+              </tr>
+              <tr>
+                <td class="lbl-num">5</td>
+                <td class="lbl-code">var shifted = point + Translation - Pivot;</td>
+                <td class="lbl-desc">도형을 제자리에서 돌리기 위해, 먼저 회전 중심점(<code>Pivot</code>)을 빼서 도형 중심을 원점 <code>(0, 0)</code>으로 잠시 데려옵니다.</td>
+              </tr>
+              <tr>
+                <td class="lbl-num">6</td>
+                <td class="lbl-code">if (Math.Abs(RotationRadians) &lt;= 1e-12)
+{
+    return Pivot + shifted;
+}</td>
+                <td class="lbl-desc">켄트 백의 보호절(Guard Clause): 회전 각도가 거의 0도(<code>10⁻¹²</code> 이하)라면 <code>Math.Cos</code>, <code>Math.Sin</code>을 부르지 않고 즉시 결과를 돌려줍니다.</td>
+              </tr>
+              <tr>
+                <td class="lbl-num">7</td>
+                <td class="lbl-code">var rotated = new PointD(
+    (shifted.X * cos) - (shifted.Y * sin),
+    (shifted.X * sin) + (shifted.Y * cos));
+return Pivot + rotated;</td>
+                <td class="lbl-desc">원점 기준으로 <code>(x cos θ - y sin θ, x sin θ + y cos θ)</code> 회전을 수행한 뒤, 아까 뺐던 <code>Pivot</code>을 다시 더해 원래 중심 자리로 복구합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="build-step" style="margin-top: 20px;">
+          <div class="build-step-header">
+            <span class="build-step-badge">완성 코드 3 · 내적(Dot)과 외적(Cross)으로 마크 회전각을 구하는 FiducialAlignment.cs</span>
+            <a class="source-link-pill" href="../src/VisionGeometry/FiducialAlignment.cs">src/VisionGeometry/FiducialAlignment.cs</a>
+          </div>
+          <p style="margin-bottom: 10px; color: var(--text-secondary);">
+            방금 배운 내적(<code>dot</code>)과 외적(<code>cross</code>)이 실제 반도체·PCB 검사에서 어떻게 쓰일까요? 카메라에 찍힌 기판의 기준 마크(1~4점) 위치가 살짝 틀어졌을 때, <code>FiducialAlignment.TryFindRotation</code>은 기준 중심에서의 벡터 <code>from</code>과 검출 중심에서의 벡터 <code>to</code>의 내적 합과 외적 합을 구한 뒤 <strong><code>Math.Atan2(cross, dot)</code></strong> 단 한 줄로 최소제곱 회전 보정각 <code>angle</code>을 계산합니다!
+          </p>
+          <pre><code>// src/VisionGeometry/FiducialAlignment.cs 핵심 발췌: 1점은 XY 이동, 2~4점은 최소제곱 XYθ 강체 보정
+var dot = 0d;
+var cross = 0d;
+for (var i = 0; i &lt; reference.Length; i++)
+{
+    var from = inherited.ApplyVector(reference[i] - referenceCenter);
+    var to = detected[i] - detectedCenter;
+    dot += (from.X * to.X) + (from.Y * to.Y);       // 내적 합 (cos 비례)
+    cross += (from.X * to.Y) - (from.Y * to.X);     // 외적 합 (sin 비례)
+}
+angle = Math.Atan2(cross, dot) * 180 / Math.PI;     // tan(θ) = sin(θ)/cos(θ) 역삼각함수로 최적 회전각 산출!</code></pre>
+        </div>
+      </section>
+
+      <!-- STEP 6: 이제 코드를 다 배웠으니 설계 원칙과 UML 다이어그램으로 정리하기! -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 설계 원리 정리: 왜 <code>PointD</code>, <code>BoundsD</code>, <code>RigidTransform2D</code>를 따로 나누었을까?</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <p class="solid-grasp-intro">
+          방금 우리가 직접 만들어 본 3개의 구조체는 소프트웨어 공학의 핵심 원칙인 <strong>SOLID</strong>와 <strong>GRASP</strong>를 그대로 따르고 있습니다. 이미 코드를 다 이해했으니 아래 원칙과 다이어그램이 한눈에 들어올 것입니다!
+        </p>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Information Expert (정보 전문가)</span>
+            <h4>데이터를 가진 구조체가 계산 함수도 직접 가진다</h4>
+            <p><code>BoundsD</code>가 스스로 <code>Left, Top, Right, Bottom</code> 숫자를 가지고 있으므로, 점이 상자 안에 들어왔는지(<code>Contains</code>)나 두 상자가 겹치는지(<code>Intersects</code>)를 외부 도우미 클래스가 아닌 <code>BoundsD</code> 자신이 직접 계산합니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>점(PointD) · 사각 영역(BoundsD) · 회전 변환(RigidTransform2D) 역할 분리</h4>
+            <p>하나의 거대한 Math 유틸리티 클래스에 모든 함수를 다 때려넣지 않고, '점 하나', '사각 영역', '이동+회전 변환'이라는 딱 하나의 책임만 갖는 3개의 작은 구조체로 나누었습니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · High Cohesion (높은 응집도)</span>
+            <h4>연산자 오버로딩(+, -, *)으로 수식과 코드를 1:1 일치</h4>
+            <p><code>PointD</code> 안에 덧셈(<code>+</code>)과 뺄셈(<code>-</code>)을 정의해 두었기 때문에, <code>b - a</code>처럼 칠판에 적은 산수 식 그대로 C# 코드를 읽을 수 있습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · OCP (개방-폐쇄 원칙)</span>
+            <h4>불변 값 타입(readonly record struct)을 통한 안전한 확장</h4>
+            <p>내부 값을 아무나 몰래 바꿀 수 없게 막아두었기 때문에, 멀티스레드 렌더링 중에도 값이 깨질 걱정 없이 새로운 도형 연산을 안전하게 추가할 수 있습니다.</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 왜 struct(값 타입)로 짜면 최적화가 될까요?</strong><br/>만약 PointD를 일반 class로 만들면, 10만 개 꼭짓점을 회전시킬 때마다 힙(Heap) 메모리에 쓰레기 객체가 10만 개씩 생겨서 가비지 컬렉터(GC) 때문에 화면이 뚝뚝 끊깁니다.<br/>readonly record struct로 짜면 메모리 할당이 0바이트라 60FPS가 유지됩니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>01장 우리가 완성한 기초 기하 구조체 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"readonly record struct","title":"PointD","role":"2차원 점 좌표 (X, Y) 또는 이동 화살표(벡터) 표현","color":"#fbbf24","members":["+ X: double, Y: double","+ Length / IsFinite: double, bool","+ Rotate(angle): PointD","+ operator +, -, *, /"]},{"stereotype":"readonly record struct","title":"BoundsD","role":"기울어지지 않은 반듯한 사각형 영역(AABB) 표현 및 겹침 판정","color":"#38bdf8","members":["+ Left, Top, Right, Bottom: double","+ Width, Height: double","+ Center: PointD","+ Contains(PointD): bool","+ Intersects(BoundsD): bool"]},{"stereotype":"readonly record struct","title":"RigidTransform2D","role":"도형 모양을 찌그러뜨리지 않고 이동(Translation)과 회전(Rotation)만 수행","color":"#34d399","members":["+ Pivot: PointD, AngleDegrees: double","+ Translation: PointD","+ Apply(PointD): PointD","+ ApplyVector(PointD): PointD"]},{"stereotype":"sealed class","title":"FiducialAlignment","role":"기준/검출 마크 1~4쌍으로 1점 XY · 2~4점 XYθ 최소제곱 강체 보정 산출","color":"#f472b6","members":["+ Parent: FiducialAlignment?","+ LocalTransform / Transform: RigidTransform2D","+ RmsErrorPixels / MaxErrorPixels: double","+ TryCreate(refMarks, detMarks, ...): bool"]}],"edges":[{"from":1,"to":0,"label":"Center 및 꼭짓점 반환"},{"from":2,"to":0,"label":"Pivot 기준 점 회전 변환"},{"from":3,"to":2,"label":"Atan2(cross, dot) 보정 합성"}],"tiers":[[1,3],[2],[0]]}</script>
+        <div class="diagram-caption">방금 우리가 작성한 BoundsD와 RigidTransform2D가 모두 가장 아래의 PointD를 기본 부품으로 사용하는 모습입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>01장 시퀀스 다이어그램 · RigidTransform2D.Apply(point) 피벗 회전 3단계 흐름</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["호출자 (Move/Rotate)","RigidTransform2D","PointD (덧셈/뺄셈)","Math.SinCos (삼각함수)"],"messages":[{"from":0,"to":1,"text":"Apply(point) 호출"},{"from":1,"to":2,"text":"1단계: shifted = point + Translation - Pivot (회전 중심을 0,0으로 이동)"},{"from":1,"to":3,"text":"2단계: cos = Cos(θ), sin = Sin(θ) 계산"},{"from":1,"to":2,"text":"3단계: rotated = (x*cos - y*sin, x*sin + y*cos) 회전 공식 적용"},{"from":1,"to":0,"text":"4단계: return Pivot + rotated (원래 중심 위치로 복귀!)","ret":true}]}</script>
+        <div class="diagram-caption">도형 위의 점 point가 중심점(Pivot) 기준으로 이동하고 회전하여 새 위치로 바뀌는 4단계 시간 순서입니다.</div>
+
+        <!-- STEP 7: 마무리 셀프 체크 & 다음 장 징검다리 -->
+        <details class="feynman-check" style="margin-top: 20px;">
+          <summary>01장 마무리 셀프 테스트: 화살표 u 방향으로 비춘 그림자 길이(내적 p · u)가 음수(−)가 나왔다면 무슨 뜻일까요? (클릭하여 정답 확인)</summary>
+          <p><strong>정답:</strong> 점 <code>p</code>가 기준 화살표 <code>u</code>가 가리키는 정면(앞쪽)이 아니라, 반대편(뒤쪽)에 있다는 뜻입니다! 이제 02장에서는 중학교 2학년 일차함수 <code>y = sx + t</code> 하나로 8K 거대 사진을 확대·축소하는 카메라 렌즈(<code>ViewportTransform</code>)를 만들어 봅시다.</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="index.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">00장 · 오리엔테이션 &amp; 전체 큰 그림</span>
+        </a>
+        <a class="pager-link" href="02-viewport-and-coordinates.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">02장 · 중학교 일차함수로 만드는 뷰포트 변환</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

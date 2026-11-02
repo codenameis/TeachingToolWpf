@@ -10,12 +10,12 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class RoiGpuLayoutTests
 {
     [Fact]
-    public void MixedRepeatedSelectionUsesMultipleColorForOrdinaryRoi()
+    public void BatchSelectionUsesMultipleColorForOrdinaryRoi()
     {
         var editor = new EditorSession();
         editor.SetImage(new("image", "image", 1000, 1000), ViewportTransform.Identity);
         editor.Add(new(new(200, 200), 30, 30, 0));
-        editor.AddRepeatedGrid(new(1, 1, 100, new(400, 400)));
+        editor.AddRange([new RoiGeometry(new(400, 400), 65, 65, 0)], selectAdded: true);
         editor.SelectAll();
         var scene = new RenderScene(editor.State, null, 0, 800, 600, 1, new());
         var constants = new RoiDrawConstants(scene, default, default, true, RoiDrawPass.Stroke);
@@ -68,10 +68,7 @@ public class RoiGpuLayoutTests
             new(new(.5f, .6f, .7f, .8f), new(.6f, .7f, .8f, .9f), 4));
         var transform = new RigidTransform2D(new(1e12, 1e12), 37, new(17, -13));
         var blockOrigin = new PointD(1e12 + 200, 1e12 + 100);
-        var state = DocumentState.Empty with
-        {
-            Viewport = new(.25, new(-2.5e11, -2.5e11))
-        };
+        var state = DocumentState.Empty.WithViewport(new(.25, new(-2.5e11, -2.5e11)));
         var scene = new RenderScene(state, null, 0, 800, 600, 1.5, new(), Styles: palette);
         var named = new RoiDrawConstants(scene, blockOrigin, transform, selected, shadow ? RoiDrawPass.Shadow : RoiDrawPass.Stroke);
 
@@ -108,7 +105,7 @@ public class RoiGpuLayoutTests
         Assert.Equal(32, Marshal.SizeOf<RoiInstance>());
         Assert.Equal(RoiInstance.SizeInBytes, Unsafe.SizeOf<RoiInstance>());
         Assert.Equal(sizeof(uint), RoiInstance.RoleSizeInBytes);
-        var instance = new RoiInstance(new(1, 2), new(3, 4), new(5, 6), 7, 8);
+        var instance = new RoiInstance(new(1, 2), new(3, 4), new(5, 6), (RoiInstanceKind)7, 8);
         var bytes = MemoryMarshal.AsBytes(new[] { instance }.AsSpan());
         Assert.Equal(new float[] { 1, 2, 3, 4, 5, 6 }, MemoryMarshal.Cast<byte, float>(bytes[..24]).ToArray());
         Assert.Equal(new uint[] { 7, 8 }, MemoryMarshal.Cast<byte, uint>(bytes[24..]).ToArray());

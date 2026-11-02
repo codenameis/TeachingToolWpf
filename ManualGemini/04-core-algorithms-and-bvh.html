@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>04. 이미지 타일링 &amp; BVH 공간 트리 — ManualGemini</title>
+  <link rel="stylesheet" href="assets/manual-gemini.css" />
+</head>
+<body>
+  <header class="top-header">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">CHAPTER 04</span>
+      <span>이미지 타일링 &amp; BVH 알고리즘</span>
+    </a>
+    <nav class="top-nav-links">
+      <a href="index.html">홈·전체 구조</a>
+      <a href="01-math-and-vectors.html">01. 수학·벡터</a>
+      <a href="02-hwnd-intptr-simd.html">02. HWND·SIMD</a>
+      <a href="03-code-rules-and-architecture.html">03. 코드규칙·구조</a>
+      <a href="04-core-algorithms-and-bvh.html" class="active">04. 타일링·BVH</a>
+      <a href="05-practical-usage-mvvm.html">05. 실전 MVVM</a>
+      <a href="06-from-scratch-implementation.html">06. 밑바닥 구현</a>
+    </nav>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">🌙 다크 모드</button>
+  </header>
+
+  <div class="layout-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">교재 목차 (Curriculum)</div>
+      <ul class="sidebar-nav">
+        <li><a href="index.html"><span class="chap-num">00</span>전체 구조 한눈에 보기</a></li>
+        <li><a href="01-math-and-vectors.html"><span class="chap-num">01</span>수학 &amp; 벡터 기하학</a></li>
+        <li><a href="02-hwnd-intptr-simd.html"><span class="chap-num">02</span>HWND · IntPtr · SIMD</a></li>
+        <li><a href="03-code-rules-and-architecture.html"><span class="chap-num">03</span>코드 규칙 &amp; 클래스 구조</a></li>
+        <li><a href="04-core-algorithms-and-bvh.html" class="active"><span class="chap-num">04</span>이미지 타일링 &amp; BVH</a></li>
+        <li><a href="05-practical-usage-mvvm.html"><span class="chap-num">05</span>실전 MVVM 사용법</a></li>
+        <li><a href="06-from-scratch-implementation.html"><span class="chap-num">06</span>밑바닥부터 직접 구현</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-banner">
+        <div class="hero-eyebrow">CHAPTER 04 · IMAGE TILING &amp; SPATIAL ALGORITHMS</div>
+        <h1>이미지 타일링 피라미드와 BVH 공간 탐색 트리</h1>
+        <p class="hero-subtitle">
+          17,280 × 30,720(5.3억 화소) 이미지를 그래픽카드 메모리 폭발 없이 부드럽게 보여주는 <strong>다중 해상도 타일 피라미드</strong>와, 수만 개의 ROI 중 마우스가 클릭한 도형을 단 몇 번의 비교로 찾아내는 <strong>BVH 이진 공간 분할 트리</strong>의 원리를 배웁니다.</p>
+      </section>
+
+      <!-- 1. 이미지 타일링과 다중 해상도 피라미드 -->
+      <section class="content-section">
+        <span class="section-badge">ALGORITHM 1 · IMAGE TILING &amp; PYRAMID</span>
+        <h2>1. 네이버·구글 지도는 어떻게 지구 전체를 0.1초 만에 띄울까요?</h2>
+        <div class="story-lead">
+          <strong>핵심 비결:</strong> 이미지를 통째로 불러오지 않고, 가로·세로 <strong>512&nbsp;×&nbsp;512 픽셀 크기의 정사각형 조각(타일, Tile)</strong>으로 바둑판처럼 쪼갠 뒤 <strong>현재 모니터 화면에 보이는 조각만</strong> 불러옵니다!</div>
+        <p>
+          만약 5.3억 화소 이미지를 멀리 축소해서(예: 배율 <code>Scale = 0.125</code>, 즉 1/8 크기) 한눈에 보려고 할 때 원본 타일 수천 개를 전부 읽으면 컴퓨터가 멈춰 버립니다.<br/>그래서 가로·세로를 절반(1/2)씩 미리 줄여 놓은 <strong>피라미드 층(Level 0, Level 1, Level 2...)</strong>을 준비해 둡니다.</p>
+
+        <div class="math-box">
+          <div class="math-box-title">📐 핵심 공식 1 — 고1 로그(log<sub>2</sub>)로 피라미드 층(Level) 고르기</div>
+          <div class="math-formula">
+            <span class="math-label">① 레벨 <i>L</i>의 이미지 크기</span>
+            <span class="math-expr"><i>W<sub>L</sub></i> = <span class="delim-group">&lfloor;<span class="frac"><span class="num"><i>W</i><sub>0</sub> + 2<sup><i>L</i></sup> &minus; 1</span><span class="den">2<sup><i>L</i></sup></span></span>&rfloor;</span>,</span>
+            <span class="math-expr"><i>H<sub>L</sub></i> = <span class="delim-group">&lfloor;<span class="frac"><span class="num"><i>H</i><sub>0</sub> + 2<sup><i>L</i></sup> &minus; 1</span><span class="den">2<sup><i>L</i></sup></span></span>&rfloor;</span></span>
+          </div>
+          <div class="math-formula">
+            <span class="math-label">② 현재 화면 배율 <i>S</i>에 딱 맞는 레벨 선택 (TilePlanner)</span>
+            <span class="math-expr"><i>L</i> = clamp<span class="delim-group">(&lfloor;log<sub>2</sub><span class="delim-group">(<span class="frac"><span class="num">1</span><span class="den"><i>S</i></span></span>)</span>&rfloor;, &nbsp;0, &nbsp;<i>L</i><sub>max</sub>)</span></span>
+          </div>
+          <div class="math-formula">
+            <span class="math-label">③ 화면에 보이는 타일 번호 범위 (TileSize = 512)</span>
+            <span class="math-expr"><i>col</i><sub>min</sub> = <span class="delim-group">&lfloor;<span class="frac"><span class="num"><i>x</i><sub>min</sub></span><span class="den">512</span></span>&rfloor;</span>,</span>
+            <span class="math-expr"><i>col</i><sub>max</sub> = <span class="delim-group">&lfloor;<span class="frac"><span class="num"><i>x</i><sub>max</sub></span><span class="den">512</span></span>&rfloor;</span></span>
+          </div>
+        </div>
+
+        <p>
+          예를 들어 화면을 <code>1/4</code> 배율(<code>S = 0.25</code>)로 축소하면 <code>1 / S = 4</code>이고, <code>log<sub>2</sub>(4) = 2</code>이므로 자동으로 <strong>Level 2(1/4 축소본)</strong> 타일을 선택합니다.<br/>또한 그래픽카드 메모리가 무한정 늘어나지 않도록, 논리 타일 캐시 예산을 <strong>256MiB</strong>로 정해 두고 가장 오래 안 쓴 타일부터 지우는 <strong>LRU(Least Recently Used) 퇴출 규칙</strong>을 사용합니다.</p>
+
+        <div class="anim-stage">
+          <div class="anim-header">
+            <div class="anim-title">🗺️ 인터랙티브 실험실: 배율(Scale)에 따른 피라미드 레벨 &amp; 가시 타일 선택</div>
+            <div class="anim-controls">
+              <label style="font-size:0.8rem; color:#cbd5e1;">화면 배율(Scale):
+                <input id="tile-scale-slider" type="range" min="0.12" max="1.0" step="0.02" value="0.35" style="vertical-align:middle;" />
+              </label>
+            </div>
+          </div>
+          <div class="anim-canvas-wrap">
+            <canvas id="tile-pyramid-canvas" width="860" height="295"></canvas>
+          </div>
+          <div id="tile-pyramid-readout" class="anim-readout">슬라이더로 배율을 바꾸거나 오른쪽 격자 위에서 마우스를 움직여 노란색 뷰포트 창을 이동해 보세요.</div>
+        </div>
+      </section>
+
+      <!-- 2. BVH 공간 분할 트리 (RoiSpatialIndex) -->
+      <section class="content-section">
+        <span class="section-badge">ALGORITHM 2 · BVH SPATIAL INDEX</span>
+        <h2>2. 스무고개로 도형 찾기: BVH 이진 공간 트리</h2>
+        <div class="story-lead">
+          <strong>스무고개 원리:</strong> 10,000개의 ROI 중 마우스가 클릭한 도형을 찾으려고 1번부터 10,000번까지 다 물어보면 너무 느립니다.<br/>대신 <strong>"왼쪽 반쪽에 있니, 오른쪽 반쪽에 있니?"</strong> 하고 큰 상자부터 물어보면 틀린 쪽 절반(5,000개)을 한 번에 건너뛸 수 있습니다!</div>
+        <p>
+          이처럼 도형들을 감싸는 바깥 사각형(AABB, Axis-Aligned Bounding Box)을 반씩 묶어 나무 모양으로 만든 자료구조를 <strong>BVH(Bounding Volume Hierarchy)</strong>라고 부릅니다.<br/>10,000개의 도형이 있어도 <code>log<sub>2</sub>(10000) &approx; 14</code>번 안팎의 상자 확인만으로 클릭된 도형을 즉시 찾아냅니다.</p>
+
+        <div class="anim-stage">
+          <div class="anim-header">
+            <div class="anim-title">🌳 인터랙티브 실험실: BVH 공간 트리 가지치기 (Pruning)</div>
+          </div>
+          <div class="anim-canvas-wrap">
+            <canvas id="bvh-collision-canvas" width="860" height="275"></canvas>
+          </div>
+          <div id="bvh-collision-readout" class="anim-readout">캔버스 위에서 마우스를 움직여 보세요. 마우스가 없는 쪽 그룹은 내부 ROI를 아예 검사하지 않고 통째로 건너뜁니다!</div>
+        </div>
+
+        <div class="code-header" style="margin-top: 18px;">
+          <span>src/VisionCanvas.Core/Geometry/RoiSpatialIndex.cs &amp; BvhNodePath.cs &amp; src/VisionCanvas.Core/Editing/RoiIdSet.cs</span>
+          <span>O(log N) BVH 가지치기 탐색, 1-based BvhNodePath(_valueMinusOne), RoiIdSet 영속 델타</span>
+        </div>
+        <pre><code><span class="cm">// 1. BVH 트리 가지치기 탐색 (O(log N)): 부모 상자와 안 겹치면 하위 수천 개 노드를 통째로 건너뜀!</span>
+<span class="kw">private static void</span> <span class="fn">QueryNode</span>(<span class="ty">Node</span>? node, <span class="ty">BoundsD</span> queryBounds, <span class="ty">List</span>&lt;<span class="ty">Guid</span>&gt; results)
+{
+    <span class="kw">if</span> (node <span class="kw">is null</span> || !node.Bounds.<span class="fn">Intersects</span>(queryBounds)) <span class="kw">return</span>;
+
+    <span class="kw">if</span> (node.LeafEntries <span class="kw">is</span> { } entries)
+    {
+        <span class="kw">foreach</span> (<span class="kw">var</span> entry <span class="kw">in</span> entries)
+            <span class="kw">if</span> (entry.Bounds.<span class="fn">Intersects</span>(queryBounds))
+                results.<span class="fn">Add</span>(entry.Id);
+        <span class="kw">return</span>;
+    }
+    <span class="fn">QueryNode</span>(node.Left, queryBounds, results);
+    <span class="fn">QueryNode</span>(node.Right, queryBounds, results);
+}
+
+<span class="cm">// 2. default(0)에서도 루트(Value=1) 불변식을 유지하는 BvhNodePath와 O(log Δ) RoiIdSet</span>
+<span class="kw">public readonly record struct</span> <span class="ty">BvhNodePath</span>
+{
+    <span class="kw">private readonly uint</span> _valueMinusOne;
+    <span class="kw">public static</span> <span class="ty">BvhNodePath</span> Root =&gt; <span class="kw">default</span>;
+    <span class="kw">public uint</span> Value =&gt; _valueMinusOne + <span class="num">1</span>;
+    <span class="kw">public</span> <span class="ty">BvhNodePath</span> <span class="fn">LeftChild</span>() =&gt; <span class="kw">new</span>(Value &lt;&lt; <span class="num">1</span>);
+    <span class="kw">public</span> <span class="ty">BvhNodePath</span> <span class="fn">RightChild</span>() =&gt; <span class="kw">new</span>((Value &lt;&lt; <span class="num">1</span>) | <span class="num">1</span>);
+}</code></pre>
+      </section>
+
+      <!-- 3. 이분 탐색 경계 제한 & 계층별 마크 보정 -->
+      <section class="content-section">
+        <span class="section-badge">ALGORITHM 3 · BISECTION &amp; FIDUCIAL ALIGNMENT</span>
+        <h2>3. 이분 탐색 경계 클램핑과 계층별 마크 보정</h2>
+        <p>
+          마지막으로, 실제 산업 현장에서 꼭 필요한 두 가지 기하 알고리즘을 정리해 봅시다.
+        </p>
+
+        <div class="grid-2">
+          <div class="concept-card">
+            <h4>① 이분 탐색 경계 제한 (RoiMotionBounds)</h4>
+            <p>
+              회전된 다각형 ROI를 드래그할 때 이미지 밖으로 삐져나가지 않게 막으려면 어디까지 이동할 수 있을까요?<br/>이동 비율 <code>t&nbsp;&in;&nbsp;[0, 1]</code> 구간을 반씩 쪼개어 검사하는 <strong>이분 탐색(Bisection)</strong>을 20회 반복하면, <code>1 / 2<sup>20</sup>&nbsp;&approx;&nbsp;0.000001</code> 정밀도로 이미지 테두리에 딱 붙는 최대 이동량을 구할 수 있습니다.</p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>② 계층별 마크 보정 (FiducialAlignment)</h4>
+            <p>
+              카메라 앞에 놓인 기판(PCB)이 살짝 밀리거나 돌아갔을 때, 기준 마크(Fiducial) 1점을 찍으면 <code>(dx, dy)</code> 평행이동을 구하고, 2~4점을 찍으면 회전각 <code>d&theta;</code>까지 계산합니다.<br/><code>RoiAlignmentMap</code>은 <strong>전체 기판&nbsp;&rarr;&nbsp;모듈&nbsp;&rarr;&nbsp;개별 ROI 그룹</strong>의 보정값을 합성하여 원래 티칭 좌표에 단 한 번 적용합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <nav class="chapter-pager">
+        <a href="03-code-rules-and-architecture.html" class="pager-card">
+          <span class="pager-label">이전 챕터 (Chapter 03)</span>
+          <span class="pager-title">← 03. 코드 규칙 &amp; 클래스 구조</span>
+        </a>
+        <a href="05-practical-usage-mvvm.html" class="pager-card" style="text-align: right;">
+          <span class="pager-label">다음 챕터 (Chapter 05)</span>
+          <span class="pager-title">05. 실전 MVVM 사용법 →</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/manual-gemini.js"></script>
+</body>
+</html>

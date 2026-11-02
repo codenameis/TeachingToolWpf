@@ -8,22 +8,10 @@ public sealed class CorrelationTemplate
     public const int MaximumTemplatePixels = 8_388_608;
     public const int MaximumSearchPixels = 16_777_216;
     public Guid Id { get; } = Guid.NewGuid();
-    public int Width
-    {
-        get;
-    }
-    public int Height
-    {
-        get;
-    }
-    public ImagePoint ReferencePoint
-    {
-        get;
-    }
-    public double ReferenceAngle
-    {
-        get;
-    }
+    public int Width { get; }
+    public int Height { get; }
+    public ImagePoint ReferencePoint { get; }
+    public double ReferenceAngle { get; }
     public long EstimatedBytes => Pixels.LongLength + Mask.LongLength;
     internal byte[] Pixels
     {

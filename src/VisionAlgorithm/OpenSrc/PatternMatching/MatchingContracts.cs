@@ -164,18 +164,9 @@ public sealed class SearchRegion
     public static SearchRegion Intersect(SearchRegion first, SearchRegion? second)
         => second is null ? first : new(first, second);
 
-    public ImmutableArray<ImagePoint> Boundary
-    {
-        get;
-    }
-    public ImagePoint? CircleCenter
-    {
-        get;
-    }
-    public double Radius
-    {
-        get;
-    }
+    public ImmutableArray<ImagePoint> Boundary { get; }
+    public ImagePoint? CircleCenter { get; }
+    public double Radius { get; }
 
     public SearchRegion(ImagePoint center, double radius)
     {
@@ -280,26 +271,11 @@ public sealed class ShapeModel
     }
     public Guid Id { get; } = Guid.NewGuid();
     public int FormatVersion => 1;
-    public ImagePoint TrainingReferencePoint
-    {
-        get;
-    }
-    public double TrainingReferenceAngle
-    {
-        get;
-    }
-    public TrainingOptions Options
-    {
-        get;
-    }
-    public ImmutableArray<ModelLevel> Levels
-    {
-        get;
-    }
-    public ImmutableArray<ImagePoint> Bounds
-    {
-        get;
-    }
+    public ImagePoint TrainingReferencePoint { get; }
+    public double TrainingReferenceAngle { get; }
+    public TrainingOptions Options { get; }
+    public ImmutableArray<ModelLevel> Levels { get; }
+    public ImmutableArray<ImagePoint> Bounds { get; }
     public int TemplateCount => Templates.Length;
     public long EstimatedBytes => Levels.Sum(l => (long)l.Features.Length * 32) +
         Templates.Sum(t => t.Levels.Sum(l => (long)l.Length * 12)) + (ContourModel?.EstimatedBytes ?? 0) + (FineDetail?.EstimatedBytes ?? 0) + (ContourModel is null ? PixelMask?.EstimatedBytes ?? 0 : 0);

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>08장 · 윈도우 핸들(HWND) 개념부터 전용 렌더 스레드까지 라인 바이 라인 해부 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 08 · 3단계: C# 입문자를 위한 Win32 윈도우 핸들(HWND, IntPtr)과 VisionCanvas.Host 완전 해부</div>
+        <h1>08장 · 윈도우 핸들(<code>HWND</code>, <code>IntPtr</code>) 기초부터 <code>ViewportControlBase</code> · <code>RenderWorkerBase</code> · <code>ScenePainter</code> 직접 만들기</h1>
+        <p class="hero-lead">
+          07장까지 우리는 <code>VisionGeometry</code>와 <code>VisionCanvas.Core</code> 두뇌 엔진을 완성했습니다.<br/>
+          이제 이 도형들을 모니터 화면에 초당 60프레임으로 그려낼 차례입니다! 그런데 C# 기본 문법과 MVVM만 배운 학생에게 <code>IntPtr _hwnd</code>, <code>HwndHost</code>, <code>WndProc</code>, <code>wParam</code>, <code>lParam</code>, <code>SwapChain</code>은 외계어처럼 느껴집니다.<br/>
+          이 장에서는 <strong>"윈도우 핸들(<code>HWND</code>)과 <code>IntPtr</code>이 도대체 무엇인가?"</strong>라는 기초부터 시작해, 4대 렌더러(DX12/Vulkan/wgpu/Skia)가 공통으로 상속받는 <strong><code>VisionCanvas.Host</code>의 <code>ViewportControlBase</code> · <code>RenderWorkerBase</code> · <code>ScenePainter</code> · <code>DrawingLayerCollection</code></strong>을 한 줄도 빠짐없이 밑바닥부터 만들어 봅니다!
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 왜 WPF 기본 <code>&lt;Canvas&gt;</code>를 안 쓰고 <code>HWND</code>와 전용 스레드를 쓸까요?</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">왜 WPF 기본 도형은 멈출까?</span>
+            <h4>WPF <code>&lt;Rectangle&gt;</code> 10만 개를 만들면 UI 스레드가 마비됩니다</h4>
+            <p>WPF 기본 컨트롤은 도형 하나마다 무거운 UI 객체(Visual Tree)를 만들고 레이아웃을 계산합니다. 그래서 WPF 창 안에 <strong>그래픽카드가 직접 그림을 쏘는 전용 유리창(<code>HWND</code>)</strong>을 뚫어야 합니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">두 스레드의 분업</span>
+            <h4>UI 스레드는 마우스만 받고, 그림은 <code>RenderWorker</code>가 그린다!</h4>
+            <p>UI 스레드(<code>Dx12Viewport</code>)는 마우스·키보드 신호만 받아 즉시 처리하고, 무거운 그림 그리기는 별도의 전용 백그라운드 스레드(<code>RenderWorker</code>)에 우체통(<code>Channel</code>)으로 맡깁니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">6단 투명 필름 조립</span>
+            <h4><code>ScenePainter.Build</code>가 6단계 레이어를 순서대로 포개어 조립!</h4>
+            <p>① 배경 타일 → ② 필터 영역 → ③ 일반/1억 ROI → ④ 9개 조절 핸들 → ⑤ 드래그 점선 초안 → ⑥ 라벨/미니맵 순서로 <code>SceneFrame</code> 설계도를 완성합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · 아파트 호수 번호표(<code>HWND</code>)와 만화 영화 셀화 필름(<code>ScenePainter</code>)</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>🪧 비유 1 · 운영체제가 발급해 주는 '유리창 관리 번호표' (<code>HWND</code>와 <code>IntPtr</code>)</h4>
+            <p>
+              WPF 프로그램 창이라는 큰 아파트 거실 벽에 '그래픽카드(DirectX 12 / Vulkan / wgpu)가 직접 레이저로 그림을 쏘는 전용 유리창'을 하나 뚫었다고 상상해 보세요.<br/>
+              Windows 운영체제(관리사무소)는 이 유리창에 <strong><code>0x001A04F2</code>번 같은 고유 관리 번호표(Handle to a Window = <code>HWND</code>)</strong>를 붙여주는데, C#에서 이 64비트 번호표를 담는 변수 상자 이름이 바로 <strong><code>IntPtr</code> (또는 <code>nint</code>)</strong>입니다!
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>🎞️ 비유 2 · 만화 영화 투명 셀화 필름 6장 겹치기 (화가 알고리즘, Painter's Algorithm)</h4>
+            <p>
+              만화 영화를 만들 때 맨 아래에 '배경 풍경(1층)'을 깔고, 그 위에 투명 필름으로 '등장인물(3층)'을 얹고, 맨 위에 '말풍선과 조준선(4~6층)'을 얹으면 아래 그림 위에 위 그림이 자연스럽게 덮어써집니다.<br/>
+              이처럼 <strong>뒤에 있는 것부터 앞에 있는 순서대로 차곡차곡 겹쳐 그리는 기법</strong>이 <code>ScenePainter.Build</code>의 핵심 원리입니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & Win32 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 처음 배우는 <code>HWND</code> · <code>IntPtr</code> · <code>WndProc</code> · <code>SwapChain</code> 4대 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 1&nbsp;·&nbsp;HWND와 IntPtr</span> 윈도우 핸들(<code>HWND</code>)&nbsp;=&nbsp;운영체제가 발급하는 '화면 땅문서 번호'</h4>
+            <p>
+              Windows 운영체제는 보안을 위해 일반 프로그램이 화면 메모리를 마음대로 건드리지 못하게 막고, 대신 창을 만들면 <strong>정수 번호표(식별자, Handle)</strong>를 하나 내어줍니다.
+            </p>
+            <ul>
+              <li><strong><code>HWND</code></strong>: Handle to a Window(창 번호표)의 약자입니다.</li>
+              <li><strong><code>IntPtr</code></strong>: C#에서 운영체제의 주소나 번호표(64비트 윈도우에서는 8바이트 정수)를 담는 전용 타입입니다. 즉 <code>IntPtr _hwnd</code>는 <strong>"그래픽카드야, 내 그림을 몇 번 창에 출력해 줘!"</strong>라고 알려줄 때 쓰는 방 번호입니다.</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 2&nbsp;·&nbsp;HwndHost</span> 왜 WPF 안에 <code>HwndHost</code>로 자식 창을 뚫어야 할까?</h4>
+            <p>
+              WPF는 기본적으로 <code>MainWindow</code> 전체에 딱 1개의 <code>HWND</code>만 만들고, 그 안의 버튼이나 <code>&lt;Canvas&gt;</code>는 운영체제가 모르는 WPF 내부 그림으로 처리합니다.<br/>
+              반면 Direct3D 12, Vulkan, wgpu의 고속 화면 출력기(SwapChain)는 반드시 <strong>자신만의 전용 <code>HWND</code> 번호표</strong>를 요구합니다! 그래서 WPF 레이아웃 한가운데에 <strong>독립된 자식 윈도우 핸들(Child <code>HWND</code>)을 분양받아 끼워 넣는 클래스</strong>가 바로 <code>HwndHost</code>입니다.
+            </p>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 3&nbsp;·&nbsp;WndProc</span> 운영체제가 창과 대화하는 우체통 함수: <code>WndProc</code></h4>
+            <p>
+              <code>HWND</code> 창이 만들어지면 Windows 운영체제는 그 창 위에서 마우스가 움직이거나 키보드가 눌릴 때마다 <strong>4개의 숫자 묶음</strong>으로 된 우편물을 <code>WndProc</code> 함수로 배달합니다:
+            </p>
+            <ul>
+              <li><code>IntPtr hwnd</code>: "몇 번 창에 도착한 우편물인가?" (방 번호)</li>
+              <li><code>int msg</code>: "무슨 사건인가?" (예: <code>0x0201</code>&nbsp;=&nbsp;왼쪽 마우스 눌림, <code>0x0200</code>&nbsp;=&nbsp;마우스 이동)</li>
+              <li><code>IntPtr wParam</code>: "보조 정보 1" (Shift/Ctrl 키 상태, 마우스 휠 회전량 등)</li>
+              <li><code>IntPtr lParam</code>: "보조 정보 2" (마우스 가로 X좌표와 세로 Y좌표가 위아래 16비트씩 합쳐진 숫자!)</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 4&nbsp;·&nbsp;SwapChain &amp; Channel</span> 더블 버퍼링(SwapChain)과 최신 프레임 우체통(<code>Channel</code>)</h4>
+            <p>
+              화면에 직접 도형을 그리면 그려지는 과정이 깜빡거리며 보입니다(Tearing). 그래서 GPU는 <strong>뒷면 도화지(Back Buffer)</strong>에 조용히 그림을 다 그린 뒤 완성되는 순간 <strong>앞면 화면(Front Buffer)과 순식간에 맞바꾸기(Swap / Present)</strong>를 합니다.<br/>
+              이때 UI 스레드가 GPU를 기다리지 않도록 비동기 우체통(<code>Channel&lt;RenderFrameRequest&gt;</code>)에 최신 요청 1개만 넣어 백그라운드 <code>RenderWorker</code> 스레드를 깨웁니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학 & 비트 연산으로 한 걸음씩 공식 유도하기 (#sec-wndproc-math)
+           ========================================================================= -->
+      <section class="section-card" id="sec-wndproc-math">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: Win32 <code>lParam</code> 비트 분해와 음수 좌표 함정 피하기</h2>
+        <p>
+          운영체제가 <code>WndProc</code>로 보내주는 <code>lParam</code> 숫자 하나 안에는 마우스 가로 좌표(<i>X</i>)와 세로 좌표(<i>Y</i>)가 16비트(2바이트)씩 나란히 붙어 있습니다. 이를 안전하게 꺼내는 공식을 유도해 봅시다!
+        </p>
+
+        <!-- Formula 8.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 비트 마스크(&amp;)와 시프트(&gt;&gt;)</span>
+              <span>Win32 <code>lParam</code> 패킹 정수에서 부호 있는 (<i>X</i>, <i>Y</i>) 추출 및 DIP 변환</span>
+            </div>
+            <span class="math-eq-num">(식 8.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (왜 반드시 <code>(short)</code>로 변환해야 할까요?):</strong><br/>
+            1) 32비트 정수 <i>L</i>의 오른쪽(하위) 16비트 칸에는 가로 좌표 <i>X</i>가, 왼쪽(상위) 16비트 칸에는 세로 좌표 <i>Y</i>가 들어 있습니다.<br/>
+            2) 하위 16비트만 남기려면 16진수 마스크 <code>0xFFFF</code>(이진수로 하위 16자리가 모두 1)와 비트 AND(<code>&amp;</code>) 연산을 합니다: <code>L &amp; 0xFFFF</code>.<br/>
+            3) 상위 16비트에 있는 <i>Y</i>를 꺼내려면 먼저 오른쪽으로 16칸 밀어낸 뒤(<code>L &gt;&gt; 16</code>) 똑같이 <code>&amp; 0xFFFF</code>를 씌웁니다.<br/>
+            4) <strong>⚠️ 가장 중요한 함정:</strong> 사용자가 도형을 드래그하다가 마우스를 창 왼쪽 바깥으로 끌고 나가면 마우스 좌표가 <strong>음수(예: −10px)</strong>가 됩니다! 16비트 음수 −10(<code>0xFFF6</code>)을 그냥 32비트 <code>int</code>로 읽으면 <code>+65526</code>이라는 거대한 양수로 둔갑해 도형이 화면 오른쪽 끝으로 날아갑니다!<br/>
+            5) 따라서 반드시 <strong>부호 있는 16비트 정수 <code>(short)</code>로 먼저 캐스팅</strong>해 음수 부호를 살린 뒤 모니터 배율 <code>DpiScale</code>로 나누어 주어야 합니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><i>x</i><sub>px</sub> = (short)(<i>L</i> &amp; 0xFFFF),</span>
+                <span class="math-expr"><i>y</i><sub>px</sub> = (short)((<i>L</i> ≫ 16) &amp; 0xFFFF)</span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr">
+                  <b><i>p</i></b><sub>dip</sub> =
+                  <span class="matrix-wrap">
+                    <table class="matrix-table">
+                      <tr>
+                        <td><span class="frac"><span class="num"><i>x</i><sub>px</sub></span><span class="den"><i>d</i><sub>dpi</sub></span></span></td>
+                        <td>,</td>
+                        <td><span class="frac"><span class="num"><i>y</i><sub>px</sub></span><span class="den"><i>d</i><sub>dpi</sub></span></span></td>
+                      </tr>
+                    </table>
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>L</i></td>
+                  <td>운영체제가 전달한 <code>lParam</code> 64비트 정수 값</td>
+                  <td>ℤ (정수)</td>
+                  <td><code>long raw = lParam.ToInt64()</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">&amp; 0xFFFF, ≫ 16</td>
+                  <td>하위 16비트 마스크 추출 및 오른쪽 16비트 시프트 연산</td>
+                  <td>16비트 워드</td>
+                  <td><code>raw &amp; 0xFFFF</code>, <code>(raw &gt;&gt; 16) &amp; 0xFFFF</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">(short)( · )</td>
+                  <td>부호 있는 16비트 정수(<code>short</code>) 변환 (창 밖 드래그 시 음수 좌표 보존!)</td>
+                  <td>[−32768, 32767] (px)</td>
+                  <td><code>unchecked((short)(...))</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>d</i><sub>dpi</sub></td>
+                  <td>모니터 DPI 스케일 팩터 (100% = 1.0, 150% = 1.5)</td>
+                  <td>(0, ∞)</td>
+                  <td><code>_dpiScale</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 윈도우가 마우스 위치 숫자(<code>lParam</code>) 하나 안에 가로 <code>X&nbsp;=&nbsp;300</code>, 세로 <code>Y&nbsp;=&nbsp;150</code>을 묶어서 보냈고 내 모니터 배율(<code>DpiScale</code>)이 <b>1.5배(150%)</b>라면?<br/>
+              • 하위 16비트에서 <code>300</code>, 상위 16비트에서 <code>150</code>을 꺼낸 뒤 <code>1.5</code>로 나누어 <b><code>(200 DIP, 100 DIP)</code></b>로 변환해 <code>InteractionController</code>에 넘겨줍니다!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: <code>ScenePainter.Build</code> 6단계 레이어별 렌더링 분해기</h2>
+        <p>
+          슬라이더를 1단계부터 6단계까지 움직이며 <code>ScenePainter.Build</code>의 각 헬퍼 메서드가 어떤 순서로 투명 필름(레이어)을 쌓아 올리는지 직접 확인해 보세요!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · ScenePainter.Build 6단계 레이어별 렌더링 분해기</div>
+            <div class="lab-subtitle">슬라이더를 1단계부터 6단계까지 움직이며 각 헬퍼 메서드가 무엇을 그리는지 확인하세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="hwnd-render-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-control-group">
+              <label for="scene-layer-slider">렌더링 단계 (1 ~ 6):</label>
+              <input id="scene-layer-slider" type="range" min="1" max="6" value="6" />
+            </div>
+          </div>
+          <div id="hwnd-render-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-build-hwnd)
+           ========================================================================= -->
+      <section class="section-card" id="sec-build-hwnd">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>Dx12Viewport</code>(HWND + WndProc), <code>RenderWorker</code>, <code>ScenePainter</code></h2>
+        <p>
+          이제 자식 윈도우 핸들(<code>HWND</code>)을 만들고, <code>WndProc</code>에서 마우스를 해독하고, 백그라운드 스레드에서 6단 레이어를 조립하는 전체 C# 코드와 라인 바이 라인 해부를 살펴봅시다!
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · VisionCanvas.Host 공통 컨트롤(ViewportControlBase) · RenderWorkerBase · ScenePainter</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Controls/ViewportControlBase.cs">src/VisionCanvas.Host/Controls/ViewportControlBase.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Rendering/RenderWorkerBase.cs">src/VisionCanvas.Host/Rendering/RenderWorkerBase.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Rendering/ScenePainter.cs">src/VisionCanvas.Host/Rendering/ScenePainter.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Layers/DrawingLayerCollection.cs">src/VisionCanvas.Host/Layers/DrawingLayerCollection.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas/Controls/Dx12Viewport.cs">src/VisionCanvas/Controls/Dx12Viewport.cs</a>
+            </div>
+          </div>
+          <pre><code>using System;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+using System.Windows.Interop;
+using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Interaction;
+using VisionGeometry;
+
+namespace VisionCanvas.Controls;
+
+public sealed class Dx12Viewport : HwndHost
+{
+    private const int WsChild = 0x40000000;
+    private const int WsVisible = 0x10000000;
+    private const int WmLButtonDown = 0x0201;
+    private const int WmLButtonUp   = 0x0202;
+    private const int WmMouseMove   = 0x0200;
+    private const int WmMouseWheel  = 0x020A;
+
+    private IntPtr _hwnd;
+    private double _dpiScale = 1.0;
+    private readonly InteractionController _controller;
+
+    // 1. WPF가 화면에 이 컨트롤을 배치할 때 자식 윈도우 핸들(HWND)을 생성합니다.
+    protected override HandleRef BuildWindowCore(HandleRef hwndParent)
+    {
+        int width  = Math.Max(1, (int)Math.Ceiling(Math.Max(ActualWidth, 1.0) * _dpiScale));
+        int height = Math.Max(1, (int)Math.Ceiling(Math.Max(ActualHeight, 1.0) * _dpiScale));
+
+        _hwnd = CreateWindowEx(
+            0, "STATIC", string.Empty,
+            WsChild | WsVisible,
+            0, 0, width, height,
+            hwndParent.Handle, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+
+        return new HandleRef(this, _hwnd);
+    }
+
+    protected override void DestroyWindowCore(HandleRef hwnd)
+    {
+        if (hwnd.Handle != IntPtr.Zero) DestroyWindow(hwnd.Handle);
+    }
+
+    // 2. (식 8.1) lParam 32비트 패킹 정수에서 부호 있는 (short) X, Y를 꺼내 DIP로 변환합니다.
+    private PointD ToDip(IntPtr lParam)
+    {
+        long raw = lParam.ToInt64();
+        int pxX = unchecked((short)(raw &amp; 0xFFFF));
+        int pxY = unchecked((short)((raw &gt;&gt; 16) &amp; 0xFFFF));
+        return new PointD(pxX / _dpiScale, pxY / _dpiScale);
+    }
+
+    // 3. 운영체제가 HWND 창으로 보낸 마우스/키보드 우편물을 해독합니다.
+    protected override IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        switch (msg)
+        {
+            case WmLButtonDown:
+                SetFocus(_hwnd);
+                SetCapture(_hwnd); // 창 밖으로 드래그해도 마우스 이벤트를 놓치지 않게 캡처!
+                _controller.PointerDown(ToDip(lParam), rightButton: false);
+                RequestRender();
+                handled = true;
+                break;
+
+            case WmMouseMove:
+                _controller.PointerMove(ToDip(lParam));
+                RequestRender();
+                handled = true;
+                break;
+
+            case WmLButtonUp:
+                ReleaseCapture();
+                _controller.PointerUp(ToDip(lParam));
+                RequestRender();
+                handled = true;
+                break;
+
+            case WmMouseWheel:
+                int wheelDelta = unchecked((short)((wParam.ToInt64() &gt;&gt; 16) &amp; 0xFFFF));
+                _controller.MouseWheel(ToDip(lParam), wheelDelta);
+                RequestRender();
+                handled = true;
+                break;
+        }
+        return IntPtr.Zero;
+    }
+
+    private void RequestRender() { /* Channel에 최신 프레임 그리기 요청 전송 */ }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateWindowEx(
+        int exStyle, string className, string windowName, int style,
+        int x, int y, int width, int height,
+        IntPtr hwndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+
+    [DllImport("user32.dll")] private static extern bool DestroyWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern IntPtr SetCapture(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern bool ReleaseCapture();
+    [DllImport("user32.dll")] private static extern IntPtr SetFocus(IntPtr hwnd);
+}</code></pre>
+
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>행 / 핵심 코드</th>
+                <th>초보자 눈높이 한 줄 설명</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>_hwnd = CreateWindowEx(..., WsChild | WsVisible, ..., hwndParent.Handle, ...);</code></td>
+                <td>Windows OS의 <code>user32.dll</code> 함수를 호출해 부모 창(<code>hwndParent.Handle</code>) 안에 속한 자식 창(<code>WsChild</code>)을 만들고, 발급받은 고유 번호표를 <code>_hwnd</code>에 저장합니다.</td>
+              </tr>
+              <tr>
+                <td><code>int pxX = unchecked((short)(raw &amp; 0xFFFF));</code></td>
+                <td>(식 8.1)의 구현입니다. 하위 16비트를 <code>(short)</code>로 캐스팅해 창 왼쪽/위쪽 밖으로 드래그할 때 발생하는 음수 좌표(−10 등)를 정확하게 보존합니다.</td>
+              </tr>
+              <tr>
+                <td><code>SetCapture(_hwnd);</code></td>
+                <td>마우스 버튼을 누른 순간 호출하여, 사용자가 드래그 도중 마우스를 창 바깥으로 끌고 나가도 마우스 이동 메시지가 끊기지 않고 우리 창으로 계속 들어오게 붙잡습니다!</td>
+              </tr>
+              <tr>
+                <td><code>while (_channel.Reader.TryRead(out var newer)) request = newer;</code></td>
+                <td>백그라운드 <code>RenderWorker</code> 스레드에서 큐에 밀린 옛날 프레임 요청들을 건너뛰고 <strong>가장 최신 요청 1개만 꺼내 그려서</strong> 렌더링 지연을 0으로 만듭니다.</td>
+              </tr>
+              <tr>
+                <td><code>var scene = painter.Build(request.Viewport);</code></td>
+                <td><code>ScenePainter.Build</code>가 ① 배경 타일 → ② 필터 영역 → ③ 일반/1억 ROI → ④ 핸들 → ⑤ 드래그 점선 → ⑥ 라벨/미니맵 6단 레이어를 순서대로 조립합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & UML 다이어그램 (#sec-solid-grasp, #sec-diagrams)
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: 윈도우 핸들(<code>HWND</code>)과 렌더링 파이프라인 클래스 분리</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Indirection (간접성 / 비동기 채널)</span>
+            <h4>UI 스레드와 GPU 스레드 사이를 <code>Channel&lt;RenderFrameRequest&gt;</code>로 분리</h4>
+            <p>UI 스레드가 직접 GPU 함수를 호출하면 그래픽카드가 바쁠 때 마우스 커서까지 멈춥니다. 비동기 채널(우체통)을 사이에 두어 두 스레드가 서로 기다리지 않게 분리했습니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Pure Fabrication (순수 가공물)</span>
+            <h4>장면 조립만 전담하는 <code>ScenePainter</code> 클래스</h4>
+            <p>GPU 드로우콜을 쏘는 코드와 '무엇을 어떤 순서(6단계)로 그릴지' 결정하는 코드를 분리하기 위해 <code>ScenePainter</code>라는 장면 조립 전용 클래스를 만들었습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>창 관리(<code>Dx12Viewport</code>) · 스레드 루프(<code>RenderWorker</code>) · 장면 설계도(<code>SceneFrame</code>) 분리</h4>
+            <p><code>Dx12Viewport</code>는 Win32 <code>HWND</code> 생성과 마우스 메시지만 처리하고, <code>ScenePainter</code>는 불변 설계도인 <code>SceneFrame</code>만 만들며, 실제 GPU 출력은 <code>RenderWorker</code>가 맡습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · DIP &amp; Protected Variations</span>
+            <h4><code>SceneFrame</code> 덕분에 DX12·Vulkan·wgpu·Skia가 똑같은 장면 조립 로직 공유</h4>
+            <p><code>ScenePainter</code>가 특정 그래픽카드 API에 종속되지 않고 순수 데이터 묶음(<code>SceneFrame</code>)을 만들어주므로, 어떤 렌더러에서도 똑같은 화면이 그려집니다.</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 이 구조가 왜 60FPS 최적화의 핵심일까요?</strong><br/>UI 스레드는 마우스 입력 처리에만 100% 집중하고, 무거운 6단 레이어 조립과 GPU 업로드는 백그라운드 <code>RenderWorker</code> 스레드에서 병렬로 돌아가며, 불변 스냅샷(<code>DocumentState</code>)을 넘기므로 스레드 락(<code>lock</code>) 대기 시간이 0ms입니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>08장 Win32 HWND 뷰포트 · 백그라운드 렌더 스레드 · <code>ScenePainter</code> 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"VisionCanvas.Host Base","title":"ViewportControlBase","role":"4대 렌더러가 상속받는 공통 HwndHost로 WndProc 입력·레이어·타일 브리지 담당","color":"#38bdf8","members":["- _renderer: IRenderWorker?","+ Layers: DrawingLayerCollection","# BuildWindowCore(): ViewportWindow.Create","# WndProc(hwnd, msg, wParam, lParam)","+ Submit(RenderScene)"]},{"stereotype":"Backend Control","title":"Dx12Viewport (및 Vulkan/Wgpu/Skia)","role":"ViewportControlBase를 상속받아 각 그래픽스 백엔드 전용 RenderWorker만 생성","color":"#f472b6","members":["+ DevicePreference: RenderDevicePreference","# CreateRenderer(handle, tiles, ...): IRenderWorker"]},{"stereotype":"Shared Render Thread Base","title":"RenderWorkerBase","role":"4대 렌더 워커가 공유하는 백그라운드 스레드 수명 및 2-Pass 프레임 루프","color":"#34d399","members":["- _wake: AutoResetEvent","- _latestSubmission: Submission?","+ Submit(RenderScene) / Resize(w, h)","# RunTwoPhaseFrameLoop(...)"]},{"stereotype":"GRASP Pure Fabrication","title":"ScenePainter","role":"배경 타일 → 필터 → [RoiBatchBoundary] → 드래그/핸들 → 초안 → 라벨/레이어/미니맵 조립","color":"#fbbf24","members":["+ RoiBatchBoundary: int (2-Pass 경계)","+ Build(scene, white, tiles, ...): SpriteMesh","- DrawBackgroundImage() / DrawFilterRegions()","- DrawHoverAndSelectionHandles() / DrawDraftOverlays()","- DrawSceneLabelsAndMinimap()"]},{"stereotype":"Overlay Layers","title":"DrawingLayerCollection","role":"ROI·Undo 이력과 독립적으로 UI에서 즉시 게시되는 명명된 오버레이 레이어(Inspection, Crosshair 등)","color":"#818cf8","members":["+ Create(name, LayerSpace): DrawingLayer","+ Snapshot: ImmutableArray<LayerSnapshot>"]}],"edges":[{"from":1,"to":0,"label":"상속 (inherits)"},{"from":0,"to":4,"label":"Layers 보유"},{"from":0,"to":2,"label":"Submit(RenderScene) 전달"},{"from":2,"to":3,"label":"ScenePainter.Build 호출"}],"tiers":[[1],[0,4],[2],[3]]}</script>
+        <div class="diagram-caption">4대 렌더러가 공통으로 상속받는 <code>VisionCanvas.Host</code>의 <code>ViewportControlBase</code>, <code>RenderWorkerBase</code>, <code>ScenePainter</code>, <code>DrawingLayerCollection</code> 구조입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>08장 시퀀스 다이어그램 · Win32 <code>WndProc</code> 마우스 수신부터 <code>RunTwoPhaseFrameLoop</code> 2-Pass 출력 흐름</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["Windows OS","ViewportControlBase (UI)","InteractionController","RenderWorkerBase (Thread)","ScenePainter","RoiPipeline (GPU)"],"messages":[{"from":0,"to":1,"text":"WndProc(WM_MOUSEMOVE, wParam, lParam)"},{"from":1,"to":1,"text":"DecodePoint(lParam) 후 Dpi로 나누어 DIP 계산"},{"from":1,"to":2,"text":"Move(point, Modifiers) → 프리뷰 갱신"},{"from":1,"to":3,"text":"Submit(RenderScene) → _latestSubmission 교체 및 _wake.Set()"},{"from":3,"to":4,"text":"Build(scene, ...) 호출 → RoiBatchBoundary 설정된 SpriteMesh 반환"},{"from":3,"to":5,"text":"Pass 1(배경 타일/필터) → drawMasksAndRois() → Pass 2(핸들/라벨/미니맵) Present!"}]}</script>
+        <div class="diagram-caption">Windows OS가 보낸 <code>WM_MOUSEMOVE</code> 메시지가 UI 스레드를 거쳐 백그라운드 <code>RenderWorker</code>에서 6단 레이어로 그려지는 순서입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 08장 마무리 셀프 체크 &amp; 다음 장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · UI 스레드가 느려지지 않도록 <code>RenderWorker</code>에 그리기 요청을 보낼 때 왜 '최신 프레임 1개만 남기는 우체통(DropOldest 채널)'을 쓸까요?</summary>
+          <p><strong>정답:</strong> 마우스가 이미 새 위치로 이동했다면 지나간 옛날 마우스 위치의 화면은 굳이 그릴 필요가 없습니다. 밀린 옛날 요청은 버리고 가장 마지막 최신 화면만 즉시 그려야 지연(Lag)이 쌓이지 않기 때문입니다!</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 다음 장(09장)에서는 어떤 GPU &amp; SIMD 기술을 배우나요?</summary>
+          <p><strong>징검다리:</strong> 이제 <code>HWND</code> 창과 <code>ScenePainter</code>까지 준비되었습니다! 그런데 가로 17,280 × 세로 30,720(약 5.3억 픽셀) 크기의 <code>ken32.png</code> 사진은 그래픽카드가 한 번에 올릴 수 있는 최대 텍스처 크기(16,384px)를 넘어섭니다! 어떻게 이 거대한 사진을 <strong>CPU <code>SIMD</code>(8차선 고속도로 명령어)</strong>로 빠르게 축소 피라미드로 만들고, <strong>512×512 타일(<code>TilePlanner</code>)</strong>과 <strong>GPU 하드웨어 인스턴싱(<code>RoiPipeline</code>)</strong>으로 그릴까요? 다음 <strong>09장</strong>에서 확인해 봅시다!</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="07-immutable-document-and-history.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">07장 · 불변 문서(DocumentState)와 Undo/Redo·그룹</span>
+        </a>
+        <a class="pager-link" href="09-gpu-roi-pipeline-and-tiles.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">09장 · 타일 피라미드 LOD와 GPU ROI 인스턴싱</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

@@ -11,10 +11,7 @@ public class BulkSnapshotTests
     {
         var values = Enumerable.Range(0, 5000).Select(i => new Roi(Guid.NewGuid(), $"R{i}",
             new(new(i * 20, 50), 10, 10, 0), null, false, i)).ToImmutableDictionary(r => r.Id);
-        var before = DocumentState.Empty with
-        {
-            Rois = values
-        };
+        var before = DocumentState.Empty.WithRois(values, values.Keys);
         var nextValues = values.ToImmutableDictionary(p => p.Key, p => p.Value with { Geometry = p.Value.Geometry.Translate(new(0, 100)) });
         var after = before.WithRois(nextValues, values.Keys);
 
@@ -33,10 +30,8 @@ public class BulkSnapshotTests
     {
         var parent = new Roi(Guid.NewGuid(), "parent", new(new(50, 50), 100, 100, 0), null, true, 1);
         var child = new Roi(Guid.NewGuid(), "child", new(new(50, 50), 10, 10, 0), parent.Id, false, 2);
-        var before = DocumentState.Empty with
-        {
-            Rois = new[] { parent, child }.ToImmutableDictionary(r => r.Id)
-        };
+        var initialRois = new[] { parent, child }.ToImmutableDictionary(r => r.Id);
+        var before = DocumentState.Empty.WithRois(initialRois, initialRois.Keys);
         var changedParent = parent with
         {
             Name = "renamed",

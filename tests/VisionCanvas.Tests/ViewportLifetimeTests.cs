@@ -10,13 +10,14 @@ using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging;
 using VisionCanvas.Rendering;
+using VisionGeometry;
 
 namespace VisionCanvas.Tests;
 
 public sealed class ViewportLifetimeTests
 {
     [Fact]
-    public Task RepeatedPartialSummaryRemainsVisibleAndUsesConfiguredThickness() => OnStaAsync(async () =>
+    public Task BatchOrdinaryRoisRemainVisibleAndUseConfiguredThickness() => OnStaAsync(async () =>
     {
         using var viewport = new Dx12Viewport { DevicePreference = RenderDevicePreference.Software };
         var window = CreateWindow(viewport);
@@ -28,31 +29,40 @@ public sealed class ViewportLifetimeTests
         {
             window.Show();
             await ready.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            var batch = new RepeatedRoiBatch(Guid.NewGuid(), "partial", 1, new(100, 100, 1, new(100, 100)))
-                .Slice(RoiCellSet.Create([new(202, 204)]))!;
-            Assert.True(await RedPixels(batch, .5f) > 0, "A two-cell block inside a summary tile must not disappear.");
-            batch = new RepeatedRoiBatch(Guid.NewGuid(), "detail", 1, new(3, 3, 24, new(64, 64)));
-            batch = batch.WithGeometry(4, new(new(64, 64), 10, 12, 30));
-            var thin = await RedPixels(batch, .5f);
-            var thick = await RedPixels(batch, 4);
-            Assert.True(thick > thin * 2, $"Configured thickness must affect base cells and overrides: {thin} -> {thick}.");
-            batch = new RepeatedRoiBatch(Guid.NewGuid(), "outer stroke", 1, new(1, 1, 10, new(64, 64)));
-            await RedPixels(batch, 8, 70);
+            var twoCells = new RoiGeometry[]
+            {
+                new(new(52, 52), 2, 2, 0),
+                new(new(54, 52), 2, 2, 0)
+            };
+            Assert.True(await RedPixels(twoCells, .5f) > 0, "A two-cell block inside a summary tile must not disappear.");
+            var detailGrid = new List<RoiGeometry>();
+            for (var r = -1; r <= 1; r++)
+            {
+                for (var c = -1; c <= 1; c++)
+                {
+                    detailGrid.Add(r == 0 && c == 0
+                        ? new(new(64, 64), 10, 12, 30)
+                        : new(new(64 + (c * 24), 64 + (r * 24)), 15.6, 15.6, 0));
+                }
+            }
+            var thin = await RedPixels(detailGrid, .5f);
+            var thick = await RedPixels(detailGrid, 4);
+            Assert.True(thick > thin * 2, $"Configured thickness must affect ordinary ROIs: {thin} -> {thick}.");
+            await RedPixels([new(new(64, 64), 10, 10, 0)], 8, 70);
         }
         finally
         {
             window.Close();
         }
 
-        async Task<int> RedPixels(RepeatedRoiBatch batch, float thickness, double minimumRightDip = 0)
+        async Task<int> RedPixels(IEnumerable<RoiGeometry> geometries, float thickness, double minimumRightDip = 0)
         {
-            var path = Path.Combine(Path.GetTempPath(), $"repeated-render-{Guid.NewGuid():N}.png");
+            var path = Path.Combine(Path.GetTempPath(), $"ordinary-render-{Guid.NewGuid():N}.png");
             try
             {
-                var state = DocumentState.Empty with
-                {
-                    RepeatedRois = DocumentState.Empty.RepeatedRois.Add(batch.Id, batch)
-                };
+                var editor = new EditorSession();
+                editor.AddRange(geometries, selectAdded: false, isNameVisible: false);
+                var state = editor.State;
                 var style = new RoiStrokeStyle(new Vector4(1, 0, 0, 1), new Vector4(1, 0, 0, 1), thickness);
                 viewport.Submit(new(state, null, 0, viewport.ActualWidth, viewport.ActualHeight, viewport.Dpi, new(), Styles: new(style, style, style)));
                 viewport.Capture(path);
@@ -81,7 +91,7 @@ public sealed class ViewportLifetimeTests
                     }
                     catch (IOException) { /* Wait for the PNG writer to finish. */ }
                 }
-                throw new TimeoutException("Repeated ROI capture did not complete.");
+                throw new TimeoutException("Ordinary ROI capture did not complete.");
             }
             finally
             {
@@ -320,10 +330,10 @@ public sealed class ViewportLifetimeTests
 
     private static void SetRenderer(Dx12Viewport viewport, RenderWorker renderer) => RendererField.SetValue(viewport, renderer);
 
-    private static FieldInfo RendererField => typeof(Dx12Viewport).GetField("_renderer", BindingFlags.Instance | BindingFlags.NonPublic)!;
+    private static FieldInfo RendererField => typeof(ViewportControlBase).GetField("_renderer", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
     private static Thread GetRenderThread(RenderWorker renderer)
-        => Assert.IsType<Thread>(typeof(RenderWorker).GetField("_thread", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(renderer));
+        => Assert.IsType<Thread>(typeof(RenderWorkerBase).GetField("_thread", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(renderer));
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

@@ -9,15 +9,9 @@ public sealed class PreparedSearchImage
     public const int MaximumPixels = 2_097_152;
     public int Width => Gradients[0].Width;
     public int Height => Gradients[0].Height;
-    public float MinimumGradient
-    {
-        get;
-    }
+    public float MinimumGradient { get; }
     public int LevelCount => Gradients.Length;
-    public double ElapsedMilliseconds
-    {
-        get;
-    }
+    public double ElapsedMilliseconds { get; }
     public long EstimatedBytes => Gradients.Sum(g => g.EstimatedBytes) +
         Maps.Sum(map => map.EstimatedBytes) + (Original?.Pixels.Length ?? 0) + ExcludedPixels.Length;
     internal GrayImage? Original

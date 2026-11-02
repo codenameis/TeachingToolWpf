@@ -7,10 +7,7 @@ namespace VisionImaging;
 
 public sealed class SyntheticFrameSource(PixelKind kind = PixelKind.Gray8, int width = 7680, int height = 4320, int fps = 60) : IFrameSource
 {
-    public ImageInfo Info
-    {
-        get;
-    } = new("live:synthetic", "8K 실시간 합성 영상", width, height, kind, 1);
+    public ImageInfo Info { get; } = new("live:synthetic", "8K 실시간 합성 영상", width, height, kind, 1);
 
     public async IAsyncEnumerable<VideoFrame> Frames([EnumeratorCancellation] CancellationToken cancellationToken)
     {

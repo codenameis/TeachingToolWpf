@@ -9,7 +9,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
+    <ProjectReference Include="../../src/VisionCanvas.Host/VisionCanvas.Host.csproj" />
     <ProjectReference Include="../../src/VisionCanvas/VisionCanvas.csproj" />
+    <ProjectReference Include="../../src/VisionCanvas.Filters.Wpf/VisionCanvas.Filters.Wpf.csproj" />
     <ProjectReference Include="../../src/VisionImaging/VisionImaging.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

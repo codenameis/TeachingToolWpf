@@ -17,11 +17,29 @@ public static class HandleGeometry
         }
     }
 
+    public static void CopyResizeHandlesTo(RoiGeometry rect, ViewportTransform view, Span<PointD> destination)
+    {
+        if (destination.Length < 8)
+        {
+            throw new ArgumentException("버퍼 크기는 최소 8이어야 합니다.", nameof(destination));
+        }
+
+        var corners = rect.FrameCorners.Select(view, static (v, p) => v.ImageToScreen(p));
+        destination[0] = corners.A;
+        destination[1] = (corners.A + corners.B) / 2;
+        destination[2] = corners.B;
+        destination[3] = (corners.B + corners.C) / 2;
+        destination[4] = corners.C;
+        destination[5] = (corners.C + corners.D) / 2;
+        destination[6] = corners.D;
+        destination[7] = (corners.D + corners.A) / 2;
+    }
+
     public static IReadOnlyList<PointD> ResizeHandles(RoiGeometry rect, ViewportTransform view)
     {
-        var corners = rect.FrameCorners.Select(view.ImageToScreen).ToArray();
-        return [corners[0], (corners[0] + corners[1]) / 2, corners[1], (corners[1] + corners[2]) / 2,
-            corners[2], (corners[2] + corners[3]) / 2, corners[3], (corners[3] + corners[0]) / 2];
+        var handles = new PointD[8];
+        CopyResizeHandlesTo(rect, view, handles);
+        return handles;
     }
 
     public static PointD RotationHandle(RoiGeometry rect, ViewportTransform view, double scale = DefaultScale)
@@ -57,8 +75,7 @@ public static class HandleGeometry
         if (original.Shape.Kind == RoiShapeKind.Circle)
         {
             // 반대쪽 핸들을 고정하고 지름을 바꾼다. 원은 타원으로 변하지 않는다.
-            var size = handle is 1 or 5 ? bottom - top : handle is 3 or 7 ? right - left : Math.Min(right - left, bottom - top);
-            size = Math.Max(.01, size);
+            var size = ComputeCircleDiameter(handle, left, right, top, bottom);
             if (handle is 0 or 6 or 7)
             {
                 left = right - size;
@@ -88,5 +105,24 @@ public static class HandleGeometry
             return original.WithFrame(original.ToWorld(new((left + right) / 2, (top + bottom) / 2)), size, size, original.Angle);
         }
         return original.WithFrame(original.ToWorld(new((left + right) / 2, (top + bottom) / 2)), Math.Max(.01, right - left), Math.Max(.01, bottom - top), original.Angle);
+    }
+
+    private static double ComputeCircleDiameter(int handle, double left, double right, double top, double bottom)
+    {
+        double rawSize;
+        if (handle is 1 or 5)
+        {
+            rawSize = bottom - top;
+        }
+        else if (handle is 3 or 7)
+        {
+            rawSize = right - left;
+        }
+        else
+        {
+            rawSize = Math.Min(right - left, bottom - top);
+        }
+
+        return Math.Max(.01, rawSize);
     }
 }

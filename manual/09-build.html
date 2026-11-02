@@ -10,7 +10,7 @@
 </div>
 <section class="lesson-start" id="start-here">
 <p class="lesson-label">먼저 이 장면 하나만 생각하세요</p>
-<h2>한꺼번에 만들지 말고, 확인되는 순서로 연결합시다</h2><p>목표는 8K 체크무늬를 보여 주고 ROI를 끌 수 있는 작은 창입니다. 처음부터 전부 연결하면 검은 화면의 원인이 좌표인지 입력인지 표시인지 알기 어렵습니다. 화면 없이 확인할 수 있는 것부터 통과시킵니다.</p>
+<h2>한꺼번에 만들지 말고, 확인되는 순서로 연결합시다</h2><p>이번에는 배운 내용을 작은 프로그램으로 연결합니다. 도착점은 8K 체크무늬 위의 ROI를 마우스로 옮기는 창입니다. 먼저 콘솔에서 계산값을 확인하고, 다음으로 코드로 마우스 입력을 흉내 내고, 마지막에 창을 붙입니다. 문제가 생기면 어느 단계부터 틀렸는지 알 수 있는 순서입니다. 이미 C#의 변수·조건문·메서드를 읽을 수 있다면 시작할 수 있습니다. 새 문법은 해당 코드 옆에서 풀어 설명합니다.</p>
 <p class="lesson-key"><strong>기억할 한 문장</strong>계산 → 입력 → 창 연결 순서로, 각 단계의 결과를 확인하고 다음으로 갑니다.</p>
 <ol class="scene-steps"><li><strong>Foundations · 계산 확인</strong><p>좌표·메모리·계층·이력의 예상 결과를 확인합니다. 실행하면 PASS 열한 개가 나와야 합니다.</p></li><li><strong>InputLifecycle · 드래그 확인</strong><p>실제 마우스 대신 Down·Move·Up·Cancel을 넣습니다. 마지막 위치 반영과 Undo·취소를 포함한 PASS 여덟 개를 확인합니다.</p></li><li><strong>CanvasHost · 화면 확인</strong><p>합성 타일과 입력·세션·뷰포트를 연결합니다. 체크무늬와 ROI가 보이고, 이동·취소·Undo가 동작하는지 확인합니다.</p></li></ol>
 <div class="predict"><h3>잠깐, 답을 보기 전에 예상해 보세요</h3><p>창을 띄우기 전에 취소 동작을 검증할 수 있을까요?</p><details><summary>예상과 비교하기</summary><p>가능합니다. InputLifecycle처럼 같은 입력 컨트롤러에 포인터 좌표와 취소 요청을 직접 넣고 문서 상태를 확인합니다. 그 확인을 마친 뒤 창에서 오는 실제 입력과 표시를 연결합니다.</p></details></div>
@@ -18,7 +18,7 @@
 </section>
 <section id="reading-2">
 <h2>세 개의 실행 가능한 실습</h2>
-<p class="lesson-question">“전체 솔루션을 열었는데 어디부터 만들어야 할지 모르겠어요.” 먼저 화면 없이도 정답을 아는 계산을 만들고, 그 결과를 작은 창에 연결합시다. 창이 검게 나올 때 좌표·타일·GPU 중 어디가 틀렸는지 구별하려면, 각 단계에 눈으로 확인할 수 있는 정답이 필요합니다.</p>
+<p class="lesson-question">“파일이 너무 많아서 어느 것부터 실행해야 할지 모르겠어요.” 아래 명령을 한꺼번에 붙여 넣지 말고 <strong>Foundations의 두 줄</strong>부터 실행하세요. <code>build</code>는 코드를 실행 파일로 만드는 작업, <code>run</code>은 만든 프로그램을 실행하는 작업입니다. PASS는 예상한 결과와 실제 결과가 같다는 뜻입니다.</p><p>계산 실습이 맞으면 InputLifecycle로 입력을 확인하고, 그다음 CanvasHost로 화면을 연결합니다. 이렇게 하면 검은 화면을 봤을 때 계산부터 전부 의심하지 않아도 됩니다.</p>
 
 <details class="code-example">
 <summary><span class="code-language">PowerShell</span><span class="code-title">세 개의 실행 가능한 실습</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
@@ -44,10 +44,10 @@ dotnet run --project manual/labs/CanvasHost -c Release --no-build -- --software-
 <section id="reading-3">
 <h2>단계 A: GPU 없이 먼저 정답 만들기</h2>
 <ol><li><strong>입력과 단위를 쓴다.</strong> 원본 좌표는 px, UI는 DIP, 각도는 degree라고 문서에 적습니다.</li><li><strong>PointD와 변환을 읽는다.</strong> (100,50) → (220,110)과 역변환이 맞는지 Foundations에서 확인합니다.</li><li><strong>문서를 만든다.</strong> EditorSession.InitializeImage는 최초 이미지 상태를 준비합니다. 일반 교체의 SetImage와 구분합니다.</li><li><strong>ROI를 추가한다.</strong> Add와 AddChild를 사용합니다. 사전을 외부에서 직접 수정하지 않습니다.</li><li><strong>이력을 검증한다.</strong> 부모 삭제→Undo→Redo→새 편집의 분기 제거까지 확인합니다.</li></ol>
-<p>이 단계에서 틀린 좌표를 GPU 화면을 보며 고치려 하면 원인이 수식인지 표시인지 구분하기 어렵습니다. 계산과 규칙을 먼저 테스트하는 이유입니다.</p>
+<p>종이에 먼저 적어 볼 답은 “원본 점을 화면으로 바꾸고, 다시 되돌리면 처음 점이 나와야 한다”입니다. 프로그램 결과가 다르면 변환 계산부터 봅니다. 아직 창이나 그래픽 장치를 붙이지 않았으므로 원인을 좁히기 쉽습니다. 한 숫자가 맞는지 확인하는 작은 테스트가 큰 프로그램을 만드는 출발점입니다.</p>
 </section>
 <section id="foundations-code"><h2>실습 A 전체 코드: 이 페이지에서 읽고 실행하기</h2>
-<p>아래 두 파일이 Foundations의 전부입니다. 실행 명령은 이 장 위에 있습니다. 프로젝트 파일의 상대 경로는 저장소의 <code>manual/labs/Foundations</code> 위치를 기준으로 합니다. using은 다른 namespace의 이름을 가져오는 선언이며, PixelBuffer 옆의 using은 자원 해제를 약속하는 문법입니다.</p>
+<p><code>.csproj</code>는 어떤 .NET 버전과 프로젝트를 사용할지 적는 설정 파일이고, <code>Program.cs</code>는 실행할 C# 코드입니다. 아래 두 파일이 Foundations의 전부입니다. 실행 명령은 이 장 위에 있으며, 상대 경로는 <code>manual/labs/Foundations</code> 폴더를 기준으로 합니다.</p><p>맨 위의 <code>using</code>은 다른 namespace(타입 이름을 묶는 이름 공간)의 이름을 짧게 쓰도록 합니다. <code>PixelBuffer</code>를 만드는 곳의 <code>using</code>은 다른 뜻입니다. 블록이 끝날 때 사용한 자원을 정리하겠다는 약속입니다.</p>
 <details id="source-d6d2eff6975b" class="code-example">
 <summary><span class="code-language">XML</span><span class="code-title">Foundations.csproj · 프로젝트 설정</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
 <div class="code-toolbar"><span class="code-file">Foundations.csproj · 12줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="Foundations.csproj · 프로젝트 설정 코드 복사">복사</button></div>
@@ -120,11 +120,11 @@ static void Require(bool condition, string description)
 }</code></pre>
 <p class="code-copy-status" role="status"></p><p class="source">현재 저장소 코드 · 파일 전체 · <code>manual/labs/Foundations/Program.cs</code></p></details>
 </section>
-<section class="implementation-lesson" id="reading-1"><h2>단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기</h2><p>창을 붙이기 전에 입력 계약부터 실행해 보겠습니다. 좌표만 직접 넣으면 실제 마우스와 같은 Down·Move·Up·Cancel을 GPU 없이 검증할 수 있습니다. 새 폴더 <code>manual/labs/InputLifecycle</code>에 아래 두 파일을 두고 실행하세요. 기존 저장소에는 이미 들어 있습니다.</p><details class="code-example">
+<section class="implementation-lesson" id="reading-1"><h2>단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기</h2><p>컴퓨터가 받는 마우스 입력은 결국 “어디를 눌렀다”, “어디로 움직였다”, “어디서 놓았다”라는 정보입니다. 따라서 진짜 마우스가 없어도 좌표를 넣어 같은 입력 코드를 실행할 수 있습니다. 아래 실습은 <code>Down</code>, <code>Move</code>, <code>Up</code>, <code>Cancel</code>을 직접 호출합니다. 창을 붙이기 전에 놓기와 취소의 결과가 다른지 확인하는 것입니다. 두 파일은 <code>manual/labs/InputLifecycle</code>에 이미 들어 있습니다. 새로 따라 만들 때는 같은 위치에 넣으세요.</p><details class="code-example">
 <summary><span class="code-language">PowerShell</span><span class="code-title">단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
 <div class="code-toolbar"><span class="code-file">본문 예제 · 1줄</span><button type="button" data-copy-code hidden aria-label="단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="단계 A와 B 사이: 가짜 마우스로 입력 전체를 재현하기 코드"><code data-language="powershell">dotnet run --project manual/labs/InputLifecycle -c Release</code></pre>
-<p class="code-copy-status" role="status"></p></details><p>예상 결과는 PASS 여덟 줄과 완료 한 줄입니다. 실패하면 Require가 예외를 던지므로 종료 코드도 실패합니다. Up 위치를 Move와 일부러 다르게 두었습니다. 먼저 최종 ROI 중심을 손으로 구하고 실행하세요.</p><details id="source-8371102faecf" class="code-example">
+<p class="code-copy-status" role="status"></p></details><p>실행하면 PASS 여덟 줄과 완료 한 줄이 나와야 합니다. <code>Require</code>는 “이 조건이 정말 맞는지 확인해 줘”라는 학습용 함수입니다. 틀리면 예외를 내고 실패로 끝납니다. 아래 코드에서는 마지막 <code>Move</code> 좌표와 <code>Up</code> 좌표를 일부러 다르게 넣었습니다. 먼저 “손을 놓은 최종 위치가 반영되어야 한다”는 답을 적고 실행해 보세요.</p><details id="source-8371102faecf" class="code-example">
 <summary><span class="code-language">XML</span><span class="code-title">InputLifecycle.csproj</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
 <div class="code-toolbar"><span class="code-file">InputLifecycle.csproj · 12줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="InputLifecycle.csproj 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="InputLifecycle.csproj 코드"><code data-source="labs/InputLifecycle/InputLifecycle.csproj" data-kind="full" data-language="xml">&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
@@ -190,7 +190,7 @@ static void Require(bool condition, string description)
 <p class="code-copy-status" role="status"></p><p class="source">현재 코드 · <code>labs/InputLifecycle/Program.cs</code></p></details><aside class="teach-back"><h3>본문을 가리고 설명하기</h3><p>코드의 영상 배율을2에서4로 바꾸고 화면의 드래그 거리는 유지하면 원본 이동량은 어떻게 됩니까?</p><details><summary>설명 예시와 다시 확인할 지점</summary><p>원본 이동량은 절반이 됩니다. 단, Down 좌표도 ImageToScreen으로 새 중심에 맞춰야 같은 ROI를 클릭합니다. 배율만 바꾸고 예전 화면 좌표를 그대로 쓰면 다른 대상을 누를 수 있습니다.</p></details></aside></section>
 <section id="reading-5">
 <h2>단계 B: 창에 연결하는 다섯 줄의 역할</h2>
-<p class="lesson-question">“생성자와 이벤트를 연결하는 코드는 따라 썼는데 왜 필요한지 모르겠어요.” 물이 어디서 들어와 어떤 관을 지나 어디로 나가는지 그리듯, 입력 하나와 장면 하나가 이동하는 경로를 그려 보세요. 각 객체를 연결한 이유를 설명할 수 있어야 문제가 생겼을 때 고칠 위치를 찾을 수 있습니다.</p>
+<p class="lesson-question">“객체는 만들었는데 왜 이벤트를 연결해야 하나요?” 문서 값이 바뀌어도 화면은 그 사실을 저절로 알지 못합니다. <strong>이벤트</strong>는 다른 객체에 일이 생겼음을 알리는 방법입니다. 아래에서는 편집 세션이 <code>Changed</code>를 알리면, 창이 최신 상태를 모아 화면 그리는 쪽에 전달하도록 연결합니다. 이 연결을 <strong>이벤트 구독</strong>이라고 합니다. 먼저 “누가 알리고 누가 받는가”를 찾아보세요.</p>
 
 <details class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">단계 B: 창에 연결하는 다섯 줄의 역할</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
@@ -200,7 +200,7 @@ var input = new InteractionController(session);
 var viewport = new Dx12Viewport();
 viewport.Input = input;
 session.Changed += (_, _) =&gt; Publish();</code></pre>
-<p class="code-copy-status" role="status"></p></details><p>이 코드는 흐름을 보여 주는 발췌이며 전체 실행 코드는 LessonWindow입니다. session은 문서 책임, input은 마우스 도구 조정, viewport는 HWND와 렌더 수명입니다. Changed에서는 변경된 상태를 장면으로 게시합니다. 사용자가 드래그할 때 overlay도 바뀌므로 <code>input.Changed</code>와 크기 변경 <code>viewport.LayoutChanged</code>도 게시에 연결합니다.</p>
+<p class="code-copy-status" role="status"></p></details><p>이 코드는 연결 흐름만 뽑은 것이며 전체 실행 코드는 <code>LessonWindow</code>에 있습니다. <code>session</code>은 문서와 이력, <code>input</code>은 마우스 동작, <code>viewport</code>는 실제 그림을 보여 줄 창 영역을 맡습니다. viewport는 Windows의 창 식별자(HWND)와 화면 그리기의 시작·종료도 관리합니다.</p><p>문서가 바뀌면 <code>session.Changed</code>, 그리는 중인 임시 도형이 바뀌면 <code>input.Changed</code>, 창 크기가 바뀌면 <code>viewport.LayoutChanged</code>가 알립니다. 모두 최신 화면을 전달하는 <code>Publish</code>로 연결합니다.</p>
 <details class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">단계 B: 창에 연결하는 다섯 줄의 역할</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
 <div class="code-toolbar"><span class="code-file">본문 예제 · 5줄</span><button type="button" data-copy-code hidden aria-label="단계 B: 창에 연결하는 다섯 줄의 역할 코드 복사">복사</button></div>
@@ -209,17 +209,18 @@ viewport.Submit(new RenderScene(
     session.State, imageInfo, generation,
     viewport.ViewWidth, viewport.ViewHeight, viewport.Dpi,
     input.Overlay, Transform: session.TransformPreview));</code></pre>
-<p class="code-copy-status" role="status"></p></details><p>RenderScene의 각 값은 순서대로 문서, 영상 정보, 이미지 세대, 화면 DIP 크기, DPI 계수, 도구 overlay, 편집 preview입니다. <strong>Transform을 빠뜨리면 드래그 중 표시가 확정 문서와 다르게 보일 수 있습니다.</strong> UI 컬렉션을 렌더에 직접 넘기지 않습니다.</p>
+<p class="code-copy-status" role="status"></p></details><p><code>RenderScene</code>은 “이번에 무엇을 어떻게 그릴지” 모은 전달 묶음입니다. 인수는 순서대로 문서, 영상 정보, 이미지 세대, 화면 DIP 크기, DPI 계수, 도구 overlay, 편집 preview입니다.</p><p><strong>이미지 세대</strong>는 이미지가 바뀌었을 때 이전 이미지의 늦은 결과를 구별하는 번호입니다. <strong>overlay</strong>는 그리기 초안이나 선택 상자 같은 임시 안내이고, <strong>preview</strong>는 아직 확정하지 않은 이동·회전입니다. DIP와 DPI는 2장에서 배운 화면 단위와 배율입니다. <code>Transform</code>을 빠뜨리면 드래그 중 위치를 제대로 그리지 못할 수 있습니다. UI가 수정 중인 컬렉션을 그대로 렌더러에 넘기지는 않습니다.</p>
 
-<div class="worked-example"><h3>창이 빈 화면일 때 질문을 좁히기</h3>
+<div class="worked-example"><div class="predict"><h3>짧게 확인하기</h3><p>session.Changed가 알려 왔다면 화면에 새 ROI가 그려지는 일까지 끝난 것일까요?</p><details><summary>생각한 답 확인</summary><p>아닙니다. 문서가 바뀌었으니 새 상태를 읽으라는 알림입니다. 창이 Publish로 장면을 전달하고 렌더러가 그리는 일이 뒤따릅니다. 값 변경, 알림, 화면 표시를 세 단계로 구별해 보세요.</p></details></div>
+<h3>창이 빈 화면일 때 질문을 좁히기</h3>
 <p>첫 질문은 ‘GPU가 고장 났나?’가 아니라 ‘유효한 크기의 창과 이미지 규격이 준비되었나?’입니다. 다음은 ‘장면이 게시되었나?’, ‘필요한 타일이 요청되고 반환되었나?’, ‘렌더 쪽에서 현재 세대의 결과를 받았나?’입니다. 앞 경계의 출력이 확인된 뒤 다음 경계로 넘어갑니다.</p>
 <p>아래 전체 코드의 Publish를 읽을 때 State·Image·Generation·크기·DPI·미리보기를 하나씩 짚으며 ‘이 값이 빠지면 무엇을 결정하지 못하는가’를 말해 보세요. 예를 들어 DPI를 빼면 DIP와 물리 px를 맞출 정보가 사라지고, Generation을 빼면 이전 이미지의 늦은 결과를 구별하기 어려워집니다.</p></div>
 </section>
 <section id="reading-6">
 <h2>단계 C: 파일 디코더 없이 8K 타일 소스 만들기</h2>
 <p>CheckerTileSource는 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="8192×8192"><semantics><mrow><mrow><mn>8192</mn><mo>×</mo><mn>8192</mn></mrow></mrow><annotation encoding="text/plain">8192×8192</annotation></semantics></math> 전체 배열 대신 Read 호출이 요청한 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="512×512 Gray8"><semantics><mrow><mrow><mn>512</mn><mo>×</mo><mn>512</mn><mi mathvariant="normal">Gray</mi><mn>8</mn></mrow></mrow><annotation encoding="text/plain">512×512 Gray8</annotation></semantics></math> 타일만 만듭니다. <code>TileKey(Level,X,Y)</code>를 원본 좌표로 바꾼 뒤 256px 체커의 밝기 <math xmlns="http://www.w3.org/1998/Math/MathML" display="inline" aria-label="64/192"><semantics><mrow><mrow><mfrac><mn>64</mn><mn>192</mn></mfrac></mrow></mrow><annotation encoding="text/plain">64/192</annotation></semantics></math>를 채웁니다. 이 고정 크기에서는 모든 단계가 타일과 체커 경계에 정렬되어 가장자리 규칙이 단순합니다. 임의 파일 크기 소스는 마지막 타일의 유효 너비·높이까지 처리해야 합니다.</p>
-<p>취소는 행마다 확인합니다. 버퍼를 만든 뒤 취소·오류가 발생하면 반환하고 예외를 다시 던집니다. 성공한 Read만 호출자에게 소유권을 넘깁니다. 창에서는 <code>SetSource</code>의 반환 generation을 보관하고 장면에 같은 값을 전달합니다.</p>
-<details><summary>실습: 24K로 숫자만 바꿔도 될까?</summary><p>고정 예제의 tileCount는 정사각형·2의 거듭제곱 분할을 가정합니다. 임의 크기에서는 X/Y 개수를 각각 ceiling으로 구하고 마지막 타일 크기, 레벨별 크기, 바깥 key 검증을 바꿔야 합니다. 먼저 기존 <a href="#source-00643a7aa8a1" data-code-target="source-00643a7aa8a1">ProceduralTileSource</a>를 읽고 <a href="../samples/VisionCanvas.Sample/README.md">검증된 샘플의 24K 경로</a>를 실행합니다. 파일 원본 시험은 별도입니다.</p><details id="source-00643a7aa8a1" class="code-example">
+<p>체크무늬 타일을 만들 때도 취소 처리가 필요합니다. 픽셀 한 줄을 만들 때마다 취소 요청이 왔는지 확인합니다. 메모리 버퍼를 빌린 뒤 취소되거나 오류가 나면 이 메서드가 버퍼를 돌려주고 오류를 다시 알립니다. <code>Read</code>가 성공하면 돌려줄 책임을 호출자에게 넘깁니다. 이 책임을 <strong>소유권</strong>이라고 부릅니다. 창에서는 <code>SetSource</code>가 돌려준 이미지 세대 번호(<code>generation</code>)를 기억하고 같은 번호를 장면에도 넣습니다.</p>
+<details><summary>실습: 24K로 숫자만 바꿔도 될까?</summary><p>이 예제의 <code>tileCount</code> 계산은 가로·세로 크기가 같고 2로 계속 나누어지는 영상을 가정합니다. 다른 크기의 파일에 그대로 적용하면 안 됩니다. 가로와 세로의 타일 수를 각각 올림해 구하고, 마지막 조각에 남은 실제 픽셀 수를 확인해야 합니다. <strong>올림</strong>은 조각 하나에 조금이라도 픽셀이 남으면 한 조각을 더 센다는 뜻입니다. 바깥 주소인지, 축소 단계별 크기가 맞는지도 검사해야 합니다. 먼저 기존 <a href="#source-00643a7aa8a1" data-code-target="source-00643a7aa8a1">ProceduralTileSource</a>를 읽고 <a href="../samples/VisionCanvas.Sample/README.md">검증된 샘플의 24K 경로</a>를 실행하세요. 파일 원본을 여는 시험은 별도로 합니다.</p><details id="source-00643a7aa8a1" class="code-example">
 <summary><span class="code-language">C#</span><span class="code-title">ProceduralTileSource</span><span class="code-toggle" aria-hidden="true"><span class="code-expand">펼치기</span><span class="code-collapse">접기</span></span></summary>
 <div class="code-toolbar"><span class="code-file">ProceduralTileSource.cs · 146줄 · 전체 파일</span><button type="button" data-copy-code hidden aria-label="ProceduralTileSource 코드 복사">복사</button></div>
 <pre tabindex="0" aria-label="ProceduralTileSource 코드"><code data-source="../src/VisionImaging.Sources/ProceduralTileSource.cs" data-kind="full" data-language="csharp">using System.Runtime.CompilerServices;
@@ -638,7 +639,7 @@ AddButton(toolbar, "원 그리기", () =&gt;
 <p class="code-copy-status" role="status"></p></details><ol><li>사각형 그리기를 누르고 이미지 안에서 끕니다. 임시 도형이 마우스를 따라야 합니다.</li><li>마우스를 놓습니다. ROI 한 개가 추가되고 선택 도구로 돌아가야 합니다.</li><li>Undo를 한 번 누릅니다. 방금 도형만 없어져야 합니다.</li><li>다시 그리는 중 Escape를 누릅니다. 초안만 없어지고 기존 ROI는 남아야 합니다.</li><li>원 버튼으로 반복합니다. 입력 전달·미리보기·이력은 그대로이고 도형 종류만 달라져야 합니다.</li></ol></section>
 <details class="deep-dive"><summary>다음 단계 · 라이브러리 내부를 직접 구현하기</summary><section id="reading-8">
 <h2>단계 D: 라이브러리 내부를 직접 만드는 연습 순서</h2>
-<p>기존 제품을 갈아엎지 말고 별도 연습 프로젝트에서 아래 순서로 만듭니다. 각 단계의 완료 조건을 통과한 뒤 다음으로 갑니다. 현재 라이브러리 코드는 정답을 비교할 참고 자료입니다.</p>
+<p>이제 코드를 보고 이해하는 것에서 한 걸음 더 나가 봅시다. 기존 제품은 두고 별도 연습 프로젝트에서 아래 순서로 만드세요. 한 번에 한 줄씩 따라 쓰는 것보다 <strong>입력과 기대 결과를 먼저 적고, 그 결과를 만드는 작은 메서드</strong>를 작성하는 연습이 좋습니다. 각 단계의 완료 조건을 확인하면 다음 단계로 갑니다. 막혔을 때만 기존 라이브러리의 같은 역할 코드를 펼쳐 비교하세요.</p>
 <table><thead><tr><th>순서</th><th>만들 책임</th><th>통과 조건 / 실제 참고</th></tr></thead><tbody><tr><td>1</td><td>Point·Bounds·ViewportTransform</td><td>변환 왕복, 마우스 고정 확대 / VisionGeometry</td></tr><tr><td>2</td><td>불변 ROI 문서·단일 선택·이력</td><td>추가/삭제/Undo/Redo/취소 / EditorSession, DocumentEdit</td></tr><tr><td>3</td><td>입력 State</td><td>선택·pan·move·rotate 시작/진행/종료가 구별됨 / InteractionController, Gestures</td></tr><tr><td>4</td><td>ITileSource·PixelBuffer·TilePlanner</td><td>뷰 밖은 요청 없음, 취소 버퍼 누수 없음 / TilePlannerTests, TileWorkerLifetimeTests</td></tr><tr><td>5</td><td>HwndHost·장치·swap chain</td><td>단색 clear, resize, 최소화, 종료 / Dx12Viewport, Dx12Device, Dx12Surface</td></tr><tr><td>6</td><td>텍스처 업로드·셰이더</td><td>작은 체크 이미지의 행/채널이 맞음 / SpritePipeline, FrameUploadArena</td></tr><tr><td>7</td><td>장면 게시·ROI overlay</td><td>CPU 히트 테스트와 GPU 윤곽 일치, DPI별 핸들 크기 유지 / RenderScene, RoiPipeline</td></tr><tr><td>8</td><td>타일 캐시·세대·최신 프레임</td><td>빠른 이미지 교체에도 이전 타일 없음 / TileWorker, LatestFrameMailbox</td></tr><tr><td>9</td><td>계층·대량 자료 재사용</td><td>부모/자손 정확성, 불변 블록 공유, 프레임 간격 실측 / RoiHierarchy, RoiSpatialIndex</td></tr><tr><td>10</td><td>필터·검사 호스트 어댑터</td><td>원본·모델·판정 경계를 지킴 / VisionInspection, 앱 Presentation</td></tr></tbody></table>
 <p>처음부터 모든 타일·대량 ROI·검사를 동시에 만들면 오류 경계가 너무 많습니다. 반대로 좌표 테스트만으로 렌더러를 완성했다고 할 수도 없습니다. 단계 5부터는 실제 Windows 장치·WARP·창 수명 확인이 필요합니다.</p>
 </section></details>

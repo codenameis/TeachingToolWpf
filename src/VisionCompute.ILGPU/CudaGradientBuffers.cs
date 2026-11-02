@@ -11,30 +11,12 @@ internal sealed class CudaGradientBuffers : IDisposable
 {
     private byte[]? _upload;
     private bool _disposed;
-    public int Capacity
-    {
-        get;
-    }
-    public MemoryBuffer1D<byte, Stride1D.Dense> Input
-    {
-        get;
-    }
-    public MemoryBuffer1D<float, Stride1D.Dense> Horizontal
-    {
-        get;
-    }
-    public MemoryBuffer1D<float, Stride1D.Dense> Smooth
-    {
-        get;
-    }
-    public MemoryBuffer1D<float, Stride1D.Dense> X
-    {
-        get;
-    }
-    public MemoryBuffer1D<float, Stride1D.Dense> Y
-    {
-        get;
-    }
+    public int Capacity { get; }
+    public MemoryBuffer1D<byte, Stride1D.Dense> Input { get; }
+    public MemoryBuffer1D<float, Stride1D.Dense> Horizontal { get; }
+    public MemoryBuffer1D<float, Stride1D.Dense> Smooth { get; }
+    public MemoryBuffer1D<float, Stride1D.Dense> X { get; }
+    public MemoryBuffer1D<float, Stride1D.Dense> Y { get; }
 
     public CudaGradientBuffers(Accelerator accelerator, int capacity)
     {

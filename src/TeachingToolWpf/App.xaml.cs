@@ -66,7 +66,8 @@ public partial class App : Application
                 Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, window.Viewport.RetainFrame),
             tdcm, new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent));
-        var shapes = new PrimitiveShapeDetectionViewModel(new Imaging.Matching.PrimitiveShapeDetectionService(loader, window.Viewport.RetainFrame));
+        var shapes = new PrimitiveShapeDetectionViewModel(new Imaging.Matching.PrimitiveShapeDetectionService(loader,
+            window.Viewport.RetainFrame, () => new CudaPrimitivePreprocessor()));
         var inspections = new InspectionToolsViewModel(pattern, shapes);
         var model = new MainWindowViewModel(window.Viewport, new(), loader, live, filterPreview, inspections,
             selectImage: () => ImageFilePicker.Select(window));
@@ -96,31 +97,7 @@ public partial class App : Application
             filtersDrained = true;
             window.Close();
         };
-        window.Closed += (_, _) =>
-        {
-            try
-            {
-                model.Dispose();
-            }
-            finally
-            {
-                try
-                {
-                    tdcm.Dispose();
-                }
-                finally
-                {
-                    try
-                    {
-                        inspectionCompute.Dispose();
-                    }
-                    finally
-                    {
-                        templateCompute.Dispose();
-                    }
-                }
-            }
-        };
+        window.Closed += (_, _) => ResourceCleanup.DisposeAll(model, tdcm, inspectionCompute, templateCompute);
         if (!DiagnosticStartup.TryAttach(window, window.Viewport, model, args, () => inspectionCompute.InitializationMilliseconds))
         {
             window.Loaded += (_, _) => model.Initialize.Execute(null);

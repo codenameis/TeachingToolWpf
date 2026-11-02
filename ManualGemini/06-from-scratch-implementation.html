@@ -1,0 +1,2330 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>06. 밑바닥부터 직접 구현하기 — ManualGemini</title>
+  <link rel="stylesheet" href="assets/manual-gemini.css" />
+</head>
+<body>
+  <header class="top-header">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">CHAPTER 06</span>
+      <span>밑바닥부터 직접 구현하기</span>
+    </a>
+    <nav class="top-nav-links">
+      <a href="index.html">홈·전체 구조</a>
+      <a href="01-math-and-vectors.html">01. 수학·벡터</a>
+      <a href="02-hwnd-intptr-simd.html">02. HWND·SIMD</a>
+      <a href="03-code-rules-and-architecture.html">03. 코드규칙·구조</a>
+      <a href="04-core-algorithms-and-bvh.html">04. 타일링·BVH</a>
+      <a href="05-practical-usage-mvvm.html">05. 실전 MVVM</a>
+      <a href="06-from-scratch-implementation.html" class="active">06. 밑바닥 구현</a>
+    </nav>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">🌙 다크 모드</button>
+  </header>
+
+  <div class="layout-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">교재 목차 (Curriculum)</div>
+      <ul class="sidebar-nav">
+        <li><a href="index.html"><span class="chap-num">00</span>전체 구조 한눈에 보기</a></li>
+        <li><a href="01-math-and-vectors.html"><span class="chap-num">01</span>수학 &amp; 벡터 기하학</a></li>
+        <li><a href="02-hwnd-intptr-simd.html"><span class="chap-num">02</span>HWND · IntPtr · SIMD</a></li>
+        <li><a href="03-code-rules-and-architecture.html"><span class="chap-num">03</span>코드 규칙 &amp; 클래스 구조</a></li>
+        <li><a href="04-core-algorithms-and-bvh.html"><span class="chap-num">04</span>이미지 타일링 &amp; BVH</a></li>
+        <li><a href="05-practical-usage-mvvm.html"><span class="chap-num">05</span>실전 MVVM 사용법</a></li>
+        <li><a href="06-from-scratch-implementation.html" class="active"><span class="chap-num">06</span>밑바닥부터 직접 구현</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-banner">
+        <div class="hero-eyebrow">CHAPTER 06 · STEP-BY-STEP FROM SCRATCH (100% COMPILABLE)</div>
+        <h1>빈 프로젝트에서 시작해 내 손으로 완성하는 7단계 전체 소스 코드</h1>
+        <p class="hero-subtitle">
+          01장부터 05장까지 배운 수학과 알고리즘을 이제 하나의 작동하는 C# 프로젝트로 조립할 차례입니다.<br/>단 한 줄의 생략(<code>// ...</code>)도 없이, <strong>빈 폴더에서 새 WPF 프로젝트를 만들어 아래 Step 0 ~ Step 7 코드를 그대로 복사·붙여넣기만 하면 즉시 빌드·실행되는 완전한 VisionCanvas 엔진</strong>을 완성합니다.
+        </p>
+      </section>
+
+      <!-- Step 0 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 0 OF 7 · PROJECT SETUP</span>
+        <h2>Step 0. 빈 WPF 프로젝트 생성 (<code>MiniVisionCanvas.csproj</code>)</h2>
+        <p>
+          터미널에서 <code>dotnet new wpf -n MiniVisionCanvas</code>를 실행한 뒤, 프로젝트 파일이 아래와 같은지 확인합니다.<br/>외부 NuGet 패키지 없이 순수 .NET 8 기본 라이브러리만으로 모든 기하학·BVH·1억 셀·SIMD·HWND·MVVM이 동작합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 0 — MiniVisionCanvas.csproj</span>
+          <span>순수 .NET 8 WPF 프로젝트 설정</span>
+        </div>
+        <pre><code>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+  &lt;PropertyGroup&gt;
+    &lt;OutputType&gt;WinExe&lt;/OutputType&gt;
+    &lt;TargetFramework&gt;net8.0-windows&lt;/TargetFramework&gt;
+    &lt;Nullable&gt;enable&lt;/Nullable&gt;
+    &lt;ImplicitUsings&gt;enable&lt;/ImplicitUsings&gt;
+    &lt;UseWPF&gt;true&lt;/UseWPF&gt;
+  &lt;/PropertyGroup&gt;
+&lt;/Project&gt;</code></pre>
+      </section>
+
+      <!-- Step 1 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 1 OF 7 · GEOMETRY &amp; VIEWPORT</span>
+        <h2>Step 1. 2D 좌표 · 강체 회전 변환 · 뷰포트 변환 구조체 (<code>Step1_GeometryPrimitives.cs</code>)</h2>
+        <p>
+          가장 먼저 다른 어떤 클래스도 참조하지 않는 순수 수학 구조체 <code>PointD</code>, <code>BoundsD</code>, <code>RigidTransform2D</code>, <code>ViewportTransform</code>을 작성합니다.<br/>모두 <code>readonly record struct</code>로 만들어 가비지 컬렉터(GC) 부담을 0바이트로 유지합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 1 — Step1_GeometryPrimitives.cs</span>
+          <span>내적·외적 · 회전 정/역변환 · 커서 고정 줌(ZoomAt) · Fit/FocusBounds</span>
+        </div>
+        <pre><code>using System;
+
+namespace MiniVisionCanvas;
+
+public readonly record struct PointD(double X, double Y)
+{
+    public static PointD operator +(PointD a, PointD b) =&gt; new(a.X + b.X, a.Y + b.Y);
+    public static PointD operator -(PointD a, PointD b) =&gt; new(a.X - b.X, a.Y - b.Y);
+    public static PointD operator *(PointD a, double s) =&gt; new(a.X * s, a.Y * s);
+    public static PointD operator /(PointD a, double s) =&gt; new(a.X / s, a.Y / s);
+
+    public double LengthSquared =&gt; (X * X) + (Y * Y);
+    public double Length =&gt; Math.Sqrt(LengthSquared);
+
+    public static double Dot(PointD a, PointD b) =&gt; (a.X * b.X) + (a.Y * b.Y);
+    public static double Cross(PointD a, PointD b) =&gt; (a.X * b.Y) - (a.Y * b.X);
+
+    public PointD Normalize()
+    {
+        double len = Length;
+        return len &gt; 1e-12 ? new PointD(X / len, Y / len) : new PointD(1.0, 0.0);
+    }
+}
+
+public readonly record struct BoundsD(double Left, double Top, double Right, double Bottom)
+{
+    public double Width =&gt; Math.Max(0.0, Right - Left);
+    public double Height =&gt; Math.Max(0.0, Bottom - Top);
+    public PointD Center =&gt; new((Left + Right) * 0.5, (Top + Bottom) * 0.5);
+
+    public static BoundsD FromCenterSize(PointD center, double width, double height) =&gt;
+        new(center.X - (width * 0.5), center.Y - (height * 0.5),
+            center.X + (width * 0.5), center.Y + (height * 0.5));
+
+    public bool Contains(PointD pt) =&gt;
+        pt.X &gt;= Left &amp;&amp; pt.X &lt;= Right &amp;&amp; pt.Y &gt;= Top &amp;&amp; pt.Y &lt;= Bottom;
+
+    public bool Contains(BoundsD other) =&gt;
+        other.Left &gt;= Left &amp;&amp; other.Right &lt;= Right &amp;&amp; other.Top &gt;= Top &amp;&amp; other.Bottom &lt;= Bottom;
+
+    public bool Intersects(BoundsD other) =&gt;
+        Left &lt;= other.Right &amp;&amp; Right &gt;= other.Left &amp;&amp; Top &lt;= other.Bottom &amp;&amp; Bottom &gt;= other.Top;
+
+    public BoundsD Union(BoundsD other) =&gt;
+        new(Math.Min(Left, other.Left), Math.Min(Top, other.Top),
+            Math.Max(Right, other.Right), Math.Max(Bottom, other.Bottom));
+
+    public BoundsD Inflate(double margin) =&gt;
+        new(Left - margin, Top - margin, Right + margin, Bottom + margin);
+}
+
+public readonly record struct RigidTransform2D(double Cos, double Sin, double Tx, double Ty)
+{
+    public static RigidTransform2D Identity { get; } = new(1.0, 0.0, 0.0, 0.0);
+
+    public static RigidTransform2D FromAngle(double radians, PointD translation) =&gt;
+        new(Math.Cos(radians), Math.Sin(radians), translation.X, translation.Y);
+
+    public PointD Apply(PointD local) =&gt;
+        new((local.X * Cos) - (local.Y * Sin) + Tx,
+            (local.X * Sin) + (local.Y * Cos) + Ty);
+
+    public PointD ApplyInverse(PointD world)
+    {
+        double dx = world.X - Tx;
+        double dy = world.Y - Ty;
+        return new PointD((dx * Cos) + (dy * Sin), (-dx * Sin) + (dy * Cos));
+    }
+
+    public static PointD RotateAround(PointD pt, PointD pivot, double deltaRadians)
+    {
+        double cos = Math.Cos(deltaRadians);
+        double sin = Math.Sin(deltaRadians);
+        double dx = pt.X - pivot.X;
+        double dy = pt.Y - pivot.Y;
+        return new PointD(pivot.X + (dx * cos) - (dy * sin), pivot.Y + (dx * sin) + (dy * cos));
+    }
+}
+
+public readonly record struct ViewportTransform(double Scale, double OffsetX, double OffsetY)
+{
+    public static ViewportTransform Identity { get; } = new(1.0, 20.0, 20.0);
+
+    public PointD ImageToScreen(PointD img) =&gt;
+        new((img.X * Scale) + OffsetX, (img.Y * Scale) + OffsetY);
+
+    public PointD ScreenToImage(PointD scr) =&gt;
+        new((scr.X - OffsetX) / Scale, (scr.Y - OffsetY) / Scale);
+
+    public BoundsD ScreenToImage(BoundsD scrBounds)
+    {
+        PointD tl = ScreenToImage(new PointD(scrBounds.Left, scrBounds.Top));
+        PointD br = ScreenToImage(new PointD(scrBounds.Right, scrBounds.Bottom));
+        return new BoundsD(tl.X, tl.Y, br.X, br.Y);
+    }
+
+    public ViewportTransform Pan(double dxDip, double dyDip) =&gt;
+        new(Scale, OffsetX + dxDip, OffsetY + dyDip);
+
+    public ViewportTransform ZoomAt(PointD cursorScreenDip, double factor)
+    {
+        double nextScale = Math.Clamp(Scale * factor, 0.02, 64.0);
+        PointD anchorImg = ScreenToImage(cursorScreenDip);
+        double nextOffsetX = cursorScreenDip.X - (anchorImg.X * nextScale);
+        double nextOffsetY = cursorScreenDip.Y - (anchorImg.Y * nextScale);
+        return new ViewportTransform(nextScale, nextOffsetX, nextOffsetY);
+    }
+
+    public static ViewportTransform Fit(double imgW, double imgH, double viewW, double viewH, double pad = 24.0)
+    {
+        if (imgW &lt;= 0 || imgH &lt;= 0 || viewW &lt;= 0 || viewH &lt;= 0) return Identity;
+        double availW = Math.Max(1.0, viewW - (pad * 2.0));
+        double availH = Math.Max(1.0, viewH - (pad * 2.0));
+        double scale = Math.Clamp(Math.Min(availW / imgW, availH / imgH), 0.02, 64.0);
+        double ox = (viewW - (imgW * scale)) * 0.5;
+        double oy = (viewH - (imgH * scale)) * 0.5;
+        return new ViewportTransform(scale, ox, oy);
+    }
+
+    public static ViewportTransform FocusBounds(BoundsD target, double viewW, double viewH, double pad = 40.0)
+    {
+        double w = Math.Max(16.0, target.Width);
+        double h = Math.Max(16.0, target.Height);
+        double availW = Math.Max(1.0, viewW - (pad * 2.0));
+        double availH = Math.Max(1.0, viewH - (pad * 2.0));
+        double scale = Math.Clamp(Math.Min(availW / w, availH / h), 0.02, 64.0);
+        PointD c = target.Center;
+        return new ViewportTransform(scale, (viewW * 0.5) - (c.X * scale), (viewH * 0.5) - (c.Y * scale));
+    }
+}</code></pre>
+      </section>
+
+      <!-- Step 2 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 2 OF 7 · 4 ROI SHAPES &amp; POLYGON CLOSURE</span>
+        <h2>Step 2. 사각형·원·다각형 통합 기하 엔진과 자기교차 차단 (<code>Step2_RoiGeometryAndPolygon.cs</code>)</h2>
+        <p>
+          정규화 로컬 공간 <code>(u, v) &in; [-0.5, +0.5]&sup2;</code>와 <code>Support(dir)</code> 함수를 구현하여 사각형·원·다각형의 회전 포함 판정과 바깥 상자(AABB) 계산을 하나로 통합합니다.<br/>또한 다각형을 그릴 때 선분이 8자 모양으로 꼬이는 자기교차(<code>SegmentsIntersect</code>)를 외적(Cross Product)으로 차단합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 2 — Step2_RoiGeometryAndPolygon.cs</span>
+          <span>RoiGeometry (ToWorld / Contains / Support) &amp; PolygonClosure</span>
+        </div>
+        <pre><code>using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+
+namespace MiniVisionCanvas;
+
+public enum RoiShapeKind
+{
+    Rectangle,
+    Circle,
+    Polygon
+}
+
+public sealed record RoiGeometry(
+    RoiShapeKind Shape,
+    PointD Center,
+    double Width,
+    double Height,
+    double RotationRadians,
+    ImmutableArray&lt;PointD&gt; NormalizedVertices)
+{
+    public static RoiGeometry CreateRectangle(PointD center, double width, double height, double rotationRad = 0.0) =&gt;
+        new(RoiShapeKind.Rectangle, center, Math.Max(4.0, width), Math.Max(4.0, height), rotationRad, ImmutableArray&lt;PointD&gt;.Empty);
+
+    public static RoiGeometry CreateCircle(PointD center, double width, double height, double rotationRad = 0.0) =&gt;
+        new(RoiShapeKind.Circle, center, Math.Max(4.0, width), Math.Max(4.0, height), rotationRad, ImmutableArray&lt;PointD&gt;.Empty);
+
+    public PointD ToWorld(double u, double v)
+    {
+        RigidTransform2D pose = RigidTransform2D.FromAngle(RotationRadians, Center);
+        return pose.Apply(new PointD(u * Width, v * Height));
+    }
+
+    public PointD ToLocalNormalized(PointD worldPt)
+    {
+        RigidTransform2D pose = RigidTransform2D.FromAngle(RotationRadians, Center);
+        PointD unrotated = pose.ApplyInverse(worldPt);
+        return new PointD(
+            Width &gt; 1e-9 ? unrotated.X / Width : 0.0,
+            Height &gt; 1e-9 ? unrotated.Y / Height : 0.0);
+    }
+
+    public bool Contains(PointD worldPt, double extraMarginPx = 0.0)
+    {
+        RigidTransform2D pose = RigidTransform2D.FromAngle(RotationRadians, Center);
+        PointD localPx = pose.ApplyInverse(worldPt);
+        double halfW = (Width * 0.5) + extraMarginPx;
+        double halfH = (Height * 0.5) + extraMarginPx;
+
+        if (Math.Abs(localPx.X) &gt; halfW || Math.Abs(localPx.Y) &gt; halfH)
+        {
+            return false;
+        }
+
+        if (Shape == RoiShapeKind.Rectangle) return true;
+
+        if (Shape == RoiShapeKind.Circle)
+        {
+            double nx = localPx.X / Math.Max(1e-6, halfW);
+            double ny = localPx.Y / Math.Max(1e-6, halfH);
+            return (nx * nx) + (ny * ny) &lt;= 1.0;
+        }
+
+        PointD uv = new(localPx.X / Math.Max(1e-6, Width), localPx.Y / Math.Max(1e-6, Height));
+        return ContainsInPolygon(NormalizedVertices, uv);
+    }
+
+    private static bool ContainsInPolygon(ImmutableArray&lt;PointD&gt; poly, PointD pt)
+    {
+        if (poly.IsDefaultOrEmpty || poly.Length &lt; 3) return false;
+        bool inside = false;
+        for (int i = 0, j = poly.Length - 1; i &lt; poly.Length; j = i++)
+        {
+            PointD a = poly[i];
+            PointD b = poly[j];
+            bool crossesY = (a.Y &gt; pt.Y) != (b.Y &gt; pt.Y);
+            if (crossesY)
+            {
+                double intersectX = ((b.X - a.X) * (pt.Y - a.Y) / (b.Y - a.Y)) + a.X;
+                if (pt.X &lt; intersectX) inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    public double Support(PointD worldDir)
+    {
+        double cos = Math.Cos(RotationRadians);
+        double sin = Math.Sin(RotationRadians);
+        double lx = (worldDir.X * cos) + (worldDir.Y * sin);
+        double ly = (-worldDir.X * sin) + (worldDir.Y * cos);
+        double halfW = Width * 0.5;
+        double halfH = Height * 0.5;
+
+        if (Shape == RoiShapeKind.Circle)
+        {
+            return Math.Sqrt((halfW * halfW * lx * lx) + (halfH * halfH * ly * ly));
+        }
+
+        if (Shape == RoiShapeKind.Polygon &amp;&amp; !NormalizedVertices.IsDefaultOrEmpty &amp;&amp; NormalizedVertices.Length &gt;= 3)
+        {
+            double maxProj = 0.0;
+            foreach (PointD uv in NormalizedVertices)
+            {
+                double proj = (uv.X * Width * lx) + (uv.Y * Height * ly);
+                if (proj &gt; maxProj) maxProj = proj;
+            }
+            return maxProj;
+        }
+
+        return (halfW * Math.Abs(lx)) + (halfH * Math.Abs(ly));
+    }
+
+    public BoundsD WorldBounds
+    {
+        get
+        {
+            double ex = Support(new PointD(1.0, 0.0));
+            double ey = Support(new PointD(0.0, 1.0));
+            return new BoundsD(Center.X - ex, Center.Y - ey, Center.X + ex, Center.Y + ey);
+        }
+    }
+
+    public PointD[] GetWorldCorners() =&gt;
+    [
+        ToWorld(-0.5, -0.5),
+        ToWorld(+0.5, -0.5),
+        ToWorld(+0.5, +0.5),
+        ToWorld(-0.5, +0.5)
+    ];
+
+    public PointD[] GetWorldSamplePoints()
+    {
+        if (Shape == RoiShapeKind.Polygon &amp;&amp; !NormalizedVertices.IsDefaultOrEmpty &amp;&amp; NormalizedVertices.Length &gt;= 3)
+        {
+            var pts = new PointD[NormalizedVertices.Length];
+            for (int i = 0; i &lt; pts.Length; i++)
+            {
+                pts[i] = ToWorld(NormalizedVertices[i].X, NormalizedVertices[i].Y);
+            }
+            return pts;
+        }
+
+        if (Shape == RoiShapeKind.Circle)
+        {
+            var pts = new PointD[16];
+            for (int i = 0; i &lt; 16; i++)
+            {
+                double ang = (Math.PI * 2.0 * i) / 16.0;
+                pts[i] = ToWorld(0.5 * Math.Cos(ang), 0.5 * Math.Sin(ang));
+            }
+            return pts;
+        }
+
+        return GetWorldCorners();
+    }
+
+    public RoiGeometry Translate(PointD delta) =&gt; this with { Center = Center + delta };
+    public RoiGeometry WithRotation(double newRadians) =&gt; this with { RotationRadians = newRadians };
+}
+
+public static class PolygonClosure
+{
+    public static bool SegmentsIntersect(PointD a, PointD b, PointD c, PointD d)
+    {
+        PointD r = b - a;
+        PointD s = d - c;
+        double denom = PointD.Cross(r, s);
+        if (Math.Abs(denom) &lt; 1e-9) return false;
+
+        double t = PointD.Cross(c - a, s) / denom;
+        double u = PointD.Cross(c - a, r) / denom;
+        return t &gt; 1e-5 &amp;&amp; t &lt; 1.0 - 1e-5 &amp;&amp; u &gt; 1e-5 &amp;&amp; u &lt; 1.0 - 1e-5;
+    }
+
+    public static bool CanAddPoint(IReadOnlyList&lt;PointD&gt; existing, PointD candidate)
+    {
+        if (existing.Count &lt; 2) return true;
+        PointD last = existing[^1];
+        for (int i = 0; i &lt; existing.Count - 2; i++)
+        {
+            if (SegmentsIntersect(existing[i], existing[i + 1], last, candidate))
+                return false;
+        }
+        return true;
+    }
+
+    public static bool TryCreateClosedPolygon(IReadOnlyList&lt;PointD&gt; worldPts, out RoiGeometry geometry)
+    {
+        geometry = RoiGeometry.CreateRectangle(new PointD(0, 0), 10, 10);
+        if (worldPts.Count &lt; 3) return false;
+
+        for (int i = 1; i &lt; worldPts.Count - 2; i++)
+        {
+            if (SegmentsIntersect(worldPts[i], worldPts[i + 1], worldPts[^1], worldPts[0]))
+                return false;
+        }
+
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+        foreach (PointD p in worldPts)
+        {
+            if (p.X &lt; minX) minX = p.X;
+            if (p.Y &lt; minY) minY = p.Y;
+            if (p.X &gt; maxX) maxX = p.X;
+            if (p.Y &gt; maxY) maxY = p.Y;
+        }
+
+        double w = Math.Max(8.0, maxX - minX);
+        double h = Math.Max(8.0, maxY - minY);
+        PointD center = new((minX + maxX) * 0.5, (minY + maxY) * 0.5);
+
+        var normBuilder = ImmutableArray.CreateBuilder&lt;PointD&gt;(worldPts.Count);
+        foreach (PointD p in worldPts)
+        {
+            normBuilder.Add(new PointD((p.X - center.X) / w, (p.Y - center.Y) / h));
+        }
+
+        geometry = new RoiGeometry(RoiShapeKind.Polygon, center, w, h, 0.0, normBuilder.MoveToImmutable());
+        return true;
+    }
+}</code></pre>
+      </section>
+
+      <!-- Step 3 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 3 OF 7 · CONTINUOUS COLLISION &amp; WALL SLIDING</span>
+        <h2>Step 3. 부모-자식 40회 이분법 충돌 &amp; 벽면 미끄러짐 (<code>Step3_RoiMotionBounds.cs</code>)</h2>
+        <p>
+          자식 ROI를 드래그할 때 부모 ROI 밖으로 뚫고 나가지 않도록 40회 이분법(<code>2&#8315;&#8308;&#8304;</code> 정밀도)으로 충돌 비율을 구하고, 남은 마우스 이동량을 부모의 회전 축 방향으로 정사영하여 벽면을 타고 스르륵 미끄러지게(Wall Sliding) 만듭니다.
+        </p>
+        <div class="code-header">
+          <span>Step 3 — Step3_RoiMotionBounds.cs</span>
+          <span>ClampTranslation (40회 이분법 + 벽면 정사영) &amp; ClampRotation</span>
+        </div>
+        <pre><code>using System;
+
+namespace MiniVisionCanvas;
+
+public static class RoiMotionBounds
+{
+    public static bool ContainsGeometry(RoiGeometry parent, RoiGeometry child)
+    {
+        foreach (PointD pt in child.GetWorldSamplePoints())
+        {
+            if (!parent.Contains(pt)) return false;
+        }
+        return true;
+    }
+
+    public static PointD ClampTranslation(RoiGeometry parent, RoiGeometry child, PointD rawDelta)
+    {
+        if (ContainsGeometry(parent, child.Translate(rawDelta)))
+        {
+            return rawDelta;
+        }
+
+        double t = FindMaxFreeTranslationFactor(parent, child, rawDelta);
+        PointD safeDelta = rawDelta * t;
+        RoiGeometry atWall = child.Translate(safeDelta);
+
+        PointD remaining = rawDelta - safeDelta;
+        PointD slideDelta = ProjectAlongParentWall(parent, atWall, remaining);
+        return safeDelta + slideDelta;
+    }
+
+    private static double FindMaxFreeTranslationFactor(RoiGeometry parent, RoiGeometry child, PointD delta)
+    {
+        double low = 0.0;
+        double high = 1.0;
+        for (int iter = 0; iter &lt; 40; iter++)
+        {
+            double mid = (low + high) * 0.5;
+            if (ContainsGeometry(parent, child.Translate(delta * mid)))
+                low = mid;
+            else
+                high = mid;
+        }
+        return low;
+    }
+
+    private static PointD ProjectAlongParentWall(RoiGeometry parent, RoiGeometry childAtWall, PointD remaining)
+    {
+        double cos = Math.Cos(parent.RotationRadians);
+        double sin = Math.Sin(parent.RotationRadians);
+        PointD axisU = new(cos, sin);
+        PointD axisV = new(-sin, cos);
+
+        PointD projU = axisU * PointD.Dot(remaining, axisU);
+        double tU = FindMaxFreeTranslationFactor(parent, childAtWall, projU);
+        PointD appliedU = projU * tU;
+
+        RoiGeometry afterU = childAtWall.Translate(appliedU);
+        PointD projV = axisV * PointD.Dot(remaining, axisV);
+        double tV = FindMaxFreeTranslationFactor(parent, afterU, projV);
+        PointD appliedV = projV * tV;
+
+        return appliedU + appliedV;
+    }
+
+    public static double ClampRotation(RoiGeometry parent, RoiGeometry child, double rawDeltaRadians)
+    {
+        if (ContainsGeometry(parent, child.WithRotation(child.RotationRadians + rawDeltaRadians)))
+        {
+            return rawDeltaRadians;
+        }
+
+        double low = 0.0;
+        double high = 1.0;
+        for (int iter = 0; iter &lt; 40; iter++)
+        {
+            double mid = (low + high) * 0.5;
+            if (ContainsGeometry(parent, child.WithRotation(child.RotationRadians + (rawDeltaRadians * mid))))
+                low = mid;
+            else
+                high = mid;
+        }
+        return rawDeltaRadians * low;
+    }
+}</code></pre>
+      </section>
+
+      <!-- Step 4 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 4 OF 7 · BVH TREE &amp; 100M REPEATED ROI GRID</span>
+        <h2>Step 4. <code>BvhNodePath</code> 비트 경로 · <code>RoiIdSet</code> 델타 집합 · BVH 공간 트리 &amp; 1억 셀 격자 (<code>Step4_SpatialBvhAnd100MGrid.cs</code>)</h2>
+        <p>
+          <code>default(0)</code>에서도 루트(<code>Value == 1</code>) 불변식을 유지하는 <code>BvhNodePath</code>, 대규모 기준 집합(<code>FrozenSet&lt;Guid&gt;</code>)과 영속 델타(<code>_added</code>, <code>_removed</code>)를 결합한 <code>RoiIdSet</code>, <code>O(log N)</code> 공간 트리 <code>RoiSpatialIndex</code>, 그리고 순수 WPF <code>DrawingContext</code>에서도 <code>10,001 &times; 10,001 = 100,020,001</code>개 셀과 개별 예외를 체험할 수 있는 <code>VirtualGridSlice</code>를 구현합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 4 — Step4_SpatialBvhAnd100MGrid.cs</span>
+          <span>BvhNodePath · RoiIdSet · RoiSpatialIndex (BVH) · VirtualGridSlice</span>
+        </div>
+        <pre><code>using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Numerics;
+
+namespace MiniVisionCanvas;
+
+public readonly record struct BvhNodePath
+{
+    private readonly uint _valueMinusOne;
+
+    public BvhNodePath(uint value)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(value);
+        _valueMinusOne = value - 1;
+    }
+
+    public static BvhNodePath Root =&gt; default;
+    public uint Value =&gt; _valueMinusOne + 1;
+    public int Depth =&gt; 31 - BitOperations.LeadingZeroCount(Value);
+
+    public BvhNodePath LeftChild() =&gt; new(Value &lt;&lt; 1);
+    public BvhNodePath RightChild() =&gt; new((Value &lt;&lt; 1) | 1);
+    public bool StepIsRight(int level) =&gt; ((Value &gt;&gt; (Depth - 1 - level)) &amp; 1) != 0;
+}
+
+public sealed class RoiIdSet
+{
+    public static RoiIdSet Empty { get; } = new(FrozenSet&lt;Guid&gt;.Empty, ImmutableHashSet&lt;Guid&gt;.Empty, ImmutableHashSet&lt;Guid&gt;.Empty, 0);
+
+    private readonly FrozenSet&lt;Guid&gt; _baseIds;
+    private readonly ImmutableHashSet&lt;Guid&gt; _added;
+    private readonly ImmutableHashSet&lt;Guid&gt; _removed;
+
+    private RoiIdSet(FrozenSet&lt;Guid&gt; baseIds, ImmutableHashSet&lt;Guid&gt; added, ImmutableHashSet&lt;Guid&gt; removed, int count)
+    {
+        _baseIds = baseIds;
+        _added = added;
+        _removed = removed;
+        Count = count;
+    }
+
+    public int Count { get; }
+    public bool IsEmpty =&gt; Count == 0;
+
+    public bool Contains(Guid id) =&gt;
+        _added.Contains(id) || (_baseIds.Contains(id) &amp;&amp; !_removed.Contains(id));
+
+    public RoiIdSet Add(Guid id) =&gt;
+        Contains(id) ? this : new(_baseIds, _added.Add(id), _removed.Remove(id), Count + 1);
+}
+
+public sealed class RoiSpatialIndex
+{
+    public readonly record struct Entry(Guid Id, BoundsD Bounds);
+
+    private sealed record Node(BvhNodePath Path, BoundsD Bounds, Node? Left, Node? Right, Guid? LeafId);
+
+    private readonly Node? _root;
+
+    private RoiSpatialIndex(Node? root) =&gt; _root = root;
+
+    public static RoiSpatialIndex Empty { get; } = new(null);
+
+    public static RoiSpatialIndex Build(IReadOnlyList&lt;Entry&gt; entries)
+    {
+        if (entries.Count == 0) return Empty;
+        var mutable = new List&lt;Entry&gt;(entries);
+        return new RoiSpatialIndex(BuildNode(mutable, 0, mutable.Count, BvhNodePath.Root));
+    }
+
+    private static Node BuildNode(List&lt;Entry&gt; items, int start, int count, BvhNodePath path)
+    {
+        if (count == 1)
+        {
+            Entry leaf = items[start];
+            return new Node(path, leaf.Bounds, null, null, leaf.Id);
+        }
+
+        BoundsD total = items[start].Bounds;
+        for (int i = start + 1; i &lt; start + count; i++)
+        {
+            total = total.Union(items[i].Bounds);
+        }
+
+        bool splitX = total.Width &gt;= total.Height;
+        items.Sort(start, count, Comparer&lt;Entry&gt;.Create((a, b) =&gt;
+            splitX ? a.Bounds.Center.X.CompareTo(b.Bounds.Center.X)
+                   : a.Bounds.Center.Y.CompareTo(b.Bounds.Center.Y)));
+
+        int mid = count / 2;
+        Node left = BuildNode(items, start, mid, path.LeftChild());
+        Node right = BuildNode(items, start + mid, count - mid, path.RightChild());
+        return new Node(path, total, left, right, null);
+    }
+
+    public List&lt;Guid&gt; QueryPoint(PointD pt)
+    {
+        var results = new List&lt;Guid&gt;();
+        QueryPointRecursive(_root, pt, results);
+        return results;
+    }
+
+    private static void QueryPointRecursive(Node? node, PointD pt, List&lt;Guid&gt; results)
+    {
+        if (node is null || !node.Bounds.Contains(pt)) return;
+        if (node.LeafId is { } id)
+        {
+            results.Add(id);
+            return;
+        }
+        QueryPointRecursive(node.Left, pt, results);
+        QueryPointRecursive(node.Right, pt, results);
+    }
+}
+
+public readonly record struct RepeatedRoiGrid(
+    PointD Origin,
+    double CellWidth,
+    double CellHeight,
+    double StepX,
+    double StepY,
+    int Columns,
+    int Rows)
+{
+    public long TotalCellCount =&gt; (long)Columns * Rows;
+
+    public BoundsD TotalBounds =&gt; new(
+        Origin.X,
+        Origin.Y,
+        Origin.X + ((Columns - 1) * StepX) + CellWidth,
+        Origin.Y + ((Rows - 1) * StepY) + CellHeight);
+
+    public BoundsD GetCellBounds(int row, int col)
+    {
+        double left = Origin.X + (col * StepX);
+        double top = Origin.Y + (row * StepY);
+        return new BoundsD(left, top, left + CellWidth, top + CellHeight);
+    }
+
+    public bool TryHitCell(PointD worldPt, out int row, out int col, out long cellIndex)
+    {
+        row = 0;
+        col = 0;
+        cellIndex = -1;
+        if (Columns &lt;= 0 || Rows &lt;= 0) return false;
+
+        col = (int)Math.Floor((worldPt.X - Origin.X) / StepX);
+        row = (int)Math.Floor((worldPt.Y - Origin.Y) / StepY);
+        if (col &lt; 0 || col &gt;= Columns || row &lt; 0 || row &gt;= Rows) return false;
+
+        BoundsD cellBounds = GetCellBounds(row, col);
+        if (!cellBounds.Contains(worldPt)) return false;
+
+        cellIndex = ((long)row * Columns) + col;
+        return true;
+    }
+
+    public (int r0, int r1, int c0, int c1) GetVisibleRange(BoundsD visibleWorld)
+    {
+        int c0 = Math.Clamp((int)Math.Floor((visibleWorld.Left - Origin.X - CellWidth) / StepX), 0, Columns - 1);
+        int c1 = Math.Clamp((int)Math.Ceiling((visibleWorld.Right - Origin.X) / StepX), 0, Columns - 1);
+        int r0 = Math.Clamp((int)Math.Floor((visibleWorld.Top - Origin.Y - CellHeight) / StepY), 0, Rows - 1);
+        int r1 = Math.Clamp((int)Math.Ceiling((visibleWorld.Bottom - Origin.Y) / StepY), 0, Rows - 1);
+        return (r0, r1, c0, c1);
+    }
+}
+
+public readonly record struct CellOverride(PointD Offset, double WidthDelta, double HeightDelta, double RotationRadians);
+
+public sealed record VirtualGridSlice(
+    Guid Id,
+    string Name,
+    RepeatedRoiGrid Grid,
+    ImmutableDictionary&lt;long, CellOverride&gt; CellOverrides,
+    ImmutableHashSet&lt;long&gt; DeletedCells)
+{
+    public long ActiveCellCount =&gt; Grid.TotalCellCount - DeletedCells.Count;
+
+    public RoiGeometry GetCellGeometry(long cellIndex)
+    {
+        int row = (int)(cellIndex / Grid.Columns);
+        int col = (int)(cellIndex % Grid.Columns);
+        BoundsD baseBounds = Grid.GetCellBounds(row, col);
+        PointD center = baseBounds.Center;
+        double w = Grid.CellWidth;
+        double h = Grid.CellHeight;
+        double rot = 0.0;
+
+        if (CellOverrides.TryGetValue(cellIndex, out CellOverride ov))
+        {
+            center += ov.Offset;
+            w = Math.Max(2.0, w + ov.WidthDelta);
+            h = Math.Max(2.0, h + ov.HeightDelta);
+            rot = ov.RotationRadians;
+        }
+        return RoiGeometry.CreateRectangle(center, w, h, rot);
+    }
+
+    public bool TryHit(PointD worldPt, out long hitCellIndex)
+    {
+        foreach (var kv in CellOverrides)
+        {
+            if (!DeletedCells.Contains(kv.Key) &amp;&amp; GetCellGeometry(kv.Key).Contains(worldPt))
+            {
+                hitCellIndex = kv.Key;
+                return true;
+            }
+        }
+
+        if (Grid.TryHitCell(worldPt, out _, out _, out long idx)
+            &amp;&amp; !DeletedCells.Contains(idx)
+            &amp;&amp; !CellOverrides.ContainsKey(idx))
+        {
+            hitCellIndex = idx;
+            return true;
+        }
+
+        hitCellIndex = -1;
+        return false;
+    }
+}</code></pre>
+      </section>
+
+      <!-- Step 5 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 5 OF 7 · IMMUTABLE DOCUMENT &amp; UNDO/REDO SESSION</span>
+        <h2>Step 5. 불변 문서 스냅샷 · 드래그 프리뷰 · Undo/Redo 세션 (<code>Step5_DocumentStateAndSession.cs</code>)</h2>
+        <p>
+          드래그 도중에는 가벼운 <code>RoiTransformPreview</code>만 교체하고, 마우스 버튼을 놓는 순간(<code>CommitDocument</code>) 딱 한 번만 새 <code>DocumentState</code> 스냅샷을 만들어 <code>EditHistory</code>에 기록합니다.<br/>또한 작은 이미지 거부 시 Redo 스택을 보존하고, <code>FocusRoi</code> 호출 시 선택과 Undo 이력을 바꾸지 않는 규칙을 정확히 구현합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 5 — Step5_DocumentStateAndSession.cs</span>
+          <span>Roi · RoiTransformPreview · DocumentState · EditHistory · EditorSession</span>
+        </div>
+        <pre><code>using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+
+namespace MiniVisionCanvas;
+
+public sealed record Roi(
+    Guid Id,
+    string Name,
+    Guid? ParentId,
+    bool IsGroup,
+    RoiGeometry Geometry,
+    double SearchMargin = 20.0);
+
+public sealed record RoiTransformPreview(
+    ImmutableHashSet&lt;Guid&gt; TargetIds,
+    PointD TranslationDelta,
+    double RotationDeltaRad,
+    RoiGeometry? ResizedSingleGeometry = null)
+{
+    public Roi ApplyTo(Roi roi)
+    {
+        if (!TargetIds.Contains(roi.Id)) return roi;
+        if (ResizedSingleGeometry is { } resized &amp;&amp; TargetIds.Count == 1)
+        {
+            return roi with { Geometry = resized };
+        }
+        RoiGeometry g = roi.Geometry.Translate(TranslationDelta);
+        if (Math.Abs(RotationDeltaRad) &gt; 1e-9)
+        {
+            g = g.WithRotation(g.RotationRadians + RotationDeltaRad);
+        }
+        return roi with { Geometry = g };
+    }
+}
+
+public sealed record DocumentState(
+    int Version,
+    double ImageWidth,
+    double ImageHeight,
+    ImmutableDictionary&lt;Guid, Roi&gt; Rois,
+    ImmutableHashSet&lt;Guid&gt; SelectedIds,
+    RoiSpatialIndex SpatialIndex,
+    ImmutableArray&lt;VirtualGridSlice&gt; RepeatedBatches,
+    (Guid BatchId, long CellIndex)? SelectedRepeatedCell = null)
+{
+    public static DocumentState CreateInitial(double imgW = 8192, double imgH = 8192)
+    {
+        var parentId = Guid.NewGuid();
+        var child1Id = Guid.NewGuid();
+        var child2Id = Guid.NewGuid();
+
+        var parent = new Roi(parentId, "Module_Group_A (부모)", null, true,
+            RoiGeometry.CreateRectangle(new PointD(600, 420), 460, 320, 0.0));
+        var child1 = new Roi(child1Id, "Pin_ROI_01 (자식)", parentId, false,
+            RoiGeometry.CreateRectangle(new PointD(490, 390), 110, 80, 0.0));
+        var child2 = new Roi(child2Id, "Fiducial_Circle (자식)", parentId, false,
+            RoiGeometry.CreateCircle(new PointD(700, 450), 96, 96, 0.0));
+
+        var dict = ImmutableDictionary&lt;Guid, Roi&gt;.Empty
+            .Add(parent.Id, parent)
+            .Add(child1.Id, child1)
+            .Add(child2.Id, child2);
+
+        return new DocumentState(
+            1, imgW, imgH, dict,
+            ImmutableHashSet.Create(child1.Id),
+            RebuildIndex(dict),
+            ImmutableArray&lt;VirtualGridSlice&gt;.Empty);
+    }
+
+    public long TotalLogicalRoiCount =&gt;
+        Rois.Count + RepeatedBatches.Sum(b =&gt; b.ActiveCellCount);
+
+    public int FindBatchIndex(Guid batchId)
+    {
+        for (int i = 0; i &lt; RepeatedBatches.Length; i++)
+        {
+            if (RepeatedBatches[i].Id == batchId) return i;
+        }
+        return -1;
+    }
+
+    public static RoiSpatialIndex RebuildIndex(ImmutableDictionary&lt;Guid, Roi&gt; rois)
+    {
+        var entries = rois.Values.Select(r =&gt; new RoiSpatialIndex.Entry(r.Id, r.Geometry.WorldBounds)).ToList();
+        return RoiSpatialIndex.Build(entries);
+    }
+
+    public ImmutableHashSet&lt;Guid&gt; CollectSubtreeIds(IEnumerable&lt;Guid&gt; rootIds)
+    {
+        var result = ImmutableHashSet.CreateBuilder&lt;Guid&gt;();
+        var queue = new Queue&lt;Guid&gt;(rootIds);
+        while (queue.Count &gt; 0)
+        {
+            Guid current = queue.Dequeue();
+            if (!result.Add(current)) continue;
+            foreach (Roi r in Rois.Values)
+            {
+                if (r.ParentId == current) queue.Enqueue(r.Id);
+            }
+        }
+        return result.ToImmutable();
+    }
+
+    public DocumentState WithUpdatedRois(ImmutableDictionary&lt;Guid, Roi&gt; nextRois, ImmutableHashSet&lt;Guid&gt;? nextSelection = null) =&gt;
+        this with
+        {
+            Version = Version + 1,
+            Rois = nextRois,
+            SelectedIds = nextSelection ?? SelectedIds,
+            SpatialIndex = RebuildIndex(nextRois)
+        };
+}
+
+public sealed class EditHistory
+{
+    private readonly List&lt;DocumentState&gt; _undo = [];
+    private readonly List&lt;DocumentState&gt; _redo = [];
+    private const int MaxDepth = 32;
+
+    public bool CanUndo =&gt; _undo.Count &gt; 0;
+    public bool CanRedo =&gt; _redo.Count &gt; 0;
+
+    public void Push(DocumentState previousState)
+    {
+        _undo.Add(previousState);
+        if (_undo.Count &gt; MaxDepth) _undo.RemoveAt(0);
+        _redo.Clear();
+    }
+
+    public bool TryUndo(DocumentState current, out DocumentState restored)
+    {
+        if (_undo.Count == 0) { restored = current; return false; }
+        restored = _undo[^1];
+        _undo.RemoveAt(_undo.Count - 1);
+        _redo.Add(current);
+        return true;
+    }
+
+    public bool TryRedo(DocumentState current, out DocumentState restored)
+    {
+        if (_redo.Count == 0) { restored = current; return false; }
+        restored = _redo[^1];
+        _redo.RemoveAt(_redo.Count - 1);
+        _undo.Add(current);
+        return true;
+    }
+}
+
+public sealed class EditorSession
+{
+    public DocumentState Document { get; private set; } = DocumentState.CreateInitial();
+    public ViewportTransform Viewport { get; private set; } = new(0.65, 40, 40);
+    public RoiTransformPreview? ActivePreview { get; private set; }
+    public (Guid BatchId, long CellIndex, CellOverride Override)? ActiveCellPreview { get; private set; }
+    public IReadOnlyList&lt;PointD&gt; DraftPolygonPoints { get; private set; } = [];
+    public EditHistory History { get; } = new();
+
+    public event Action? Changed;
+    public void NotifyChanged() =&gt; Changed?.Invoke();
+
+    public void SetViewport(ViewportTransform next)
+    {
+        Viewport = next;
+        Changed?.Invoke();
+    }
+
+    public void SetPreview(RoiTransformPreview? preview)
+    {
+        ActivePreview = preview;
+        Changed?.Invoke();
+    }
+
+    public void SetCellPreview((Guid BatchId, long CellIndex, CellOverride Override)? cellPreview)
+    {
+        ActiveCellPreview = cellPreview;
+        Changed?.Invoke();
+    }
+
+    public void SetDraftPolygon(IReadOnlyList&lt;PointD&gt; points)
+    {
+        DraftPolygonPoints = points;
+        Changed?.Invoke();
+    }
+
+    public void CommitDocument(DocumentState nextState)
+    {
+        ActivePreview = null;
+        ActiveCellPreview = null;
+        if (!ReferenceEquals(Document, nextState))
+        {
+            History.Push(Document);
+            Document = nextState;
+        }
+        Changed?.Invoke();
+    }
+
+    public void UpdateSelectionOnly(ImmutableHashSet&lt;Guid&gt; selectedIds, (Guid BatchId, long CellIndex)? cell = null)
+    {
+        Document = Document with { SelectedIds = selectedIds, SelectedRepeatedCell = cell };
+        Changed?.Invoke();
+    }
+
+    public bool Undo()
+    {
+        ActivePreview = null;
+        ActiveCellPreview = null;
+        if (!History.TryUndo(Document, out DocumentState prev)) return false;
+        Document = prev;
+        Changed?.Invoke();
+        return true;
+    }
+
+    public bool Redo()
+    {
+        ActivePreview = null;
+        ActiveCellPreview = null;
+        if (!History.TryRedo(Document, out DocumentState next)) return false;
+        Document = next;
+        Changed?.Invoke();
+        return true;
+    }
+
+    public bool TryAdd100MRoiBatch(out string message)
+    {
+        if (Document.ImageWidth &lt; 4096 || Document.ImageHeight &lt; 4096)
+        {
+            message = "거부됨: 이미지가 너무 작아 1억 ROI 배치를 추가할 수 없습니다 (Redo 이력 보존됨).";
+            return false;
+        }
+
+        var grid = new RepeatedRoiGrid(
+            Origin: new PointD(950, 120),
+            CellWidth: 0.45,
+            CellHeight: 0.45,
+            StepX: 0.65,
+            StepY: 0.65,
+            Columns: 10001,
+            Rows: 10001);
+
+        var batch = new VirtualGridSlice(
+            Guid.NewGuid(),
+            $"Batch_100M_{Document.RepeatedBatches.Length + 1}",
+            grid,
+            ImmutableDictionary&lt;long, CellOverride&gt;.Empty,
+            ImmutableHashSet&lt;long&gt;.Empty);
+
+        CommitDocument(Document with
+        {
+            Version = Document.Version + 1,
+            RepeatedBatches = Document.RepeatedBatches.Add(batch)
+        });
+        message = $"1억 ROI 압축 배치 추가 완료! (10,001×10,001 = {grid.TotalCellCount:N0}셀, 총 {Document.TotalLogicalRoiCount:N0}개)";
+        return true;
+    }
+
+    public bool TryPaste50MSubGrid(out string message)
+    {
+        if (Document.RepeatedBatches.IsEmpty)
+        {
+            message = "먼저 '1억 ROI 추가' 버튼을 눌러 기본 배치를 생성하세요.";
+            return false;
+        }
+
+        VirtualGridSlice src = Document.RepeatedBatches[0];
+        var subGrid = new RepeatedRoiGrid(
+            Origin: new PointD(src.Grid.Origin.X, src.Grid.TotalBounds.Bottom + 80.0),
+            CellWidth: src.Grid.CellWidth,
+            CellHeight: src.Grid.CellHeight,
+            StepX: src.Grid.StepX,
+            StepY: src.Grid.StepY,
+            Columns: 10001,
+            Rows: 5000);
+
+        var pasted = new VirtualGridSlice(
+            Guid.NewGuid(),
+            "Pasted_50M_Slice",
+            subGrid,
+            ImmutableDictionary&lt;long, CellOverride&gt;.Empty,
+            ImmutableHashSet&lt;long&gt;.Empty);
+
+        CommitDocument(Document with
+        {
+            Version = Document.Version + 1,
+            RepeatedBatches = Document.RepeatedBatches.Add(pasted)
+        });
+        message = $"50,005,000셀 부분 복붙 완료! 현재 총 ROI = {Document.TotalLogicalRoiCount:N0}개";
+        return true;
+    }
+
+    public void FocusRoi(Guid roiId, double viewW, double viewH)
+    {
+        if (Document.Rois.TryGetValue(roiId, out Roi? roi))
+        {
+            SetViewport(ViewportTransform.FocusBounds(roi.Geometry.WorldBounds, viewW, viewH));
+        }
+    }
+
+    public void FitImage(double viewW, double viewH) =&gt;
+        SetViewport(ViewportTransform.Fit(Document.ImageWidth, Document.ImageHeight, viewW, viewH));
+}</code></pre>
+      </section>
+
+      <!-- Step 6 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 6 OF 7 · HIT TESTER &amp; POLYMORPHIC GESTURES</span>
+        <h2>Step 6. 스케일 불변 히트 테스터 &amp; 7종 IGesture 상태 머신 (<code>Step6_HitTesterAndGestures.cs</code>)</h2>
+        <p>
+          배율에 무관하게 모니터 기준 3 DIP 허용 반경(<code>3.0 / Scale</code>)으로 도형을 잡고, <code>IGesture</code> 인터페이스(<code>PanGesture</code>, <code>MoveGesture</code>, <code>ResizeGesture</code>, <code>RotateGesture</code>, <code>DrawShapeGesture</code>, <code>RepeatedCellMoveGesture</code>)로 스파게티 <code>if-else</code> 없이 모든 마우스 편집을 수행합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 6 — Step6_HitTesterAndGestures.cs</span>
+          <span>RoiHitTester · IGesture 7종 · InteractionController (잠금 및 1px/10px 방향키 이동)</span>
+        </div>
+        <pre><code>using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+
+namespace MiniVisionCanvas;
+
+public enum RoiHandleKind
+{
+    None,
+    TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left,
+    Rotate
+}
+
+public enum EditorTool
+{
+    Select,
+    Pan,
+    DrawRectangle,
+    DrawCircle,
+    DrawPolygon,
+    DrawParentGroup
+}
+
+public static class RoiHitTester
+{
+    public static (Guid RoiId, RoiHandleKind Handle)? HitHandle(DocumentState doc, ViewportTransform vp, PointD screenDip)
+    {
+        if (doc.SelectedIds.Count != 1) return null;
+        Guid selectedId = doc.SelectedIds.First();
+        if (!doc.Rois.TryGetValue(selectedId, out Roi? roi)) return null;
+
+        foreach ((RoiHandleKind kind, PointD handleScr) in GetScreenHandles(roi.Geometry, vp))
+        {
+            if ((screenDip - handleScr).Length &lt;= 7.0)
+            {
+                return (selectedId, kind);
+            }
+        }
+        return null;
+    }
+
+    public static (RoiHandleKind Kind, PointD ScreenPt)[] GetScreenHandles(RoiGeometry g, ViewportTransform vp)
+    {
+        PointD tl = vp.ImageToScreen(g.ToWorld(-0.5, -0.5));
+        PointD tr = vp.ImageToScreen(g.ToWorld(+0.5, -0.5));
+        PointD br = vp.ImageToScreen(g.ToWorld(+0.5, +0.5));
+        PointD bl = vp.ImageToScreen(g.ToWorld(-0.5, +0.5));
+        PointD tm = (tl + tr) * 0.5;
+        PointD rm = (tr + br) * 0.5;
+        PointD bm = (bl + br) * 0.5;
+        PointD lm = (tl + bl) * 0.5;
+
+        PointD upDir = (tm - bm).Normalize();
+        PointD rot = tm + (upDir * 24.0);
+
+        return
+        [
+            (RoiHandleKind.Rotate, rot),
+            (RoiHandleKind.TopLeft, tl),
+            (RoiHandleKind.Top, tm),
+            (RoiHandleKind.TopRight, tr),
+            (RoiHandleKind.Right, rm),
+            (RoiHandleKind.BottomRight, br),
+            (RoiHandleKind.Bottom, bm),
+            (RoiHandleKind.BottomLeft, bl),
+            (RoiHandleKind.Left, lm)
+        ];
+    }
+
+    public static Guid? HitRoi(DocumentState doc, ViewportTransform vp, PointD screenDip)
+    {
+        PointD imgPt = vp.ScreenToImage(screenDip);
+        double marginImg = 3.0 / Math.Max(0.01, vp.Scale);
+
+        List&lt;Guid&gt; candidates = doc.SpatialIndex.QueryPoint(imgPt);
+        var hits = new List&lt;Roi&gt;();
+        foreach (Guid id in candidates)
+        {
+            if (doc.Rois.TryGetValue(id, out Roi? roi) &amp;&amp; roi.Geometry.Contains(imgPt, marginImg))
+            {
+                hits.Add(roi);
+            }
+        }
+
+        if (hits.Count == 0) return null;
+        hits.Sort((a, b) =&gt; (a.Geometry.Width * a.Geometry.Height).CompareTo(b.Geometry.Width * b.Geometry.Height));
+        return hits[0].Id;
+    }
+
+    public static (Guid BatchId, long CellIndex)? HitRepeatedCell(DocumentState doc, ViewportTransform vp, PointD screenDip)
+    {
+        PointD imgPt = vp.ScreenToImage(screenDip);
+        for (int i = doc.RepeatedBatches.Length - 1; i &gt;= 0; i--)
+        {
+            VirtualGridSlice batch = doc.RepeatedBatches[i];
+            if (batch.TryHit(imgPt, out long cellIdx))
+            {
+                return (batch.Id, cellIdx);
+            }
+        }
+        return null;
+    }
+}
+
+public interface IGesture
+{
+    void Update(PointD currentScreenDip);
+    void Commit();
+    void Cancel();
+}
+
+public sealed class NoGesture : IGesture
+{
+    public static NoGesture Instance { get; } = new();
+    public void Update(PointD currentScreenDip) { }
+    public void Commit() { }
+    public void Cancel() { }
+}
+
+public sealed class PanGesture(EditorSession session, PointD startDip) : IGesture
+{
+    private readonly ViewportTransform _startVp = session.Viewport;
+    public void Update(PointD currentDip)
+    {
+        PointD d = currentDip - startDip;
+        session.SetViewport(_startVp.Pan(d.X, d.Y));
+    }
+    public void Commit() { }
+    public void Cancel() =&gt; session.SetViewport(_startVp);
+}
+
+public sealed class MoveGesture(EditorSession session, PointD startImg, ImmutableHashSet&lt;Guid&gt; movingIds) : IGesture
+{
+    public void Update(PointD currentDip)
+    {
+        PointD curImg = session.Viewport.ScreenToImage(currentDip);
+        PointD delta = ClampGroupTranslation(session.Document, movingIds, curImg - startImg);
+        session.SetPreview(new RoiTransformPreview(movingIds, delta, 0.0));
+    }
+
+    public void Commit()
+    {
+        if (session.ActivePreview is not { } preview || preview.TranslationDelta.LengthSquared &lt; 1e-9)
+        {
+            session.SetPreview(null);
+            return;
+        }
+        var builder = session.Document.Rois.ToBuilder();
+        foreach (Guid id in preview.TargetIds)
+        {
+            if (builder.TryGetValue(id, out Roi? r))
+            {
+                builder[id] = preview.ApplyTo(r);
+            }
+        }
+        session.CommitDocument(session.Document.WithUpdatedRois(builder.ToImmutable()));
+    }
+
+    public void Cancel() =&gt; session.SetPreview(null);
+
+    public static PointD ClampGroupTranslation(DocumentState doc, ImmutableHashSet&lt;Guid&gt; movingIds, PointD rawDelta)
+    {
+        PointD clamped = rawDelta;
+        foreach (Guid id in movingIds)
+        {
+            if (doc.Rois.TryGetValue(id, out Roi? child)
+                &amp;&amp; child.ParentId is { } pid
+                &amp;&amp; !movingIds.Contains(pid)
+                &amp;&amp; doc.Rois.TryGetValue(pid, out Roi? parent))
+            {
+                clamped = RoiMotionBounds.ClampTranslation(parent.Geometry, child.Geometry, clamped);
+            }
+        }
+        return clamped;
+    }
+}
+
+public sealed class RotateGesture(EditorSession session, Guid roiId, PointD startImg) : IGesture
+{
+    private readonly Roi _initialRoi = session.Document.Rois[roiId];
+    private readonly double _startAngle = Math.Atan2(
+        startImg.Y - session.Document.Rois[roiId].Geometry.Center.Y,
+        startImg.X - session.Document.Rois[roiId].Geometry.Center.X);
+
+    public void Update(PointD currentDip)
+    {
+        PointD curImg = session.Viewport.ScreenToImage(currentDip);
+        PointD c = _initialRoi.Geometry.Center;
+        double curAngle = Math.Atan2(curImg.Y - c.Y, curImg.X - c.X);
+        double deltaRad = curAngle - _startAngle;
+
+        if (_initialRoi.ParentId is { } pid &amp;&amp; session.Document.Rois.TryGetValue(pid, out Roi? parent))
+        {
+            deltaRad = RoiMotionBounds.ClampRotation(parent.Geometry, _initialRoi.Geometry, deltaRad);
+        }
+        session.SetPreview(new RoiTransformPreview(ImmutableHashSet.Create(roiId), default, deltaRad));
+    }
+
+    public void Commit()
+    {
+        if (session.ActivePreview is not { } preview || Math.Abs(preview.RotationDeltaRad) &lt; 1e-9)
+        {
+            session.SetPreview(null);
+            return;
+        }
+        Roi updated = preview.ApplyTo(_initialRoi);
+        session.CommitDocument(session.Document.WithUpdatedRois(session.Document.Rois.SetItem(roiId, updated)));
+    }
+
+    public void Cancel() =&gt; session.SetPreview(null);
+}
+
+public sealed class ResizeGesture(EditorSession session, Guid roiId, RoiHandleKind handle) : IGesture
+{
+    private readonly Roi _initialRoi = session.Document.Rois[roiId];
+
+    public void Update(PointD currentDip)
+    {
+        PointD curImg = session.Viewport.ScreenToImage(currentDip);
+        RoiGeometry g = _initialRoi.Geometry;
+        PointD local = RigidTransform2D.FromAngle(g.RotationRadians, g.Center).ApplyInverse(curImg);
+
+        double left = -g.Width * 0.5, right = g.Width * 0.5;
+        double top = -g.Height * 0.5, bottom = g.Height * 0.5;
+
+        if (handle is RoiHandleKind.Left or RoiHandleKind.TopLeft or RoiHandleKind.BottomLeft) left = Math.Min(right - 8.0, local.X);
+        if (handle is RoiHandleKind.Right or RoiHandleKind.TopRight or RoiHandleKind.BottomRight) right = Math.Max(left + 8.0, local.X);
+        if (handle is RoiHandleKind.Top or RoiHandleKind.TopLeft or RoiHandleKind.TopRight) top = Math.Min(bottom - 8.0, local.Y);
+        if (handle is RoiHandleKind.Bottom or RoiHandleKind.BottomLeft or RoiHandleKind.BottomRight) bottom = Math.Max(top + 8.0, local.Y);
+
+        PointD localCenterOffset = new((left + right) * 0.5, (top + bottom) * 0.5);
+        PointD newWorldCenter = RigidTransform2D.FromAngle(g.RotationRadians, g.Center).Apply(localCenterOffset);
+        RoiGeometry candidate = g with { Center = newWorldCenter, Width = right - left, Height = bottom - top };
+
+        if (_initialRoi.ParentId is { } pid
+            &amp;&amp; session.Document.Rois.TryGetValue(pid, out Roi? parent)
+            &amp;&amp; !RoiMotionBounds.ContainsGeometry(parent.Geometry, candidate))
+        {
+            return;
+        }
+
+        session.SetPreview(new RoiTransformPreview(ImmutableHashSet.Create(roiId), default, 0.0, candidate));
+    }
+
+    public void Commit()
+    {
+        if (session.ActivePreview?.ResizedSingleGeometry is not { } resized)
+        {
+            session.SetPreview(null);
+            return;
+        }
+        Roi updated = _initialRoi with { Geometry = resized };
+        session.CommitDocument(session.Document.WithUpdatedRois(session.Document.Rois.SetItem(roiId, updated)));
+    }
+
+    public void Cancel() =&gt; session.SetPreview(null);
+}
+
+public sealed class DrawShapeGesture(EditorSession session, PointD startImg, RoiShapeKind shape, bool asGroup, Guid? parentId) : IGesture
+{
+    private RoiGeometry? _draft;
+
+    public void Update(PointD currentDip)
+    {
+        PointD curImg = session.Viewport.ScreenToImage(currentDip);
+        PointD center = (startImg + curImg) * 0.5;
+        double w = Math.Max(12.0, Math.Abs(curImg.X - startImg.X));
+        double h = Math.Max(12.0, Math.Abs(curImg.Y - startImg.Y));
+        _draft = shape == RoiShapeKind.Circle
+            ? RoiGeometry.CreateCircle(center, w, h)
+            : RoiGeometry.CreateRectangle(center, w, h);
+
+        if (parentId is { } pid &amp;&amp; session.Document.Rois.TryGetValue(pid, out Roi? parent)
+            &amp;&amp; !RoiMotionBounds.ContainsGeometry(parent.Geometry, _draft))
+        {
+            _draft = null;
+        }
+        session.NotifyChanged();
+    }
+
+    public RoiGeometry? DraftGeometry =&gt; _draft;
+
+    public void Commit()
+    {
+        if (_draft is null) return;
+        Guid id = Guid.NewGuid();
+        string prefix = asGroup ? "Group" : shape.ToString();
+        var roi = new Roi(id, $"{prefix}_{session.Document.Rois.Count + 1}", parentId, asGroup, _draft);
+        var nextRois = session.Document.Rois.Add(id, roi);
+        session.CommitDocument(session.Document.WithUpdatedRois(nextRois, ImmutableHashSet.Create(id)));
+    }
+
+    public void Cancel() =&gt; _draft = null;
+}
+
+public sealed class RepeatedCellMoveGesture(EditorSession session, Guid batchId, long cellIndex, PointD startImg) : IGesture
+{
+    private readonly CellOverride _initialOverride = session.Document.RepeatedBatches
+        .First(b =&gt; b.Id == batchId).CellOverrides.GetValueOrDefault(cellIndex);
+
+    public void Update(PointD currentDip)
+    {
+        PointD curImg = session.Viewport.ScreenToImage(currentDip);
+        PointD delta = curImg - startImg;
+        var nextOv = _initialOverride with { Offset = _initialOverride.Offset + delta };
+        session.SetCellPreview((batchId, cellIndex, nextOv));
+    }
+
+    public void Commit()
+    {
+        if (session.ActiveCellPreview is not { } preview) return;
+        int idx = session.Document.FindBatchIndex(batchId);
+        if (idx &lt; 0) return;
+
+        VirtualGridSlice batch = session.Document.RepeatedBatches[idx];
+        VirtualGridSlice updatedBatch = batch with
+        {
+            CellOverrides = batch.CellOverrides.SetItem(cellIndex, preview.Override)
+        };
+        session.CommitDocument(session.Document with
+        {
+            Version = session.Document.Version + 1,
+            RepeatedBatches = session.Document.RepeatedBatches.SetItem(idx, updatedBatch)
+        });
+    }
+
+    public void Cancel() =&gt; session.SetCellPreview(null);
+}
+
+public sealed class InteractionController(EditorSession session)
+{
+    private IGesture _activeGesture = NoGesture.Instance;
+    private readonly List&lt;PointD&gt; _polygonDraft = [];
+    private bool _isEnabled = true;
+    private bool _navigationOnly;
+
+    public EditorTool Tool { get; set; } = EditorTool.Select;
+    public DrawShapeGesture? CurrentDrawGesture =&gt; _activeGesture as DrawShapeGesture;
+
+    public bool IsEnabled
+    {
+        get =&gt; _isEnabled;
+        set
+        {
+            if (_isEnabled == value) return;
+            _isEnabled = value;
+            if (!_isEnabled) Cancel();
+        }
+    }
+
+    public bool NavigationOnly
+    {
+        get =&gt; _navigationOnly;
+        set
+        {
+            if (_navigationOnly == value) return;
+            _navigationOnly = value;
+            if (_navigationOnly) Cancel();
+        }
+    }
+
+    public void PointerDown(PointD screenDip, bool rightOrMiddleButton)
+    {
+        if (!IsEnabled) return;
+
+        if (rightOrMiddleButton || Tool == EditorTool.Pan || NavigationOnly)
+        {
+            _activeGesture = new PanGesture(session, screenDip);
+            return;
+        }
+
+        PointD imgPt = session.Viewport.ScreenToImage(screenDip);
+
+        if (Tool == EditorTool.DrawPolygon)
+        {
+            if (PolygonClosure.CanAddPoint(_polygonDraft, imgPt))
+            {
+                _polygonDraft.Add(imgPt);
+                session.SetDraftPolygon(_polygonDraft.ToArray());
+            }
+            return;
+        }
+
+        if (Tool is EditorTool.DrawRectangle or EditorTool.DrawCircle or EditorTool.DrawParentGroup)
+        {
+            Guid? parentId = null;
+            if (Tool != EditorTool.DrawParentGroup &amp;&amp; session.Document.SelectedIds.Count == 1)
+            {
+                Guid selId = session.Document.SelectedIds.First();
+                if (session.Document.Rois.TryGetValue(selId, out Roi? selRoi) &amp;&amp; selRoi.IsGroup)
+                {
+                    parentId = selId;
+                }
+            }
+            RoiShapeKind shape = Tool == EditorTool.DrawCircle ? RoiShapeKind.Circle : RoiShapeKind.Rectangle;
+            _activeGesture = new DrawShapeGesture(session, imgPt, shape, Tool == EditorTool.DrawParentGroup, parentId);
+            return;
+        }
+
+        if (RoiHitTester.HitHandle(session.Document, session.Viewport, screenDip) is { } handleHit)
+        {
+            _activeGesture = handleHit.Handle == RoiHandleKind.Rotate
+                ? new RotateGesture(session, handleHit.RoiId, imgPt)
+                : new ResizeGesture(session, handleHit.RoiId, handleHit.Handle);
+            return;
+        }
+
+        if (RoiHitTester.HitRepeatedCell(session.Document, session.Viewport, screenDip) is { } cellHit)
+        {
+            session.UpdateSelectionOnly(ImmutableHashSet&lt;Guid&gt;.Empty, cellHit);
+            _activeGesture = new RepeatedCellMoveGesture(session, cellHit.BatchId, cellHit.CellIndex, imgPt);
+            return;
+        }
+
+        if (RoiHitTester.HitRoi(session.Document, session.Viewport, screenDip) is { } hitId)
+        {
+            session.UpdateSelectionOnly(ImmutableHashSet.Create(hitId), null);
+            ImmutableHashSet&lt;Guid&gt; moving = session.Document.CollectSubtreeIds([hitId]);
+            _activeGesture = new MoveGesture(session, imgPt, moving);
+            return;
+        }
+
+        session.UpdateSelectionOnly(ImmutableHashSet&lt;Guid&gt;.Empty, null);
+    }
+
+    public void PointerMove(PointD screenDip)
+    {
+        if (!IsEnabled) return;
+        _activeGesture.Update(screenDip);
+    }
+
+    public void PointerUp(PointD screenDip)
+    {
+        if (!IsEnabled) return;
+        _activeGesture.Update(screenDip);
+        _activeGesture.Commit();
+        _activeGesture = NoGesture.Instance;
+        if (Tool is EditorTool.DrawRectangle or EditorTool.DrawCircle or EditorTool.DrawParentGroup)
+        {
+            Tool = EditorTool.Select;
+        }
+    }
+
+    public void MouseWheel(PointD screenDip, int wheelDelta)
+    {
+        if (!IsEnabled) return;
+        double factor = wheelDelta &gt; 0 ? 1.2 : (1.0 / 1.2);
+        session.SetViewport(session.Viewport.ZoomAt(screenDip, factor));
+    }
+
+    public bool TryCompletePolygon()
+    {
+        if (_polygonDraft.Count &lt; 3 || !PolygonClosure.TryCreateClosedPolygon(_polygonDraft, out RoiGeometry polyGeom))
+        {
+            return false;
+        }
+        _polygonDraft.Clear();
+        session.SetDraftPolygon([]);
+        Guid id = Guid.NewGuid();
+        var roi = new Roi(id, $"Polygon_{session.Document.Rois.Count + 1}", null, false, polyGeom);
+        session.CommitDocument(session.Document.WithUpdatedRois(session.Document.Rois.Add(id, roi), ImmutableHashSet.Create(id)));
+        Tool = EditorTool.Select;
+        return true;
+    }
+
+    public bool TryMoveSelectionBy(PointD deltaImg)
+    {
+        if (!IsEnabled || NavigationOnly) return false;
+
+        if (session.Document.SelectedRepeatedCell is { } selCell)
+        {
+            int idx = session.Document.FindBatchIndex(selCell.BatchId);
+            if (idx &lt; 0) return false;
+            VirtualGridSlice batch = session.Document.RepeatedBatches[idx];
+            CellOverride ov = batch.CellOverrides.GetValueOrDefault(selCell.CellIndex);
+            VirtualGridSlice updated = batch with
+            {
+                CellOverrides = batch.CellOverrides.SetItem(selCell.CellIndex, ov with { Offset = ov.Offset + deltaImg })
+            };
+            session.CommitDocument(session.Document with
+            {
+                Version = session.Document.Version + 1,
+                RepeatedBatches = session.Document.RepeatedBatches.SetItem(idx, updated)
+            });
+            return true;
+        }
+
+        if (session.Document.SelectedIds.IsEmpty) return false;
+        ImmutableHashSet&lt;Guid&gt; moving = session.Document.CollectSubtreeIds(session.Document.SelectedIds);
+        PointD clamped = MoveGesture.ClampGroupTranslation(session.Document, moving, deltaImg);
+        if (clamped.LengthSquared &lt; 1e-9) return false;
+
+        var builder = session.Document.Rois.ToBuilder();
+        foreach (Guid id in moving)
+        {
+            if (builder.TryGetValue(id, out Roi? r))
+            {
+                builder[id] = r with { Geometry = r.Geometry.Translate(clamped) };
+            }
+        }
+        session.CommitDocument(session.Document.WithUpdatedRois(builder.ToImmutable()));
+        return true;
+    }
+
+    public void Cancel()
+    {
+        _activeGesture.Cancel();
+        _activeGesture = NoGesture.Instance;
+        _polygonDraft.Clear();
+        session.SetDraftPolygon([]);
+    }
+}</code></pre>
+      </section>
+
+      <!-- Step 7 -->
+      <section class="content-section">
+        <span class="section-badge">STEP 7 OF 7 · HWND HOST · SIMD TILE PLANNER · 6-LAYER RENDERER · MVVM</span>
+        <h2>Step 7. 타일 피라미드 SIMD · HWND 호스트 · 6단 렌더러 · MVVM 연결 (<code>Step7_HwndRendererAndMvvmApp.cs</code> &amp; <code>MainWindow.xaml</code>)</h2>
+        <p>
+          이제 <code>TilePlanner.AverageRowSimd</code>(<code>Vector256&lt;int&gt;</code>), <code>Win32OverlayHwndHost</code>(<code>HwndHost</code> + <code>WndProc</code> 부호 있는 16비트 <code>short</code> 좌표 해독), 6단 레이어 렌더러(<code>VisionCanvasElement</code>), 그리고 <code>MainWindowViewModel</code>과 <code>MainWindow.xaml</code>을 하나로 조립합니다.
+        </p>
+        <div class="code-header">
+          <span>Step 7-A — Step7_HwndRendererAndMvvmApp.cs</span>
+          <span>TilePlanner SIMD · Win32OverlayHwndHost · VisionCanvasElement · MainWindowViewModel</span>
+        </div>
+        <pre><code>using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
+
+namespace MiniVisionCanvas;
+
+public static class TilePlanner
+{
+    public const int TileSize = 512;
+
+    public static int SelectPyramidLevel(double scale, int maxLevel = 6)
+    {
+        if (scale &gt;= 1.0) return 0;
+        int level = (int)Math.Floor(Math.Log2(1.0 / scale));
+        return Math.Clamp(level, 0, maxLevel);
+    }
+
+    public static void AverageRowSimd(ReadOnlySpan&lt;int&gt; rowA, ReadOnlySpan&lt;int&gt; rowB, Span&lt;int&gt; dst)
+    {
+        int i = 0;
+        Vector256&lt;int&gt; one = Vector256.Create(1);
+        for (; i + 8 &lt;= dst.Length; i += 8)
+        {
+            Vector256&lt;int&gt; va = Vector256.Create(rowA.Slice(i, 8));
+            Vector256&lt;int&gt; vb = Vector256.Create(rowB.Slice(i, 8));
+            Vector256&lt;int&gt; avg = (va + vb + one) &gt;&gt; 1;
+            avg.CopyTo(dst.Slice(i, 8));
+        }
+        for (; i &lt; dst.Length; i++)
+        {
+            dst[i] = (rowA[i] + rowB[i] + 1) &gt;&gt; 1;
+        }
+    }
+}
+
+public sealed class Win32OverlayHwndHost : HwndHost
+{
+    private const int WsChild = 0x40000000;
+    private const int WsVisible = 0x10000000;
+    private const int WmLButtonDown = 0x0201;
+    private const int WmLButtonUp = 0x0202;
+    private const int WmRButtonDown = 0x0204;
+    private const int WmRButtonUp = 0x0205;
+    private const int WmMButtonDown = 0x0207;
+    private const int WmMButtonUp = 0x0208;
+    private const int WmMouseMove = 0x0200;
+    private const int WmMouseWheel = 0x020A;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr CreateWindowExW(
+        int exStyle, string className, string windowName, int style,
+        int x, int y, int width, int height, IntPtr hwndParent, IntPtr hMenu, IntPtr hInst, IntPtr lpParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetCapture(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    private IntPtr _hwnd;
+    public InteractionController? Controller { get; set; }
+    public Action? RequestRedraw { get; set; }
+
+    protected override HandleRef BuildWindowCore(HandleRef hwndParent)
+    {
+        _hwnd = CreateWindowExW(0, "STATIC", "", WsChild | WsVisible, 0, 0, 100, 100, hwndParent.Handle, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+        return new HandleRef(this, _hwnd);
+    }
+
+    protected override void DestroyWindowCore(HandleRef hwnd) =&gt; DestroyWindow(hwnd.Handle);
+
+    private PointD DecodeDipPoint(IntPtr lParam)
+    {
+        long raw = lParam.ToInt64();
+        short pixelX = (short)(raw &amp; 0xFFFF);
+        short pixelY = (short)((raw &gt;&gt; 16) &amp; 0xFFFF);
+        DpiScale dpi = VisualTreeHelper.GetDpi(this);
+        return new PointD(pixelX / dpi.DpiScaleX, pixelY / dpi.DpiScaleY);
+    }
+
+    protected override IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (Controller is null) return IntPtr.Zero;
+
+        switch (msg)
+        {
+            case WmLButtonDown:
+                Focus();
+                SetCapture(hwnd);
+                Controller.PointerDown(DecodeDipPoint(lParam), rightOrMiddleButton: false);
+                RequestRedraw?.Invoke();
+                handled = true;
+                break;
+            case WmRButtonDown:
+            case WmMButtonDown:
+                Focus();
+                SetCapture(hwnd);
+                Controller.PointerDown(DecodeDipPoint(lParam), rightOrMiddleButton: true);
+                RequestRedraw?.Invoke();
+                handled = true;
+                break;
+            case WmMouseMove:
+                Controller.PointerMove(DecodeDipPoint(lParam));
+                RequestRedraw?.Invoke();
+                handled = true;
+                break;
+            case WmLButtonUp:
+            case WmRButtonUp:
+            case WmMButtonUp:
+                ReleaseCapture();
+                Controller.PointerUp(DecodeDipPoint(lParam));
+                RequestRedraw?.Invoke();
+                handled = true;
+                break;
+            case WmMouseWheel:
+                int delta = (short)((wParam.ToInt64() &gt;&gt; 16) &amp; 0xFFFF);
+                Point mousePt = Mouse.GetPosition(this);
+                Controller.MouseWheel(new PointD(mousePt.X, mousePt.Y), delta);
+                RequestRedraw?.Invoke();
+                handled = true;
+                break;
+        }
+        return IntPtr.Zero;
+    }
+}
+
+public sealed class VisionCanvasElement : FrameworkElement
+{
+    private EditorSession? _session;
+    private InteractionController? _controller;
+
+    public void Attach(EditorSession session, InteractionController controller)
+    {
+        if (_session is not null) _session.Changed -= InvalidateVisual;
+        _session = session;
+        _controller = controller;
+        _session.Changed += InvalidateVisual;
+        InvalidateVisual();
+    }
+
+    protected override void OnMouseDown(MouseButtonEventArgs e)
+    {
+        Focus();
+        CaptureMouse();
+        Point p = e.GetPosition(this);
+        bool panBtn = e.ChangedButton is MouseButton.Right or MouseButton.Middle;
+        _controller?.PointerDown(new PointD(p.X, p.Y), panBtn);
+        InvalidateVisual();
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (_controller is null) return;
+        Point p = e.GetPosition(this);
+        _controller.PointerMove(new PointD(p.X, p.Y));
+        InvalidateVisual();
+    }
+
+    protected override void OnMouseUp(MouseButtonEventArgs e)
+    {
+        ReleaseMouseCapture();
+        Point p = e.GetPosition(this);
+        _controller?.PointerUp(new PointD(p.X, p.Y));
+        InvalidateVisual();
+    }
+
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        Point p = e.GetPosition(this);
+        _controller?.MouseWheel(new PointD(p.X, p.Y), e.Delta);
+        InvalidateVisual();
+    }
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(11, 15, 25)), null, new Rect(0, 0, ActualWidth, ActualHeight));
+        if (_session is null) return;
+
+        DocumentState doc = _session.Document;
+        ViewportTransform vp = _session.Viewport;
+
+        DrawBackgroundTiles(dc, doc, vp);
+        DrawRepeatedBatches(dc, doc, vp);
+        DrawRoiOverlays(dc, doc, vp);
+        DrawSelectionHandles(dc, doc, vp);
+        DrawDraftOverlays(dc, vp);
+        DrawMinimap(dc, doc, vp);
+    }
+
+    private void DrawBackgroundTiles(DrawingContext dc, DocumentState doc, ViewportTransform vp)
+    {
+        PointD tl = vp.ImageToScreen(new PointD(0, 0));
+        PointD br = vp.ImageToScreen(new PointD(doc.ImageWidth, doc.ImageHeight));
+        Rect imgRect = new(new Point(tl.X, tl.Y), new Point(br.X, br.Y));
+        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(20, 29, 47)), new Pen(Brushes.SlateGray, 1.5), imgRect);
+
+        int lod = TilePlanner.SelectPyramidLevel(vp.Scale);
+        int stepPx = TilePlanner.TileSize &lt;&lt; lod;
+        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(45, 56, 189, 248)), 1.0);
+
+        for (double x = 0; x &lt;= doc.ImageWidth; x += stepPx)
+        {
+            double sx = vp.ImageToScreen(new PointD(x, 0)).X;
+            if (sx &gt;= imgRect.Left &amp;&amp; sx &lt;= imgRect.Right)
+                dc.DrawLine(gridPen, new Point(sx, imgRect.Top), new Point(sx, imgRect.Bottom));
+        }
+        for (double y = 0; y &lt;= doc.ImageHeight; y += stepPx)
+        {
+            double sy = vp.ImageToScreen(new PointD(0, y)).Y;
+            if (sy &gt;= imgRect.Top &amp;&amp; sy &lt;= imgRect.Bottom)
+                dc.DrawLine(gridPen, new Point(imgRect.Left, sy), new Point(imgRect.Right, sy));
+        }
+    }
+
+    private void DrawRepeatedBatches(DrawingContext dc, DocumentState doc, ViewportTransform vp)
+    {
+        BoundsD visibleImg = vp.ScreenToImage(new BoundsD(0, 0, ActualWidth, ActualHeight));
+        var batchPen = new Pen(new SolidColorBrush(Color.FromRgb(52, 211, 153)), 1.2);
+        var cellPen = new Pen(new SolidColorBrush(Color.FromArgb(190, 52, 211, 153)), 1.0);
+        var selCellPen = new Pen(Brushes.Yellow, 2.0);
+
+        foreach (VirtualGridSlice batch in doc.RepeatedBatches)
+        {
+            BoundsD total = batch.Grid.TotalBounds;
+            PointD btl = vp.ImageToScreen(new PointD(total.Left, total.Top));
+            PointD bbr = vp.ImageToScreen(new PointD(total.Right, total.Bottom));
+            dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(24, 52, 211, 153)), batchPen,
+                new Rect(new Point(btl.X, btl.Y), new Point(bbr.X, bbr.Y)));
+
+            if (batch.Grid.StepX * vp.Scale &gt;= 6.0)
+            {
+                (int r0, int r1, int c0, int c1) = batch.Grid.GetVisibleRange(visibleImg);
+                int maxDraw = 2500;
+                int drawn = 0;
+                for (int r = r0; r &lt;= r1 &amp;&amp; drawn &lt; maxDraw; r++)
+                {
+                    for (int c = c0; c &lt;= c1 &amp;&amp; drawn &lt; maxDraw; c++)
+                    {
+                        long idx = ((long)r * batch.Grid.Columns) + c;
+                        if (batch.DeletedCells.Contains(idx)) continue;
+                        RoiGeometry g = batch.GetCellGeometry(idx);
+                        if (_session?.ActiveCellPreview is { } cp &amp;&amp; cp.BatchId == batch.Id &amp;&amp; cp.CellIndex == idx)
+                        {
+                            BoundsD baseB = batch.Grid.GetCellBounds(r, c);
+                            g = RoiGeometry.CreateRectangle(baseB.Center + cp.Override.Offset, batch.Grid.CellWidth, batch.Grid.CellHeight, cp.Override.RotationRadians);
+                        }
+                        bool isSel = doc.SelectedRepeatedCell == (batch.Id, idx);
+                        DrawGeometryPolygon(dc, g, vp, isSel ? selCellPen : cellPen, null);
+                        drawn++;
+                    }
+                }
+            }
+        }
+    }
+
+    private void DrawRoiOverlays(DrawingContext dc, DocumentState doc, ViewportTransform vp)
+    {
+        foreach (Roi rawRoi in doc.Rois.Values)
+        {
+            Roi roi = _session?.ActivePreview is { } prev ? prev.ApplyTo(rawRoi) : rawRoi;
+            bool selected = doc.SelectedIds.Contains(roi.Id);
+            Color strokeColor = selected
+                ? Color.FromRgb(251, 191, 36)
+                : (roi.IsGroup ? Color.FromRgb(56, 189, 248) : Color.FromRgb(244, 114, 182));
+            var pen = new Pen(new SolidColorBrush(strokeColor), selected ? 2.4 : 1.8);
+            var fill = new SolidColorBrush(Color.FromArgb(selected ? (byte)45 : (byte)20, strokeColor.R, strokeColor.G, strokeColor.B));
+            DrawGeometryPolygon(dc, roi.Geometry, vp, pen, fill);
+        }
+    }
+
+    private static void DrawGeometryPolygon(DrawingContext dc, RoiGeometry g, ViewportTransform vp, Pen pen, Brush? fill)
+    {
+        PointD[] pts = g.GetWorldSamplePoints();
+        if (pts.Length &lt; 3) return;
+        var geom = new StreamGeometry();
+        using (StreamGeometryContext ctx = geom.Open())
+        {
+            PointD p0 = vp.ImageToScreen(pts[0]);
+            ctx.BeginFigure(new Point(p0.X, p0.Y), fill is not null, isClosed: true);
+            for (int i = 1; i &lt; pts.Length; i++)
+            {
+                PointD pi = vp.ImageToScreen(pts[i]);
+                ctx.LineTo(new Point(pi.X, pi.Y), isStroked: true, isSmoothJoin: false);
+            }
+        }
+        geom.Freeze();
+        dc.DrawGeometry(fill, pen, geom);
+    }
+
+    private void DrawSelectionHandles(DrawingContext dc, DocumentState doc, ViewportTransform vp)
+    {
+        if (doc.SelectedIds.Count != 1) return;
+        Guid id = doc.SelectedIds.First();
+        if (!doc.Rois.TryGetValue(id, out Roi? rawRoi)) return;
+        Roi roi = _session?.ActivePreview is { } prev ? prev.ApplyTo(rawRoi) : rawRoi;
+
+        (RoiHandleKind Kind, PointD ScreenPt)[] handles = RoiHitTester.GetScreenHandles(roi.Geometry, vp);
+        PointD topMid = handles[2].ScreenPt;
+        PointD rotPt = handles[0].ScreenPt;
+        dc.DrawLine(new Pen(Brushes.Gold, 1.5), new Point(topMid.X, topMid.Y), new Point(rotPt.X, rotPt.Y));
+
+        foreach ((RoiHandleKind kind, PointD pt) in handles)
+        {
+            if (kind == RoiHandleKind.Rotate)
+                dc.DrawEllipse(Brushes.Gold, new Pen(Brushes.Black, 1.0), new Point(pt.X, pt.Y), 5.5, 5.5);
+            else
+                dc.DrawRectangle(Brushes.White, new Pen(Brushes.RoyalBlue, 1.5), new Rect(pt.X - 4.0, pt.Y - 4.0, 8.0, 8.0));
+        }
+    }
+
+    private void DrawDraftOverlays(DrawingContext dc, ViewportTransform vp)
+    {
+        if (_controller?.CurrentDrawGesture?.DraftGeometry is { } draft)
+        {
+            var pen = new Pen(Brushes.Cyan, 2.0) { DashStyle = DashStyles.Dash };
+            DrawGeometryPolygon(dc, draft, vp, pen, new SolidColorBrush(Color.FromArgb(35, 0, 255, 255)));
+        }
+
+        IReadOnlyList&lt;PointD&gt; poly = _session?.DraftPolygonPoints ?? [];
+        if (poly.Count &gt; 0)
+        {
+            var pen = new Pen(Brushes.Lime, 2.0);
+            for (int i = 0; i &lt; poly.Count - 1; i++)
+            {
+                PointD a = vp.ImageToScreen(poly[i]);
+                PointD b = vp.ImageToScreen(poly[i + 1]);
+                dc.DrawLine(pen, new Point(a.X, a.Y), new Point(b.X, b.Y));
+            }
+            foreach (PointD p in poly)
+            {
+                PointD s = vp.ImageToScreen(p);
+                dc.DrawEllipse(Brushes.Lime, null, new Point(s.X, s.Y), 4, 4);
+            }
+        }
+    }
+
+    private void DrawMinimap(DrawingContext dc, DocumentState doc, ViewportTransform vp)
+    {
+        if (ActualWidth &lt; 240 || ActualHeight &lt; 180) return;
+        Rect mini = new(ActualWidth - 156, ActualHeight - 116, 140, 100);
+        dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(210, 15, 23, 42)), new Pen(Brushes.SlateGray, 1.0), mini);
+
+        double sx = mini.Width / Math.Max(1.0, doc.ImageWidth);
+        double sy = mini.Height / Math.Max(1.0, doc.ImageHeight);
+        BoundsD vis = vp.ScreenToImage(new BoundsD(0, 0, ActualWidth, ActualHeight));
+        double vx = Math.Clamp(mini.Left + (vis.Left * sx), mini.Left, mini.Right);
+        double vy = Math.Clamp(mini.Top + (vis.Top * sy), mini.Top, mini.Bottom);
+        double vw = Math.Clamp(vis.Width * sx, 4.0, mini.Right - vx);
+        double vh = Math.Clamp(vis.Height * sy, 4.0, mini.Bottom - vy);
+        dc.DrawRectangle(null, new Pen(Brushes.Cyan, 1.5), new Rect(vx, vy, vw, vh));
+    }
+}
+
+public sealed class RelayCommand(Action execute, Func&lt;bool&gt;? canExecute = null) : ICommand
+{
+    public event EventHandler? CanExecuteChanged;
+    public bool CanExecute(object? parameter) =&gt; canExecute?.Invoke() ?? true;
+    public void Execute(object? parameter) =&gt; execute();
+    public void RaiseCanExecuteChanged() =&gt; CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}
+
+public sealed class MainWindowViewModel : INotifyPropertyChanged
+{
+    public EditorSession Session { get; } = new();
+    public InteractionController Controller { get; }
+    private string _status = "준비 완료: 도형을 드래그하거나 '1억 ROI 추가'를 눌러보세요.";
+
+    public MainWindowViewModel()
+    {
+        Controller = new InteractionController(Session);
+
+        SelectToolCommand = new RelayCommand(() =&gt; SetTool(EditorTool.Select));
+        PanToolCommand = new RelayCommand(() =&gt; SetTool(EditorTool.Pan));
+        DrawRectCommand = new RelayCommand(() =&gt; SetTool(EditorTool.DrawRectangle));
+        DrawCircleCommand = new RelayCommand(() =&gt; SetTool(EditorTool.DrawCircle));
+        DrawPolygonCommand = new RelayCommand(() =&gt; SetTool(EditorTool.DrawPolygon));
+        DrawParentCommand = new RelayCommand(() =&gt; SetTool(EditorTool.DrawParentGroup));
+        CompletePolygonCommand = new RelayCommand(() =&gt;
+        {
+            if (!Controller.TryCompletePolygon())
+                Status = "폴리곤 닫기 거부: 꼭짓점이 3개 미만이거나 선분이 8자로 교차합니다!";
+        });
+
+        Add100MRoiCommand = new RelayCommand(() =&gt;
+        {
+            Session.TryAdd100MRoiBatch(out string msg);
+            Status = msg;
+        });
+        Paste50MCommand = new RelayCommand(() =&gt;
+        {
+            Session.TryPaste50MSubGrid(out string msg);
+            Status = msg;
+        });
+
+        UndoCommand = new RelayCommand(() =&gt; { if (Session.Undo()) Status = "Undo 실행 완료"; });
+        RedoCommand = new RelayCommand(() =&gt; { if (Session.Redo()) Status = "Redo 실행 완료"; });
+        DeleteCommand = new RelayCommand(DeleteSelection);
+        ToggleLockCommand = new RelayCommand(() =&gt;
+        {
+            Controller.NavigationOnly = !Controller.NavigationOnly;
+            Status = Controller.NavigationOnly
+                ? "검사 화면 입력 잠금(NavigationOnly = true): 드래그 취소됨, 줌/패닝만 허용"
+                : "입력 잠금 해제: 모든 ROI 편집 허용";
+            OnPropertyChanged(nameof(LockButtonText));
+        });
+
+        Session.Changed += () =&gt;
+        {
+            OnPropertyChanged(nameof(SummaryText));
+            OnPropertyChanged(nameof(RoiList));
+        };
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null) =&gt;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    public string Status
+    {
+        get =&gt; _status;
+        set { _status = value; OnPropertyChanged(); }
+    }
+
+    public string SummaryText =&gt;
+        $"해상도 {Session.Document.ImageWidth:N0}×{Session.Document.ImageHeight:N0} · 일반 ROI {Session.Document.Rois.Count}개 · 총 논리 ROI {Session.Document.TotalLogicalRoiCount:N0}개 · 배율 {Session.Viewport.Scale:P0} · LOD Level {TilePlanner.SelectPyramidLevel(Session.Viewport.Scale)}";
+
+    public string LockButtonText =&gt; Controller.NavigationOnly ? "🔒 검사 잠금 해제" : "🔓 검사 잠금 켜기";
+    public IReadOnlyList&lt;Roi&gt; RoiList =&gt; Session.Document.Rois.Values.ToList();
+
+    public RelayCommand SelectToolCommand { get; }
+    public RelayCommand PanToolCommand { get; }
+    public RelayCommand DrawRectCommand { get; }
+    public RelayCommand DrawCircleCommand { get; }
+    public RelayCommand DrawPolygonCommand { get; }
+    public RelayCommand DrawParentCommand { get; }
+    public RelayCommand CompletePolygonCommand { get; }
+    public RelayCommand Add100MRoiCommand { get; }
+    public RelayCommand Paste50MCommand { get; }
+    public RelayCommand UndoCommand { get; }
+    public RelayCommand RedoCommand { get; }
+    public RelayCommand DeleteCommand { get; }
+    public RelayCommand ToggleLockCommand { get; }
+
+    private void SetTool(EditorTool tool)
+    {
+        Controller.Tool = tool;
+        Status = $"도구 전환: {tool}";
+    }
+
+    private void DeleteSelection()
+    {
+        if (Controller.NavigationOnly) return;
+        if (Session.Document.SelectedRepeatedCell is { } selCell)
+        {
+            int idx = Session.Document.FindBatchIndex(selCell.BatchId);
+            if (idx &gt;= 0)
+            {
+                VirtualGridSlice b = Session.Document.RepeatedBatches[idx];
+                VirtualGridSlice nextB = b with { DeletedCells = b.DeletedCells.Add(selCell.CellIndex) };
+                Session.CommitDocument(Session.Document with
+                {
+                    Version = Session.Document.Version + 1,
+                    RepeatedBatches = Session.Document.RepeatedBatches.SetItem(idx, nextB),
+                    SelectedRepeatedCell = null
+                });
+                Status = $"1억 배치 중 #{selCell.CellIndex:N0}번 셀 개별 삭제 완료 (남은 총 ROI: {Session.Document.TotalLogicalRoiCount:N0}개)";
+            }
+            return;
+        }
+
+        if (Session.Document.SelectedIds.IsEmpty) return;
+        ImmutableHashSet&lt;Guid&gt; toDelete = Session.Document.CollectSubtreeIds(Session.Document.SelectedIds);
+        var builder = Session.Document.Rois.ToBuilder();
+        foreach (Guid id in toDelete) builder.Remove(id);
+        Session.CommitDocument(Session.Document.WithUpdatedRois(builder.ToImmutable(), ImmutableHashSet&lt;Guid&gt;.Empty));
+        Status = $"{toDelete.Count}개 ROI 삭제 완료";
+    }
+
+    public bool HandleKey(Key key, ModifierKeys modifiers)
+    {
+        if (key == Key.Escape)
+        {
+            Controller.Cancel();
+            Status = "작업 취소됨 (Escape)";
+            return true;
+        }
+        if (Controller.NavigationOnly) return false;
+
+        if (key == Key.Enter &amp;&amp; Controller.Tool == EditorTool.DrawPolygon)
+        {
+            CompletePolygonCommand.Execute(null);
+            return true;
+        }
+
+        double step = modifiers.HasFlag(ModifierKeys.Shift) ? 10.0 : 1.0;
+        PointD delta = key switch
+        {
+            Key.Left  =&gt; new PointD(-step, 0.0),
+            Key.Right =&gt; new PointD(+step, 0.0),
+            Key.Up    =&gt; new PointD(0.0, -step),
+            Key.Down  =&gt; new PointD(0.0, +step),
+            _ =&gt; default
+        };
+        if ((delta.X != 0.0 || delta.Y != 0.0) &amp;&amp; Controller.TryMoveSelectionBy(delta))
+        {
+            Status = $"방향키 미세 이동: ({delta.X:+0;-0;0}, {delta.Y:+0;-0;0}) px";
+            return true;
+        }
+
+        bool ctrl = modifiers.HasFlag(ModifierKeys.Control);
+        bool shift = modifiers.HasFlag(ModifierKeys.Shift);
+        ICommand? cmd = (key, ctrl, shift) switch
+        {
+            (Key.Delete, _, _) =&gt; DeleteCommand,
+            (Key.Z, true, false) =&gt; UndoCommand,
+            (Key.Y, true, _) or (Key.Z, true, true) =&gt; RedoCommand,
+            _ =&gt; null
+        };
+        if (cmd is null || !cmd.CanExecute(null)) return false;
+        cmd.Execute(null);
+        return true;
+    }
+}</code></pre>
+
+        <div class="code-header" style="margin-top: 18px;">
+          <span>Step 7-B — MainWindow.xaml &amp; MainWindow.xaml.cs</span>
+          <span>WPF MVVM 툴바 바인딩 · FocusRoi 목록 · 단축키 라우팅</span>
+        </div>
+        <pre><code>&lt;!-- MainWindow.xaml --&gt;
+&lt;Window x:Class="MiniVisionCanvas.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:MiniVisionCanvas"
+        Title="MiniVisionCanvas — From Scratch 7-Step Engine" Width="1280" Height="820"
+        Background="#0B0F19" Foreground="#F8FAFC" PreviewKeyDown="OnPreviewKeyDown"&gt;
+    &lt;DockPanel Margin="10"&gt;
+        &lt;WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8"&gt;
+            &lt;Button Content="선택 도구" Command="{Binding SelectToolCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="화면 이동(Pan)" Command="{Binding PanToolCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="사각형 ROI" Command="{Binding DrawRectCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="원형 ROI" Command="{Binding DrawCircleCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="다각형 ROI" Command="{Binding DrawPolygonCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="다각형 닫기(Enter)" Command="{Binding CompletePolygonCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="부모 그룹 그리기" Command="{Binding DrawParentCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="🚀 1억 ROI 추가" Command="{Binding Add100MRoiCommand}" Margin="0,0,6,6" Padding="10,5" FontWeight="Bold"/&gt;
+            &lt;Button Content="📋 5천만 셀 복붙(1.5억)" Command="{Binding Paste50MCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="Undo (Ctrl+Z)" Command="{Binding UndoCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="Redo (Ctrl+Y)" Command="{Binding RedoCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="삭제 (Del)" Command="{Binding DeleteCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="전체 보기(Fit)" Click="OnFitClick" Margin="0,0,6,6" Padding="10,5"/&gt;
+            &lt;Button Content="{Binding LockButtonText}" Command="{Binding ToggleLockCommand}" Margin="0,0,6,6" Padding="10,5"/&gt;
+        &lt;/WrapPanel&gt;
+
+        &lt;Border DockPanel.Dock="Bottom" Background="#131C31" Padding="10,6" Margin="0,8,0,0" CornerRadius="6"&gt;
+            &lt;StackPanel&gt;
+                &lt;TextBlock Text="{Binding SummaryText}" FontWeight="Bold" Foreground="#38BDF8"/&gt;
+                &lt;TextBlock Text="{Binding Status}" Foreground="#CBD5E1" Margin="0,2,0,0"/&gt;
+            &lt;/StackPanel&gt;
+        &lt;/Border&gt;
+
+        &lt;Grid&gt;
+            &lt;Grid.ColumnDefinitions&gt;
+                &lt;ColumnDefinition Width="*"/&gt;
+                &lt;ColumnDefinition Width="260"/&gt;
+            &lt;/Grid.ColumnDefinitions&gt;
+            &lt;Border BorderBrush="#334155" BorderThickness="1" ClipToBounds="True"&gt;
+                &lt;local:VisionCanvasElement x:Name="CanvasControl" Focusable="True"/&gt;
+            &lt;/Border&gt;
+            &lt;Border Grid.Column="1" Background="#131C31" BorderBrush="#334155" BorderThickness="1" Margin="8,0,0,0" Padding="8"&gt;
+                &lt;DockPanel&gt;
+                    &lt;TextBlock DockPanel.Dock="Top" Text="외부 ROI 목록 (클릭 시 FocusRoi)" FontWeight="Bold" Margin="0,0,0,6"/&gt;
+                    &lt;ListBox ItemsSource="{Binding RoiList}" Background="#0B0F19" Foreground="#F8FAFC" SelectionChanged="OnRoiListFocus"&gt;
+                        &lt;ListBox.ItemTemplate&gt;
+                            &lt;DataTemplate&gt;
+                                &lt;TextBlock Text="{Binding Name}" Padding="4,2"/&gt;
+                            &lt;/DataTemplate&gt;
+                        &lt;/ListBox.ItemTemplate&gt;
+                    &lt;/ListBox&gt;
+                &lt;/DockPanel&gt;
+            &lt;/Border&gt;
+        &lt;/Grid&gt;
+    &lt;/DockPanel&gt;
+&lt;/Window&gt;</code></pre>
+        <pre><code>// MainWindow.xaml.cs
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+
+namespace MiniVisionCanvas;
+
+public partial class MainWindow : Window
+{
+    private readonly MainWindowViewModel _vm = new();
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        DataContext = _vm;
+        CanvasControl.Attach(_vm.Session, _vm.Controller);
+    }
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (_vm.HandleKey(e.Key, Keyboard.Modifiers))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void OnFitClick(object sender, RoutedEventArgs e) =&gt;
+        _vm.Session.FitImage(CanvasControl.ActualWidth, CanvasControl.ActualHeight);
+
+    private void OnRoiListFocus(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count &gt; 0 &amp;&amp; e.AddedItems[0] is Roi roi)
+        {
+            _vm.Session.FocusRoi(roi.Id, CanvasControl.ActualWidth, CanvasControl.ActualHeight);
+            _vm.Status = $"FocusRoi 이동 완료: {roi.Name} (기존 선택 및 Undo 이력 보존)";
+        }
+    }
+}</code></pre>
+      </section>
+
+      <!-- Verification Checklist -->
+      <section class="content-section">
+        <span class="section-badge">SELF-VERIFICATION CHECKLIST</span>
+        <h2>완성 후 스스로 점검하는 6가지 핵심 동작 체크리스트</h2>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>점검 항목</th>
+                <th>통과 기준 (Pass Condition)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1. 마우스 커서 고정 줌</strong></td>
+                <td>이미지 위 임의의 점에 커서를 두고 휠을 확대/축소했을 때, 커서 아래 픽셀 좌표가 <code>1px</code>도 밀리지 않는가?</td>
+              </tr>
+              <tr>
+                <td><strong>2. 회전 ROI &amp; 폴리곤 8자 차단</strong></td>
+                <td>회전된 사각형·원·다각형의 빈 모서리를 클릭했을 때 무시되고, 폴리곤 그리기 중 선분이 교차하면 즉시 차단되는가?</td>
+              </tr>
+              <tr>
+                <td><strong>3. 부모-자식 40회 이분법 슬라이딩</strong></td>
+                <td>자식 ROI를 대각선으로 부모 벽 밖으로 끌었을 때, 벽을 뚫지 않고 벽면을 따라 부드럽게 미끄러지는가?</td>
+              </tr>
+              <tr>
+                <td><strong>4. 1억 ROI 추가 &amp; 5천만 셀 복붙</strong></td>
+                <td><code>1억 ROI 추가</code> 클릭 시 <code>100,020,001</code>개가 즉시 추가되고, <code>5천만 셀 복붙</code> 시 총 <code>150,025,001</code>개 표시 및 개별 셀 이동·삭제·Undo/Redo가 동작하는가?</td>
+              </tr>
+              <tr>
+                <td><strong>5. 입력 잠금 시 프리뷰 즉시 취소</strong></td>
+                <td>드래그 도중 <code>NavigationOnly = true</code> 또는 <code>IsEnabled = false</code>로 잠그면 드래그 프리뷰가 즉시 취소되고 원래 위치로 복귀하는가?</td>
+              </tr>
+              <tr>
+                <td><strong>6. 외부 목록 맞춤 보기 (FocusRoi)</strong></td>
+                <td>우측 목록에서 항목을 클릭해 <code>FocusRoi</code>를 호출했을 때, 현재 선택된 ROI나 Undo 스택이 변하지 않고 화면만 이동하는가?</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <nav class="chapter-pager">
+        <a href="05-practical-usage-mvvm.html" class="pager-card">
+          <span class="pager-label">이전 챕터 (Chapter 05)</span>
+          <span class="pager-title">← 05. 실전 MVVM 사용법</span>
+        </a>
+        <a href="index.html" class="pager-card" style="text-align: right;">
+          <span class="pager-label">처음으로 돌아가기</span>
+          <span class="pager-title">00. 전체 구조 한눈에 보기 →</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/manual-gemini.js"></script>
+</body>
+</html>

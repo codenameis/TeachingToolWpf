@@ -32,6 +32,17 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
             refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
     }
 
+    public SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        options ??= new SearchOptions();
+        return PyramidSearch.FindWindowed(_template, image, options,
+            (template, scene, cx, cy, fine) => new DistanceLevel(template, scene, cx, cy, fine, _parameters,
+                options.MaximumDegreeOfParallelism, cancellationToken), cancellationToken,
+            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
+    }
+
     private const int Bins = 16;
 
     private sealed class DistanceLevel : IScoreLevel
@@ -203,22 +214,24 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
                 for (var x = 0; x < width; x++)
                 {
                     var index = (y * width) + x;
+                    var distance = map[index];
                     if (x > 0)
                     {
-                        map[index] = Math.Min(map[index], map[index - 1] + 1);
+                        distance = Math.Min(distance, map[index - 1] + 1);
                     }
                     if (y > 0)
                     {
-                        map[index] = Math.Min(map[index], map[index - width] + 1);
+                        distance = Math.Min(distance, map[index - width] + 1);
                         if (x > 0)
                         {
-                            map[index] = Math.Min(map[index], map[index - width - 1] + 1.414214f);
+                            distance = Math.Min(distance, map[index - width - 1] + 1.414214f);
                         }
                         if (x + 1 < width)
                         {
-                            map[index] = Math.Min(map[index], map[index - width + 1] + 1.414214f);
+                            distance = Math.Min(distance, map[index - width + 1] + 1.414214f);
                         }
                     }
+                    map[index] = distance;
                 }
             }
             for (var y = height - 1; y >= 0; y--)
@@ -227,22 +240,24 @@ public sealed class DirectionalChamferMatcher : ITemplateMatcher
                 for (var x = width - 1; x >= 0; x--)
                 {
                     var index = (y * width) + x;
+                    var distance = map[index];
                     if (x + 1 < width)
                     {
-                        map[index] = Math.Min(map[index], map[index + 1] + 1);
+                        distance = Math.Min(distance, map[index + 1] + 1);
                     }
                     if (y + 1 < height)
                     {
-                        map[index] = Math.Min(map[index], map[index + width] + 1);
+                        distance = Math.Min(distance, map[index + width] + 1);
                         if (x > 0)
                         {
-                            map[index] = Math.Min(map[index], map[index + width - 1] + 1.414214f);
+                            distance = Math.Min(distance, map[index + width - 1] + 1.414214f);
                         }
                         if (x + 1 < width)
                         {
-                            map[index] = Math.Min(map[index], map[index + width + 1] + 1.414214f);
+                            distance = Math.Min(distance, map[index + width + 1] + 1.414214f);
                         }
                     }
+                    map[index] = distance;
                 }
             }
         }

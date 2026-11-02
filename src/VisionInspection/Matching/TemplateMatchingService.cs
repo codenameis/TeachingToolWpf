@@ -54,7 +54,7 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
             }
             if (region is not null)
             {
-                ShapeMatchingService.ValidateRegion(image, region);
+                ShapeMatchingService.ValidateSearchRegion(image, region);
             }
             var timer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);

@@ -1,0 +1,23 @@
+<UserControl x:Class="TeachingToolWpf.Views.ViewportToolbar" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:canvas="clr-namespace:VisionCanvas.Controls;assembly=VisionCanvas.Host">
+    <Border Background="White" Padding="12,8" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0">
+        <StackPanel>
+        <canvas:ViewportNavigationBar DataContext="{Binding Navigation}" />
+        <DockPanel LastChildFill="False" IsEnabled="{Binding CanNavigate}">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                <Button Content="−" Command="{Binding ZoomOut}" Style="{StaticResource IconButton}" ToolTip="축소"/>
+                <TextBox Width="62" Text="{Binding ZoomText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="확대 배율 백분율" TextAlignment="Right"><TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding ApplyZoom}"/></TextBox.InputBindings></TextBox>
+                <TextBlock Text="%" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="5,0"/>
+                <Button Content="적용" Command="{Binding ApplyZoom}"/><Button Content="＋" Command="{Binding ZoomIn}" Style="{StaticResource IconButton}" ToolTip="확대"/>
+                <Border Width="1" Background="{StaticResource Stroke}" Margin="8,6"/>
+                <Button Tag="{StaticResource FitIcon}" Command="{Binding Fit}" Style="{StaticResource IconButton}" ToolTip="화면 맞춤 · F" AutomationProperties.Name="화면 맞춤"/>
+                <Button Content="1:1" Command="{Binding ActualSize}" ToolTip="원본 1px = 물리 화면 1px"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="←" Command="{Binding Left}" Style="{StaticResource IconButton}" ToolTip="화면 왼쪽으로"/><Button Content="↑" Command="{Binding Up}" Style="{StaticResource IconButton}" ToolTip="화면 위로"/>
+                <Button Content="↓" Command="{Binding Down}" Style="{StaticResource IconButton}" ToolTip="화면 아래로"/><Button Content="→" Command="{Binding Right}" Style="{StaticResource IconButton}" ToolTip="화면 오른쪽으로"/>
+            </StackPanel>
+        </DockPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

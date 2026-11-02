@@ -1,22 +1,13 @@
 namespace VisionGeometry;
 
 /// <summary>기하·입력·렌더가 공유하는 이미지 좌표의 강체 변환(회전과 이동). 기본값은 항등 변환이다.</summary>
-public readonly record struct RigidTransform2D
+public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
 {
-    public PointD Pivot
-    {
-        get;
-    }
+    public PointD Pivot { get; }
 
-    public double AngleDegrees
-    {
-        get;
-    }
+    public double AngleDegrees { get; }
 
-    public PointD Translation
-    {
-        get;
-    }
+    public PointD Translation { get; }
 
     private readonly double _cosine;
 
@@ -42,6 +33,39 @@ public readonly record struct RigidTransform2D
         AngleDegrees = angleDegrees;
         var reduced = Math.IEEERemainder(angleDegrees, 360);
         (_sine, _cosine) = reduced == 0 ? (0, 1) : Math.SinCos(reduced * Math.PI / 180);
+    }
+
+    public bool Equals(RigidTransform2D other)
+    {
+        if (IsIdentity && other.IsIdentity)
+        {
+            return true;
+        }
+
+        var angleA = Math.IEEERemainder(AngleDegrees, 360);
+        var angleB = Math.IEEERemainder(other.AngleDegrees, 360);
+        if (angleA == 0 && angleB == 0)
+        {
+            return Translation == other.Translation;
+        }
+
+        return Pivot == other.Pivot && angleA == angleB && Translation == other.Translation;
+    }
+
+    public override int GetHashCode()
+    {
+        if (IsIdentity)
+        {
+            return 0;
+        }
+
+        var angle = Math.IEEERemainder(AngleDegrees, 360);
+        if (angle == 0)
+        {
+            return HashCode.Combine(default(PointD), 0.0, Translation);
+        }
+
+        return HashCode.Combine(Pivot, angle, Translation);
     }
 
     // 회전 중심을 원점으로 옮겨 회전한 다음 중심과 이동량을 더한다. p' = c + R(p - c) + t.

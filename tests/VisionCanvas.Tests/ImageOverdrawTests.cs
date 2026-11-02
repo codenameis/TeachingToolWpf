@@ -1,89 +1,88 @@
 using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
+using VisionCanvas.Core.Interaction;
 using VisionCanvas.Imaging;
 using VisionCanvas.Rendering;
+using VisionGeometry;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Tests;
 
-public sealed class ImageOverdrawTests
+public class ImageOverdrawTests
 {
-    [Theory]
-    [InlineData(PixelKind.Gray8)]
-    [InlineData(PixelKind.Gray16)]
-    public void GrayscaleIsOpaqueRegardlessOfIntensity(PixelKind kind)
-    {
-        using var pixels = new PixelBuffer(3, 2, kind);
-        pixels.Span.Clear();
-        Assert.True(SpritePipeline.PixelsAreOpaque(pixels));
-    }
-
-    [Theory]
-    [InlineData(PixelKind.Rgba32)]
-    [InlineData(PixelKind.Bgra32)]
-    public void EveryAlphaMustBeOpaqueIncludingLastPixel(PixelKind kind)
-    {
-        using var pixels = new PixelBuffer(3, 2, kind);
-        pixels.Span.Clear();
-        for (var i = 3; i < pixels.Length; i += 4)
-        {
-            pixels.Span[i] = 255;
-        }
-        Assert.True(SpritePipeline.PixelsAreOpaque(pixels));
-        pixels.Span[^1] = 254;
-        Assert.False(SpritePipeline.PixelsAreOpaque(pixels));
-        pixels.Span[^1] = 255;
-        pixels.Span[3] = 0;
-        Assert.False(SpritePipeline.PixelsAreOpaque(pixels));
-    }
-
-    [Theory]
-    [InlineData(1, 0, 0, 1)]
-    [InlineData(.3, 17.25, -20.75, 1.5)]
-    [InlineData(2.1, -600.25, -501.5, 1.25)]
-    public void CompleteOpaqueTilesDrawOnceAfterPanZoomAndDpiChange(double scale, double x, double y, double dpi)
-    {
-        var scene = Scene(1025, 769) with
-        {
-            Document = DocumentState.Empty with
-            {
-                Viewport = new(scale, new(x, y))
-            },
-            Dpi = dpi
-        };
-        var tiles = Tiles(scene);
-        var mesh = Draw(scene, tiles);
-        var visible = TilePlanner.Visible(scene.Image!, scene.Document.Viewport, scene.Width, scene.Height, scene.Dpi);
-        Assert.Equal(visible.Select(key => tiles[key]), mesh.Batches.Select(batch => batch.Texture));
-        Assert.Equal(visible.Count * 6, mesh.Vertices.Count);
-    }
-
-    [Theory]
-    [InlineData("missing")]
-    [InlineData("transparent")]
-    [InlineData("uninitialized")]
-    [InlineData("short")]
-    public void IncompleteOrTransparentCoverageKeepsOverview(string condition)
+    [Fact]
+    public void CoveredCoarserLevelsAreSkippedDuringMainImageDraw()
     {
         var scene = Scene(1025, 769);
         var tiles = Tiles(scene);
-        var key = new TileKey(0, 0, 0);
-        switch (condition)
-        {
-            case "missing":
-                tiles.Remove(key);
-                break;
-            case "transparent":
-                tiles[key].IsOpaque = false;
-                break;
-            case "uninitialized":
-                tiles[key].HasPixels = false;
-                break;
-            case "short":
-                tiles[key] = Texture(511, 512);
-                break;
-        }
         var mesh = Draw(scene, tiles);
-        Assert.Same(tiles[new(scene.Image!.Levels - 1, 0, 0)], mesh.Batches[0].Texture);
+        Assert.DoesNotContain(mesh.Batches, batch => batch.Texture == tiles[new(2, 0, 0)]);
+        Assert.DoesNotContain(mesh.Batches, batch => batch.Texture == tiles[new(1, 0, 0)]);
+        Assert.Equal(6, mesh.Batches.Count(batch => batch.Texture != null));
+    }
+
+    [Fact]
+    public void PartialFineTilesKeepFallbackLevelBehindUncoveredArea()
+    {
+        var scene = Scene(1025, 769);
+        var tiles = Tiles(scene);
+        tiles.Remove(new(0, 1, 0));
+        var mesh = Draw(scene, tiles);
+        Assert.Contains(mesh.Batches, batch => batch.Texture == tiles[new(2, 0, 0)]);
+    }
+
+    [Fact]
+    public void MissingCoarseTileFallsBackToOverviewWithoutOpaqueSkip()
+    {
+        var scene = Scene(1025, 769);
+        var tiles = Tiles(scene);
+        tiles.Remove(new(0, 1, 0));
+        tiles.Remove(new(1, 0, 0));
+        var mesh = Draw(scene, tiles);
+        Assert.Contains(mesh.Batches, batch => batch.Texture == tiles[new(2, 0, 0)]);
+    }
+
+    [Fact]
+    public void LiveFullResolutionFrameSkipsOverviewBehindMainImage()
+    {
+        var scene = Scene(1024, 768) with
+        {
+            IsLive = true
+        };
+        var overview = Texture(512, 384);
+        var live = Texture(1024, 768);
+        var mesh = Draw(scene, new Dictionary<TileKey, IRenderTexture>(), live: live,
+            liveBounds: new(0, 0, 1024, 768), liveOverview: overview);
+        Assert.DoesNotContain(mesh.Batches, batch => batch.Texture == overview);
+        Assert.Contains(mesh.Batches, batch => batch.Texture == live);
+    }
+
+    [Fact]
+    public void LiveSubregionDrawsLiveFrameOnlyOverLiveBounds()
+    {
+        var scene = Scene(1024, 768) with
+        {
+            IsLive = true
+        };
+        var overview = Texture(512, 384);
+        var live = Texture(512, 384);
+        var mesh = Draw(scene, new Dictionary<TileKey, IRenderTexture>(), live: live,
+            liveBounds: new(0, 0, 512, 384), liveOverview: overview);
+        Assert.Contains(mesh.Batches, batch => batch.Texture == live);
+    }
+
+    [Fact]
+    public void LiveFullBoundsButDownsampledTextureDrawsLiveFrame()
+    {
+        var scene = Scene(1024, 768) with
+        {
+            IsLive = true
+        };
+        var overview = Texture(512, 384);
+        var live = Texture(512, 384);
+        var mesh = Draw(scene, new Dictionary<TileKey, IRenderTexture>(), live: live,
+            liveBounds: new(0, 0, 1024, 768), liveOverview: overview);
+        Assert.Contains(mesh.Batches, batch => batch.Texture == live);
     }
 
     [Fact]
@@ -101,10 +100,8 @@ public sealed class ImageOverdrawTests
         var scene = Scene(1025, 769);
         scene = scene with
         {
-            Document = scene.Document with
-            {
-                Image = new("test", "test", 1025, 769)
-            }
+            Document = scene.Document.WithImage(new("test", "test", 1025, 769)),
+            MinimapOptions = new(true)
         };
         var tiles = Tiles(scene);
         var painter = new ScenePainter();
@@ -112,41 +109,87 @@ public sealed class ImageOverdrawTests
         var overview = tiles[new(scene.Image!.Levels - 1, 0, 0)];
         Assert.DoesNotContain(mesh.Batches.Take(painter.RoiBatchBoundary), batch => batch.Texture == overview);
         Assert.Contains(mesh.Batches.Skip(painter.RoiBatchBoundary), batch => batch.Texture == overview);
+        mesh = Draw(scene with
+        {
+            MinimapOptions = new(false)
+        }, tiles, painter);
+        Assert.DoesNotContain(mesh.Batches.Skip(painter.RoiBatchBoundary), batch => batch.Texture == overview);
+    }
+
+    [Fact]
+    public void MinimapImageVerticesFollowLayoutAtEveryPositionAndDpi()
+    {
+        var white = Texture(1, 1);
+        var overview = Texture(512, 512);
+        foreach (var position in Enum.GetValues<MinimapPosition>())
+        {
+            foreach (var dpi in new[] { 1.0, 1.5, 2.0 })
+            {
+                var scene = Scene(8192, 8192) with
+                {
+                    Document = DocumentState.Empty.WithImage(new("test", "test", 8192, 8192)),
+                    Dpi = dpi,
+                    MinimapOptions = new(true, position)
+                };
+                var mesh = new SpriteMesh();
+                mesh.Begin(scene.Width, scene.Height);
+                MinimapPainter.Draw(mesh, scene, white, overview, _ => white);
+                var imageBatch = Assert.Single(mesh.Batches, batch => batch.Texture == overview);
+                var bounds = MinimapLayout.Create(8192, 8192, scene.Width, scene.Height, scene.MinimapOptions)!.ImageBounds;
+                var first = mesh.Vertices[imageBatch.Start].Position;
+                var opposite = mesh.Vertices[imageBatch.Start + 2].Position;
+                Assert.Equal((float)((bounds.Left * 2 / scene.Width) - 1), first.X);
+                Assert.Equal((float)(1 - (bounds.Top * 2 / scene.Height)), first.Y);
+                Assert.Equal((float)((bounds.Right * 2 / scene.Width) - 1), opposite.X);
+                Assert.Equal((float)(1 - (bounds.Bottom * 2 / scene.Height)), opposite.Y);
+            }
+        }
     }
 
     private static RenderScene Scene(int width, int height)
-        => new(DocumentState.Empty with
+        => new(DocumentState.Empty.WithViewport(new(1, new(0, 0))),
+            new("test", "test", width, height, PixelKind.Gray8, ImageInfo.CalculateLevelCount(width, height)),
+            1, 1200, 900, 1, new())
         {
-            Viewport = new(1, new(0, 0))
-        },
-            new("test", "test", width, height, PixelKind.Rgba32, ImageInfo.CalculateLevelCount(width, height)),
-            1, 800, 600, 1, new());
+            MinimapOptions = new(false)
+        };
 
-    private static Dictionary<TileKey, GpuTexture> Tiles(RenderScene scene)
+    private static Dictionary<TileKey, IRenderTexture> Tiles(RenderScene scene)
     {
         var image = scene.Image!;
-        var result = new Dictionary<TileKey, GpuTexture>();
-        foreach (var key in TilePlanner.Visible(image, scene.Document.Viewport, scene.Width, scene.Height, scene.Dpi)
-            .Append(new(image.Levels - 1, 0, 0)).Distinct())
+        var result = new Dictionary<TileKey, IRenderTexture>();
+        for (var level = 0; level < image.Levels; level++)
         {
-            var factor = 1 << key.Level;
-            result.Add(key, Texture(Math.Min(512, (int)Math.Ceiling(image.Width / (double)factor) - (key.X * 512)),
-                Math.Min(512, (int)Math.Ceiling(image.Height / (double)factor) - (key.Y * 512))));
+            var scale = 1 << level;
+            var levelWidth = (image.Width + scale - 1) / scale;
+            var levelHeight = (image.Height + scale - 1) / scale;
+            var columns = (levelWidth + ImageInfo.TileSize - 1) / ImageInfo.TileSize;
+            var rows = (levelHeight + ImageInfo.TileSize - 1) / ImageInfo.TileSize;
+            for (var y = 0; y < rows; y++)
+            {
+                for (var x = 0; x < columns; x++)
+                {
+                    result[new(level, x, y)] = Texture(
+                        Math.Min(ImageInfo.TileSize, levelWidth - (x * ImageInfo.TileSize)),
+                        Math.Min(ImageInfo.TileSize, levelHeight - (y * ImageInfo.TileSize)));
+                }
+            }
         }
         return result;
     }
 
     private static GpuTexture Texture(int width, int height)
-        => new(null!, 0, PixelKind.Rgba32, width, height, _ => { })
+        => new(null!, 0, PixelKind.Gray8, width, height, _ => { })
         {
             HasPixels = true,
             IsOpaque = true
         };
 
-    private static SpriteMesh Draw(RenderScene scene, IReadOnlyDictionary<TileKey, GpuTexture> tiles, ScenePainter? painter = null)
+    private static SpriteMesh Draw(RenderScene scene, IReadOnlyDictionary<TileKey, IRenderTexture> tiles,
+        ScenePainter? painter = null, IRenderTexture? live = null, BoundsD liveBounds = default, IRenderTexture? liveOverview = null)
     {
         var white = Texture(1, 1);
         using var filters = new GpuFilterPreview();
-        return (painter ?? new ScenePainter()).Build(scene, white, tiles, _ => white, _ => white, null, default, filters, null);
+        return (painter ?? new ScenePainter()).Build(scene, white, tiles, _ => white, _ => null, live, liveBounds, filters, liveOverview);
     }
 }

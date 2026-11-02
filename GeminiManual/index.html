@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>00장 · 오리엔테이션: 고1 눈높이에서 시작하는 VisionCanvas 전체 그림 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 00 · 입문 오리엔테이션 · 고1 수학부터 시작하는 산업용 비전 엔진</div>
+        <h1>00장 · 왜 기본 그림판으로는 반도체 검사 장비를 못 만들까?</h1>
+        <p class="hero-lead">
+          <code>if</code>, <code>for</code>, <code>class</code>와 기본적인 WPF MVVM만 아는 상태에서 출발해도 괜찮습니다.<br/>
+          이 교재는 외계어 같은 그래픽·수학 용어를 갑자기 던지지 않고, <strong>중학교·고등학교 1학년 수학(피타고라스 정리, 일차함수, 삼각비, 등차수열)</strong>부터 한 계단씩 밟아 올라가며 <strong>5억 화소 이미지와 1억 개의 ROI 도형을 60FPS로 다루는 VisionCanvas</strong>를 빈 폴더에서 내 손으로 직접 완성하도록 안내하는 친절한 자습서입니다.
+        </p>
+        <div class="hero-meta-grid">
+          <div class="hero-meta-item">
+            <span class="hero-meta-label">출발 눈높이</span>
+            <span class="hero-meta-value">고1 수학 + C# 기초 (if, for, class, MVVM)</span>
+          </div>
+          <div class="hero-meta-item">
+            <span class="hero-meta-label">학습 순서</span>
+            <span class="hero-meta-value">이야기 도입 → 기초 개념 → 수식 유도 → 실험실 → 코드 → 구조도</span>
+          </div>
+          <div class="hero-meta-item">
+            <span class="hero-meta-label">코드 품질 규칙</span>
+            <span class="hero-meta-value">Kent Beck 짧은 함수 원칙 (순환복잡도 ≤ 10)</span>
+          </div>
+          <div class="hero-meta-item">
+            <span class="hero-meta-label">최종 목표</span>
+            <span class="hero-meta-value">10장 완주 시 빈 프로젝트에서 전체 엔진 직접 빌드·실행</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 1: 이야기로 시작하는 문제 정의 -->
+      <section class="topdown-box" id="sec-story">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 이야기로 시작하기: "네모 상자 그리는 게 왜 어려울까요?"</h2>
+          <span class="topdown-badge">문제 상황 이해하기</span>
+        </div>
+        <p style="margin-bottom: 14px; color: var(--text-secondary); line-height: 1.8;">
+          윈도우 그림판처럼 화면에 네모 상자 10개, 20개만 그릴 때는 WPF의 기본 <code>&lt;Canvas&gt;</code>에 <code>new Rectangle()</code>을 추가하기만 해도 잘 돌아갑니다.<br/>
+          그런데 우리가 만들 프로그램은 <strong>반도체 칩과 스마트폰 기판(PCB)의 불량을 찾아내는 산업용 비전 검사 장비</strong>입니다. 현장에서 카메라가 찍어 보내는 사진은 우리가 스마트폰으로 찍는 사진과 크기가 완전히 다릅니다!
+        </p>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">현실의 벽 ① · 사진 크기</span>
+            <h4>한 장에 5억 3천만 화소 (17,280 × 30,720 픽셀)</h4>
+            <p>실제 벤치마크 영상인 <code>ken32.png</code>는 가로 17,280픽셀, 세로 30,720픽셀입니다. 그래픽카드가 한 번에 올릴 수 있는 최대 사진 크기(16,384픽셀)를 넘어서기 때문에, 통째로 띄우려고 하면 그 즉시 에러가 나며 프로그램이 꺼집니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">현실의 벽 ② · 도형 개수</span>
+            <h4>검사 영역(ROI)이 10만 개에서 최대 1억 개!</h4>
+            <p>기판 하나에 촘촘히 박힌 부품 자리를 검사하려면 네모 상자(ROI)를 <strong>10,001 × 10,001 = 100,020,001개(약 1억 개)</strong>까지 올려놓아야 합니다. <code>new Rectangle()</code>을 1억 번 호출하면 메모리가 <strong>수십 기가바이트(GB)</strong> 폭발하며 컴퓨터가 멈춥니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">현실의 벽 ③ · 마우스 반응 속도</span>
+            <h4>1초에 60번(16.6밀리초) 안에 모든 계산 끝내기</h4>
+            <p>작업자가 마우스로 상자를 잡고 흔들 때 화면이 끊기지 않으려면, 마우스 위치 확인 + 부모 상자 벽 충돌 계산 + 화면 그리기를 모두 <strong>0.016초(16.6ms)</strong> 안에 끝내야 합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2: 처음 만나는 핵심 용어 5가지 사전 -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 앞으로 자주 만날 핵심 단어 5가지 미리 익히기</h2>
+          <span class="prereq-badge">초보자 용어 사전</span>
+        </div>
+        <p style="margin-bottom: 14px; color: var(--text-secondary);">
+          본격적인 내용에 들어가기 전에, 비전 프로그램에서 매일 쓰는 단어 5가지를 고1 눈높이로 먼저 정리해 둡시다. 이 5가지만 알면 앞길이 뻥 뚫립니다!
+        </p>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">용어 1</span> ROI (Region of Interest, 관심 영역)</h4>
+            <p>
+              거대한 카메라 사진 전체를 다 검사하면 시간이 너무 오래 걸립니다. 그래서 <strong>"이 네모(또는 원·다각형) 상자 안에 있는 납땜이나 핀만 검사해라!"</strong>라고 사진 위에 표시해 두는 도형을 <strong>ROI(관심 영역)</strong>라고 부릅니다.
+            </p>
+            <p>
+              큰 부품 상자(<strong>부모 그룹 ROI</strong>) 안에 작은 다리 상자(<strong>자식 핀 ROI</strong>)가 들어가는 가족 구조(계층 구조)를 가집니다.
+            </p>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">용어 2</span> 뷰포트 (Viewport, 카메라 돋보기 창)</h4>
+            <p>
+              책상 위에 아주 큰 세계지도가 펼쳐져 있고, 우리가 <strong>네모난 돋보기 액자</strong>를 통해 지도의 일부만 들여다보고 있다고 상상해 보세요.
+            </p>
+            <p>
+              지도 원본(이미지 좌표)은 가만히 있는데, 돋보기를 옆으로 밀거나(<strong>패닝, Pan</strong>) 배율을 키우면(<strong>줌, Zoom</strong>) 내 눈(모니터 화면 좌표)에 보이는 위치와 크기가 바뀝니다. 이 돋보기 변환 규칙을 <strong>뷰포트 변환(<code>ViewportTransform</code>)</strong>이라고 부릅니다(02장에서 중학교 일차함수로 만듭니다!).
+            </p>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">용어 3</span> 불변 객체 (Immutable)와 프리뷰 (Preview)</h4>
+            <p>
+              <strong>불변(Immutable)</strong>은 '한 번 인쇄된 영수증처럼 숫자를 몰래 고칠 수 없는 데이터'입니다. 값을 바꾸고 싶으면 기존 영수증은 과거 기록(Undo 스택)에 그대로 보관하고 새 영수증을 뽑습니다.
+            </p>
+            <p>
+              마우스를 드래그하는 도중에는 영수증을 매번 새로 뽑지 않고, <strong>"지금 오른쪽으로 +15픽셀 끌고 있는 중"</strong>이라는 투명 포스트잇(<strong><code>RoiTransformPreview</code></strong>) 한 장만 붙여 보여줍니다(07장에서 배웁니다!).
+            </p>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">용어 4</span> 타일 피라미드 (Tile Pyramid)와 BVH 트리</h4>
+            <p>
+              <strong>타일 피라미드</strong>는 5억 화소 사진을 <code>512&nbsp;×&nbsp;512</code> 픽셀 조각(타일)으로 잘라 두고, 스마트폰 지도 앱처럼 현재 화면에 보이는 조각만 그래픽카드에 올리는 기술입니다(09장).
+            </p>
+            <p>
+              <strong>BVH(이진 경계 볼륨 계층 트리)</strong>는 10만 개의 도형 중 마우스가 클릭한 도형을 찾기 위해 화면을 반씩 나누며 '스무고개' 질문을 던지는 나무 구조입니다(05장).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: 일상 비유로 깨우치는 4층 집짓기 원리 -->
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">3단계 · 핵심 아이디어: 왜 한 파일에 다 짜지 않고 '4층 건물'로 나누어 지을까?</h2>
+          <span class="feynman-badge">집짓기 비유로 이해하기</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>일상 비유 · 자동차의 '엔진'과 '운전대'를 분리하라!</h4>
+            <p>
+              초보자는 <code>MainWindow.xaml.cs</code> 파일 하나에 마우스 클릭 처리, 회전 각도 계산, 그래픽카드 그리기 코드를 수천 줄씩 한꺼번에 섞어서 짭니다.<br/>
+              그렇게 짜면 나중에 그래픽 엔진을 DirectX 12에서 Vulkan이나 Skia로 바꿀 때 모든 수학 공식까지 처음부터 다시 짜야 합니다.<br/>
+              반면 <strong>순수 수학 계산기(1층) → 도형 편집 두뇌(2층) → 운영체제 창과 그래픽카드 출력기(3층) → WPF 버튼 화면(4층)</strong>으로 층을 나누어 지으면, 1~2층 두뇌는 그대로 둔 채 3층 그래픽카드 부품만 레고 블록처럼 갈아끼울 수 있습니다!
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>건물 층별 규칙 · 위층은 아래층을 부를 수 있지만, 아래층은 위층을 절대 모른다!</h4>
+            <p>
+              건물 1층 기둥(<code>VisionGeometry</code> 수학 구조체)은 자기 위에 4층 지붕(<code>WPF MainWindow</code>)이 있는지조차 모릅니다.<br/>
+              덕분에 우리는 무거운 창이나 그래픽카드를 켜지 않고도, <strong>1층 수학 코드만 따로 떼어내어 0.001초 만에 정확한지 실험하고 검증</strong>할 수 있습니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 4: 인터랙티브 4계층 시뮬레이터 -->
+      <section class="section-card" id="sec-arch-sim">
+        <h2>4단계 · 눈으로 확인하는 실험실: 마우스 클릭 신호가 4개 층을 통과하는 여정</h2>
+        <p>
+          그렇다면 우리가 화면에서 도형을 마우스로 클릭해 끌었을 때, 4층 건물 안에서 신호가 어떤 순서로 흘러갈까요?<br/>
+          아래 실험실에서 <strong>1단계~4단계 버튼</strong>을 차례대로 눌러보며 신호의 이동 경로를 눈으로 확인해 보세요.
+        </p>
+
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · 4계층 의존성과 실행 흐름 추적기</div>
+            <div class="lab-subtitle">아래 단계 버튼을 클릭해 계층별 호출 경로를 추적하세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="arch-flow-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <button class="lab-btn active" data-arch-step="0">1단계: Win32 입력 (WndProc)</button>
+            <button class="lab-btn" data-arch-step="1">2단계: 히트테스트 &amp; 제스처 (Core)</button>
+            <button class="lab-btn" data-arch-step="2">3단계: 기하 &amp; 충돌 수학 (Geometry)</button>
+            <button class="lab-btn" data-arch-step="3">4단계: GPU 6단 레이어 합성 (RenderWorker)</button>
+          </div>
+          <div id="arch-flow-readout" class="lab-readout"></div>
+        </div>
+
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">설계 규칙: 단방향 참조 법칙 · 위에서 아래로만 호출하기</span>
+              <span>VisionCanvas 4계층(Tier)의 역할과 참조 방향</span>
+            </div>
+            <span class="math-eq-num">(식 0.1)</span>
+          </div>
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><b>5층 Presentation</b> (WPF MVVM)</span>
+                <span class="math-sep">⟶</span>
+                <span class="math-expr"><b>4층 Backends</b> (DX12/Vk/Wgpu/Skia)</span>
+                <span class="math-sep">⟶</span>
+                <span class="math-expr"><b>3층 VisionCanvas.Host</b> (HWND/Scene/Cache)</span>
+                <span class="math-sep">⟶</span>
+                <span class="math-expr"><b>2층 VisionCanvas.Core</b> (상태/BVH/보정)</span>
+                <span class="math-sep">⟶</span>
+                <span class="math-expr"><b>1층 VisionGeometry</b> (순수 수학)</span>
+              </div>
+            </div>
+          </div>
+          <div class="math-legend">
+            <div class="math-legend-title">우리가 01장부터 10장까지 밑바닥(1층)에서 지붕(5층)으로 쌓아 올릴 클린업 완료 계층 구조</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>건물 층수</th>
+                  <th>하는 일 (고1 눈높이 설명)</th>
+                  <th>배우는 챕터</th>
+                  <th>실제 프로젝트 폴더</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col">1층: VisionGeometry &amp; Abstractions</td>
+                  <td>점 좌표 <code>(X, Y)</code>, 강체 회전·마크 보정(<code>FiducialAlignment</code>), 일차함수 줌, 도형(<code>RoiGeometry</code>)·마스크(<code>MaskRegion</code>), 부모 벽 충돌 이분법 계산</td>
+                  <td><strong>01장 ~ 04장</strong></td>
+                  <td><code>src/VisionGeometry</code><br/><code>src/VisionImaging.Abstractions</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">2층: VisionCanvas.Core</td>
+                  <td>비트 경로 영속 BVH 트리(<code>RoiSpatialIndex</code>, <code>BvhNodePath</code>), 대용량 차분 집합(<code>RoiIdSet</code>), 마우스 히트/제스처, 불변 문서(<code>DocumentState</code>, <code>RoiSnapshot</code>)와 계층 보정 맵(<code>RoiAlignmentMap</code>)</td>
+                  <td><strong>05장 ~ 07장</strong></td>
+                  <td><code>src/VisionCanvas.Core</code><br/><code>src/VisionImaging</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">3층: VisionCanvas.Host</td>
+                  <td>4대 렌더러가 공유하는 Win32 창(<code>ViewportControlBase</code>, <code>ViewportWindow</code>), 렌더 스레드 루프(<code>RenderWorkerBase</code>), 2-Pass 장면 조립(<code>ScenePainter</code>), 타일 LOD(<code>TilePlanner</code>), SIMD 축소(<code>BoxResampler</code>), BVH 블록 캐시(<code>RoiBlockCache</code>)</td>
+                  <td><strong>08장 ~ 09장</strong></td>
+                  <td><code>src/VisionCanvas.Host</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">4층: VisionCanvas (4대 백엔드)</td>
+                  <td>Direct3D 12(<code>Dx12Viewport</code>, <code>RoiPipeline</code>), Vulkan, WebGPU(wgpu), Skia CPU 래스터 파이프라인 및 셰이더 실행</td>
+                  <td><strong>08장 ~ 09장</strong></td>
+                  <td><code>src/VisionCanvas</code> 외 3종</td>
+                </tr>
+                <tr>
+                  <td class="sym-col">5층: Presentation (MVVM)</td>
+                  <td>WPF 툴바 버튼(<code>ICommand</code>), 단축키(방향키 1px/10px), 입력 잠금(<code>NavigationOnly</code>), 실시간 필터 디바운싱 및 전체 앱 조립</td>
+                  <td><strong>10장 (전체 구현 포함)</strong></td>
+                  <td><code>src/TeachingToolWpf.Presentation</code><br/><code>samples/VisionCanvas.MvvmSample</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="math-example-box"><span class="math-example-title">💡 왜 공부는 1층(VisionGeometry)부터 시작할까요?</span><div>기초 공사(1층 점과 좌표)가 탄탄해야 그 위에 도형(03장)을 올리고, 도형이 있어야 마우스로 클릭(06장)하고, 클릭이 되어야 화면(08~10장)에 그릴 수 있기 때문입니다! 그래서 본 교재는 <strong>가장 쉬운 1층 수학부터 한 걸음씩 위로 올라가는 바텀업(Bottom-Up) 실습 순서</strong>로 구성되어 있습니다.</div></div>
+        </div>
+      </section>
+
+      <!-- STEP 5: 코드 작성 규칙 (Kent Beck Composed Method) -->
+      <section class="section-card" id="sec-kent-beck">
+        <h2>5단계 · 깨끗한 코드 규칙: 켄트 백(Kent Beck)의 '짧은 목차 함수' 원칙</h2>
+        <p>
+          우리가 앞으로 1장부터 10장까지 코드를 짤 때 지킬 가장 중요한 약속이 하나 있습니다.<br/>
+          함수 하나가 100줄, 200줄로 길어지고 <code>if</code>문 안에 또 <code>if</code>문이 4~5번씩 들어가면, 만든 사람조차 일주일 뒤에 읽지 못합니다.<br/>
+          그래서 모든 핵심 메서드는 <strong>순환복잡도(분기 수) ≤ 10</strong>, <strong>인지복잡도(머릿속 중첩 부담) ≤ 15</strong> 이하가 되도록 <strong>"책의 목차처럼 읽히는 짧은 단계별 함수(Composed Method)"</strong>로 나누어 작성합니다.
+        </p>
+
+        <div class="kent-beck-box">
+          <div class="kent-beck-header">
+            <span class="kent-beck-title">좋은 코드 예시 · 한 장면을 그리는 ScenePainter.Build는 단 6줄의 목차로 읽힙니다!</span>
+            <div class="complexity-badges">
+              <span class="cc-badge">순환복잡도(CC) ≤ 10</span>
+              <span class="cc-badge">인지복잡도(Cognitive) ≤ 15</span>
+            </div>
+          </div>
+          <div class="composed-tree">
+            <div class="composed-parent">
+              상위 목차 함수: ScenePainter.Build(ViewportTransform viewport)
+            </div>
+            <div class="composed-children">
+              <div class="composed-step">
+                <span class="composed-step-num">Step 1</span>
+                <span class="composed-step-name">DrawBackgroundImage()</span>
+                <span class="composed-step-desc">맨 바닥에 카메라 사진 타일들을 먼저 깔아줍니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 2</span>
+                <span class="composed-step-name">DrawFilterRegions()</span>
+                <span class="composed-step-desc">선택된 ROI 영역 위에 필터 미리보기 그림을 얹습니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 3</span>
+                <span class="composed-step-name">DrawRoiOverlays()</span>
+                <span class="composed-step-desc">일반 ROI 도형들과 1억 개 반복 격자 테두리를 그립니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 4</span>
+                <span class="composed-step-name">DrawHoverAndSelectionHandles()</span>
+                <span class="composed-step-desc">선택된 도형 모서리에 8방향 크기조절 손잡이와 회전 손잡이를 그립니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 5</span>
+                <span class="composed-step-name">DrawDraftOverlays()</span>
+                <span class="composed-step-desc">지금 마우스로 그리고 있는 중인 임시 점선 도형을 그립니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 6</span>
+                <span class="composed-step-name">DrawSceneLabelsAndMinimap()</span>
+                <span class="composed-step-desc">맨 위에 도형 이름표와 오른쪽 아래 미니맵을 그리면 한 프레임 완성!</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 6: 10단계 마스터 학습 로드맵 (고1 맞춤형 순서) -->
+      <section class="section-card" id="sec-roadmap">
+        <h2>6단계 · 고1 눈높이 10단계 학습 로드맵: 쉬운 것부터 차근차근 정복하기</h2>
+        <p>
+          어려운 개념이 갑자기 튀어나오지 않도록, <strong>수학적 난이도와 코드 의존성 순서에 맞춰 01장부터 10장까지 징검다리처럼 배치</strong>했습니다.<br/>
+          각 장은 언제나 <strong>[왜 배울까? → 기초 워밍업 → 한 줄씩 수식 유도 → 인터랙티브 실험실 → 전체 코드 &amp; 한 줄씩 해부 → 클래스 구조도]</strong> 순서로 진행됩니다.
+        </p>
+
+        <div class="chapter-cards-grid">
+          <a class="chapter-card" href="01-csharp-and-math-prereq.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 01 · 1층 기초 공사 (점·회전·마크 보정)</span>
+              <h3>컴퓨터 화면 좌표계, struct 메모리, 2D 벡터·회전과 FiducialAlignment</h3>
+              <p>왜 컴퓨터 화면은 아래로 갈수록 Y가 커질까? <code>readonly record struct</code>가 빠른 이유와 피타고라스 거리·내적·외적·강체 회전, 그리고 1~4점 마크 보정(<code>FiducialAlignment</code>)을 배웁니다.</p>
+            </div>
+            <span class="source-link-pill">PointD.cs · RigidTransform2D.cs · FiducialAlignment.cs</span>
+          </a>
+
+          <a class="chapter-card" href="02-viewport-and-coordinates.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 02 · 1층 카메라 렌즈 (줌과 이동)</span>
+              <h3>중학교 일차함수 y = sx + t로 만드는 무한 줌·패닝 뷰포트</h3>
+              <p>모니터 픽셀과 DIP의 차이, 일차함수 정변환/역변환, 그리고 마우스 커서 아래 사진이 도망가지 않는 <code>ZoomAt</code> 공식을 스스로 유도해 구현합니다.</p>
+            </div>
+            <span class="source-link-pill">BoundsD.cs · ViewportTransform.cs</span>
+          </a>
+
+          <a class="chapter-card" href="03-roi-shapes-and-polygons.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 03 · 1층 도형 엔진 (사각형·원·다각형·마스크)</span>
+              <h3>4가지 회전 도형을 통합하는 정규화 공간과 폴리곤 닫기 · MaskRegion</h3>
+              <p>모든 도형을 <code>[-0.5, +0.5]²</code> 고무판에 정의하는 기법, 고개를 기울여 판정하는 <code>ToLocal</code>, 끝점 줄자 <code>Support</code>, 8자 꼬임 차단과 <code>[0, 1]²</code> 마스크 영역(<code>MaskRegion</code>)을 구현합니다.</p>
+            </div>
+            <span class="source-link-pill">RoiGeometry.cs · RoiShape.cs · PolygonClosure.cs · MaskRegion.cs</span>
+          </a>
+
+          <a class="chapter-card" href="04-motion-bounds-and-collision.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 04 · 1층 물리 엔진 (부모-자식 벽 충돌)</span>
+              <h3>40회 스무고개 이분법과 내적 그림자로 만드는 부모 벽 미끄러짐</h3>
+              <p>자식 도형을 부모 밖으로 끌었을 때 벽 바로 앞에 멈추는 40회 이분 탐색과, 남은 힘을 벽 방향으로 흘려보내는 벽면 슬라이딩을 만듭니다.</p>
+            </div>
+            <span class="source-link-pill">RoiMotionBounds.cs · RoiGroupBounds.cs</span>
+          </a>
+
+          <a class="chapter-card" href="05-spatial-index-and-100m-rois.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 05 · 2층 초고속 탐색 (영속 BVH &amp; 대용량 격자)</span>
+              <h3>비트 경로 영속 이진 트리(BVH)와 차분 집합(RoiIdSet), 대용량 격자 인덱싱</h3>
+              <p>수만~수억 개 도형을 <code>O(log N)</code>에 찾고 바뀐 경로만 복사하는 <code>RoiSpatialIndex</code>·<code>BvhNodePath</code>와, <code>FrozenSet</code> 기반 차분 선택 집합 <code>RoiIdSet</code> 및 격자 수식을 만듭니다.</p>
+            </div>
+            <span class="source-link-pill">RoiSpatialIndex.cs · BvhNodePath.cs · RoiIdSet.cs</span>
+          </a>
+
+          <a class="chapter-card" href="06-hit-testing-and-gestures.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 06 · 2층 마우스 조작 (히트테스트 &amp; 제스처)</span>
+              <h3>겹친 도형 중 작은 자식 먼저 잡기와 9종 다형성 제스처 상태 머신</h3>
+              <p>배율에 무관한 3 DIP 클릭 판정(<code>3.0 / Scale</code>)과, 스파게티 <code>if-else</code>를 없애는 <code>IGesture</code> 카트리지 교체 패턴(<code>Move</code>, <code>Resize</code>, <code>MaskDraw</code> 등)을 구현합니다.</p>
+            </div>
+            <span class="source-link-pill">RoiHitTester.cs · InteractionController.cs</span>
+          </a>
+
+          <a class="chapter-card" href="07-immutable-document-and-history.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 07 · 2층 시간 여행 (불변 스냅샷 &amp; 계층 보정)</span>
+              <h3>드래그 중 0.01ms 투명 필름 프리뷰, Undo/Redo 스택, 계층별 마크 보정(RoiAlignmentMap)</h3>
+              <p>드래그 중 원본 문서를 안 건드리는 <code>RoiTransformPreview</code>, 지연 인덱스 스냅샷 <code>RoiSnapshot</code>, <code>EditHistory</code>, 그리고 전체→모듈→그룹 보정 맵 <code>RoiAlignmentMap</code>을 구현합니다.</p>
+            </div>
+            <span class="source-link-pill">DocumentState.cs · RoiSnapshot.cs · EditorSession.cs · RoiAlignmentMap.cs</span>
+          </a>
+
+          <a class="chapter-card" href="08-hwnd-viewport-and-render-loop.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 08 · 3층 공통 호스트 (VisionCanvas.Host &amp; WndProc)</span>
+              <h3>고1도 단번에 이해하는 HWND, ViewportControlBase, RenderWorkerBase, ScenePainter</h3>
+              <p>4대 렌더러가 공유하는 <code>ViewportControlBase</code>와 <code>ViewportWindow</code>, 음수 마우스 좌표를 꺼내는 <code>(short)</code> 비트 연산, 2-Pass 렌더 루프(<code>RenderWorkerBase</code>)와 <code>ScenePainter</code>를 배웁니다.</p>
+            </div>
+            <span class="source-link-pill">ViewportControlBase.cs · RenderWorkerBase.cs · ScenePainter.cs</span>
+          </a>
+
+          <a class="chapter-card" href="09-gpu-roi-pipeline-and-tiles.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 09 · 3~4층 하드웨어 가속 (타일 LOD &amp; SIMD &amp; GPU 캐시)</span>
+              <h3>5억 화소 타일 피라미드(log₂), SIMD(BoxResampler · TrianglePyramid), RoiBlockCache &amp; RoiPipeline</h3>
+              <p>배율에 맞춰 타일 해상도를 고르는 로그 공식, 픽셀 8개를 1클럭에 처리하는 <code>Vector256</code> SIMD, 2,048개 단위 BVH 블록 캐시(<code>RoiBlockCache</code>)와 64B 형상/4B 역할 분리 GPU 인스턴싱을 정복합니다.</p>
+            </div>
+            <span class="source-link-pill">TilePlanner.cs · BoxResampler.cs · RoiBlockCache.cs · RoiPipeline.cs</span>
+          </a>
+
+          <a class="chapter-card" href="10-mvvm-integration-and-build-guide.html">
+            <div>
+              <span class="build-step-badge">CHAPTER 10 · 5층 최종 완성 (MVVM &amp; 통짜 전체 코드)</span>
+              <h3>WPF MVVM 바인딩, 비동기 디바운싱, 그리고 Step 0~7 전체 구현 코드</h3>
+              <p>단축키 라우팅과 입력 잠금(<code>NavigationOnly</code>), 12ms 필터 디바운싱을 연결하고, 빈 폴더에서 복사·붙여넣기로 즉시 컴파일·실행되는 7단계 전체 코드를 완성합니다!</p>
+            </div>
+            <span class="source-link-pill">MainWindowViewModel.cs · EditorViewModel.cs · Step 0~7 Full Code</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- STEP 7: 전체 아키텍처 청사진 (10장까지 배울 전체 지도 미리보기) -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">7단계 · 전체 지도 미리보기: 앞으로 우리가 하나씩 완성할 10대 핵심 클래스와 설계 원칙</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <p class="solid-grasp-intro">
+          아래의 원칙과 클래스 다이어그램은 <strong>1장부터 10장까지 공부하면서 하나씩 정복해 나갈 전체 보물지도</strong>입니다.<br/>
+          지금 당장 모든 상자 이름을 외울 필요는 전혀 없습니다! "아, 입력·상태·그리기를 이렇게 나누어 놓았구나" 하고 가볍게 구경한 뒤 바로 01장으로 출발하세요.
+        </p>
+        <div class="sg-grid">
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · DIP (의존성 역전 원칙)</span>
+            <h4>1~2층 두뇌(Core/Geometry)는 WPF나 그래픽카드를 전혀 모른다</h4>
+            <p><code>VisionCanvas.Core</code>와 <code>VisionGeometry</code>는 WPF나 DirectX 12를 참조하지 않습니다. 덕분에 엔진 코드 한 줄 안 고치고 렌더러 4종(DX12, Vulkan, wgpu, Skia)을 갈아끼울 수 있습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>입력(Controller) · 상태(Session) · 그리기(Painter) 완전 분리</h4>
+            <p>마우스 판정은 <code>InteractionController</code>, 도형 상태와 Undo는 <code>EditorSession</code>, 화면 그림 조립은 <code>ScenePainter</code>가 각각 딱 하나씩만 책임집니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Low Coupling (낮은 결합도)</span>
+            <h4>단방향 4계층 파이프라인</h4>
+            <p>하위 계층이 상위 계층을 절대 역호출하지 않으므로, 기하학 수식이나 BVH 트리를 고쳐도 GPU 셰이더나 WPF 화면 코드가 깨지지 않습니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Protected Variations (변화로부터의 보호)</span>
+            <h4>변하기 쉬운 GPU API를 경계 뒤로 숨김</h4>
+            <p>가장 까다로운 그래픽카드 API(DX12/Vulkan/wgpu/Skia)를 <code>VisionCanvas</code> 렌더러 계층 안에 가두어 핵심 도메인 로직을 보호합니다.</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 어떻게 이 구조가 최적화를 달성할까요?</strong><br/>상태(DocumentState)와 그리기(RenderWorker)가 완전히 분리되어 있기 때문에, 마우스를 1초에 1,000번 흔들어도 UI 스레드는 가벼운 숫자(Delta)만 바꾸고 무거운 그리기는 백그라운드 GPU 스레드가 최신 프레임 1장만 골라서 60FPS로 그릴 수 있습니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>VisionCanvas 전체 구현 마스터 클래스 다이어그램 (1장~10장 보물지도)</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"VisionCanvas.Host (08장)","title":"ViewportControlBase & Dx12Viewport","role":"4대 렌더러가 공유하는 Win32 HWND 입력/레이어 브리지와 DX12 컨트롤","color":"#38bdf8","members":["- _renderer: IRenderWorker","+ Layers: DrawingLayerCollection","# BuildWindowCore() / WndProc()","+ Submit(RenderScene)"]},{"stereotype":"GRASP Controller (06장)","title":"InteractionController","role":"마우스 클릭/드래그를 해석해 제스처 상태 머신 구동","color":"#f472b6","members":["- _gesture: IGesture?","+ NavigationOnly: bool","+ Down(point, modifiers, button)","+ Move(point) / Up(point)"]},{"stereotype":"SOLID OCP (06장)","title":"IGesture (구현체 9종)","role":"이동·그리기·크기조절·회전·마스크를 통일된 인터페이스로 추상화","color":"#fbbf24","members":["+ Move(PointD, InputModifiers)","+ Up(PointD) / Cancel()","↳ Move / Resize / Rotate / Draw","↳ PolygonDraw / Marquee / MaskDraw / Pan"]},{"stereotype":"Hit Tester (06장)","title":"RoiHitTester","role":"마우스 아래에 핸들·꼭짓점·도형 중 무엇이 있는지 우선순위 판정","color":"#818cf8","members":["+ HitResizeHandle() / HitRotationHandle()","+ HitRoi(state, point, tolerance)","+ CycleOverlappingRoi()"]},{"stereotype":"Session & Alignment (07장)","title":"EditorSession & RoiAlignmentMap","role":"현재 문서 스냅샷, 드래그 프리뷰, Undo/Redo 이력 및 계층 보정 총괄","color":"#34d399","members":["+ State: DocumentState","+ TransformPreview: RoiTransformPreview?","+ Undo() / Redo() / AddRange()","+ RoiAlignmentMap.TryAlign() / Map()"]},{"stereotype":"Immutable Snapshot (05·07장)","title":"DocumentState & RoiSnapshot","role":"모든 ROI 사전, 영속 BVH 트리(RoiSpatialIndex), 선택 집합(RoiIdSet) 보관","color":"#34d399","members":["+ Snapshot: RoiSnapshot (Spatial BVH)","+ Selection: RoiIdSet (FrozenSet + Delta)","+ SelectedSpatial: RoiSpatialIndex"]},{"stereotype":"Shape & Mask (03장)","title":"RoiGeometry & MaskRegion","role":"사각형·원·삼각형·폴리곤의 좌표 변환, 포함 판정, 서포트 및 마스크","color":"#fbbf24","members":["+ Shape: RoiShape (Rect/Circle/Tri/Poly)","+ ToWorld(local) / ToLocal(world)","+ Contains(p) / Support(dir) / Covers()"]},{"stereotype":"Collision Clamper (04장)","title":"RoiMotionBounds","role":"자식 도형이 부모 벽 밖으로 못 나가게 막고 벽을 따라 미끄러뜨림","color":"#f472b6","members":["+ ClampTranslation(parent, children, delta)","+ ClampRotation(parent, children, pivot, angle)","- SlideAlongParentWall()"]},{"stereotype":"Host Render Loop (08장)","title":"RenderWorkerBase & ScenePainter","role":"UI 스레드와 분리되어 2-Pass 장면(배경 타일 + ROI + 핸들/레이어) 조립","color":"#38bdf8","members":["# RunTwoPhaseFrameLoop()","+ ScenePainter.Build(): SpriteMesh","+ RoiBatchBoundary (2-Pass 경계)"]},{"stereotype":"GPU & SIMD Cache (09장)","title":"TilePlanner · RoiBlockCache · RoiPipeline","role":"타일 LOD 계산, BoxResampler SIMD, 2048 블록 캐시(64B 형상 + 4B 역할)","color":"#818cf8","members":["+ TilePlanner.Visible(image, view)","+ RoiBlockCache<TBlock>.GetOrUpload()","+ RoiPipeline.Draw() / UploadRoleChanges()"]}],"edges":[{"from":0,"to":1,"label":"WndProc 마우스/키 전달"},{"from":1,"to":3,"label":"클릭 위치 판정"},{"from":1,"to":2,"label":"드래그 위임 (다형성)"},{"from":2,"to":7,"label":"부모 벽 충돌 보정"},{"from":2,"to":4,"label":"프리뷰/커밋 반영"},{"from":4,"to":5,"label":"불변 스냅샷 교체"},{"from":5,"to":6,"label":"기하/마스크 보유"},{"from":0,"to":8,"label":"최신 RenderScene 제출"},{"from":8,"to":9,"label":"BVH 블록 캐시 & 드로우콜"}],"tiers":[[0],[1,8],[3,2,9],[7,4],[5],[6]]}</script>
+        <div class="diagram-caption">각 상자 제목 옆에 적힌 (03장)~(09장) 순서대로 하나씩 직접 만들어 조립할 전체 클래스 설계도입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>마우스 클릭부터 GPU 화면 출력까지의 종단간 시퀀스 다이어그램 (End-to-End Sequence)</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["Dx12Viewport (HWND)","InteractionController","RoiHitTester","MoveGesture (IGesture)","EditorSession","RenderWorker (GPU)"],"messages":[{"from":0,"to":1,"text":"PointerDown(dip, LeftButton, modifiers)"},{"from":1,"to":2,"text":"HitSelectable(Document, Viewport, dip)"},{"from":2,"to":1,"text":"SelectableHit(RoiId) 반환","ret":true},{"from":1,"to":3,"text":"new MoveGesture(...) 생성 (드래그 시작)"},{"from":0,"to":1,"text":"PointerMove(currentDip) [마우스 이동 중]"},{"from":1,"to":3,"text":"Update(currentDip)"},{"from":3,"to":4,"text":"SetTransformPreview(clampedDelta) [O(1) 프리뷰 갱신]"},{"from":0,"to":5,"text":"RequestFrame(Document, Preview, Viewport)"},{"from":5,"to":5,"text":"ScenePainter.Build() & SwapChain.Present() [60FPS 출력]"}]}</script>
+        <div class="diagram-caption">사용자가 마우스를 클릭하고 드래그할 때 Win32 HWND → InteractionController → RoiHitTester → IGesture(MoveGesture) → EditorSession → RenderWorker 순으로 흐르는 시간 순서입니다.</div>
+
+        <details class="feynman-check" style="margin-top: 20px;">
+          <summary>00장 마무리 셀프 체크: 왜 우리는 1층(VisionGeometry)을 만들 때 WPF나 DirectX 12를 전혀 참조하지 않을까요? (클릭하여 정답 확인)</summary>
+          <p><strong>정답:</strong> 점·회전·충돌 수식은 순수 수학이므로 특정 화면 기술(WPF/DX12)에 묶이지 않아야 나중에 Vulkan, wgpu, Skia 어디서든 그대로 재사용할 수 있고, 창을 띄우지 않고도 0.001초 만에 자동 테스트를 돌릴 수 있기 때문입니다! 이제 01장에서 첫 번째 코드인 <code>PointD</code>를 만들어 봅시다.</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <div></div>
+        <a class="pager-link" href="01-csharp-and-math-prereq.html" style="text-align: right;">
+          <span class="pager-label">첫 번째 실습 시작하기 →</span>
+          <span class="pager-title">01장 · 컴퓨터 화면 좌표계, struct, 2D 벡터와 회전</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

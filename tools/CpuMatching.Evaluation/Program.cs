@@ -11,10 +11,15 @@ using CpuMatching.SubNcc;
 if (args.Length < 2)
 {
     Console.WriteLine("generate | accuracy-data | accuracy-validation | full-image-data | module-data <new-folder> [kensa.png]; phase-data <new-folder> <full-image-folder>; run <folder> <report.json> [case-name] [repeats=3] [cpu|cuda|compare]; split <folder> <report.json> [case|all] [repeats=3] [method|all] [workers=4] [overlap|aligned]");
+    Console.WriteLine("narrow-data <repository> <new-folder>; narrow <folder> <report.json> [repeats=7] [warmup-rounds=4]");
     return 1;
 }
 try
 {
+    if (args[0] is "narrow" or "narrow-data")
+    {
+        return NarrowRoiBenchmark.Run(args);
+    }
     if (args[0] == "split")
     {
         return SplitBenchmark.Run(args);

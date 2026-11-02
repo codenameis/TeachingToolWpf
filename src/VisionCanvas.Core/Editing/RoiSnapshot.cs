@@ -11,10 +11,7 @@ public sealed partial class RoiSnapshot
     private readonly Lazy<ImmutableDictionary<Guid, ImmutableArray<Guid>>> _children;
     private readonly Lazy<ImmutableDictionary<Guid, int>> _groupLevels;
 
-    public ImmutableDictionary<Guid, Roi> Rois
-    {
-        get;
-    }
+    public ImmutableDictionary<Guid, Roi> Rois { get; }
 
     public RoiSpatialIndex Spatial => _spatial.Value;
 
@@ -25,20 +22,11 @@ public sealed partial class RoiSnapshot
     // 리프 ROI=0, ROI 그룹=1, 모듈 그룹=2, 루트 그룹=3. 탐색·형상 편집에서 재사용한다.
     public ImmutableDictionary<Guid, int> GroupLevels => _groupLevels.Value;
 
-    public ImmutableDictionary<Guid, Roi>? PreviousRois
-    {
-        get;
-    }
+    public ImmutableDictionary<Guid, Roi>? PreviousRois { get; }
 
-    public ImmutableArray<Guid> ChangedIds
-    {
-        get;
-    }
+    public ImmutableArray<Guid> ChangedIds { get; }
 
-    public object RowVersion
-    {
-        get;
-    }
+    public object RowVersion { get; }
 
     internal bool IsRigidUpdate
     {
@@ -79,7 +67,7 @@ public sealed partial class RoiSnapshot
             var old = oldRois.GetValueOrDefault(id);
             var next = rois.GetValueOrDefault(id);
             groupKindChanged |= old?.IsGroup != next?.IsGroup;
-            rowsChanged = rowsChanged || old is null || next is null || old.Name != next.Name || old.ParentId != next.ParentId || old.Order != next.Order || old.IsGroup != next.IsGroup || old.Geometry.Shape.Kind != next.Geometry.Shape.Kind || (old.SearchRange is null) != (next.SearchRange is null);
+            rowsChanged = rowsChanged || HasRowMetadataChanged(old, next);
             if (old?.ParentId != next?.ParentId)
             {
                 topologyChanged = true;
@@ -107,27 +95,76 @@ public sealed partial class RoiSnapshot
         RowVersion = rowsChanged ? new() : previous.RowVersion;
         _groupLevels = topologyChanged || groupKindChanged
             ? new(() => RoiHierarchy.BuildGroupLevels(rois)) : previous._groupLevels;
+        _spatial = BuildOrUpdateSpatialIndex(seed, rois, geometryChanges, rebuildSpatial, refitSpatial, token);
+        _children = BuildOrUpdateChildrenIndex(previous, rois, parentChanges, topologyChanged, bulk);
+        _search = CreateSearchIndex(previous);
+    }
+
+    private static bool HasRowMetadataChanged(Roi? oldRoi, Roi? nextRoi)
+    {
+        if (oldRoi is null || nextRoi is null)
+        {
+            return true;
+        }
+
+        return oldRoi.Name != nextRoi.Name
+            || oldRoi.ParentId != nextRoi.ParentId
+            || oldRoi.Order != nextRoi.Order
+            || oldRoi.IsGroup != nextRoi.IsGroup
+            || oldRoi.Geometry.Shape.Kind != nextRoi.Geometry.Shape.Kind
+            || (oldRoi.SearchRange is null) != (nextRoi.SearchRange is null);
+    }
+
+    private static Lazy<RoiSpatialIndex> BuildOrUpdateSpatialIndex(
+        RoiSnapshot seed,
+        ImmutableDictionary<Guid, Roi> rois,
+        List<(Guid Id, Roi? Value)>? geometryChanges,
+        bool rebuildSpatial,
+        bool refitSpatial,
+        CancellationToken token)
+    {
         // Capture evaluated values, not previous factories: Undo/Redo must not retain a recursive lazy chain.
         var oldSpatial = rebuildSpatial && !refitSpatial ? null : seed.Spatial;
-        var spatialChanges = geometryChanges?.ToArray();
-        // 작업 전용 refit은 게시 전에 취소한다. 공유 Lazy에 취소 예외나 일시적 token을 보관하지 않는다.
-        var refitted = refitSpatial && token.CanBeCanceled ? oldSpatial!.RefitGeometry(rois, token) : null;
-        _spatial = new(() => refitSpatial ? refitted ?? oldSpatial!.RefitGeometry(rois) : rebuildSpatial ? new(rois.Values) :
-            (spatialChanges!.Length == 0 ? oldSpatial! : oldSpatial!.WithChanges(spatialChanges)).WithValues(rois));
+        if (refitSpatial)
+        {
+            // 작업 전용 refit은 게시 전에 취소한다. 공유 Lazy에 취소 예외나 일시적 token을 보관하지 않는다.
+            var refitted = token.CanBeCanceled ? oldSpatial!.RefitGeometry(rois, token) : null;
+            return new(() => refitted ?? oldSpatial!.RefitGeometry(rois));
+        }
+
+        if (rebuildSpatial)
+        {
+            return new(() => new(rois.Values));
+        }
+
+        var spatialChanges = geometryChanges!.ToArray();
+        return new(() =>
+        {
+            var updated = spatialChanges.Length == 0 ? oldSpatial! : oldSpatial!.WithChanges(spatialChanges);
+            return updated.WithValues(rois);
+        });
+    }
+
+    private static Lazy<ImmutableDictionary<Guid, ImmutableArray<Guid>>> BuildOrUpdateChildrenIndex(
+        RoiSnapshot previous,
+        ImmutableDictionary<Guid, Roi> rois,
+        List<ParentChange>? parentChanges,
+        bool topologyChanged,
+        bool bulk)
+    {
         if (!topologyChanged)
         {
-            _children = previous._children;
-            _search = CreateSearchIndex(previous);
-            return;
+            return previous._children;
         }
+
         var oldChildren = bulk ? null : previous.Children;
         var topologyChanges = parentChanges?.ToArray();
-        _children = new(() =>
+        return new(() =>
         {
             if (bulk)
             {
                 return rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
-                .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray());
+                    .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray());
             }
 
             var result = oldChildren!.ToBuilder();
@@ -152,7 +189,6 @@ public sealed partial class RoiSnapshot
             }
             return result.ToImmutable();
         });
-        _search = CreateSearchIndex(previous);
     }
 
     private static bool RequiresRebuild(int changedCount, int totalCount)

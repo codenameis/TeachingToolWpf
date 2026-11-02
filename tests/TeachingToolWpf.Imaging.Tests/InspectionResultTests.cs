@@ -90,7 +90,7 @@ public sealed class InspectionResultTests
         switch (change)
         {
             case "generation":
-                viewModel.Update(editor.State, 2, false, true);
+                viewModel.Update(new(editor.State, 2, false, true));
                 break;
             case "score":
                 viewModel.MinimumScore = .8;
@@ -99,7 +99,7 @@ public sealed class InspectionResultTests
                 viewModel.MaximumMatches = 2;
                 break;
             case "region":
-                viewModel.UseSelection = true;
+                viewModel.UseSelection = !viewModel.UseSelection;
                 break;
         }
         service.Pending.SetResult(service.Output);
@@ -194,12 +194,12 @@ public sealed class InspectionResultTests
         viewModel.UseSelection = true;
         await viewModel.Search.ExecuteAsync();
         editor.TranslateSelection(new(5, 0));
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         Assert.Null(viewModel.Overlay);
-        viewModel.Update(editor.State, 2, true, true);
+        viewModel.Update(new(editor.State, 2, true, true));
         await viewModel.Search.ExecuteAsync();
         Assert.NotEmpty(viewModel.Markers);
-        viewModel.Update(editor.State, 2, true, false);
+        viewModel.Update(new(editor.State, 2, true, false));
         Assert.Null(viewModel.Overlay);
     }
 
@@ -231,7 +231,7 @@ public sealed class InspectionResultTests
         editor.InitializeImage(new("fixture", "fixture", 256, 256), ViewportTransform.Identity);
         editor.Add(new(new(100, 100), 70, 70, 0));
         var viewModel = new ShapeMatchingViewModel(service);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Train.ExecuteAsync();
         return (service, editor, viewModel);
     }

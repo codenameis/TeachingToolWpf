@@ -1,12 +1,63 @@
 using System.Text.Json;
 using TeachingToolWpf.Imaging.Tests;
 using VisionAlgorithm.OpenSrc.PatternMatching;
+using VisionAlgorithm.OpenSrc.ShapeDetection;
 using VisionInspection.Cli;
 
 namespace VisionInspection.Tests;
 
 public sealed class RecipeRunnerTests
 {
+    [Fact]
+    public async Task DoubleSquareRecipePreservesDisconnectedContoursThroughJson()
+    {
+        var (directory, runner, recipe) = CreateFixture();
+        PrimitiveShapeFixture.WritePng(Path.Combine(directory, "double.png"),
+            VisionAlgorithm.Tests.PcbMarkFixture.Create(PrimitiveShapeKind.DoubleSquare, 27));
+        var result = await runner.RunAsync(recipe with
+        {
+            InspectionImage = "double.png"
+        }, directory);
+        Assert.Equal("completed", result.Status);
+        var match = Assert.Single(result.Matches);
+        Assert.Equal("doublesquare", match.Kind);
+        Assert.Empty(match.InnerContours);
+        Assert.Single(match.AdditionalContours);
+        var restored = JsonSerializer.Deserialize<InspectionRunResult>(JsonSerializer.Serialize(result, RecipeJson.CreateOptions()), RecipeJson.CreateOptions())!;
+        Assert.Equal(match.AdditionalContours[0], Assert.Single(restored.Matches).AdditionalContours[0]);
+    }
+
+    [Fact]
+    public async Task NestedPrimitiveRecipePreservesHoleContoursInSerializedResults()
+    {
+        var (directory, runner, recipe) = CreateFixture();
+        PrimitiveShapeFixture.WritePng(Path.Combine(directory, "nested.png"), PrimitiveShapeFixture.Create(640, 480,
+            new(PrimitiveShapeKind.Ring, 160, 180), new(PrimitiveShapeKind.Circle, 160, 180, Scale: .3),
+            new(PrimitiveShapeKind.RectangleFrame, 430, 180, 27), new(PrimitiveShapeKind.Rectangle, 430, 180, 27, .3)));
+        var result = await runner.RunAsync(recipe with
+        {
+            InspectionImage = "nested.png"
+        }, directory);
+        Assert.Equal("completed", result.Status);
+        Assert.Equal(4, result.Matches.Length);
+        var ring = Assert.Single(result.Matches, match => match.Kind == "ring");
+        Assert.Single(ring.InnerContours);
+        Assert.Single(Assert.Single(result.Matches, match => match.Kind == "rectangleframe").InnerContours);
+        var json = JsonSerializer.Serialize(result, RecipeJson.CreateOptions());
+        var restored = JsonSerializer.Deserialize<InspectionRunResult>(json, RecipeJson.CreateOptions())!;
+        Assert.Equal(ring.InnerContours[0], Assert.Single(restored.Matches, match => match.Kind == "ring").InnerContours[0]);
+        var unavailable = await runner.RunAsync(recipe with
+        {
+            PrimitiveOptions = new()
+            {
+                UseGpu = true
+            }
+        }, directory);
+        Assert.Equal("failed", unavailable.Status);
+        Assert.Contains("CUDA", unavailable.Error);
+        Assert.Empty(unavailable.Matches);
+    }
+
     [Fact]
     public async Task RemovedGeometricMethodIsRejectedBeforeOpeningImages()
     {

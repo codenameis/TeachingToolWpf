@@ -140,7 +140,7 @@ public class RoiInstanceTests
         Assert.Single(RoiInstance.Pack(block, 0));
         Assert.Equal(1000, block.Detail(0).Select(r => r.Roi!.Id).Distinct().Count());
         var summary = RoiInstance.Pack(block, 100).Single();
-        Assert.Equal(1u, summary.Summary);
+        Assert.Equal(RoiInstanceKind.Summary, summary.Kind);
     }
 
     [Theory]

@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using VisionCanvas.Controls;
 using VisionCanvas.MvvmSample.ViewModels;
+using VisionCanvas.Presentation;
 
 namespace VisionCanvas.MvvmSample.Views;
 
@@ -25,7 +26,7 @@ public partial class EditorView : UserControl, IDisposable
     private void OnPreviewKeyDown(object sender, KeyEventArgs args)
     {
         // 글자 입력칸의 Delete/Ctrl+Z 등을 ROI 명령으로 가로채지 않도록 먼저 확인한다.
-        if (Keyboard.FocusedElement is TextBoxBase or RangeBase)
+        if (ViewportKeyboard.IsControlInput(Keyboard.FocusedElement) || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
         {
             return;
         }

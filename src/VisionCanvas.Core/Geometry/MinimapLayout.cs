@@ -5,15 +5,32 @@ namespace VisionCanvas.Core.Geometry;
 public sealed record MinimapLayout(BoundsD Panel, BoundsD ImageBounds, double ImageWidth, double ImageHeight, double ViewWidth, double ViewHeight)
 {
     public static MinimapLayout? Create(double imageWidth, double imageHeight, double viewWidth, double viewHeight)
+        => Create(imageWidth, imageHeight, viewWidth, viewHeight, MinimapOptions.Default);
+
+    public static MinimapLayout? Create(double imageWidth, double imageHeight, double viewWidth, double viewHeight, MinimapOptions? options)
     {
-        if (!double.IsFinite(imageWidth + imageHeight + viewWidth + viewHeight) || imageWidth <= 0 || imageHeight <= 0 || viewWidth < 320 || viewHeight < 240)
+        options ??= MinimapOptions.Default;
+        options.Validate();
+        if (!options.IsVisible || !double.IsFinite(imageWidth + imageHeight + viewWidth + viewHeight) || imageWidth <= 0 || imageHeight <= 0 || viewWidth < 320 || viewHeight < 240)
         {
             return null;
         }
 
         var width = Math.Min(232, viewWidth * .3);
         var height = Math.Min(174, viewHeight * .35);
-        var panel = new BoundsD(viewWidth - width - 12, viewHeight - height - 12, viewWidth - 12, viewHeight - 12);
+        var left = options.Position switch
+        {
+            MinimapPosition.TopLeft or MinimapPosition.MiddleLeft or MinimapPosition.BottomLeft => 12,
+            MinimapPosition.TopCenter or MinimapPosition.BottomCenter => (viewWidth - width) / 2,
+            _ => viewWidth - width - 12
+        };
+        var top = options.Position switch
+        {
+            MinimapPosition.TopLeft or MinimapPosition.TopCenter or MinimapPosition.TopRight => 12,
+            MinimapPosition.MiddleLeft or MinimapPosition.MiddleRight => (viewHeight - height) / 2,
+            _ => viewHeight - height - 12
+        };
+        var panel = new BoundsD(left, top, left + width, top + height);
         var content = new BoundsD(panel.Left + 10, panel.Top + 30, panel.Right - 10, panel.Bottom - 10);
         var scale = Math.Min(content.Width / imageWidth, content.Height / imageHeight);
         var half = new PointD(imageWidth * scale / 2, imageHeight * scale / 2);

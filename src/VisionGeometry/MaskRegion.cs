@@ -9,14 +9,8 @@ public enum MaskShape
 /// <summary>ROI 프레임 좌상단 기준 0–1 좌표. 적용 영역은 실제 ROI 도형과의 교집합이다.</summary>
 public sealed record MaskRegion
 {
-    public MaskShape Shape
-    {
-        get;
-    }
-    public BoundsD Bounds
-    {
-        get;
-    }
+    public MaskShape Shape { get; }
+    public BoundsD Bounds { get; }
 
     public MaskRegion(MaskShape shape, BoundsD bounds)
     {

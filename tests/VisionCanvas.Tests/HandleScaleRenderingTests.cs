@@ -17,16 +17,15 @@ public class HandleScaleRenderingTests
     [InlineData(true, .5)]
     [InlineData(true, 1)]
     [InlineData(true, 3)]
-    public void ResizeAndRotationHandlePixelsFollowScale(bool repeated, double scale)
+    public void ResizeAndRotationHandlePixelsFollowScale(bool batchCreated, double scale)
     {
         var editor = new EditorSession();
         editor.InitializeImage(new("test", "test", 1000, 1000), ViewportTransform.Identity);
         RoiGeometry geometry;
-        if (repeated)
+        if (batchCreated)
         {
-            var id = editor.AddRepeatedGrid(new(1, 1, 250, new(500, 500)));
-            editor.SelectRepeated(new(id, 0));
-            geometry = editor.State.RepeatedRois[id].Geometry(0);
+            var id = editor.AddRange([new RoiGeometry(new(500, 500), 162.5, 162.5, 0)], selectAdded: true).Single();
+            geometry = editor.State.Rois[id].Geometry;
         }
         else
         {
@@ -38,7 +37,7 @@ public class HandleScaleRenderingTests
         var white = new GpuTexture(null!, 0, PixelKind.Rgba32, 1, 1, _ => { });
         using var filters = new GpuFilterPreview();
         var scene = new RenderScene(editor.State, null, 0, 1000, 1000, 1, new InteractionOverlay { HandleScale = scale });
-        var mesh = new ScenePainter().Build(scene, white, new Dictionary<TileKey, GpuTexture>(), _ => white,
+        var mesh = new ScenePainter().Build(scene, white, new Dictionary<TileKey, IRenderTexture>(), _ => white,
             _ => null, null, default, filters, null);
         bool HasWhiteVertex(PointD point) => mesh.Vertices.Any(v => v.Position == new Vector2((float)((point.X / 500) - 1),
             (float)(1 - (point.Y / 500))) && v.Color == Vector4.One);

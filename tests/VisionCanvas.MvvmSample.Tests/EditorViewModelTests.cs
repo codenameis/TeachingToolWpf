@@ -14,6 +14,39 @@ namespace VisionCanvas.MvvmSample.Tests;
 public sealed class EditorViewModelTests
 {
     [Fact]
+    public async Task ArrowKeysAndInspectionLockPreserveSelectionAndHistory()
+    {
+        using var display = new Display();
+        using var model = Create(display);
+        await model.SampleCommand.ExecuteAsync();
+        Draw(model, new(180, 180), new(230, 230));
+        Draw(model, new(280, 200), new(330, 250));
+        var before = model.Scene.Document;
+        var selected = before.Selection.Single();
+        Assert.True(model.HandleKey(Key.Right, false, false));
+        Assert.Equal(before.Rois[selected].Geometry.Center + new PointD(1, 0), model.Scene.Document.Rois[selected].Geometry.Center);
+        await model.UndoCommand.ExecuteAsync();
+        Assert.Equal(before.Rois, model.Scene.Document.Rois);
+        model.Navigation.RefreshTargets();
+        model.Navigation.Target = model.Navigation.Targets.Single(item => item.Id != selected);
+        Assert.Equal(selected, model.Scene.Document.Selection.Single());
+        model.Navigation.IsLocked = true;
+        before = model.Scene.Document;
+        foreach (var key in Enum.GetValues<Key>())
+        {
+            model.HandleKey(key, false, false);
+            model.HandleKey(key, true, true);
+        }
+        Assert.False(model.IsInputEnabled);
+        Assert.False(model.DeleteCommand.CanExecute(null));
+        Assert.False(model.FitCommand.CanExecute(null));
+        Assert.Equal(before, model.Scene.Document);
+        model.Navigation.IsLocked = false;
+        Assert.True(model.HandleKey(Key.Up, false, true));
+        Assert.Equal(before.Rois[selected].Geometry.Center + new PointD(0, -10), model.Scene.Document.Rois[selected].Geometry.Center);
+    }
+
+    [Fact]
     public async Task EmptyEditorLoads8KAndDrawsWithUndoRedoThroughCommands()
     {
         using var display = new Display();

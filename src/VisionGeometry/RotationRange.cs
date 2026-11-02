@@ -3,15 +3,9 @@ namespace VisionGeometry;
 /// <summary>The connected interval of permitted rotation starting at zero, without wrapping angles.</summary>
 public readonly record struct RotationRange
 {
-    public double MinimumDegrees
-    {
-        get;
-    }
+    public double MinimumDegrees { get; }
 
-    public double MaximumDegrees
-    {
-        get;
-    }
+    public double MaximumDegrees { get; }
 
     public static RotationRange Unbounded => new(double.NegativeInfinity, double.PositiveInfinity);
 

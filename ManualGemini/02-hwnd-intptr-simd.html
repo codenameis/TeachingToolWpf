@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>02. HWND · IntPtr · SIMD 완전 정복 — ManualGemini</title>
+  <link rel="stylesheet" href="assets/manual-gemini.css" />
+</head>
+<body>
+  <header class="top-header">
+    <a href="index.html" class="brand-logo">
+      <span class="brand-badge">CHAPTER 02</span>
+      <span>HWND · IntPtr · SIMD</span>
+    </a>
+    <nav class="top-nav-links">
+      <a href="index.html">홈·전체 구조</a>
+      <a href="01-math-and-vectors.html">01. 수학·벡터</a>
+      <a href="02-hwnd-intptr-simd.html" class="active">02. HWND·SIMD</a>
+      <a href="03-code-rules-and-architecture.html">03. 코드규칙·구조</a>
+      <a href="04-core-algorithms-and-bvh.html">04. 타일링·BVH</a>
+      <a href="05-practical-usage-mvvm.html">05. 실전 MVVM</a>
+      <a href="06-from-scratch-implementation.html">06. 밑바닥 구현</a>
+    </nav>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">🌙 다크 모드</button>
+  </header>
+
+  <div class="layout-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-title">교재 목차 (Curriculum)</div>
+      <ul class="sidebar-nav">
+        <li><a href="index.html"><span class="chap-num">00</span>전체 구조 한눈에 보기</a></li>
+        <li><a href="01-math-and-vectors.html"><span class="chap-num">01</span>수학 &amp; 벡터 기하학</a></li>
+        <li><a href="02-hwnd-intptr-simd.html" class="active"><span class="chap-num">02</span>HWND · IntPtr · SIMD</a></li>
+        <li><a href="03-code-rules-and-architecture.html"><span class="chap-num">03</span>코드 규칙 &amp; 클래스 구조</a></li>
+        <li><a href="04-core-algorithms-and-bvh.html"><span class="chap-num">04</span>이미지 타일링 &amp; BVH</a></li>
+        <li><a href="05-practical-usage-mvvm.html"><span class="chap-num">05</span>실전 MVVM 사용법</a></li>
+        <li><a href="06-from-scratch-implementation.html"><span class="chap-num">06</span>밑바닥부터 직접 구현</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section class="hero-banner">
+        <div class="hero-eyebrow">CHAPTER 02 · OS WINDOW HANDLE &amp; HARDWARE VECTOR</div>
+        <h1>HWND, IntPtr, 그리고 SIMD 벡터 가속</h1>
+        <p class="hero-subtitle">
+          C#과 WPF만 공부했을 때 가장 생소하게 느껴지는 세 단어가 바로 <code>HWND</code>, <code>IntPtr</code>(또는 <code>nint</code>), 그리고 <code>SIMD</code>입니다.<br/>운영체제(Windows)와 그래픽카드, CPU 하드웨어를 직접 다루기 위해 꼭 필요한 이 세 가지 개념을 비유와 함께 명쾌하게 풀어봅니다.</p>
+      </section>
+
+      <!-- 1. HWND와 IntPtr(nint) -->
+      <section class="content-section">
+        <span class="section-badge">CONCEPT 1 · HWND &amp; INTPTR</span>
+        <h2>1. HWND와 IntPtr(nint)은 무엇인가요?</h2>
+        <div class="story-lead">
+          <strong>일상 비유:</strong> 아파트 관리실(Windows 운영체제)은 각 세대를 부를 때 '철수네 집' 같은 이름 대신 <strong>'101동 502호'라는 고유 번호표</strong>를 씁니다.<br/>이 번호표가 바로 <code>HWND</code>이고, 번호표를 C# 변수에 담는 그릇이 <code>IntPtr</code>(<code>nint</code>)입니다.</div>
+        <p>
+          그래픽카드(DirectX 12, Vulkan, wgpu)한테 <em>"이 사각형 영역에 그림을 그려줘!"</em>라고 명령하려면, 그래픽카드가 알아들을 수 있는 <strong>Windows 운영체제의 진짜 창 번호(Handle to a Window, <code>HWND</code>)</strong>를 건네주어야 합니다.</p>
+        <p>
+          그런데 WPF의 일반 버튼이나 그리드는 운영체제 입장에서는 별도의 창이 아니라, 큰 창 하나 안에 그려진 그림일 뿐입니다.<br/>그래서 VisionCanvas는 WPF의 <code>HwndHost</code>를 상속받아, <strong>캔버스 영역만을 위한 진짜 Win32 자식 창(<code>ViewportWindow</code>)</strong>을 만들고 그 창 번호(<code>IntPtr</code>)를 그래픽카드에 연결합니다.</p>
+
+        <div class="grid-2">
+          <div class="concept-card">
+            <h4>① HWND (Handle to a Window)</h4>
+            <p>
+              Windows가 화면의 각 창을 식별하기 위해 발급하는 <strong>64비트 정수 번호표</strong>입니다.<br/>마우스 캡처(<code>SetCapture</code>), 커서 변경, 그래픽카드 스왑체인 연결이 모두 이 번호표를 기준으로 동작합니다.</p>
+          </div>
+          <div class="concept-card emerald">
+            <h4>② IntPtr 과 nint</h4>
+            <p>
+              메모리 주소나 운영체제 핸들(번호표)을 담는 C#의 특수 정수 타입입니다.<br/>32비트 컴퓨터에서는 4바이트, 64비트 컴퓨터에서는 8바이트 크기로 자동 조절되며, 최신 C#에서는 <code>nint</code>라는 짧은 키워드로도 똑같이 쓸 수 있습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Win32 WndProc과 비트 연산 언패킹 -->
+      <section class="content-section">
+        <span class="section-badge">CONCEPT 2 · WNDPROC &amp; BIT UNPACKING</span>
+        <h2>2. 마우스 좌표는 왜 비트 연산(&amp;, &gt;&gt;)으로 꺼낼까요?</h2>
+        <div class="story-lead">
+          <strong>핵심 원리:</strong> Windows 운영체제는 마우스가 움직일 때마다 숫자 하나(<code>lParam</code>) 안에 <strong>가로 좌표(X)와 세로 좌표(Y)를 반씩 합쳐서</strong> 배달해 줍니다.</div>
+        <p>
+          Windows가 보내주는 <code>WM_MOUSEMOVE</code> 메시지의 <code>lParam</code>을 열어보면, <strong>아래쪽 16비트(하위 2바이트)에는 X 좌표</strong>가 들어 있고, <strong>그 위쪽 16비트(상위 2바이트)에는 Y 좌표</strong>가 나란히 들어 있습니다.<br/>도시락통 하나에 밥과 반찬을 칸막이로 나누어 담은 셈이지요.
+        </p>
+
+        <div class="math-box">
+          <div class="math-box-title">📐 핵심 공식 — lParam 32비트에서 (X, Y) 꺼내기 (ViewportWindow.cs)</div>
+          <div class="math-formula">
+            <span class="math-expr"><span class="math-label">하위 16비트(X 좌표)</span><code>short x = (short)(v &amp; 0xFFFF);</code></span>
+            <span class="math-expr"><span class="math-label">상위 16비트(Y 좌표)</span><code>short y = (short)((v &gt;&gt; 16) &amp; 0xFFFF);</code></span>
+          </div>
+        </div>
+
+        <div class="callout warn">
+          <div class="callout-title">⚠️ 왜 <code>int</code>가 아니라 꼭 <code>(short)</code>로 먼저 변환할까요?</div>
+          <p>
+            마우스를 드래그한 채로 창 왼쪽이나 위쪽 바깥으로 나가면 좌표가 <strong>음수(예: -15px)</strong>가 됩니다.<br/>16비트 부호 있는 정수인 <code>short</code>로 캐스팅해야만 <code>0xFFF1</code> 같은 비트 패턴이 양수 <code>65521</code>로 잘못 읽히지 않고 정확한 음수 <code>-15</code>로 복원됩니다!</p>
+        </div>
+
+        <div class="code-header">
+          <span>src/VisionCanvas.Host/Controls/ViewportWindow.cs</span>
+          <span>Win32 메시지 루프 및 좌표 언패킹</span>
+        </div>
+        <pre><code><span class="kw">protected override</span> <span class="ty">IntPtr</span> <span class="fn">WndProc</span>(
+    <span class="ty">IntPtr</span> hwnd, <span class="kw">int</span> msg, <span class="ty">IntPtr</span> wParam, <span class="ty">IntPtr</span> lParam, <span class="kw">ref bool</span> handled)
+{
+    <span class="kw">switch</span> (msg)
+    {
+        <span class="kw">case</span> <span class="ty">NativeMethods</span>.WM_LBUTTONDOWN:
+            <span class="cm">// 창 밖으로 드래그해도 마우스 신호를 놓치지 않도록 캡처</span>
+            <span class="ty">NativeMethods</span>.<span class="fn">SetCapture</span>(hwnd);
+            <span class="fn">ForwardMouseDown</span>(<span class="fn">UnpackPoint</span>(lParam));
+            handled = <span class="kw">true</span>;
+            <span class="kw">break</span>;
+
+        <span class="kw">case</span> <span class="ty">NativeMethods</span>.WM_MOUSEMOVE:
+            <span class="fn">ForwardMouseMove</span>(<span class="fn">UnpackPoint</span>(lParam));
+            handled = <span class="kw">true</span>;
+            <span class="kw">break</span>;
+    }
+    <span class="kw">return</span> <span class="ty">IntPtr</span>.Zero;
+}
+
+<span class="kw">private static</span> <span class="ty">PointD</span> <span class="fn">UnpackPoint</span>(<span class="ty">IntPtr</span> lParam)
+{
+    <span class="kw">long</span> v = lParam.<span class="fn">ToInt64</span>();
+    <span class="kw">short</span> x = (<span class="kw">short</span>)(v &amp; <span class="num">0xFFFF</span>);
+    <span class="kw">short</span> y = (<span class="kw">short</span>)((v &gt;&gt; <span class="num">16</span>) &amp; <span class="num">0xFFFF</span>);
+    <span class="kw">return new</span> <span class="ty">PointD</span>(x, y);
+}</code></pre>
+      </section>
+
+      <!-- 3. SIMD 벡터 병렬 연산 -->
+      <section class="content-section">
+        <span class="section-badge">CONCEPT 3 · SIMD VECTOR256</span>
+        <h2>3. SIMD란 무엇인가요? (CPU의 8차선 고속도로)</h2>
+        <div class="story-lead">
+          <strong>비유로 이해하기:</strong> 일반 <code>for</code> 반복문이 1차선 도로에서 자동차를 <strong>한 대씩</strong> 통과시키는 것이라면, <strong>SIMD(Single Instruction, Multiple Data)</strong>는 <strong>8차선·16차선 톨게이트</strong>에서 명령 한 번으로 여러 픽셀을 동시에 통과시키는 기술입니다.</div>
+        <p>
+          최신 CPU 안에는 256비트(32바이트) 크기의 넓은 계산 그릇인 <code>Vector256</code> 레지스터가 들어 있습니다.<br/>여기에 32비트 정수(<code>int</code>) 8개 또는 16비트 픽셀(<code>ushort</code>) 16개를 나란히 담고 <code>+</code> 명령을 내리면, <strong>단 한 번의 CPU 클럭으로 8개~16개의 계산이 동시에 끝납니다.</strong>
+        </p>
+        <p>
+          실제로 VisionCanvas는 5.3억 화소(<code>ken32.png</code>) 이미지의 다중 해상도 피라미드를 만들 때 <code>Vector256</code> 정수 SIMD를 사용하여 축소 시간을 <strong>1.659초에서 1.127초</strong>로 줄였습니다.</p>
+
+        <div class="anim-stage">
+          <div class="anim-header">
+            <div class="anim-title">🚀 인터랙티브 비교: 일반 for문 vs SIMD Vector256</div>
+            <div class="anim-controls">
+              <button id="simd-btn-mode" class="anim-btn" type="button">모드: SIMD Vector256 (8개 동시)</button>
+              <button id="simd-btn-step" class="anim-btn primary" type="button">⚡ 1클럭 실행하기</button>
+            </div>
+          </div>
+          <div class="anim-canvas-wrap">
+            <canvas id="hwnd-simd-canvas" width="860" height="235"></canvas>
+          </div>
+          <div id="hwnd-simd-readout" class="anim-readout">버튼을 눌러 CPU 1클럭당 처리되는 픽셀 개수를 비교해 보세요.</div>
+        </div>
+
+        <div class="code-header" style="margin-top: 18px;">
+          <span>src/VisionCanvas.Host/Imaging/BoxResampler.cs &amp; experiments/VisionImaging.Pyramid/TrianglePyramid.cs</span>
+          <span>Vector256&lt;int&gt; SIMD 8픽셀 동시 반올림 평균 구현</span>
+        </div>
+        <pre><code><span class="kw">using</span> System.Runtime.InteropServices;
+<span class="kw">using</span> System.Runtime.Intrinsics;
+
+<span class="kw">public static void</span> <span class="fn">AverageRowSimd</span>(<span class="ty">ReadOnlySpan</span>&lt;<span class="kw">int</span>&gt; rowA, <span class="ty">ReadOnlySpan</span>&lt;<span class="kw">int</span>&gt; rowB, <span class="ty">Span</span>&lt;<span class="kw">int</span>&gt; dst)
+{
+    <span class="kw">int</span> i = <span class="num">0</span>;
+    <span class="kw">if</span> (<span class="ty">Vector256</span>.IsHardwareAccelerated)
+    {
+        <span class="ty">Vector256</span>&lt;<span class="kw">int</span>&gt; ones = <span class="ty">Vector256</span>.<span class="fn">Create</span>(<span class="num">1</span>);
+        <span class="kw">for</span> (; i &lt;= dst.Length - <span class="num">8</span>; i += <span class="num">8</span>)
+        {
+            <span class="ty">Vector256</span>&lt;<span class="kw">int</span>&gt; va = <span class="ty">Vector256</span>.<span class="fn">LoadUnsafe</span>(<span class="kw">ref</span> <span class="ty">MemoryMarshal</span>.<span class="fn">GetReference</span>(rowA.<span class="fn">Slice</span>(i, <span class="num">8</span>)));
+            <span class="ty">Vector256</span>&lt;<span class="kw">int</span>&gt; vb = <span class="ty">Vector256</span>.<span class="fn">LoadUnsafe</span>(<span class="kw">ref</span> <span class="ty">MemoryMarshal</span>.<span class="fn">GetReference</span>(rowB.<span class="fn">Slice</span>(i, <span class="num">8</span>)));
+            <span class="cm">// 8개의 32비트 정수를 동시에 더하고 오른쪽 시프트(&gt;&gt; 1, 즉 ÷2) 수행!</span>
+            <span class="ty">Vector256</span>&lt;<span class="kw">int</span>&gt; avg = (va + vb + ones) &gt;&gt; <span class="num">1</span>;
+            avg.<span class="fn">CopyTo</span>(dst.<span class="fn">Slice</span>(i, <span class="num">8</span>));
+        }
+    }
+    <span class="kw">for</span> (; i &lt; dst.Length; i++)
+    {
+        dst[i] = (rowA[i] + rowB[i] + <span class="num">1</span>) &gt;&gt; <span class="num">1</span>;
+    }
+}</code></pre>
+      </section>
+
+      <nav class="chapter-pager">
+        <a href="01-math-and-vectors.html" class="pager-card">
+          <span class="pager-label">이전 챕터 (Chapter 01)</span>
+          <span class="pager-title">← 01. 수학 &amp; 벡터 기하학</span>
+        </a>
+        <a href="03-code-rules-and-architecture.html" class="pager-card" style="text-align: right;">
+          <span class="pager-label">다음 챕터 (Chapter 03)</span>
+          <span class="pager-title">03. 코드 규칙 &amp; 클래스 구조 →</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/manual-gemini.js"></script>
+</body>
+</html>

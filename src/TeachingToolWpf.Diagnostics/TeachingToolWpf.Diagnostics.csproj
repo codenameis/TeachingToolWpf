@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- 픽스처 생성 경로는 스트리밍 로더 기준이다. ImageLoaderHost 자체는 Presentation이 소유한다. -->
+    <DefineConstants>$(DefineConstants);STREAMING_IMAGE_LOADER</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TeachingToolWpf.Presentation\TeachingToolWpf.Presentation.csproj" />
+    <ProjectReference Include="..\CpuMatching.Cuda\CpuMatching.Cuda.csproj" />
+    <ProjectReference Include="..\PoseMatch.Tdcm.TorchSharp\PoseMatch.Tdcm.TorchSharp.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
+    <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
+    <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
+    <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
+    <ProjectReference Include="..\VisionImaging.Sources\VisionImaging.Sources.csproj" />
+    <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
+    <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
+    <ProjectReference Include="..\..\tools\VisionImaging.Fixtures\VisionImaging.Fixtures.csproj" />
+    <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TeachingToolWpf" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 진단 입력 생성기. 제품 실행물에는 넣지 않는다. -->
+    <Compile Include="..\..\build\DiagnosticImageFixtures.cs" Link="Hosting\DiagnosticImageFixtures.cs" />
+  </ItemGroup>
+</Project>

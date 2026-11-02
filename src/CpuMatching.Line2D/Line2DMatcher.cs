@@ -33,6 +33,17 @@ public sealed class Line2DMatcher : ITemplateMatcher
             refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
     }
 
+    public SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        options ??= new SearchOptions();
+        return PyramidSearch.FindWindowed(_template, image, options,
+            (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine, _parameters,
+                options.MaximumDegreeOfParallelism, cancellationToken), cancellationToken,
+            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
+    }
+
     private sealed class OrientationLevel : IScoreLevel
     {
         public bool SupportsParallelEvaluation => true;
@@ -101,7 +112,21 @@ public sealed class Line2DMatcher : ITemplateMatcher
             var result = new float[source.Length];
             for (var y = 1; y < _height - 1; y++)
             {
-                for (var x = 1; x < _width - 1; x++)
+                var x = 1;
+                // 각 lane은 서로 다른 픽셀이다. 기존 3×3 이웃 순서와 바깥 테두리 0을 유지한다.
+                for (; x <= _width - 1 - Vector<float>.Count; x += Vector<float>.Count)
+                {
+                    var best = Vector<float>.Zero;
+                    for (var dy = -1; dy <= 1; dy++)
+                    {
+                        for (var dx = -1; dx <= 1; dx++)
+                        {
+                            best = Vector.Max(best, new Vector<float>(source, ((y + dy) * _width) + x + dx));
+                        }
+                    }
+                    best.CopyTo(result, (y * _width) + x);
+                }
+                for (; x < _width - 1; x++)
                 {
                     var best = 0f;
                     for (var dy = -1; dy <= 1; dy++)

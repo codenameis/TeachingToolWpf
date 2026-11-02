@@ -48,15 +48,9 @@ public sealed class DashboardViewModel : ObservableObject, IDisposable
         catch (Exception error) { Message = "기록 읽기 실패: " + error.Message; }
     }
 
-    public ObservableCollection<CameraViewModel> Cameras
-    {
-        get;
-    }
+    public ObservableCollection<CameraViewModel> Cameras { get; }
     public ObservableCollection<AlarmViewModel> Events { get; } = [];
-    public ICollectionView EventView
-    {
-        get;
-    }
+    public ICollectionView EventView { get; }
     public CameraViewModel SelectedCamera
     {
         get => _selectedCamera;
@@ -124,18 +118,9 @@ public sealed class DashboardViewModel : ObservableObject, IDisposable
             }
         }
     }
-    public MonitorCommand AcknowledgeCommand
-    {
-        get;
-    }
-    public MonitorCommand NormalCommand
-    {
-        get;
-    }
-    public MonitorCommand EvidenceCommand
-    {
-        get;
-    }
+    public MonitorCommand AcknowledgeCommand { get; }
+    public MonitorCommand NormalCommand { get; }
+    public MonitorCommand EvidenceCommand { get; }
 
     private void OnAlarm(AlarmRecord record) => _dispatch(() =>
     {

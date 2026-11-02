@@ -11,14 +11,8 @@ internal sealed class RoiBufferArena(Dx12Device gpu) : IDisposable
     private Page? _current;
     private bool _disposed;
 
-    public long ActiveAllocationBytes
-    {
-        get; private set;
-    }
-    public long ResidentAllocationBytes
-    {
-        get; private set;
-    }
+    public long ActiveAllocationBytes { get; private set; }
+    public long ResidentAllocationBytes { get; private set; }
 
     public Lease Allocate(ulong bytes)
     {

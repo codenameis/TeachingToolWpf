@@ -10,6 +10,98 @@ namespace TeachingToolWpf.Imaging.Tests;
 public class EditorMvvmTests
 {
     [Fact]
+    public void InspectionLockBlocksKeysCommandsAndPointerButExternalNavigationKeepsSelection()
+    {
+        using var display = new Display();
+        using var model = Create(display, new Loader());
+        model.Session.InitializeImage(new("test", "test", 1000, 1000), new(1, default));
+        var target = model.Session.Add(new(new(700, 600), 80, 60, 30));
+        var selected = model.Session.Add(new(new(200, 200), 50, 50, 0));
+        Assert.True(model.HandleKey(Key.Right, false, false));
+        Assert.Equal(201, model.Session.State.Rois[selected].Geometry.Center.X);
+        model.Navigation.RefreshTargets();
+        model.Navigation.Target = model.Navigation.Targets.Single(item => item.Id == target);
+        Assert.Equal(selected, model.Session.State.Selection.Single());
+        model.Navigation.IsLocked = true;
+        var before = model.Session.State;
+        Assert.False(model.CanNavigate);
+        Assert.False(model.CanEdit);
+        Assert.False(model.Delete.CanExecute(null));
+        Assert.False(model.Undo.CanExecute(null));
+        Assert.False(model.Fit.CanExecute(null));
+        foreach (var key in Enum.GetValues<Key>())
+        {
+            model.HandleKey(key, false, false);
+            model.HandleKey(key, true, true);
+        }
+        model.Input.Wheel(new(100, 100), 1);
+        model.Input.Down(new(10, 10), middle: true);
+        model.Input.Up(new(200, 200));
+        Assert.Equal(before, model.Session.State);
+        model.Navigation.IsLocked = false;
+        Assert.True(model.CanEdit);
+        Assert.True(model.HandleKey(Key.Down, false, true));
+        Assert.Equal(210, model.Session.State.Rois[selected].Geometry.Center.Y);
+    }
+
+    [Fact]
+    public async Task SuccessfulPatternTrainingRegistersSearchRangeOnceAndKeepsUndoAndCustomMargins()
+    {
+        using var display = new Display();
+        var training = new PatternTraining();
+        using var model = new MainWindowViewModel(display, new(1000, 700), new Loader(),
+            new(display, _ => throw new NotSupportedException()), new UnusedFilter(),
+            new(new(null!, templateService: training), new(null!)));
+        model.Session.InitializeImage(new("test", "test", 1000, 1000), new(1, default));
+        model.Session.Add(new(new(100, 100), 32, 32, 0));
+        var id = model.Session.State.Selection.Single();
+        model.Matching.Method = TeachingToolWpf.Models.PatternMatchingMethod.OpenCvTemplate;
+        Assert.True(model.Matching.UseSelection);
+        await model.Matching.Train.ExecuteAsync();
+        Assert.True(model.Matching.HasModel);
+        Assert.Equal(new RoiSearchRange(20, 20), model.Session.State.Rois[id].SearchRange);
+        model.Session.Undo();
+        Assert.Null(model.Session.State.Rois[id].SearchRange);
+        Assert.True(model.Matching.HasModel);
+        model.Session.Redo();
+        Assert.Equal(new RoiSearchRange(20, 20), model.Session.State.Rois[id].SearchRange);
+        var roi = model.Session.State.Rois[id];
+        model.Session.SetProperties(id, roi.Name, roi.Geometry, new(31, 17), roi.IsNameVisible);
+        var before = model.Session.State;
+        model.Matching.UseSelection = false;
+        await model.Matching.Train.ExecuteAsync();
+        Assert.Same(before, model.Session.State);
+        Assert.False(model.Matching.UseSelection);
+        model.Session.SetProperties(id, roi.Name, roi.Geometry, null, roi.IsNameVisible);
+        training.Fail = true;
+        await model.Matching.Train.ExecuteAsync();
+        Assert.Null(model.Session.State.Rois[id].SearchRange);
+    }
+
+    private sealed class PatternTraining : TeachingToolWpf.Imaging.Matching.ITemplateMatchingService
+    {
+        public bool Fail
+        {
+            get; set;
+        }
+        public Task<TeachingToolWpf.Imaging.Matching.TemplateTrainingOutput> TrainAsync(ImageReference image, bool live,
+            VisionGeometry.RoiGeometry roi, CancellationToken token, VisionGeometry.RoiExclusion? exclusion = null)
+        {
+            if (Fail)
+            {
+                throw new InvalidOperationException("Training failure fixture");
+            }
+            var model = VisionAlgorithm.OpenSrc.PatternMatching.CorrelationTemplate.Train(new(new byte[] { 10, 80, 30, 170, 60, 200 }, 3, 2, 3),
+                new(ReadOnlyMemory<byte>.Empty, new(1.5, 1)));
+            return Task.FromResult(new TeachingToolWpf.Imaging.Matching.TemplateTrainingOutput(model, 0));
+        }
+        public Task<TeachingToolWpf.Imaging.Matching.TemplateSearchOutput> SearchAsync(ImageReference image, bool live,
+            VisionAlgorithm.OpenSrc.PatternMatching.CorrelationTemplate model, VisionGeometry.RoiGeometry? region,
+            VisionAlgorithm.OpenSrc.PatternMatching.SearchOptions options, CancellationToken token, VisionGeometry.RoiExclusion? exclusion = null)
+            => throw new NotSupportedException();
+    }
+
+    [Fact]
     public void DoubleClickSelectsALargeGroupImmediatelyWithoutPreparingItsDescendants()
     {
         using var display = new Display();
@@ -179,13 +271,13 @@ public class EditorMvvmTests
         model.UpdatePerformance(new(1, null, 0, 16, null, 0, 1, 0, 0));
         Assert.Equal("test adapter", model.Adapter);
         Assert.Contains("미측정 (WARP)", model.Performance);
-        var grid = model.Scene!.RepeatedGrid;
+        var rois = model.Scene!.Document.Rois;
         model.Move(new(10, 10));
-        Assert.NotSame(grid, model.Scene!.RepeatedGrid);
+        Assert.NotSame(rois, model.Scene!.Document.Rois);
         Assert.True(model.HandleKey(Key.Z, true, false));
-        Assert.Same(grid, model.Scene!.RepeatedGrid);
+        Assert.Same(rois, model.Scene!.Document.Rois);
         Assert.True(model.HandleKey(Key.Z, true, true));
-        Assert.NotSame(grid, model.Scene!.RepeatedGrid);
+        Assert.NotSame(rois, model.Scene!.Document.Rois);
         model.Dispose();
         var nextLoader = new Loader();
         await Assert.ThrowsAsync<ObjectDisposedException>(() => model.LoadImageAsync(nextLoader, CancellationToken.None));

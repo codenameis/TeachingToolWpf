@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>05장 · 영속 공간 색인(BVH · BvhNodePath)과 대용량 차분 집합(RoiIdSet) — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 05 · 2단계: 수만~수억 개 ROI를 단일 영속 트리와 비트 경로로 다루는 비결</div>
+        <h1>05장 · 영속 공간 색인(<code>RoiSpatialIndex</code>, <code>BvhNodePath</code>)과 대용량 차분 집합(<code>RoiIdSet</code>)</h1>
+        <p class="hero-lead">
+          01장~04장에서 우리는 기하 엔진(<code>VisionGeometry</code>)의 도형 수식을 모두 완성했습니다.<br/>
+          이제 도형이 1개가 아니라 <strong>수만~수백만 개의 일반 ROI와 반복 격자 셀</strong>이 동시에 화면에 놓이는 상황을 해결할 차례입니다.<br/>
+          별도의 예외용 자료구조를 중복해서 만들지 않고, <strong>단 하나의 영속 이진 트리(<code>RoiSpatialIndex</code>)와 64비트 경로(<code>BvhNodePath</code>), 그리고 차분 집합(<code>RoiIdSet</code>)</strong>만으로 검색·부분 수정·전체 이동·GPU 블록 캐싱까지 일관되게 처리하는 클린 아키텍처를 밑바닥부터 정복해 봅시다!
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 어떻게 단일 일반 ROI 구조만으로 대규모 격자와 개별 편집을 동시에 잡을까?</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">핵심 1 · 영속 BVH 트리</span>
+            <h4>도형 1개를 고칠 때 트리 전체를 다시 안 만들고 바뀐 줄기만 교체! (<code>BvhNodePath</code>)</h4>
+            <p>각 ROI가 트리 루트에서 잎(Leaf)까지 내려가는 이진수 길찾기 번호(<code>BvhNodePath</code>)를 기억하므로, 도형 1개를 옮겨도 나머지 99.9% 서브트리 노드는 그대로 재사용합니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">핵심 2 · 정렬 없는 Refit &amp; Filter</span>
+            <h4>전체 이동은 <code>RefitGeometry</code>, 부분 선택은 <code>Filter</code>로 재정렬 비용 0!</h4>
+            <p>수만 개 그룹을 통째로 이동할 때는 공간 분할 순서를 유지한 채 상자 크기만 다시 맞추고(<code>RefitGeometry</code>), 선택 집합은 <code>Filter</code>로 기존 트리 구조를 그대로 추려냅니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">핵심 3 · 차분 선택 집합</span>
+            <h4>대량 선택 위에서 Ctrl+클릭 1개 토글을 <code>O(1)</code>로 처리하는 <code>RoiIdSet</code>!</h4>
+            <p>대량 선택 본체는 <code>FrozenSet&lt;Guid&gt;</code>에 얼려 두고, Ctrl+클릭으로 추가·해제한 소수 ID만 <code>_added</code> / <code>_removed</code>에 기록해 복사 비용을 없앱니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · 스무고개 지도 찾기(BVH)와 이진수 주소표(<code>BvhNodePath</code>)</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>🗺️ 비유 1 · 전국 편의점 5만 개 중 내 옆 편의점 찾기 (<code>RoiSpatialIndex</code> BVH 트리)</h4>
+            <p>
+              내가 지금 '서울 강남구'에 서 있는데, 내 발밑에 편의점이 있는지 찾으려고 제주도·부산·강원도 편의점 5만 개 주소를 1번부터 끝까지 다 읽어보는 것(<code>foreach</code> 전체 순회, <i>O</i>(<i>N</i>))은 너무나 비효율적입니다.<br/>
+              <strong>BVH 이진 트리</strong>는 전국을 '북쪽 절반 / 남쪽 절반' 큰 상자로 계속 반씩 나누어 둔 지도책입니다. 내가 서울에 있다면 '남쪽 절반 상자'는 아예 펼치지도 않고 통째로 건너뛰므로(가지치기, Pruning), 단 15~20번의 확인만으로 내 발밑의 도형을 찾아냅니다!
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>🧭 비유 2 · 루트는 <code>1</code>, 왼쪽은 <code>0</code>, 오른쪽은 <code>1</code>을 붙이는 이진수 길찾기 번호 (<code>BvhNodePath</code>)</h4>
+            <p>
+              트리에서 특정 도형이 있는 잎 노드로 찾아 내려갈 때, 루트 노드를 이진수 <code>1</code>로 시작해 왼쪽 갈래로 갈 때마다 뒤에 <code>0</code>을 붙이고(<code>RawValue &lt;&lt; 1</code>), 오른쪽 갈래로 갈 때마다 뒤에 <code>1</code>을 붙입니다(<code>(RawValue &lt;&lt; 1) | 1</code>).<br/>
+              예를 들어 <strong>루트(1) → 왼쪽(0) → 오른쪽(1)</strong>으로 내려간 노드의 주소는 이진수 <strong><code>0b101</code>(십진수 5)</strong>입니다! 이 64비트 숫자 하나만 있으면 포인터 배열 없이도 루트에서 해당 잎 노드까지 비트 시프트만으로 정확히 찾아가 그 경로의 노드만 새로 교체(Copy-on-Write)할 수 있습니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & 수학 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 이 장을 시작하기 위한 4가지 기초 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 1&nbsp;·&nbsp;시간복잡도</span> <i>O</i>(<i>N</i>) vs <i>O</i>(log&nbsp;<i>N</i>) vs <i>O</i>(1) 이란?</h4>
+            <p>
+              도형 개수 <i>N</i>이 늘어날 때 컴퓨터가 해야 하는 계산 횟수가 어떻게 늘어나는지 나타내는 표기법입니다.
+            </p>
+            <ul>
+              <li><strong><i>O</i>(<i>N</i>) (전체 순회)</strong>: 도형이 10만 개면 10만 번 다 확인해야 함 (마우스 이동 시 화면 멈춤!)</li>
+              <li><strong><i>O</i>(log&nbsp;<i>N</i>) (이진 트리 BVH)</strong>: 한 번 확인할 때마다 대상이 절반씩 줄어들어, 10만 개여도 약 17번만 확인하면 끝!</li>
+              <li><strong><i>O</i>(1) (수식 역산)</strong>: 도형이 100개든 <strong>1억 개</strong>든 나눗셈 단 1번으로 끝!</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 2&nbsp;·&nbsp;고1 등차수열</span> <i>a<sub>n</sub></i>&nbsp;=&nbsp;<i>a</i><sub>0</sub>&nbsp;+&nbsp;<i>n</i>&nbsp;·&nbsp;<i>d</i> 와 내림 함수 <code>Math.Floor</code></h4>
+            <p>
+              첫째항이 <i>X</i><sub>0</sub>이고 공차(간격)가 <i>S<sub>x</sub></i>인 등차수열에서 <i>c</i>번째 칸(0번부터 시작)의 시작 위치는 <strong><i>X</i>(<i>c</i>)&nbsp;=&nbsp;<i>X</i><sub>0</sub>&nbsp;+&nbsp;<i>c</i>&nbsp;·&nbsp;<i>S<sub>x</sub></i></strong> 입니다.<br/>
+              반대로 마우스 좌표 <i>p<sub>x</sub></i>가 몇 번째 칸 <i>c</i>에 속하는지 구하려면? <i>X</i><sub>0</sub>를 빼고 간격 <i>S<sub>x</sub></i>로 나눈 뒤 소수점을 버리면(내림, <code>Math.Floor</code>) 됩니다:
+            </p>
+            <pre><code>int col&nbsp;=&nbsp;(int)Math.Floor((px - OriginX) / StepX);</code></pre>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 3&nbsp;·&nbsp;몫과 나머지</span> 2차원 <code>(row, col)</code>&nbsp;↔&nbsp;1차원 번호 <code>k</code> 변환</h4>
+            <p>
+              가로 열 개수가 <code>Columns</code>(예: 10,001)인 바둑판에서 <code>(row, col)</code> 칸에 고유 번호 <code>k</code> 하나를 붙이려면:
+            </p>
+            <pre><code>// (row, col)&nbsp;→&nbsp;1차원 고유 번호 k (주의: 1억 개는 int 범위를 넘을 수 있어 long 사용!)
+long k&nbsp;=&nbsp;((long)row * Columns)&nbsp;+&nbsp;col;
+
+// 반대로 1차원 번호 k&nbsp;→&nbsp;(row, col) 복원 (나눗셈 몫과 나머지!)
+int row&nbsp;=&nbsp;(int)(k / Columns);
+int col&nbsp;=&nbsp;(int)(k % Columns);</code></pre>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 4&nbsp;·&nbsp;희소 사전(Sparse Dictionary)</span> <code>ImmutableDictionary</code>와 <code>ImmutableHashSet</code></h4>
+            <p>
+              1억 칸 배열을 만들면 메모리가 터지지만, <strong>실제로 변화가 생긴 셀 번호 <code>k</code>만 저장하는 사전(Dictionary)</strong>을 쓰면 10개를 고쳤을 때 딱 10개 분량의 메모리만 씁니다! 이를 <strong>희소(Sparse) 저장소</strong> 또는 <strong>Flyweight 패턴</strong>이라고 부릅니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학으로 한 걸음씩 공식 유도하기 (#sec-bvh-math)
+           ========================================================================= -->
+      <section class="section-card" id="sec-bvh-math">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: 1억 셀 격자 인덱싱과 화면 가시 범위 클리핑</h2>
+
+        <!-- Formula 5.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 등차수열 역산</span>
+              <span><code>RepeatedRoiGrid</code>의 <i>O</i>(1) 정방향 위치 계산과 역방향 마우스 히트 셀 조회</span>
+            </div>
+            <span class="math-eq-num">(식 5.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 0행 0열 셀의 왼쪽 위 시작점을 (<i>X</i><sub>0</sub>, <i>Y</i><sub>0</sub>), 셀 가로·세로 간격(피치)을 (<i>S<sub>x</sub></i>, <i>S<sub>y</sub></i>), 각 셀의 크기를 (<i>W<sub>c</sub></i>, <i>H<sub>c</sub></i>)라고 합시다.<br/>
+            2) <i>r</i>행 <i>c</i>열 셀의 왼쪽 위 모서리 좌표는 등차수열 공식에 의해 <strong><i>X</i>(<i>c</i>)&nbsp;=&nbsp;<i>X</i><sub>0</sub>&nbsp;+&nbsp;<i>c</i>&nbsp;·&nbsp;<i>S<sub>x</sub></i>, &nbsp;<i>Y</i>(<i>r</i>)&nbsp;=&nbsp;<i>Y</i><sub>0</sub>&nbsp;+&nbsp;<i>r</i>&nbsp;·&nbsp;<i>S<sub>y</sub></i></strong> 입니다.<br/>
+            3) 이제 사용자가 마우스로 (<i>p<sub>x</sub></i>, <i>p<sub>y</sub></i>)를 클릭했을 때, 이 점이 몇 행 몇 열 근처인지 역산합니다: <strong><i>c</i>&nbsp;=&nbsp;⌊(<i>p<sub>x</sub></i>&nbsp;−&nbsp;<i>X</i><sub>0</sub>) / <i>S<sub>x</sub></i>⌋, &nbsp;<i>r</i>&nbsp;=&nbsp;⌊(<i>p<sub>y</sub></i>&nbsp;−&nbsp;<i>Y</i><sub>0</sub>) / <i>S<sub>y</sub></i>⌋</strong>.<br/>
+            4) 마지막으로 구한 (<i>r</i>, <i>c</i>)가 격자 범위(0&nbsp;≤&nbsp;<i>r</i>&nbsp;&lt;&nbsp;<i>N</i><sub>row</sub>, 0&nbsp;≤&nbsp;<i>c</i>&nbsp;&lt;&nbsp;<i>N</i><sub>col</sub>) 안에 있고, 셀과 셀 사이 빈틈(Gap)이 아니라 실제 셀 상자 [<i>X</i>(<i>c</i>), <i>X</i>(<i>c</i>)&nbsp;+&nbsp;<i>W<sub>c</sub></i>] 안에 들어왔는지 확인하면 단 한 번의 나눗셈으로 1억 개 중 클릭된 셀을 찾아냅니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">1) 1차원 인덱스 <i>k</i> ↔ 2차원 격자 (<i>r</i>, <i>c</i>)</span>
+                <span class="math-expr"><i>k</i> = <i>r</i> · <i>N</i><sub>col</sub> + <i>c</i></span>
+                <span class="math-sep">⟺</span>
+                <span class="math-expr"><i>r</i> = <span class="delim-group">⌊<span class="frac"><span class="num"><i>k</i></span><span class="den"><i>N</i><sub>col</sub></span></span>⌋</span>,</span>
+                <span class="math-expr"><i>c</i> = <i>k</i> mod <i>N</i><sub>col</sub></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">2) 정방향 셀 위치</span>
+                <span class="math-expr"><i>X</i>(<i>c</i>) = <i>X</i><sub>0</sub> + <i>c</i> · <i>S<sub>x</sub></i>,</span>
+                <span class="math-expr"><i>Y</i>(<i>r</i>) = <i>Y</i><sub>0</sub> + <i>r</i> · <i>S<sub>y</sub></i></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">3) 역방향 마우스 히트 후보 (<i>r</i>, <i>c</i>) 역산</span>
+                <span class="math-expr"><i>c</i> = <span class="delim-group">⌊<span class="frac"><span class="num"><i>p<sub>x</sub></i> − <i>X</i><sub>0</sub></span><span class="den"><i>S<sub>x</sub></i></span></span>⌋</span>,</span>
+                <span class="math-expr"><i>r</i> = <span class="delim-group">⌊<span class="frac"><span class="num"><i>p<sub>y</sub></i> − <i>Y</i><sub>0</sub></span><span class="den"><i>S<sub>y</sub></i></span></span>⌋</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>k</i></td>
+                  <td>1억 개 셀 중 하나를 가리키는 64비트 1차원 셀 고유 번호</td>
+                  <td>{0, 1, …, <i>N</i><sub>row</sub><i>N</i><sub>col</sub> − 1}</td>
+                  <td><code>long cellIndex</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">(<i>r</i>, <i>c</i>)</td>
+                  <td>격자 내부의 행(Row) 번호와 열(Column) 번호</td>
+                  <td>0 ≤ <i>r</i> &lt; <i>N</i><sub>row</sub>, 0 ≤ <i>c</i> &lt; <i>N</i><sub>col</sub></td>
+                  <td><code>int row, int column</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">(<i>X</i><sub>0</sub>, <i>Y</i><sub>0</sub>)</td>
+                  <td>0행 0열 첫 번째 셀의 좌상단 시작 원점 좌표</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>OriginX, OriginY</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">(<i>S<sub>x</sub></i>, <i>S<sub>y</sub></i>)</td>
+                  <td>이웃한 셀 사이의 가로·세로 피치 간격 (Step Pitch)</td>
+                  <td>(0, ∞) (Image px)</td>
+                  <td><code>StepX, StepY</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 시작점 <code>(100, 50)</code>부터 가로 간격 <code>StepX&nbsp;=&nbsp;20</code>, 세로 간격 <code>StepY&nbsp;=&nbsp;10</code>으로 10,001열씩 늘어선 <b>100,020,001개(1억 개)</b> 바둑판이 있습니다.<br/>
+              • 마우스로 <b><code>(165, 73)</code></b>을 클릭했다면 몇 행 몇 열일까요?<br/>
+              • 열 번호 <code>col&nbsp;=&nbsp;Floor((165&nbsp;−&nbsp;100)&nbsp;÷&nbsp;20)&nbsp;=&nbsp;Floor(3.25)&nbsp;=&nbsp;3열</code>!<br/>
+              • 행 번호 <code>row&nbsp;=&nbsp;Floor((73&nbsp;−&nbsp;50)&nbsp;÷&nbsp;10)&nbsp;=&nbsp;Floor(2.3)&nbsp;=&nbsp;2행</code>!<br/>
+              • 1차원 고유 번호 <code>k&nbsp;=&nbsp;2&nbsp;×&nbsp;10001&nbsp;+&nbsp;3&nbsp;=&nbsp;20005번 셀</code>! (1억 개를 안 뒤지고 나눗셈 단 2번으로 끝!)
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 5.2 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 2 · 가시 영역 클리핑</span>
+              <span>현재 모니터 화면(<code>visibleBounds</code>)에 보이는 행·열 구간 <code>[r_min..r_max, c_min..c_max]</code> 산출</span>
+            </div>
+            <span class="math-eq-num">(식 5.2)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 화면을 확대한 상태에서 1억 개 셀을 매 프레임 다 그리려고 하면 GPU도 멈춥니다.<br/>
+            2) 02장의 <code>ScreenToImage</code>로 현재 모니터 화면의 왼쪽 끝(<i>L</i>), 위쪽 끝(<i>T</i>), 오른쪽 끝(<i>R</i>), 아래쪽 끝(<i>B</i>) 이미지 좌표를 구합니다.<br/>
+            3) 이 화면 상자 <code>[L, R]&nbsp;×&nbsp;[T, B]</code>와 겹치는 최소·최대 열 번호 <code>c_min, c_max</code>와 행 번호 <code>r_min, r_max</code>만 부등식으로 구하면, <strong>현재 모니터에 실제로 보이는 셀만 콕 집어서</strong> 그릴 수 있습니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><i>c</i><sub>min</sub> = clamp<span class="delim-group">(⌊<span class="frac"><span class="num"><i>L</i> − <i>X</i><sub>0</sub> − <i>W<sub>c</sub></i></span><span class="den"><i>S<sub>x</sub></i></span></span>⌋, &nbsp;0, &nbsp;<i>N</i><sub>col</sub> − 1)</span>,</span>
+                <span class="math-expr"><i>c</i><sub>max</sub> = clamp<span class="delim-group">(⌊<span class="frac"><span class="num"><i>R</i> − <i>X</i><sub>0</sub></span><span class="den"><i>S<sub>x</sub></i></span></span>⌋, &nbsp;0, &nbsp;<i>N</i><sub>col</sub> − 1)</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: BVH 트리 탐색(<code>O(log N)</code>) vs 1억 셀 격자 역산(<code>O(1)</code>) 시뮬레이터</h2>
+        <p>
+          캔버스 왼쪽(일반 ROI BVH 이진 트리)과 오른쪽(1억 셀 압축 격자) 위로 마우스를 움직여 보세요. 왼쪽에서는 겹치는 트리 상자만 파고들고, 오른쪽에서는 나눗셈 한 번으로 행·열 번호를 즉시 찾아내는 것을 볼 수 있습니다!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · BVH 트리 탐색 vs 1억 셀 격자 <i>O</i>(1) 역산 시뮬레이터</div>
+            <div class="lab-subtitle">캔버스 왼쪽(일반 ROI BVH)과 오른쪽(반복 격자) 위로 마우스를 움직여 보세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="spatial-bvh-canvas"></canvas>
+          </div>
+          <div id="spatial-bvh-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-build-spatial)
+           ========================================================================= -->
+      <section class="section-card" id="sec-build-spatial">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>BvhNodePath</code>, <code>RoiSpatialIndex</code>, <code>RoiIdSet</code> 전체 코드</h2>
+        <p>
+          이제 루트부터 잎 노드까지의 경로를 64비트 정수로 부호화하는 <code>BvhNodePath</code>, 이를 이용해 바뀐 경로만 교체하는 영속 <code>RoiSpatialIndex</code>, 그리고 대용량 선택 위에서 <i>O</i>(1) 토글을 지원하는 <code>RoiIdSet</code>을 직접 작성해 봅시다.
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · 비트 경로(BvhNodePath.cs) · 영속 BVH 트리(RoiSpatialIndex.cs) · 차분 집합(RoiIdSet.cs)</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Geometry/BvhNodePath.cs">src/VisionCanvas.Core/Geometry/BvhNodePath.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Geometry/RoiSpatialIndex.cs">src/VisionCanvas.Core/Geometry/RoiSpatialIndex.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Core/Editing/RoiIdSet.cs">src/VisionCanvas.Core/Editing/RoiIdSet.cs</a>
+            </div>
+          </div>
+          <pre><code>using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Numerics;
+using VisionGeometry;
+
+namespace VisionCanvas.Core.Geometry;
+
+// 1. 루트(1)부터 잎(Leaf)까지 내려가는 이진 경로를 비트열로 부호화한 값 객체 (default도 항상 유효한 Root == 1!)
+public readonly record struct BvhNodePath
+{
+    public const int MaxSupportedHeight = 48;
+    private const int MaxDepth = 62;
+    private readonly ulong _valueMinusOne;
+
+    private BvhNodePath(ulong rawValue)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(rawValue);
+        _valueMinusOne = rawValue - 1;
+    }
+
+    public static BvhNodePath Root =&gt; default;
+    public ulong RawValue =&gt; _valueMinusOne + 1;
+    public int Depth =&gt; BitOperations.Log2(RawValue);
+    public BvhNodePath Left =&gt; new(RawValue &lt;&lt; 1);
+    public BvhNodePath Right =&gt; new((RawValue &lt;&lt; 1) | 1UL);
+    public ulong FirstStepBit =&gt; Depth == 0 ? 0UL : 1UL &lt;&lt; (Depth - 1);
+    public bool IsRightBranch(ulong stepBit) =&gt; (RawValue &amp; stepBit) != 0;
+}
+
+// 2. 대량 선택(FrozenSet)과 Ctrl+클릭 소수 편집(_added/_removed)을 결합한 영속 집합
+public sealed class RoiIdSet
+{
+    private readonly FrozenSet&lt;Guid&gt; _items;
+    private readonly ImmutableHashSet&lt;Guid&gt; _added;
+    private readonly ImmutableHashSet&lt;Guid&gt; _removed;
+
+    public static RoiIdSet Empty { get; } = new(FrozenSet&lt;Guid&gt;.Empty, [], []);
+    public int Count =&gt; _items.Count + _added.Count - _removed.Count;
+
+    private RoiIdSet(FrozenSet&lt;Guid&gt; items, ImmutableHashSet&lt;Guid&gt; added, ImmutableHashSet&lt;Guid&gt; removed)
+        =&gt; (_items, _added, _removed) = (items, added, removed);
+
+    public static RoiIdSet CreateRange(IEnumerable&lt;Guid&gt; ids)
+        =&gt; ids is RoiIdSet set ? set : new(ids.ToFrozenSet(), [], []);
+
+    public bool Contains(Guid item)
+        =&gt; _added.Contains(item) || (_items.Contains(item) &amp;&amp; !_removed.Contains(item));
+
+    public RoiIdSet Add(Guid item)
+        =&gt; Contains(item) ? this
+         : _items.Contains(item) ? new(_items, _added, _removed.Remove(item))
+         : new(_items, _added.Add(item), _removed);
+
+    public RoiIdSet Remove(Guid item)
+        =&gt; !Contains(item) ? this
+         : _items.Contains(item) ? new(_items, _added, _removed.Add(item))
+         : new(_items, _added.Remove(item), _removed);
+}
+
+// 3. 영속 BVH 공간 색인 트리 (바뀐 경로만 교체하고 최대 2,048개 단위 GPU 공간 블록을 제공)
+public sealed class RoiSpatialIndex
+{
+    public readonly record struct Entry(Guid Id, BoundsD Bounds, double Area, long Order);
+
+    private sealed record Node(
+        BoundsD Bounds, int Count, int Height, double MaxArea,
+        Entry[]? Entries, Node? Left, Node? Right);
+
+    private readonly Node _root;
+    private readonly ImmutableDictionary&lt;Guid, BvhNodePath&gt; _locations;
+
+    public RoiSpatialIndex(IReadOnlyList&lt;Entry&gt; entries)
+    {
+        var copy = new Entry[entries.Count];
+        for (int i = 0; i &lt; entries.Count; i++) copy[i] = entries[i];
+        var paths = ImmutableDictionary.CreateBuilder&lt;Guid, BvhNodePath&gt;();
+        _root = copy.Length == 0
+            ? new Node(default, 0, 0, 0, [], null, null)
+            : Build(copy, 0, copy.Length, BvhNodePath.Root, paths);
+        _locations = paths.ToImmutable();
+    }
+
+    private static Node Build(
+        Entry[] items, int start, int count,
+        BvhNodePath path, ImmutableDictionary&lt;Guid, BvhNodePath&gt;.Builder paths)
+    {
+        if (count &lt;= 8)
+        {
+            var leaf = items.AsSpan(start, count).ToArray();
+            foreach (var entry in leaf) paths[entry.Id] = path;
+            return CreateLeaf(leaf);
+        }
+
+        BoundsD bounds = items[start].Bounds;
+        for (int i = start + 1; i &lt; start + count; i++)
+            bounds = Union(bounds, items[i].Bounds);
+
+        bool horizontal = bounds.Width &gt;= bounds.Height;
+        Array.Sort(items, start, count, Comparer&lt;Entry&gt;.Create((a, b) =&gt;
+            horizontal ? a.Bounds.Center.X.CompareTo(b.Bounds.Center.X)
+                       : a.Bounds.Center.Y.CompareTo(b.Bounds.Center.Y)));
+
+        int mid = count / 2;
+        return CreateBranch(
+            Build(items, start, mid, path.Left, paths),
+            Build(items, start + mid, count - mid, path.Right, paths));
+    }
+
+    private static Node CreateLeaf(Entry[] entries)
+    {
+        BoundsD bounds = entries.Length == 0 ? default : entries[0].Bounds;
+        double maxArea = 0;
+        foreach (var e in entries)
+        {
+            bounds = Union(bounds, e.Bounds);
+            maxArea = Math.Max(maxArea, e.Area);
+        }
+        return new Node(bounds, entries.Length, 0, maxArea, entries, null, null);
+    }
+
+    private static Node CreateBranch(Node left, Node right) =&gt;
+        new(Union(left.Bounds, right.Bounds),
+            left.Count + right.Count,
+            1 + Math.Max(left.Height, right.Height),
+            Math.Max(left.MaxArea, right.MaxArea),
+            null, left, right);
+
+    private static BoundsD Union(BoundsD a, BoundsD b) =&gt;
+        new(Math.Min(a.Left, b.Left), Math.Min(a.Top, b.Top),
+            Math.Max(a.Right, b.Right), Math.Max(a.Bottom, b.Bottom));
+}</code></pre>
+
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>핵심 코드 구문</th>
+                <th>초보자 눈높이 한 줄 설명</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>private readonly ulong _valueMinusOne;</code><br/><code>public ulong RawValue =&gt; _valueMinusOne + 1;</code></td>
+                <td>C# 구조체의 기본값(<code>default(BvhNodePath)</code>)은 내부 필드가 모두 <code>0</code>이 됩니다. 이때 <code>_valueMinusOne + 1</code> 트릭을 쓰면 초기화하지 않은 기본값도 언제나 유효한 루트 노드(<code>RawValue == 1</code>)가 되도록 도메인 불변식을 보장합니다!</td>
+              </tr>
+              <tr>
+                <td><code>public BvhNodePath Left =&gt; new(RawValue &lt;&lt; 1);</code><br/><code>public BvhNodePath Right =&gt; new((RawValue &lt;&lt; 1) | 1UL);</code></td>
+                <td>왼쪽 자식으로 내려갈 때는 비트를 왼쪽으로 한 칸 밀어 <code>0</code>을 붙이고, 오른쪽 자식으로 내려갈 때는 <code>| 1UL</code>로 <code>1</code>을 붙여 트리 경로를 64비트 정수 하나에 압축합니다.</td>
+              </tr>
+              <tr>
+                <td><code>public bool Contains(Guid item) =&gt; _added.Contains(item) || (_items.Contains(item) &amp;&amp; !_removed.Contains(item));</code></td>
+                <td><code>RoiIdSet</code>의 핵심입니다. 수만 개 전체 선택(<code>_items</code>)에서 Ctrl+클릭으로 도형 1개를 뺄 때, 거대한 집합을 복사하지 않고 작은 <code>_removed</code> 집합에만 추가해 <i>O</i>(1)에 처리합니다.</td>
+              </tr>
+              <tr>
+                <td><code>bool horizontal = bounds.Width &gt;= bounds.Height;</code></td>
+                <td>트리가 한쪽으로 길쭉해지지 않도록, 상자의 가로가 더 길면 세로선으로 자르고 세로가 더 길면 가로선으로 잘라 균형 잡힌 이진 트리를 만듭니다.</td>
+              </tr>
+              <tr>
+                <td><code>RefitGeometry</code> &amp; <code>Filter</code> (실제 <code>RoiSpatialIndex.cs</code>)</td>
+                <td>전체 ROI를 함께 평행이동·회전할 때는 공간 순서가 바뀌지 않으므로 재정렬 없이 <code>RefitGeometry</code>로 상자만 갱신하고, 선택 부분 트리는 <code>Filter</code>로 원래 블록 정체성을 보존합니다.</td>
+              </tr>
+              <tr>
+                <td><code>Blocks(BoundsD bounds, int maximumCount = 2048)</code></td>
+                <td>트리에서 2,048개 이하의 ROI를 가진 서브트리 노드를 <code>RoiSpatialBlock</code>으로 꺼내어 09장의 GPU 블록 캐시(<code>RoiBlockCache</code>)가 노드 참조 주소(<code>Identity</code>)로 즉시 재사용하게 합니다!</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & UML 다이어그램 (#sec-solid-grasp, #sec-diagrams)
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: 어떻게 단일 BVH 구조로 대용량 편집과 GPU 캐싱까지 통합했는가?</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Pure Fabrication (순수 가공물)</span>
+            <h4>검색 속도를 <i>O</i>(<i>N</i>)에서 <i>O</i>(log <i>N</i>)으로 줄이는 영속 <code>RoiSpatialIndex</code></h4>
+            <p><code>DocumentState</code>가 수만 개 ROI를 일렬로 뒤지지 않도록, 비트 경로(<code>BvhNodePath</code>) 기반 영속 이진 트리 가공물(<code>RoiSpatialIndex</code>)을 두었습니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Information Expert (정보 전문가)</span>
+            <h4>비트 연산으로 트리 경로를 스스로 추적하는 <code>BvhNodePath</code></h4>
+            <p>깊이(<code>BitOperations.Log2</code>)와 좌/우 분기 판정(<code>IsRightBranch(stepBit)</code>)을 <code>BvhNodePath</code> 값 구조체가 직접 계산하여 힙 할당 없이 경로를 추적합니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>전체 공간 색인(<code>RoiSnapshot.Spatial</code>)과 선택 부분 색인(<code>RoiSelectionSnapshot</code>) 분리</h4>
+            <p>문서 전체의 BVH는 <code>RoiSnapshot</code>이 보유하고, 현재 선택된 도형들의 부분 BVH와 통계는 <code>RoiSelectionSnapshot</code>이 지연(<code>Lazy</code>) 생성해 책임을 나눕니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Low Coupling &amp; Structural Sharing</span>
+            <h4>불변 서브트리 참조(<code>RoiSpatialBlock.Identity</code>)를 GPU 캐시 키로 직접 활용</h4>
+            <p>편집되지 않은 서브트리 노드는 메모리 주소(<code>object Identity</code>)가 그대로 유지되므로, 09장의 <code>RoiBlockCache</code>가 해시 계산조차 없이 참조 비교 한 번으로 GPU 버퍼를 재사용합니다!</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 왜 별도의 예외 배치 클래스를 없애고 영속 BVH + 차분 집합으로 통일했을까요?</strong><br/>일반 ROI와 반복 격자 ROI가 100% 동일한 <code>Roi</code> 레코드와 <code>RoiSpatialIndex</code>를 쓰기 때문에, 개별 이동·회전·삭제·그룹화·마스크·복붙·Undo/Redo에서 예외 분기 버그가 원천적으로 사라지고, <code>BvhNodePath</code> 경로 복사와 <code>RoiBlockCache</code>(2,048개 블록 캐싱) 덕분에 대용량에서도 빠른 응답성을 유지합니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>05장 영속 공간 색인(<code>RoiSpatialIndex</code> · <code>BvhNodePath</code>) 및 선택 스냅샷 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"Persistent BVH Tree","title":"RoiSpatialIndex","role":"일반/격자 ROI들을 감싸는 영속 이진 트리로 O(log N) 검색 및 부분 갱신","color":"#38bdf8","members":["- _root: Node","- _locations: Lazy<ImmutableDict<Guid, BvhNodePath>>","+ HitTest(point, tolerance): Roi?","+ WithChanges(changes): RoiSpatialIndex","+ RefitGeometry(rois) / Filter(ids, include)","+ Blocks(bounds, maxCount = 2048): IEnumerable<RoiSpatialBlock>"]},{"stereotype":"Bit-Encoded Tree Path","title":"BvhNodePath","role":"루트(1)부터 잎 노드까지의 이진 경로를 64비트 정수로 표현 (default == Root)","color":"#fbbf24","members":["- _valueMinusOne: ulong","+ RawValue / Depth: ulong, int","+ Left / Right: BvhNodePath","+ FirstStepBit: ulong","+ IsRightBranch(stepBit): bool"]},{"stereotype":"Immutable GPU Block Handle","title":"RoiSpatialBlock","role":"최대 2,048개 ROI를 묶어 불변 노드 정체성(Identity)을 GPU 캐시에 제공","color":"#34d399","members":["+ Identity: object (Node 참조)","+ Bounds: BoundsD, Count: int","+ ShapeBytes: long","+ Detail(aggregateSize): 가시 ROI 열거"]},{"stereotype":"Frozen + Persistent Delta Set","title":"RoiIdSet","role":"대량 선택(FrozenSet)과 Ctrl+클릭 증분(_added/_removed)을 결합한 O(1) 집합","color":"#f472b6","members":["- _items: FrozenSet<Guid>","- _added / _removed: ImmutableHashSet<Guid>","+ Contains(Guid): bool","+ Add(Guid) / Remove(Guid): RoiIdSet"]},{"stereotype":"Selection Index Cache","title":"RoiSelectionSnapshot","role":"선택된 ROI 집합의 부분 BVH(SelectedSpatial)와 선택 통계를 지연 생성","color":"#818cf8","members":["+ Selection: RoiIdSet","+ SelectedSpatial: RoiSpatialIndex","+ SelectionFacts: RoiSelectionFacts"]}],"edges":[{"from":0,"to":1,"label":"ID별 트리 경로 보관"},{"from":0,"to":2,"label":"Blocks()로 서브트리 반환"},{"from":4,"to":3,"label":"선택 ID 집합 보유"},{"from":4,"to":0,"label":"Filter()로 선택 BVH 생성"}],"tiers":[[4],[0,3],[1,2]]}</script>
+        <div class="diagram-caption">영속 이진 트리 <code>RoiSpatialIndex</code>와 비트 경로 <code>BvhNodePath</code>, GPU 블록 단위 <code>RoiSpatialBlock</code>, 그리고 차분 선택 집합 <code>RoiIdSet</code>의 구조입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>05장 시퀀스 다이어그램 · 마우스 히트테스트 및 <code>BvhNodePath</code> 부분 경로 갱신 흐름</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["RoiHitTester / Session","RoiSpatialIndex (BVH)","BvhNodePath","RoiGeometry","RoiBlockCache (GPU)"],"messages":[{"from":0,"to":1,"text":"1. HitTest(imagePoint, tolerance) [최우선 ROI 검색]"},{"from":1,"to":3,"text":"AABB가 겹치는 후보만 Contains(imagePoint, tolerance) 정밀 판정"},{"from":1,"to":0,"text":"면적이 가장 작고 Order가 높은 최우선 Roi 반환 (O(log N))","ret":true},{"from":0,"to":1,"text":"2. [도형 편집 시] WithChanges((id, updatedRoi)) 호출"},{"from":1,"to":2,"text":"paths[id]에서 FirstStepBit 및 IsRightBranch로 루트→잎 경로 추적"},{"from":1,"to":1,"text":"Replace(): 바뀐 줄기의 Node만 새로 생성 (나머지 서브트리는 참조 유지!)"},{"from":1,"to":4,"text":"3. Blocks(visibleBounds, 2048) → 안 바뀐 서브트리는 GPU 캐시 즉시 HIT!"}]}</script>
+        <div class="diagram-caption">마우스 클릭 시 <i>O</i>(log <i>N</i>) 우선순위 히트테스트를 수행하고, 도형 수정 시 <code>BvhNodePath</code>를 따라 바뀐 경로만 교체하여 GPU 블록 캐시 적중률을 극대화하는 과정입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 05장 마무리 셀프 체크 &amp; 다음 장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · 격자 시작점이 100이고 가로 간격(<code>StepX</code>)이 20일 때, 마우스 X좌표 175는 몇 번째 열(<code>col</code>)에 해당할까요?</summary>
+          <p><strong>정답:</strong> <code>(175 - 100) / 20 = 75 / 20 = 3.75</code> 이고, 소수점을 버리면(<code>Math.Floor</code>) <strong>3번째 열(0, 1, 2, 3 중 3번 열)</strong>임을 반복문 없이 단 한 번의 나눗셈으로 알 수 있습니다!</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 다음 장(06장)에서는 무엇을 만들게 되나요?</summary>
+          <p><strong>징검다리:</strong> 이제 BVH 트리와 1억 셀 격자 덕분에 마우스 아래에 어떤 도형들이 있는지 순식간에 알아낼 수 있습니다! 그런데 만약 <strong>큰 부모 모듈 상자 안에 작은 자식 핀 상자가 겹쳐 있을 때</strong> 마우스로 클릭하면 둘 중 누구를 먼저 선택해야 할까요? 또 <strong>마우스를 10배 축소해서 보든 10배 확대해서 보든 꼭짓점 조절 손잡이(핸들)가 항상 똑같이 잘 잡히게</strong> 하려면 어떻게 해야 할까요? 다음 <strong>06장</strong>에서 <code>RoiHitTester</code>와 <code>IGesture</code> 상태 머신을 직접 만들어 봅니다!</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="04-motion-bounds-and-collision.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">04장 · 부모-자식 경계 충돌과 이동·회전 한계 방정식</span>
+        </a>
+        <a class="pager-link" href="06-hit-testing-and-gestures.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">06장 · 히트테스트와 입력 제스처 상태 머신</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

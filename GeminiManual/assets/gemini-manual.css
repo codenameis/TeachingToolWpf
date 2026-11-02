@@ -1,0 +1,2051 @@
+/* ==========================================================================
+   GeminiManual v3 — iPad 11" Book-Reading & Authentic UML Edition
+   Optimized for:
+   1. iPad 11" Viewport (834px Portrait / 1194px Landscape) & Desktop
+   2. Smooth Book-Like Typography (modest titles, comfortable 15.5px body,
+      calm borders, effortless eye flow "책을 보듯이 술술술")
+   3. Authentic 3-Compartment UML Class Diagrams with SVG Connector Arrows
+      (Composition ◆, Inheritance/Realization ▷, Directed Association ▶)
+   4. Authentic Lifeline UML Sequence Diagrams with Activation Bars & Arrows
+   ========================================================================== */
+
+:root {
+  /* Warm, Eye-Friendly Book Paper Light Theme (Default) */
+  --bg-page: #f4f6f9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-code: #0f172a;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-accent: #0284c7;
+
+  --text-main: #1e293b;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --accent-cyan: #0284c7;
+  --accent-indigo: #4f46e5;
+  --accent-emerald: #059669;
+  --accent-amber: #b45309;
+  --accent-rose: #e11d48;
+  --accent-violet: #7c3aed;
+
+  --prereq-bg: #f8f7ff;
+  --prereq-border: #ddd6fe;
+  --prereq-card-bg: #ffffff;
+
+  --math-bg: #fffdf5;
+  --math-border: #fcd34d;
+  --math-eq-bg: #ffffff;
+  --math-legend-bg: #fef9c3;
+
+  --kent-bg: #f2fbf7;
+  --kent-border: #a7f3d0;
+  --kent-card-bg: #ffffff;
+
+  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --shadow-card: 0 2px 10px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 6px 20px rgba(15, 23, 42, 0.06);
+
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --font-math: "STIX Two Math", "Cambria Math", "Latin Modern Math", "Times New Roman", Georgia, serif;
+}
+
+html[data-theme="dark"] {
+  --bg-page: #0b1120;
+  --bg-surface: #131c31;
+  --bg-elevated: #1a2642;
+  --bg-card: #162038;
+  --bg-code: #070b14;
+  --border-subtle: #263554;
+  --border-strong: #3b4f78;
+  --border-accent: #38bdf8;
+
+  --text-main: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --accent-cyan: #38bdf8;
+  --accent-indigo: #818cf8;
+  --accent-emerald: #34d399;
+  --accent-amber: #fbbf24;
+  --accent-rose: #fb7185;
+  --accent-violet: #c084fc;
+
+  --prereq-bg: #151736;
+  --prereq-border: #4338ca;
+  --prereq-card-bg: #11182d;
+
+  --math-bg: #1c1917;
+  --math-border: #b45309;
+  --math-eq-bg: #0f1420;
+  --math-legend-bg: #272016;
+
+  --kent-bg: #0d241f;
+  --kent-border: #059669;
+  --kent-card-bg: #111c2d;
+
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.88;
+  letter-spacing: -0.012em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4,
+.hero-eyebrow,
+.topdown-title,
+.feynman-title,
+.solid-grasp-title,
+.diagram-panel-title,
+.prereq-title,
+.lab-title,
+.diagram-caption,
+th {
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+p, li, td {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Compact Top Navigation Bar (iPad 11" Friendly)
+   ========================================================================== */
+.top-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+}
+
+.top-header-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-main);
+  text-decoration: none !important;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #0284c7, #4f46e5);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+}
+
+.brand-text strong {
+  display: block;
+  font-size: 0.94rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.brand-text span {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.top-chapter-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chapter-pill {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  text-decoration: none !important;
+  transition: all 0.15s ease;
+}
+
+.chapter-pill:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.chapter-pill.active {
+  color: #ffffff;
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.theme-toggle-btn {
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Main Textbook Shell — Optimized for iPad 11" (834px ~ 1194px)
+   ========================================================================== */
+.layout-shell {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 20px 20px 64px;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* On iPad 11" Portrait (834px) and smaller tablets, stack cleanly with compact TOC */
+@media (max-width: 980px) {
+  .layout-shell {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 820px;
+    padding: 16px 18px 56px;
+    gap: 16px;
+  }
+}
+
+.sidebar {
+  position: sticky;
+  top: 58px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  max-height: calc(100vh - 76px);
+  overflow-y: auto;
+}
+
+@media (max-width: 980px) {
+  .sidebar {
+    position: static;
+    max-height: none;
+    padding: 12px 14px;
+  }
+  .chapter-nav-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 4px !important;
+    margin-bottom: 10px !important;
+  }
+  .toc-list {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px 14px !important;
+  }
+}
+
+.sidebar-section-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-indigo);
+  font-weight: 800;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chapter-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chapter-nav-list a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.81rem;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1.35;
+}
+
+.chapter-nav-list a:hover {
+  background: var(--bg-elevated);
+  color: var(--accent-cyan);
+}
+
+.chapter-nav-list a.active {
+  background: rgba(2, 132, 199, 0.1);
+  color: var(--accent-cyan);
+  font-weight: 800;
+}
+
+.chapter-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toc-list a {
+  display: block;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+  padding: 4px 7px;
+  border-left: 2px solid var(--border-subtle);
+  text-decoration: none;
+  line-height: 1.35;
+}
+
+.toc-list a:hover {
+  color: var(--accent-cyan);
+  border-left-color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   Main Content Area — Book-like Proportions & Modest Headings
+   ========================================================================== */
+.main-content,
+.main-article {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.brand-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0284c7, #4f46e5);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.top-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.hero-meta-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.hero-meta-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.hero-meta-value {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.chapter-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.hero-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: var(--radius-lg);
+  padding: 22px 26px;
+  box-shadow: var(--shadow-card);
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: rgba(2, 132, 199, 0.08);
+  margin-bottom: 10px;
+}
+
+.hero-card h1 {
+  margin: 0 0 10px;
+  font-size: 1.44rem;
+  line-height: 1.36;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.hero-lead {
+  margin: 0;
+  font-size: 0.97rem;
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.chip.cyan { border-color: rgba(2, 132, 199, 0.35); color: var(--accent-cyan); }
+.chip.emerald { border-color: rgba(5, 150, 105, 0.35); color: var(--accent-emerald); }
+.chip.amber { border-color: rgba(180, 83, 9, 0.35); color: var(--accent-amber); }
+.chip.rose { border-color: rgba(225, 29, 72, 0.35); color: var(--accent-rose); }
+
+/* Standard Section Card — Clean Book Page Feel */
+.section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px 26px;
+  box-shadow: var(--shadow-card);
+}
+
+.section-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.section-card h3 {
+  margin: 20px 0 8px;
+  font-size: 1.05rem;
+  color: var(--accent-indigo);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.section-card p {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.97rem;
+  line-height: 1.78;
+}
+
+/* ==========================================================================
+   Mandatory Prerequisites Block
+   ========================================================================== */
+.prereq-section {
+  background: var(--prereq-bg);
+  border: 1px solid var(--prereq-border);
+  border-left: 4px solid var(--accent-indigo);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.prereq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--prereq-border);
+}
+
+.prereq-title {
+  margin: 0;
+  font-size: 1.12rem;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.prereq-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-indigo);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.prereq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 780px) {
+  .prereq-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.prereq-card {
+  background: var(--prereq-card-bg);
+  border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--accent-indigo);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+
+.prereq-card.csharp-card { border-top-color: var(--accent-cyan); }
+.prereq-card.math-card { border-top-color: var(--accent-amber); }
+
+.prereq-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.98rem;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+}
+
+.prereq-card p {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.prereq-tag {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+}
+
+.prereq-tag.cs { background: rgba(2, 132, 199, 0.12); color: var(--accent-cyan); }
+.prereq-tag.math { background: rgba(180, 83, 9, 0.12); color: var(--accent-amber); }
+
+/* ==========================================================================
+   Math-Textbook Formula Box & Symbol Table
+   ========================================================================== */
+.math-box {
+  background: var(--math-bg);
+  border: 1px solid var(--math-border);
+  border-left: 4px solid var(--accent-amber);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  margin: 16px 0;
+}
+
+.math-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.math-box-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.math-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 5px;
+  background: var(--accent-amber);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.math-eq-num {
+  font-family: var(--font-math);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.math-formula {
+  background: var(--math-eq-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  margin: 10px 0;
+  overflow-x: auto;
+  font-family: var(--font-math);
+  font-size: 1.08rem;
+  color: var(--text-main);
+  line-height: 1.85;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.math-eq-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 5px 0;
+}
+
+.math-eq-row + .math-eq-row {
+  border-top: 1px dashed rgba(148, 163, 184, 0.22);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.math-eq-main {
+  flex: 1 1 auto;
+  text-align: center;
+  font-family: var(--font-math);
+  font-size: 1.12rem;
+  line-height: 1.8;
+}
+
+.math-expr {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin: 3px 10px;
+  line-height: 1.65;
+}
+
+.math-label {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 700;
+  font-style: normal;
+  color: var(--text-secondary);
+  background: rgba(180, 83, 9, 0.09);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  border-radius: 5px;
+  padding: 2px 9px;
+  margin: 3px 8px 3px 0;
+  line-height: 1.45;
+}
+
+.math-sep {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin: 3px 8px;
+  font-weight: 700;
+  color: var(--accent-amber);
+}
+
+.delim-group,
+.paren-group {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  text-align: center;
+  padding: 0 5px;
+  margin: 0 2px;
+  font-size: 0.92em;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.frac > .num {
+  display: block;
+  width: 100%;
+  text-align: center;
+  border-bottom: 1.5px solid currentColor;
+  padding: 0 5px 2px;
+  white-space: nowrap;
+}
+
+.frac > .den {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 2px 5px 0;
+  white-space: nowrap;
+}
+
+.math-piecewise {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+  vertical-align: middle;
+  border-left: 2.5px solid currentColor;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+  padding: 4px 8px 4px 12px;
+  margin: 2px 6px;
+}
+
+.math-piecewise-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.math-piecewise-cond {
+  font-family: var(--font-sans);
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.math-sqrt {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.math-sqrt-radicand {
+  border-top: 1.5px solid currentColor;
+  padding: 2px 4px 0 2px;
+  margin-left: -1px;
+  display: inline-block;
+  line-height: 1.25;
+}
+
+.m-inline {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.math-formula sub,
+.math-formula sup,
+.math-legend-table sub,
+.math-legend-table sup,
+.math-explain sub,
+.math-explain sup,
+.math-example-box sub,
+.math-example-box sup,
+.prereq-card sub,
+.prereq-card sup {
+  font-size: 0.74em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.math-formula sup,
+.math-legend-table sup,
+.math-explain sup,
+.math-example-box sup,
+.prereq-card sup {
+  top: -0.44em;
+}
+
+.math-formula sub,
+.math-legend-table sub,
+.math-explain sub,
+.math-example-box sub,
+.prereq-card sub {
+  bottom: -0.22em;
+}
+
+.math-formula i,
+.sym-col i,
+.math-explain i,
+.math-example-box i,
+.prereq-card i {
+  padding-right: 0.04em;
+}
+
+.matrix-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: middle;
+  margin: 0 5px;
+  white-space: nowrap;
+}
+
+.matrix-wrap::before,
+.matrix-wrap::after {
+  content: "";
+  width: 6px;
+  border-top: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+}
+
+.matrix-wrap::before { border-left: 1.5px solid currentColor; }
+.matrix-wrap::after { border-right: 1.5px solid currentColor; }
+
+.matrix-table {
+  border-collapse: collapse;
+  margin: 0 3px;
+}
+
+.matrix-table td {
+  padding: 2px 8px;
+  text-align: center;
+  font-family: var(--font-math);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.math-legend {
+  margin-top: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.math-legend-title {
+  background: var(--math-legend-bg);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--accent-amber);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.math-legend-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.math-legend-table th {
+  text-align: left;
+  padding: 7px 11px;
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.math-legend-table td {
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.sym-col {
+  font-family: var(--font-math);
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--accent-indigo);
+  white-space: nowrap;
+}
+
+.math-explain {
+  font-size: 0.91rem;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  line-height: 1.72;
+}
+
+.math-example-box {
+  margin-top: 12px;
+  padding: 12px 15px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid rgba(5, 150, 105, 0.35);
+  border-left: 4px solid var(--accent-emerald);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.math-example-title {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--accent-emerald);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+/* ==========================================================================
+   Kent Beck Composed Method Call Tree Box
+   ========================================================================== */
+.kent-beck-box {
+  background: var(--kent-bg);
+  border: 1px solid var(--kent-border);
+  border-left: 4px solid var(--accent-emerald);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  margin: 16px 0;
+}
+
+.kent-beck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.kent-beck-title {
+  font-weight: 800;
+  color: var(--text-main);
+  font-size: 1.02rem;
+}
+
+.complexity-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cc-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  font-weight: 800;
+  background: var(--accent-emerald);
+  color: #ffffff;
+}
+
+.composed-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.composed-parent {
+  background: var(--kent-card-bg);
+  border: 1px solid var(--accent-emerald);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.composed-children {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent-emerald);
+}
+
+@media (max-width: 720px) {
+  .composed-children {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.composed-step {
+  background: var(--kent-card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.composed-step-num {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(2, 132, 199, 0.1);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  margin-bottom: 4px;
+}
+
+.composed-step-name {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 2px 0 4px;
+  display: block;
+}
+
+.composed-step-desc {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  display: block;
+}
+
+/* ==========================================================================
+   Interactive Canvas Simulator Lab (Compact for iPad 11")
+   ========================================================================== */
+.lab-panel {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #38bdf8;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin: 18px 0;
+  box-shadow: var(--shadow-card);
+}
+
+.lab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.lab-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.lab-subtitle {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+}
+
+.lab-canvas-wrap {
+  background: #060a14;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.lab-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 350px;
+  cursor: crosshair;
+}
+
+.lab-controls {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: #1e293b;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.lab-control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.lab-btn {
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.lab-btn.active {
+  background: #10b981;
+  border-color: #34d399;
+}
+
+.lab-readout {
+  margin-top: 9px;
+  padding: 9px 12px;
+  background: #060a14;
+  border: 1px solid #334155;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.81rem;
+  color: #67e8f9;
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   Hands-On Build Guide Steps & Code Blocks
+   ========================================================================== */
+.build-step {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin: 16px 0;
+}
+
+.build-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.build-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 5px;
+  background: var(--accent-cyan);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.source-link-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-indigo);
+}
+
+pre {
+  margin: 10px 0;
+  padding: 14px 16px;
+  background: var(--bg-code);
+  border: 1px solid #334155;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 1.62;
+  color: #f8fafc;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: rgba(2, 132, 199, 0.1);
+  color: var(--accent-cyan);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-weight: 400;
+  white-space: pre;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.89rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+  padding: 9px 12px;
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.6;
+}
+
+.data-table th {
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+.line-by-line {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.line-by-line th {
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.line-by-line td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+  line-height: 1.6;
+}
+
+.line-by-line tr:nth-child(even) td {
+  background: var(--bg-elevated);
+}
+
+.line-by-line .lbl-num {
+  width: 44px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--accent-indigo);
+  text-align: center;
+}
+
+.line-by-line .lbl-code {
+  width: 44%;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-right: 1px solid #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.line-by-line .lbl-desc {
+  font-size: 0.89rem;
+  color: var(--text-secondary);
+}
+
+.callout {
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
+  margin: 12px 0;
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-cyan);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.91rem;
+}
+
+.callout.tip {
+  border-left-color: var(--accent-emerald);
+}
+
+/* ==========================================================================
+   Top-Down Approach, Feynman Box & SOLID/GRASP Box — Calm Book Styling
+   ========================================================================== */
+.topdown-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.topdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.topdown-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.topdown-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-cyan);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.topdown-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.topdown-level-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--accent-cyan);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.topdown-level-card.lvl-1 { border-top-color: var(--accent-indigo); }
+.topdown-level-card.lvl-2 { border-top-color: var(--accent-emerald); }
+
+.topdown-level-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(2, 132, 199, 0.1);
+  color: var(--accent-cyan);
+  margin-bottom: 4px;
+}
+
+.topdown-level-card.lvl-1 .topdown-level-tag { background: rgba(79, 70, 229, 0.1); color: var(--accent-indigo); }
+.topdown-level-card.lvl-2 .topdown-level-tag { background: rgba(5, 150, 105, 0.1); color: var(--accent-emerald); }
+
+.topdown-level-card h4 {
+  margin: 2px 0 5px;
+  font-size: 0.94rem;
+  color: var(--text-main);
+}
+
+.topdown-level-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.62;
+}
+
+.feynman-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-emerald);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.feynman-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.feynman-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.feynman-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-emerald);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.feynman-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 780px) {
+  .feynman-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.feynman-step {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 15px;
+}
+
+.feynman-step h4 {
+  margin: 0 0 5px;
+  font-size: 0.93rem;
+  color: var(--accent-emerald);
+}
+
+.feynman-step p {
+  margin: 0;
+  font-size: 0.89rem;
+  color: var(--text-secondary);
+  line-height: 1.66;
+}
+
+.feynman-check {
+  margin-top: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+}
+
+.feynman-check summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accent-indigo);
+  font-size: 0.88rem;
+}
+
+.feynman-check p {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+/* SOLID & GRASP Principles Section */
+.solid-grasp-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-indigo);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.solid-grasp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.solid-grasp-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.solid-grasp-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.sg-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sg-badge.solid { background: var(--accent-indigo); }
+.sg-badge.grasp { background: var(--accent-emerald); }
+
+.solid-grasp-intro {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.68;
+}
+
+.sg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 780px) {
+  .sg-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.sg-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--accent-indigo);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.sg-card.grasp-card {
+  border-top-color: var(--accent-emerald);
+}
+
+.sg-principle-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.sg-principle-tag.solid { background: rgba(79, 70, 229, 0.1); color: var(--accent-indigo); }
+.sg-principle-tag.grasp { background: rgba(5, 150, 105, 0.1); color: var(--accent-emerald); }
+
+.sg-card h4 {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+.sg-card p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.62;
+}
+
+.sg-why-opt {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(5, 150, 105, 0.06);
+  border-left: 3px solid var(--accent-emerald);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: var(--text-main);
+  line-height: 1.65;
+}
+
+/* ==========================================================================
+   Authentic 3-Compartment UML Class Diagram + SVG Connector Layer
+   ========================================================================== */
+.diagram-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.diagram-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.diagram-panel-title {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diagram-kind-badge {
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: var(--accent-indigo);
+  color: #ffffff;
+}
+
+.diagram-kind-badge.seq {
+  background: var(--accent-cyan);
+}
+
+/* Stage that holds both the Tiered 3-compartment HTML UML boxes and the SVG connector lines */
+.uml-canvas-stage {
+  position: relative;
+  background: #090d16;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-md);
+  padding: 30px 20px 22px;
+  overflow-x: auto;
+}
+
+.uml-connector-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Tiered Container — Architectural Tiers ordered top-to-bottom */
+.uml-tiers-container {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 74px; /* Dedicated 74px empty gutter channel for orthogonal connector arrows & label pills */
+  min-width: 660px;
+}
+
+.uml-tier-row {
+  display: grid;
+  grid-template-columns: repeat(var(--tier-cols, 3), minmax(0, 1fr));
+  gap: 22px;
+  align-items: stretch;
+}
+
+/* Standard 3-Compartment UML Class Box */
+.uml-class-box {
+  background: #0f172a;
+  border: 1.8px solid var(--node-color, #38bdf8);
+  border-radius: 7px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.uml-class-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(56, 189, 248, 0.25);
+}
+
+/* Compartment 1: Stereotype + Class Name + Role */
+.uml-comp-header {
+  background: rgba(15, 23, 42, 0.95);
+  padding: 8px 10px;
+  text-align: center;
+  border-bottom: 1.5px solid var(--node-color, #38bdf8);
+}
+
+.uml-comp-stereo {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+.uml-comp-name {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--node-color, #38bdf8);
+  margin-top: 2px;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.uml-comp-role {
+  display: block;
+  font-size: 0.76rem;
+  color: #cbd5e1;
+  margin-top: 3px;
+  line-height: 1.48;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+/* Compartment 2: Attributes / Fields */
+.uml-comp-fields {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  margin: 0;
+  list-style: none;
+  background: #0d1322;
+}
+
+/* Compartment 3: Operations / Methods */
+.uml-comp-methods {
+  padding: 6px 10px;
+  margin: 0;
+  list-style: none;
+  background: #101726;
+  flex: 1;
+}
+
+.uml-comp-fields li,
+.uml-comp-methods li {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: #e2e8f0;
+  line-height: 1.5;
+  padding: 1.5px 0;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.uml-comp-fields li.empty-comp,
+.uml-comp-methods li.empty-comp {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.67rem;
+}
+
+/* Legend & Explicit Relationship Summary Bar at Bottom of UML Stage */
+.uml-legend-bar {
+  position: relative;
+  z-index: 2;
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px dashed #1e293b;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uml-legend-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+}
+
+.uml-legend-symbols span strong {
+  color: #38bdf8;
+}
+
+.uml-rel-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.uml-rel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 2.5px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  color: #f8fafc;
+}
+
+.uml-rel-pill .rel-sym {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+.uml-rel-pill .rel-lbl {
+  color: #38bdf8;
+  font-family: var(--font-sans);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Authentic Lifeline UML Sequence Diagram
+   ========================================================================== */
+.seq-uml-stage {
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: var(--radius-md);
+  padding: 18px 14px 20px;
+  color: #f8fafc;
+  overflow-x: auto;
+}
+
+.seq-uml-inner {
+  min-width: 620px;
+  position: relative;
+}
+
+.seq-participants-grid {
+  display: grid;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+  margin-bottom: 12px;
+}
+
+.seq-part-box {
+  background: #1e293b;
+  border: 2px solid #38bdf8;
+  border-radius: 6px;
+  padding: 7px 8px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #f8fafc;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.seq-lifelines-Area {
+  position: relative;
+  padding: 8px 0 12px;
+}
+
+.seq-lifeline-col {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1.5px dashed rgba(148, 163, 184, 0.35);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.seq-msg-row {
+  position: relative;
+  min-height: 46px;
+  margin: 6px 0;
+  z-index: 2;
+}
+
+.seq-msg-arrow-svg {
+  display: block;
+  width: 100%;
+  height: 44px;
+  overflow: visible;
+}
+
+.diagram-caption {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ==========================================================================
+   Index Page Chapter Directory Grid & Footer Pager
+   ========================================================================== */
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.chapter-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-decoration: none !important;
+  box-shadow: var(--shadow-card);
+}
+
+.chapter-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-cyan);
+}
+
+.chapter-card h3 {
+  margin: 8px 0 6px;
+  font-size: 1.04rem;
+  color: var(--text-main);
+  line-height: 1.38;
+}
+
+.chapter-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.89rem;
+  line-height: 1.65;
+  font-weight: 400;
+}
+
+.chapter-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.pager-link {
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-card);
+  text-decoration: none !important;
+}
+
+.pager-link:hover {
+  border-color: var(--accent-cyan);
+}
+
+.pager-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pager-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent-cyan);
+  margin-top: 2px;
+}

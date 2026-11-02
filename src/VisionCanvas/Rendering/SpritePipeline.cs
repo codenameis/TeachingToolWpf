@@ -7,32 +7,17 @@ using Vortice.DXGI;
 
 namespace VisionCanvas.Rendering;
 
-internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind kind, int width, int height, Action<int> releaseSlot) : IDisposable
+internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind kind, int width, int height, Action<int> releaseSlot) : IRenderTexture
 {
-    public ID3D12Resource Resource
-    {
-        get;
-    } = resource;
+    public ID3D12Resource Resource { get; } = resource;
 
-    public int Slot
-    {
-        get;
-    } = slot;
+    public int Slot { get; } = slot;
 
-    public PixelKind Kind
-    {
-        get;
-    } = kind;
+    public PixelKind Kind { get; } = kind;
 
-    public int Width
-    {
-        get;
-    } = width;
+    public int Width { get; } = width;
 
-    public int Height
-    {
-        get;
-    } = height;
+    public int Height { get; } = height;
 
     public bool HasPixels
     {
@@ -46,7 +31,17 @@ internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind ki
         set;
     }
 
-    public long Bytes => (long)Width * Height * (Kind == PixelKind.Gray8 ? 1 : Kind == PixelKind.Gray16 ? 2 : 4);
+    public long Bytes => (long)Width * Height * Kind switch
+    {
+        PixelKind.Gray8 => 1,
+        PixelKind.Gray16 => 2,
+        _ => 4
+    };
+
+    public long AllocatedBytes
+    {
+        get; init;
+    }
 
     public void Dispose()
     {
@@ -56,7 +51,7 @@ internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind ki
 }
 
 /// <summary>Owns descriptor allocation and frame-local vertex buffers. Called only by the render thread.</summary>
-internal sealed class SpritePipeline : IDisposable
+internal sealed class SpritePipeline : ITexturePipeline, IDisposable
 {
     private readonly Dx12Device _gpu;
     private readonly ID3D12RootSignature _root;
@@ -137,7 +132,10 @@ internal sealed class SpritePipeline : IDisposable
                 Shader4ComponentMapping = 5768,
                 Texture2D = new Texture2DShaderResourceView { MipLevels = 1 }
             }, Cpu(slot));
-            return new(texture, slot, kind, width, height, _free.Push);
+            return new(texture, slot, kind, width, height, _free.Push)
+            {
+                AllocatedBytes = checked((long)_gpu.Device.GetResourceAllocationInfo(0, description).SizeInBytes)
+            };
         }
         catch
         {
@@ -243,7 +241,7 @@ internal sealed class SpritePipeline : IDisposable
                 Bind();
             }
             var batch = mesh.Batches[i];
-            commands.SetGraphicsRootDescriptorTable(0, Gpu(batch.Texture.Slot));
+            commands.SetGraphicsRootDescriptorTable(0, Gpu(((GpuTexture)batch.Texture).Slot));
             commands.SetGraphicsRoot32BitConstant(1, batch.Texture.Kind is PixelKind.Gray8 or PixelKind.Gray16 ? 1u : 0u, 0);
             commands.SetGraphicsRoot32BitConstant(1, batch.PointSampling ? 1u : 0u, 1);
             commands.DrawInstanced((uint)batch.Count, 1, (uint)batch.Start, 0);
@@ -279,4 +277,11 @@ internal sealed class SpritePipeline : IDisposable
         _root.Dispose();
         _heap.Dispose();
     }
+
+    IRenderTexture ITexturePipeline.CreateTexture(int width, int height, PixelKind kind) => CreateTexture(width, height, kind);
+
+    IRenderTexture ITexturePipeline.Upload(PixelBuffer pixels, IRenderSurface surface) => Upload(pixels, (Dx12Surface)surface);
+
+    void ITexturePipeline.Update(IRenderTexture texture, PixelBuffer pixels, IRenderSurface surface)
+        => Update((GpuTexture)texture, pixels, (Dx12Surface)surface);
 }

@@ -23,47 +23,67 @@ internal static class PolygonClosure
             return null;
         }
 
+        var (edgeIndex, intersection) = FindFirstIntersection(points, start, stroke);
+        return edgeIndex < 0 ? null : BuildClosedLoop(points, edgeIndex, intersection);
+    }
+
+    private static (int EdgeIndex, PointD Intersection) FindFirstIntersection(IReadOnlyList<PointD> points, PointD start, PointD stroke)
+    {
         var closest = double.PositiveInfinity;
         var edgeIndex = -1;
         var intersection = default(PointD);
         // 마지막 변은 새 선분의 시작점을 공유하므로 닫힘 후보에서 제외한다.
         for (var i = 0; i < points.Count - 2; i++)
         {
-            var first = points[i];
-            var second = points[i + 1];
-            var edge = second - first;
-            var divisor = Cross(stroke, edge);
-            if (Math.Abs(divisor) <= ParameterTolerance * stroke.Length * edge.Length)
+            if (TryIntersectEdge(points[i], points[i + 1], start, stroke, closest, out var t, out var hit))
             {
-                continue;
-            }
-
-            var t = Cross(first - start, edge) / divisor;
-            var u = Cross(first - start, stroke) / divisor;
-            if (t <= ParameterTolerance || t > 1 + ParameterTolerance ||
-                u < -ParameterTolerance || u > 1 + ParameterTolerance || t >= closest)
-            {
-                continue;
-            }
-
-            closest = t;
-            edgeIndex = i;
-            intersection = first + (edge * Math.Clamp(u, 0, 1));
-            if ((intersection - first).Length <= PointTolerance)
-            {
-                intersection = first;
-            }
-            else if ((intersection - second).Length <= PointTolerance)
-            {
-                intersection = second;
+                closest = t;
+                edgeIndex = i;
+                intersection = hit;
             }
         }
+        return (edgeIndex, intersection);
+    }
 
-        if (edgeIndex < 0)
+    private static bool TryIntersectEdge(PointD first, PointD second, PointD start, PointD stroke, double closest,
+        out double t, out PointD intersection)
+    {
+        t = 0;
+        intersection = default;
+        var edge = second - first;
+        var divisor = Cross(stroke, edge);
+        if (Math.Abs(divisor) <= ParameterTolerance * stroke.Length * edge.Length)
         {
-            return null;
+            return false;
         }
 
+        t = Cross(first - start, edge) / divisor;
+        var u = Cross(first - start, stroke) / divisor;
+        if (t <= ParameterTolerance || t > 1 + ParameterTolerance ||
+            u < -ParameterTolerance || u > 1 + ParameterTolerance || t >= closest)
+        {
+            return false;
+        }
+
+        intersection = SnapToEndpoint(first + (edge * Math.Clamp(u, 0, 1)), first, second);
+        return true;
+    }
+
+    private static PointD SnapToEndpoint(PointD point, PointD first, PointD second)
+    {
+        if ((point - first).Length <= PointTolerance)
+        {
+            return first;
+        }
+        if ((point - second).Length <= PointTolerance)
+        {
+            return second;
+        }
+        return point;
+    }
+
+    private static PointD[] BuildClosedLoop(IReadOnlyList<PointD> points, int edgeIndex, PointD intersection)
+    {
         var closed = new List<PointD> { intersection };
         for (var i = edgeIndex + 1; i < points.Count; i++)
         {
@@ -72,7 +92,6 @@ internal static class PolygonClosure
                 closed.Add(points[i]);
             }
         }
-
         return closed.ToArray();
     }
 }

@@ -151,7 +151,22 @@ public sealed class DiskPyramidTests : IDisposable
     {
         if (Directory.Exists(_directory))
         {
-            Directory.Delete(_directory, true);
+            try
+            {
+                Directory.Delete(_directory, true);
+            }
+            catch
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                try
+                {
+                    Directory.Delete(_directory, true);
+                }
+                catch
+                {
+                }
+            }
         }
     }
 }

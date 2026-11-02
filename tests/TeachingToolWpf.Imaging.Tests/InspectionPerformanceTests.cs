@@ -187,7 +187,7 @@ public sealed class InspectionPerformanceTests
         session.InitializeImage(new("fixture", "fixture", 256, 256), ViewportTransform.Identity);
         session.Add(new(new(100, 100), 70, 60, 0));
         var model = new ShapeMatchingViewModel(service);
-        model.Update(session.State, 1, false, true);
+        model.Update(new(session.State, 1, false, true));
         return model;
     }
 

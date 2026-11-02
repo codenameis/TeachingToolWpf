@@ -48,10 +48,7 @@ public partial class CameraMonitorControl : UserControl, IDisposable
     private bool _scheduled, _disposed;
     private ImageInfo? _info;
     private long _generation;
-    public long DisplayedSequence
-    {
-        get; private set;
-    }
+    public long DisplayedSequence { get; private set; }
     public event Action<string>? RendererStatusChanged;
     public VisionCanvas.Controls.Dx12Viewport Viewport => Surface;
 

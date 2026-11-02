@@ -9,50 +9,23 @@ namespace VisionCanvas.Rendering;
 
 internal sealed class Dx12Device : IDisposable
 {
-    public IDXGIFactory4 Factory
-    {
-        get;
-    }
+    public IDXGIFactory4 Factory { get; }
 
-    public ID3D12Device Device
-    {
-        get;
-    }
+    public ID3D12Device Device { get; }
 
-    public ID3D12CommandQueue Queue
-    {
-        get;
-    }
+    public ID3D12CommandQueue Queue { get; }
 
-    public ID3D12Fence Fence
-    {
-        get;
-    }
+    public ID3D12Fence Fence { get; }
 
-    public string AdapterName
-    {
-        get;
-    } = "Unknown";
+    public string AdapterName { get; } = "Unknown";
 
-    public bool DebugEnabled
-    {
-        get;
-    }
+    public bool DebugEnabled { get; }
 
-    public ulong DedicatedMemoryBytes
-    {
-        get;
-    }
+    public ulong DedicatedMemoryBytes { get; }
 
-    public ulong LocalMemoryBudget
-    {
-        get;
-    }
+    public ulong LocalMemoryBudget { get; }
 
-    public bool IsSoftware
-    {
-        get;
-    }
+    public bool IsSoftware { get; }
 
     public long TileBudgetBytes => IsSoftware ? 256L * 1024 * 1024
         : (long)Math.Min(256UL * 1024 * 1024, Math.Max(16UL * 1024 * 1024, LocalMemoryBudget / 5));

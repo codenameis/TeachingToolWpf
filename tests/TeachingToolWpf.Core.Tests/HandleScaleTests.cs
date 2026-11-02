@@ -130,9 +130,8 @@ public class HandleScaleTests
         Func<RoiGeometry> geometry;
         if (kind == 2)
         {
-            var id = editor.AddRepeatedGrid(new(1, 1, 250, new(500, 500)));
-            editor.SelectRepeated(new(id, 0));
-            geometry = () => editor.State.RepeatedRois[id].Geometry(0);
+            var id = editor.AddRange([new RoiGeometry(new(500, 500), 162.5, 162.5, 0)], selectAdded: true).Single();
+            geometry = () => editor.State.Rois[id].Geometry;
         }
         else
         {

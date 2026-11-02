@@ -56,10 +56,7 @@ public sealed class CameraViewModel : ObservableObject, IDisposable
         _session.Updated += OnUpdated;
     }
 
-    public string Name
-    {
-        get;
-    }
+    public string Name { get; }
     public int SourceKind
     {
         get => _sourceKind; set => Set(ref _sourceKind, value);
@@ -113,42 +110,15 @@ public sealed class CameraViewModel : ObservableObject, IDisposable
     public string ModelDescription => _snapshot.ModelId is { } id ? $"정상 모델 {id.ToString()[..8]} · 수집{_snapshot.TrainingFrames}프레임" : "정상 기준 없음 · 영상 연결 후 정상 수집";
     public string ScoreText => _snapshot.Prediction is { } score
         ? $"외관 {score.AppearanceRatio:F2}× / 움직임 {(score.MotionAvailable ? score.MotionRatio.ToString("F2") + "×" : "준비 중")}" : "현재 검사 결과 없음";
-    public MonitorCommand SelectCommand
-    {
-        get;
-    }
-    public MonitorCommand OpenCommand
-    {
-        get;
-    }
-    public MonitorCommand ConnectCommand
-    {
-        get;
-    }
-    public MonitorCommand DisconnectCommand
-    {
-        get;
-    }
-    public MonitorCommand LearnCommand
-    {
-        get;
-    }
-    public MonitorCommand MonitorCommand
-    {
-        get;
-    }
-    public MonitorCommand SaveCommand
-    {
-        get;
-    }
-    public MonitorCommand LoadCommand
-    {
-        get;
-    }
-    public MonitorCommand ThresholdCommand
-    {
-        get;
-    }
+    public MonitorCommand SelectCommand { get; }
+    public MonitorCommand OpenCommand { get; }
+    public MonitorCommand ConnectCommand { get; }
+    public MonitorCommand DisconnectCommand { get; }
+    public MonitorCommand LearnCommand { get; }
+    public MonitorCommand MonitorCommand { get; }
+    public MonitorCommand SaveCommand { get; }
+    public MonitorCommand LoadCommand { get; }
+    public MonitorCommand ThresholdCommand { get; }
 
     private Task ConnectAsync() => _session.ConnectAsync(new((VideoSourceKind)SourceKind, Address));
     private static double Parse(string value) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number)

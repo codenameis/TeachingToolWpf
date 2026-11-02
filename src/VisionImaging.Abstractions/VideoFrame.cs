@@ -36,15 +36,9 @@ public sealed class VideoFrame : IDisposable
     private readonly SharedPixels _shared;
     private int _disposed;
 
-    public long Sequence
-    {
-        get;
-    }
+    public long Sequence { get; }
 
-    public long Timestamp
-    {
-        get;
-    }
+    public long Timestamp { get; }
 
     public PixelBuffer Pixels => Volatile.Read(ref _disposed) == 0 ? _shared.Pixels : throw new ObjectDisposedException(nameof(VideoFrame));
 

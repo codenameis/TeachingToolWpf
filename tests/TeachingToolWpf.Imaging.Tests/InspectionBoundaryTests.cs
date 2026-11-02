@@ -23,7 +23,7 @@ public sealed class InspectionBoundaryTests
         var service = new ShapeService();
         var editor = Editor(teachingRegion);
         using var viewModel = new ShapeMatchingViewModel(service);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Train.ExecuteAsync();
         await viewModel.Search.ExecuteAsync();
 
@@ -56,18 +56,19 @@ public sealed class InspectionBoundaryTests
         var teachingRegion = Region(RoiShapeKind.Polygon);
         var (shape, template, editor, viewModel) = await CreateAsync(teachingRegion, method);
         using var lifetime = viewModel;
+        viewModel.UseSelection = false;
         editor.TranslateSelection(new(100, 70));
         editor.Add(Region(RoiShapeKind.Circle));
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Search.ExecuteAsync();
         var pose = method == PatternMatchingMethod.Shape ? shape.Pose : TemplatePose(teachingRegion, template);
         AssertBoundary(teachingRegion, pose, Assert.Single(viewModel.Markers).Bounds);
 
         editor.Select([]);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         AssertBoundary(teachingRegion, pose, Assert.Single(viewModel.Markers).Bounds);
         editor.SetImage(new("replacement", "replacement", 2048, 2048), ViewportTransform.Identity);
-        viewModel.Update(editor.State, 2, false, true);
+        viewModel.Update(new(editor.State, 2, false, true));
         Assert.Empty(viewModel.Markers);
         await viewModel.Search.ExecuteAsync();
         AssertBoundary(teachingRegion, pose, Assert.Single(viewModel.Markers).Bounds);
@@ -89,7 +90,7 @@ public sealed class InspectionBoundaryTests
         using var lifetime = viewModel;
         object previous = method == PatternMatchingMethod.Shape ? viewModel.Model! : viewModel.TemplateModel!;
         editor.Add(Region(RoiShapeKind.Triangle));
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         shape.TrainingCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         template.TrainingCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var pending = viewModel.Train.ExecuteAsync();
@@ -99,11 +100,11 @@ public sealed class InspectionBoundaryTests
                 viewModel.Cancel.Execute(null);
                 break;
             case "generation":
-                viewModel.Update(editor.State, 2, false, true);
+                viewModel.Update(new(editor.State, 2, false, true));
                 break;
             case "selection":
                 editor.Add(Region(RoiShapeKind.Circle));
-                viewModel.Update(editor.State, 1, false, true);
+                viewModel.Update(new(editor.State, 1, false, true));
                 break;
         }
         if (method == PatternMatchingMethod.Shape)
@@ -141,7 +142,7 @@ public sealed class InspectionBoundaryTests
         var (shape, template, editor, viewModel) = await CreateAsync(shapeRegion, PatternMatchingMethod.Shape);
         using var lifetime = viewModel;
         editor.Add(templateRegion);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         viewModel.Method = PatternMatchingMethod.OpenCvTemplate;
         await viewModel.Train.ExecuteAsync();
         viewModel.Method = PatternMatchingMethod.Shape;
@@ -150,7 +151,7 @@ public sealed class InspectionBoundaryTests
 
         var replacement = Region(RoiShapeKind.Rectangle);
         editor.Add(replacement);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Train.ExecuteAsync();
         await viewModel.Search.ExecuteAsync();
         AssertBoundary(replacement, shape.Pose, Assert.Single(viewModel.Markers).Bounds);
@@ -169,7 +170,7 @@ public sealed class InspectionBoundaryTests
         using var lifetime = viewModel;
         var searchRegion = new RoiGeometry(new(1100, 1100), 500, 400, 17);
         editor.Add(searchRegion);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         viewModel.UseSelection = true;
         await viewModel.Search.ExecuteAsync();
 
@@ -191,7 +192,7 @@ public sealed class InspectionBoundaryTests
         Assert.Empty(viewModel.Overlay!.SearchBoundary);
         var searchRegion = new RoiGeometry(new(1100, 1100), 500, 400, 17);
         editor.Add(searchRegion);
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         viewModel.UseSelection = useSelection;
         shape.SearchCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         template.SearchCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -214,7 +215,7 @@ public sealed class InspectionBoundaryTests
         var template = new TemplateService();
         var editor = Editor(region);
         var viewModel = new ShapeMatchingViewModel(shape, template) { Method = method };
-        viewModel.Update(editor.State, 1, false, true);
+        viewModel.Update(new(editor.State, 1, false, true));
         await viewModel.Train.ExecuteAsync();
         return (shape, template, editor, viewModel);
     }

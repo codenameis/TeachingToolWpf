@@ -17,8 +17,14 @@
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
     <Project Path="src/TeachingToolWpf/TeachingToolWpf.csproj" />
+    <Project Path="src/TeachingToolWpf.Presentation/TeachingToolWpf.Presentation.csproj" />
+    <Project Path="src/TeachingToolWpf.Diagnostics/TeachingToolWpf.Diagnostics.csproj" />
     <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
+    <Project Path="src/VisionCanvas.Host/VisionCanvas.Host.csproj" />
     <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
+    <Project Path="src/VisionCanvas.Vulkan/VisionCanvas.Vulkan.csproj" />
+    <Project Path="src/VisionCanvas.Skia/VisionCanvas.Skia.csproj" />
+    <Project Path="src/VisionCanvas.Wgpu/VisionCanvas.Wgpu.csproj" />
     <Project Path="src/VisionCanvas.Filters.Wpf/VisionCanvas.Filters.Wpf.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />
@@ -32,6 +38,9 @@
     <Project Path="tests/PoseMatch.Tdcm.Tests/PoseMatch.Tdcm.Tests.csproj" />
     <Project Path="tests/PoseMatch.Tdcm.TorchSharp.Tests/PoseMatch.Tdcm.TorchSharp.Tests.csproj" />
     <Project Path="tests/VisionCanvas.Tests/VisionCanvas.Tests.csproj" />
+    <Project Path="tests/VisionCanvas.Vulkan.Tests/VisionCanvas.Vulkan.Tests.csproj" />
+    <Project Path="tests/VisionCanvas.Skia.Tests/VisionCanvas.Skia.Tests.csproj" />
+    <Project Path="tests/VisionCanvas.Wgpu.Tests/VisionCanvas.Wgpu.Tests.csproj" />
     <Project Path="tests/TeachingToolWpf.Core.Tests/TeachingToolWpf.Core.Tests.csproj" />
     <Project Path="tests/TeachingToolWpf.Imaging.Tests/TeachingToolWpf.Imaging.Tests.csproj" />
     <Project Path="tests/VisionAlgorithm.Tests/VisionAlgorithm.Tests.csproj" />
@@ -46,10 +55,14 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/VisionCanvas.MvvmSample/VisionCanvas.MvvmSample.csproj" />
+    <Project Path="samples/VisionCanvas.VulkanSample/VisionCanvas.VulkanSample.csproj" />
+    <Project Path="samples/VisionCanvas.SkiaSample/VisionCanvas.SkiaSample.csproj" />
+    <Project Path="samples/VisionCanvas.WgpuSample/VisionCanvas.WgpuSample.csproj" />
     <Project Path="samples/VisionCanvas.Sample/VisionCanvas.Sample.csproj" />
   </Folder>
   <Folder Name="/file-engine/">
     <Project Path="tools/CpuMatching.Evaluation/CpuMatching.Evaluation.csproj" />
+    <Project Path="tools/PrimitiveDetection.Evaluation/PrimitiveDetection.Evaluation.csproj" />
     <Project Path="experiments/VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
     <Project Path="experiments/VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
     <Project Path="tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />

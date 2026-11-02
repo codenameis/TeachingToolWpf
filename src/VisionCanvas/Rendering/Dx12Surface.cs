@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Win32.SafeHandles;
+using VisionCanvas.Diagnostics;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
 using Vortice.Mathematics;
@@ -7,7 +8,7 @@ using Vortice.Mathematics;
 namespace VisionCanvas.Rendering;
 
 /// <summary>렌더 스레드에서만 사용하는 화면 버퍼와 프레임별 GPU 작업의 소유자.</summary>
-internal sealed class Dx12Surface : IDisposable
+internal sealed class Dx12Surface : IRenderSurface, IDisposable
 {
     private const int BackBufferCount = 2;
     private const SwapChainFlags Flags = SwapChainFlags.FrameLatencyWaitableObject;
@@ -21,10 +22,7 @@ internal sealed class Dx12Surface : IDisposable
     private readonly uint _descriptorSize;
     private readonly AutoResetEvent _frameReady = new(false);
 
-    public ID3D12GraphicsCommandList Commands
-    {
-        get;
-    }
+    public ID3D12GraphicsCommandList Commands { get; }
 
     public int FrameIndex
     {
@@ -46,15 +44,23 @@ internal sealed class Dx12Surface : IDisposable
 
     public ID3D12Resource CurrentBuffer => _buffers[FrameIndex]!;
 
-    public double FenceWaitMilliseconds
-    {
-        get; private set;
-    }
+    public double FenceWaitMilliseconds { get; private set; }
 
     public WaitHandle FrameReady => _frameReady;
 
-    public FrameStatistics? ReadPresentationStatistics()
-        => _swapChain.GetFrameStatistics(out var statistics).Success ? statistics : null;
+    public DisplayPresentStatistics? ReadPresentationStatistics()
+    {
+        if (!_swapChain.GetFrameStatistics(out var statistics).Success)
+        {
+            return null;
+        }
+
+        return new DisplayPresentStatistics(
+            statistics.PresentCount,
+            statistics.PresentRefreshCount,
+            statistics.SyncRefreshCount,
+            statistics.SyncQPCTime);
+    }
 
     public Dx12Surface(Dx12Device gpu, nint hwnd, int width, int height)
     {

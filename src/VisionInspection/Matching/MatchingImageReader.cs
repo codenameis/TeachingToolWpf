@@ -44,7 +44,7 @@ internal sealed class MatchingImageReader : IDisposable
     }
 
     public GrayImage Read(int left, int top, int width, int height, CancellationToken token,
-        int maximumPixels = VisionAlgorithm.OpenSrc.PatternMatching.PreparedSearchImage.MaximumPixels)
+        int maximumPixels = VisionAlgorithm.OpenSrc.PatternMatching.PreparedSearchImage.MaximumPixels, byte[]? buffer = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         token.ThrowIfCancellationRequested();
@@ -52,7 +52,12 @@ internal sealed class MatchingImageReader : IDisposable
         {
             throw new ArgumentException($"학습/검색 창이 {maximumPixels:N0} pixel 작업 예산을 초과했습니다.");
         }
-        var bytes = new byte[checked(width * height)];
+        var length = checked(width * height);
+        if (buffer is not null && buffer.Length < length)
+        {
+            throw new ArgumentException("원본 읽기 버퍼가 요청한 창보다 작습니다.", nameof(buffer));
+        }
+        var bytes = buffer ?? new byte[length];
         if (_frame is { } frame)
         {
             Copy(frame.Pixels, 0, 0, left, top, width, height, bytes, token);
@@ -76,7 +81,7 @@ internal sealed class MatchingImageReader : IDisposable
                 }
             }
         }
-        return new(bytes, width, height, width, ReadExclusion(left, top, width, height, token));
+        return new(bytes.AsMemory(0, length), width, height, width, ReadExclusion(left, top, width, height, token));
     }
 
     private byte[]? ReadExclusion(int left, int top, int width, int height, CancellationToken token)

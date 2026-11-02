@@ -1,5 +1,7 @@
 # VisionCanvas · WPF MVVM 샘플
 
+[WPF 코드 교육 HTML](../../manual/wpf/index.html): App·MVVM·바인딩·두 카메라·ROI와 이력을 실제 코드, 숫자 예제와 실습으로 배운다.
+
 진단 실행 코드 없이 라이브러리를 사용하는 독립 WPF 앱이다. `TeachingToolWpf`나 기존 `VisionCanvas.Sample` 프로젝트를 참조하지 않는다.
 
 ## 처음 코드를 읽는 순서

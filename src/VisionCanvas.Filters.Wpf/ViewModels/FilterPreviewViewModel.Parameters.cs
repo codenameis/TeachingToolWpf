@@ -23,18 +23,9 @@ public sealed partial class FilterPreviewViewModel
         private set => Set(ref _validationMessage, value);
     }
 
-    public RelayCommand BeginParameterEdit
-    {
-        get;
-    }
-    public RelayCommand EndParameterEdit
-    {
-        get;
-    }
-    public RelayCommand CancelParameterEdit
-    {
-        get;
-    }
+    public RelayCommand BeginParameterEdit { get; }
+    public RelayCommand EndParameterEdit { get; }
+    public RelayCommand CancelParameterEdit { get; }
 
     public double RadiusValue
     {
@@ -77,7 +68,6 @@ public sealed partial class FilterPreviewViewModel
 
     private bool UpdateSlider(string text, double minimum, double maximum, ref double field, string property)
     {
-        // Invalid/incomplete text is never coerced back through a slider into a valid recipe.
         return double.TryParse(text, CultureInfo.CurrentCulture, out var value) && double.IsFinite(value) &&
             value >= minimum && value <= maximum && Set(ref field, value, property);
     }
@@ -87,10 +77,13 @@ public sealed partial class FilterPreviewViewModel
         try
         {
             static double Number(string value) => double.Parse(value, CultureInfo.CurrentCulture);
-            settings = new(SelectedFilter, UsesThreshold ? Number(Threshold) : 128,
-                IsEdge ? Number(EdgeLow) : 50, IsEdge ? Number(EdgeHigh) : 150,
-                UsesRadius ? int.Parse(Radius, CultureInfo.CurrentCulture) : 3, UsesSigma ? Number(Sigma) : 1,
-                IsIndustrial ? Execution : RoiFilterExecution.CpuOnly);
+            var threshold = UsesThreshold ? Number(Threshold) : 128;
+            var edgeLow = IsEdge ? Number(EdgeLow) : 50;
+            var edgeHigh = IsEdge ? Number(EdgeHigh) : 150;
+            var radius = UsesRadius ? int.Parse(Radius, CultureInfo.CurrentCulture) : 3;
+            var sigma = UsesSigma ? Number(Sigma) : 1;
+            var execution = IsIndustrial ? Execution : RoiFilterExecution.CpuOnly;
+            settings = new(SelectedFilter, threshold, edgeLow, edgeHigh, radius, sigma, execution);
             settings.Validate();
             ValidationMessage = "";
             return true;
@@ -123,7 +116,6 @@ public sealed partial class FilterPreviewViewModel
             return;
         }
         _parameterOriginal = _draftSettings = settings;
-        // One snapshot per gesture; pointer/value updates replace only the small settings record.
         _parameterRois = _document.Selection.Select(id => _document.Rois[id]).ToArray();
         _parameterEditing = true;
         RefreshCommands();

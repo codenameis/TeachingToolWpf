@@ -26,10 +26,7 @@ internal sealed class CudaTemplateScoreBackend : IDisposable
     private MemoryBuffer1D<double, Stride1D.Dense>? _scores;
     private object? _uploadedSource;
 
-    public CoarseScoreDiagnostics Diagnostics
-    {
-        get; private set;
-    }
+    public CoarseScoreDiagnostics Diagnostics { get; private set; }
 
     public CudaTemplateScoreBackend()
     {

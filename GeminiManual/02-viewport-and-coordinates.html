@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>02장 · 좌표계와 뷰포트 변환 직접 만들기 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 02 · 1단계: 모니터 화면 픽셀과 8K 카메라 원본 픽셀을 잇는 다리</div>
+        <h1>02장 · 좌표계와 뷰포트 변환 직접 만들기 (<code>BoundsD</code>, <code>ViewportTransform</code>)</h1>
+        <p class="hero-lead">
+          01장에서 우리는 점 하나를 표현하는 <code>PointD(X, Y)</code>를 직접 만들었습니다.<br/>
+          그런데 사용자가 모니터 화면의 <code>(340, 190)</code> 위치를 마우스로 클릭했을 때, 그곳이 원본 8K 카메라 사진의 몇 번 픽셀인지 어떻게 알 수 있을까요?<br/>
+          또 마우스 휠을 굴려 확대할 때 <strong>마우스 커서가 가리키던 사진 속 지점이 엉뚱한 곳으로 도망가지 않고 커서 아래에 딱 고정되게(Cursor-Anchored Zoom)</strong> 만들려면 어떤 방정식이 필요할까요?<br/>
+          중학교 1차 함수 <i>y</i> = <i>a</i><i>x</i> + <i>b</i> 하나로 이 문제를 완벽히 풀어 봅시다!
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 왜 '화면 좌표'와 '사진 좌표'를 분리해야 할까요?</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">왜 분리할까?</span>
+            <h4>화면은 계속 움직이지만 사진 데이터는 변하면 안 됩니다</h4>
+            <p>사용자가 마우스로 화면을 이리저리 밀거나(Pan) 휠로 10배 확대(Zoom)하더라도, 기판 위 부품 ROI가 저장된 '원본 사진 픽셀 위치(예: 1500, 2400)'는 절대 바뀌면 안 됩니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">누가 통역할까?</span>
+            <h4>양방향 통역사 <code>ViewportTransform</code></h4>
+            <p><code>ViewportTransform</code> 구조체는 현재 확대 배율(<code>Zoom</code>)과 화면이 밀린 거리(<code>PanX</code>, <code>PanY</code>) 숫자 3개만 들고, 사진 좌표 ↔ 모니터 화면 좌표를 양방향으로 즉시 통역합니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">어떤 수학을 쓸까?</span>
+            <h4>중학교 1차 함수 <i>y</i> = <i>s</i>·<i>x</i> + <i>t</i> 와 역함수</h4>
+            <p>사진 좌표에 배율 <i>s</i>를 곱하고 밀림 <i>t</i>를 더하면 화면 좌표가 되고, 반대로 화면 좌표에서 <i>t</i>를 빼고 <i>s</i>로 나누면 원래 사진 좌표가 됩니다!</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · 왜 그냥 배율만 키우면 내가 보던 사진이 도망갈까?</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>📌 비유 1 · 책상 위 지도에 압정 꽂고 확대하기 (<code>ZoomAt</code>의 원리)</h4>
+            <p>
+              책상 위에 놓인 고무 지도를 2배로 늘린다고 상상해 보세요. 만약 지도의 왼쪽 위 모서리 <code>(0, 0)</code>에 압정을 꽂아두고 고무 지도를 2배로 잡아당기면, 내가 자세히 보려고 손가락을 짚고 있던 '서울 시청' 위치는 오른쪽 아래로 멀리 도망가 버립니다!<br/>
+              서울 시청이 내 손가락 밑에서 도망가지 않게 하려면 어떻게 해야 할까요? <strong>내 손가락 끝(마우스 커서 위치)에 압정을 꽂은 채로, 지도가 늘어난 만큼 지도 원점을 왼쪽 위로 반대로 당겨(새 <code>PanX, PanY</code> 보정)</strong> 주어야 합니다.
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>🔍 비유 2 · 일반 모니터(100%)와 고해상도 노트북(150%)의 눈금 차이 (<code>DIP</code>)</h4>
+            <p>
+              똑같은 15인치 화면인데 픽셀이 촘촘한 4K 노트북에서는 기본 픽셀(px) 단위로 사각형 손잡이를 그리면 깨알처럼 작아져서 마우스로 잡기가 힘듭니다.<br/>
+              그래서 윈도우 배율(<code>DpiScale</code>, 예: 150% = <code>1.5</code>)로 나눈 <strong>논리 픽셀(DIP, Device-Independent Pixel)</strong>을 사용하면 어떤 모니터에서든 사람 눈에 똑같은 크기(예: 6 DIP)로 보입니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & 수학 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 이 장을 시작하기 위한 3가지 기초 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <p style="margin-bottom: 16px;">
+          수식과 코드를 작성하기 전에, 이 장에서 사용할 <strong>3가지 기초 재료(물리 픽셀 vs DIP, 축 정렬 상자 <code>BoundsD</code>, 1차 함수 역산)</strong>를 먼저 가볍게 익혀 봅시다.
+        </p>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 1&nbsp;·&nbsp;화면 단위</span> 물리 픽셀(px) vs 논리 픽셀(DIP)과 <code>DpiScale</code></h4>
+            <p>
+              윈도우 설정에서 디스플레이 배율을 <strong>150% (<code>DpiScale&nbsp;=&nbsp;1.5</code>)</strong>로 설정하면, 논리 화면 좌표 <code>1 DIP</code>는 실제 모니터 물리 픽셀 <code>1.5개</code>에 해당합니다.
+            </p>
+            <pre><code>// 1) Win32 마우스 메시지(물리 픽셀)&nbsp;→&nbsp;논리 화면 좌표(DIP) 변환
+PointD screenDip&nbsp;=&nbsp;new(clientPixelX / DpiScale, clientPixelY / DpiScale);
+
+// 2) 논리 화면 좌표(DIP)&nbsp;→&nbsp;GPU 렌더 타겟 물리 픽셀(px) 변환
+double gpuPixelX&nbsp;=&nbsp;screenDip.X * DpiScale;</code></pre>
+            <p>
+              <code>VisionCanvas.Core</code>는 모니터 해상도에 흔들리지 않도록 항상 <strong>화면 논리 좌표(DIP)</strong>와 <strong>원본 이미지 픽셀 좌표(Image px)</strong> 두 가지만 깔끔하게 다룹니다.
+            </p>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 2&nbsp;·&nbsp;중학교 1차 함수</span> <i>y</i>&nbsp;=&nbsp;<i>s</i>·<i>x</i>&nbsp;+&nbsp;<i>t</i> 를 <i>x</i> 에 대해 풀기(역함수)</h4>
+            <p>
+              중학교 2학년 때 배운 일차함수 <strong><i>y</i>&nbsp;=&nbsp;<i>s</i>&nbsp;·&nbsp;<i>x</i>&nbsp;+&nbsp;<i>t</i></strong> 가 뷰포트 변환의 전부입니다!
+            </p>
+            <ul>
+              <li><strong>기울기 <i>s</i> (<code>Zoom</code>)</strong>: 원본 사진 1픽셀이 화면에서 몇 DIP 크기로 보이는가? (예: 2배 확대면 <i>s</i>&nbsp;=&nbsp;2)</li>
+              <li><strong>절편 <i>t</i> (<code>PanX, PanY</code>)</strong>: 사진의 왼쪽 위 모서리 <code>(0, 0)</code>이 현재 모니터 화면의 어디에 놓여 있는가?</li>
+              <li><strong>역함수 구하기</strong>: 양변에서 <i>t</i>를 빼면 <i>y</i>&nbsp;−&nbsp;<i>t</i>&nbsp;=&nbsp;<i>s</i>&nbsp;·&nbsp;<i>x</i> 이고, 양변을 <i>s</i>로 나누면 <strong><i>x</i>&nbsp;=&nbsp;(<i>y</i>&nbsp;−&nbsp;<i>t</i>) / <i>s</i></strong> 가 됩니다!</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 3&nbsp;·&nbsp;경계 상자</span> 반듯한 사각형 영역을 담는 <code>BoundsD(Left, Top, Right, Bottom)</code></h4>
+            <p>
+              화면 영역이나 이미지 영역처럼 축에 나란한(기울어지지 않은) 사각형 범위는 왼쪽(<code>Left</code>), 위쪽(<code>Top</code>), 오른쪽(<code>Right</code>), 아래쪽(<code>Bottom</code>) 숫자 4개로 표현합니다. 이를 <strong>축 정렬 경계 상자(AABB, Axis-Aligned Bounding Box)</strong>라고 부릅니다.
+            </p>
+            <pre><code>// 두 사각형 상자 A와 B가 조금이라도 겹치는지(Intersects) 1줄 판정법:
+// "A의 오른쪽 끝이 B의 왼쪽 끝보다 오른쪽에 있고, A의 왼쪽 끝이 B의 오른쪽 끝보다 왼쪽에 있으며..."
+bool isOverlapping&nbsp;=&nbsp;Right &gt;= b.Left &amp;&amp; Left &lt;= b.Right &amp;&amp; Bottom &gt;= b.Top &amp;&amp; Top &lt;= b.Bottom;</code></pre>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 4&nbsp;·&nbsp;값 범위 제한</span> <code>Math.Clamp(값, 최소, 최대)</code></h4>
+            <p>
+              사용자가 마우스 휠을 끝없이 굴려서 확대 배율 <i>s</i>가 <code>0</code>이 되거나 음수가 되면, 나눗셈 <code>(y - t) / s</code>에서 <strong>0으로 나누기 오류(<code>DivideByZero</code> / <code>NaN</code>)</strong>가 발생합니다!<br/>
+              따라서 <code>Math.Clamp(targetZoom, 0.01, 64.0)</code>처럼 배율이 항상 <code>0.01배 ~ 64배</code> 안전한 범위 안에만 머물도록 가두어 줍니다.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학으로 한 걸음씩 공식 유도하기 (#sec-zoom-math)
+           ========================================================================= -->
+      <section class="section-card" id="sec-zoom-math">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: 정방향·역방향 변환과 커서 고정 줌(<code>ZoomAt</code>)</h2>
+        <p>
+          이제 원본 사진 속 점 <b><i>p</i></b><sub>img</sub> = (<i>x<sub>i</sub></i>, <i>y<sub>i</sub></i>)와 모니터 화면 점 <b><i>p</i></b><sub>scr</sub> = (<i>x<sub>s</sub></i>, <i>y<sub>s</sub></i>)를 연결하는 3가지 핵심 공식을 한 줄씩 유도해 봅시다.
+        </p>
+
+        <!-- Formula 2.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 일차함수와 역함수</span>
+              <span><code>ImageToScreen</code> 정방향 변환과 <code>ScreenToImage</code> 역방향 변환</span>
+            </div>
+            <span class="math-eq-num">(식 2.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (중2 일차함수):</strong><br/>
+            1) 원본 사진 좌표 <i>x<sub>i</sub></i>를 <i>s</i>배 확대하면 원점으로부터의 거리가 <i>s</i>&nbsp;·&nbsp;<i>x<sub>i</sub></i>가 됩니다.<br/>
+            2) 여기에 사진 전체가 화면 오른쪽으로 밀린 거리 <i>t<sub>x</sub></i>(<code>PanX</code>)를 더하면 모니터 화면 좌표 <i>x<sub>s</sub></i>&nbsp;=&nbsp;<i>s</i>&nbsp;·&nbsp;<i>x<sub>i</sub></i>&nbsp;+&nbsp;<i>t<sub>x</sub></i> 가 완성됩니다! (<code>ImageToScreen</code>)<br/>
+            3) 반대로 모니터 화면 좌표 <i>x<sub>s</sub></i>를 클릭했을 때 원본 사진 좌표 <i>x<sub>i</sub></i>를 찾으려면? 방금 한 계산을 거꾸로 되돌려서 <i>t<sub>x</sub></i>를 먼저 빼고 <i>s</i>로 나누면 됩니다: <i>x<sub>i</sub></i>&nbsp;=&nbsp;(<i>x<sub>s</sub></i>&nbsp;−&nbsp;<i>t<sub>x</sub></i>) / <i>s</i> (<code>ScreenToImage</code>).
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">정방향 ImageToScreen</span>
+                <span class="math-expr"><b><i>p</i></b><sub>scr</sub> = <i>s</i> · <b><i>p</i></b><sub>img</sub> + <b><i>t</i></b></span>
+                <span class="math-sep">⟺</span>
+                <span class="math-expr">(<i>x<sub>s</sub></i>, <i>y<sub>s</sub></i>) = (<i>s</i> · <i>x<sub>i</sub></i> + <i>t<sub>x</sub></i>, &nbsp;<i>s</i> · <i>y<sub>i</sub></i> + <i>t<sub>y</sub></i>)</span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">역방향 ScreenToImage</span>
+                <span class="math-expr"><b><i>p</i></b><sub>img</sub> = <span class="frac"><span class="num"><b><i>p</i></b><sub>scr</sub> − <b><i>t</i></b></span><span class="den"><i>s</i></span></span></span>
+                <span class="math-sep">⟺</span>
+                <span class="math-expr"><i>x<sub>i</sub></i> = <span class="frac"><span class="num"><i>x<sub>s</sub></i> − <i>t<sub>x</sub></i></span><span class="den"><i>s</i></span></span>,</span>
+                <span class="math-expr"><i>y<sub>i</sub></i> = <span class="frac"><span class="num"><i>y<sub>s</sub></i> − <i>t<sub>y</sub></i></span><span class="den"><i>s</i></span></span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>p</i></b><sub>img</sub> = (<i>x<sub>i</sub></i>, <i>y<sub>i</sub></i>)</td>
+                  <td>원본 카메라 영상 내부의 픽셀 좌표 (좌상단 원점)</td>
+                  <td>[0, <i>W</i>] × [0, <i>H</i>] (Image px)</td>
+                  <td><code>PointD imagePoint</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>p</i></b><sub>scr</sub> = (<i>x<sub>s</sub></i>, <i>y<sub>s</sub></i>)</td>
+                  <td>뷰포트 컨트롤 화면 위의 논리 픽셀 좌표</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (단위: DIP)</td>
+                  <td><code>PointD screenPoint</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>s</i></td>
+                  <td>화면 확대 배율 (원본 1픽셀이 화면에서 차지하는 DIP 크기)</td>
+                  <td>[0.01, 64.0] (배율)</td>
+                  <td><code>double Zoom</code> (또는 <code>Scale</code>)</td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>t</i></b> = (<i>t<sub>x</sub></i>, <i>t<sub>y</sub></i>)</td>
+                  <td>이미지 원점 (0, 0)이 모니터 화면에서 놓인 평행이동 오프셋</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (단위: DIP)</td>
+                  <td><code>double PanX, PanY</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 사진 속 좌표 <code>(100, 50)</code>을 <b>2배 확대(<code>Zoom&nbsp;=&nbsp;2</code>)</b>하고 화면을 오른쪽으로 <b>30</b>, 아래로 <b>10만큼 밀었다면(<code>PanX&nbsp;=&nbsp;30, PanY&nbsp;=&nbsp;10</code>)</b>?<br/>
+              • 모니터 화면 좌표 <code>X&nbsp;=&nbsp;100&nbsp;×&nbsp;2&nbsp;+&nbsp;30&nbsp;=&nbsp;230</code>, <code>Y&nbsp;=&nbsp;50&nbsp;×&nbsp;2&nbsp;+&nbsp;10&nbsp;=&nbsp;110</code> 이 됩니다!<br/>
+              • 반대로 모니터 <code>(230, 110)</code>을 마우스로 클릭했을 때 원본 사진 위치를 찾으려면? 더했던 30을 먼저 빼고 2로 나누면 <code>(230&nbsp;−&nbsp;30)&nbsp;÷&nbsp;2&nbsp;=&nbsp;100</code>, <code>(110&nbsp;−&nbsp;10)&nbsp;÷&nbsp;2&nbsp;=&nbsp;50</code>으로 원래 사진 좌표 <code>(100, 50)</code>이 정확히 되돌아옵니다!
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 2.2 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 2 · 불변점 방정식</span>
+              <span>마우스 커서 위치 고정 확대(<code>ZoomAt</code>) 방정식 유도</span>
+            </div>
+            <span class="math-eq-num">(식 2.2)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (확대 전후 사진 좌표가 같아야 한다는 조건 세우기):</strong><br/>
+            1) 사용자가 모니터 화면의 <b><i>p</i></b><sub>cursor</sub> 위치에 마우스를 올린 채 휠을 굴려 배율을 <i>s</i><sub>old</sub>에서 <i>s</i><sub>new</sub>로 바꿉니다.<br/>
+            2) 휠을 굴리기 직전, 마우스 커서 바로 밑에 있던 원본 사진 속 점 <b><i>a</i></b>는 (식 2.1)의 역변환에 의해 <b><i>a</i></b>&nbsp;=&nbsp;(<b><i>p</i></b><sub>cursor</sub>&nbsp;−&nbsp;<b><i>t</i></b><sub>old</sub>) / <i>s</i><sub>old</sub> 입니다.<br/>
+            3) <strong>핵심 아이디어:</strong> 배율이 <i>s</i><sub>new</sub>로 바뀐 뒤에도 이 사진 속 점 <b><i>a</i></b>를 화면으로 변환했을 때 여전히 같은 마우스 위치 <b><i>p</i></b><sub>cursor</sub>에 찍혀야 합니다! 즉, <b><i>p</i></b><sub>cursor</sub>&nbsp;=&nbsp;<i>s</i><sub>new</sub>&nbsp;·&nbsp;<b><i>a</i></b>&nbsp;+&nbsp;<b><i>t</i></b><sub>new</sub> 가 성립해야 합니다.<br/>
+            4) 이 식에서 우리가 구하고 싶은 새로운 화면 밀림 값 <b><i>t</i></b><sub>new</sub>만 남기고 우변의 <i>s</i><sub>new</sub>&nbsp;·&nbsp;<b><i>a</i></b>를 이항하면 <strong><b><i>t</i></b><sub>new</sub>&nbsp;=&nbsp;<b><i>p</i></b><sub>cursor</sub>&nbsp;−&nbsp;<i>s</i><sub>new</sub>&nbsp;·&nbsp;<b><i>a</i></b></strong> 가 유도됩니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">1단계 · 줌 이전 커서 아래 불변점 추출</span>
+                <span class="math-expr"><b><i>a</i></b> = <span class="frac"><span class="num"><b><i>p</i></b><sub>cursor</sub> − <b><i>t</i></b><sub>old</sub></span><span class="den"><i>s</i><sub>old</sub></span></span></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">2단계 · 배율 변경 후에도 <b><i>a</i></b>가 동일 커서에 매핑될 조건</span>
+                <span class="math-expr"><b><i>p</i></b><sub>cursor</sub> = <i>s</i><sub>new</sub> · <b><i>a</i></b> + <b><i>t</i></b><sub>new</sub></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">∴ 최종 해 · 새로운 평행이동 오프셋</span>
+                <span class="math-expr"><b><i>t</i></b><sub>new</sub> = <b><i>p</i></b><sub>cursor</sub> − <i>s</i><sub>new</sub> · <b><i>a</i></b></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>p</i></b><sub>cursor</sub></td>
+                  <td>마우스 휠을 굴리는 순간 커서의 화면 고정 좌표</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (DIP)</td>
+                  <td><code>PointD screenAnchor</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>a</i></b></td>
+                  <td>확대 전후로 커서 바로 밑에 고정되어야 할 이미지 앵커 좌표</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>PointD imageAnchor = ScreenToImage(screenAnchor)</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>s</i><sub>old</sub>, <i>s</i><sub>new</sub></td>
+                  <td>변경 전 배율과 <code>Math.Clamp</code>를 거친 변경 후 배율</td>
+                  <td>[MinZoom, MaxZoom]</td>
+                  <td><code>Zoom</code>, <code>clampedZoom</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>t</i></b><sub>new</sub></td>
+                  <td>앵커 점 <b><i>a</i></b>가 도망가지 않도록 역산된 새 Pan 좌표</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (DIP)</td>
+                  <td><code>panX, panY</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 현재 <code>Zoom&nbsp;=&nbsp;2, PanX&nbsp;=&nbsp;30</code>인 상태에서 모니터 화면 <b><code>X&nbsp;=&nbsp;230</code></b> 위치에 마우스를 올린 채 배율을 <b>2배&nbsp;→&nbsp;4배</b>로 키운다면?<br/>
+              • 1단계: 현재 마우스(230) 바로 아래에 있는 사진 픽셀 번호는 <code>(230&nbsp;−&nbsp;30)&nbsp;÷&nbsp;2&nbsp;=&nbsp;100번 픽셀</code>입니다.<br/>
+              • 2단계: 사진이 4배로 커지면 100번 픽셀은 원점에서 <code>100&nbsp;×&nbsp;4&nbsp;=&nbsp;400</code>만큼 떨어진 곳으로 늘어납니다. 이 점이 모니터 <code>230</code> 위치에 그대로 있으려면? 새 밀림 값 <code>PanX&nbsp;=&nbsp;230&nbsp;−&nbsp;400&nbsp;=&nbsp;−170</code>으로 당겨 주면 마우스 아래 100번 픽셀이 1픽셀도 안 흔들리고 그 자리에 딱 고정됩니다!
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 2.3 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 3 · 화면 중앙 맞춤</span>
+              <span>이미지 전체 또는 특정 ROI를 화면 정중앙에 꽉 차게 맞추는 <code>Fit</code> 수식</span>
+            </div>
+            <span class="math-eq-num">(식 2.3)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기 (가로 비율과 세로 비율 중 어느 쪽에 맞춰야 할까?):</strong><br/>
+            1) 가로×세로가 <code>(W_img, H_img)</code>인 사진을 <code>(W_view, H_view)</code> 크기의 모니터 창 안에 잘리지 않게 다 넣으려고 합니다.<br/>
+            2) 가로가 딱 차게 만드는 배율은 <i>s<sub>x</sub></i>&nbsp;=&nbsp;<i>W</i><sub>view</sub> / <i>W</i><sub>img</sub> 이고, 세로가 딱 차게 만드는 배율은 <i>s<sub>y</sub></i>&nbsp;=&nbsp;<i>H</i><sub>view</sub> / <i>H</i><sub>img</sub> 입니다.<br/>
+            3) 둘 중 <strong>더 큰 배율</strong>을 고르면 사진의 다른 한쪽이 창 밖으로 잘려 나갑니다! 따라서 사진 전체가 잘리지 않고 다 보이려면 반드시 <strong>둘 중 더 작은 값 <i>s</i>&nbsp;=&nbsp;min(<i>s<sub>x</sub></i>, <i>s<sub>y</sub></i>)</strong>를 선택해야 합니다.<br/>
+            4) 배율 <i>s</i>를 정한 뒤, 크기가 <i>s</i>&nbsp;·&nbsp;<i>W</i><sub>img</sub>가 된 사진을 창 정중앙에 놓으려면 남는 여백 <code>(W_view - s * W_img)</code>를 정확히 반(<code>÷ 2</code>)으로 나누어 왼쪽 여백(<code>PanX</code>)으로 주면 됩니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><i>s</i> = min<span class="delim-group">(<span class="frac"><span class="num"><i>W</i><sub>view</sub></span><span class="den"><i>W</i><sub>img</sub></span></span>, &nbsp;<span class="frac"><span class="num"><i>H</i><sub>view</sub></span><span class="den"><i>H</i><sub>img</sub></span></span>)</span>,</span>
+                <span class="math-expr"><i>t<sub>x</sub></i> = <span class="frac"><span class="num"><i>W</i><sub>view</sub> − <i>s</i> · <i>W</i><sub>img</sub></span><span class="den">2</span></span>,</span>
+                <span class="math-expr"><i>t<sub>y</sub></i> = <span class="frac"><span class="num"><i>H</i><sub>view</sub> − <i>s</i> · <i>H</i><sub>img</sub></span><span class="den">2</span></span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 가로 <code>1000</code>, 세로 <code>500</code>인 사진을 가로 <code>800</code>, 세로 <code>600</code>인 모니터 창에 맞추려면?<br/>
+              • 가로 배율 후보&nbsp;=&nbsp;<code>800&nbsp;÷&nbsp;1000&nbsp;=&nbsp;0.8</code>, 세로 배율 후보&nbsp;=&nbsp;<code>600&nbsp;÷&nbsp;500&nbsp;=&nbsp;1.2</code>&nbsp;→&nbsp;둘 중 작은 값인 <b><code>s&nbsp;=&nbsp;0.8</code></b> 선택!<br/>
+              • <code>0.8</code>배 줄어든 사진 크기는 <code>800&nbsp;×&nbsp;400</code>이므로, 가로 여백 <code>PanX&nbsp;=&nbsp;(800&nbsp;−&nbsp;800)&nbsp;÷&nbsp;2&nbsp;=&nbsp;0</code>, 세로 위아래 여백 <code>PanY&nbsp;=&nbsp;(600&nbsp;−&nbsp;400)&nbsp;÷&nbsp;2&nbsp;=&nbsp;100</code>으로 놓으면 정중앙에 예쁘게 들어갑니다!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: 마우스 휠 고정 줌(<code>ZoomAt</code>) &amp; 드래그 패닝 시뮬레이터</h2>
+        <p>
+          방금 유도한 <strong>(식 2.1), (식 2.2), (식 2.3)</strong>이 실제로 어떻게 작동하는지 아래 캔버스 위에서 마우스 휠을 굴리고 드래그하며 직접 눈으로 확인해 보세요!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · 마우스 휠 고정 줌(ZoomAt) &amp; 드래그 패닝(Pan) 시뮬레이터</div>
+            <div class="lab-subtitle">캔버스 위에서 마우스 휠을 굴려 확대/축소하고, 드래그하여 Pan과 Image 좌표 변화를 확인하세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="viewport-zoom-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <button id="viewport-reset-btn" class="lab-btn">뷰포트 초기화 (Reset Fit — 식 2.3)</button>
+            <span class="lab-subtitle">노란 조준선이 가리키는 이미지 좌표 <code>(imgX, imgY)</code>가 휠 확대 중에도 절대 도망가지 않는 것을 확인하세요!</span>
+          </div>
+          <div id="viewport-zoom-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-build-viewport)
+           ========================================================================= -->
+      <section class="section-card" id="sec-build-viewport">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>BoundsD</code>와 <code>ViewportTransform</code> 전체 코드</h2>
+        <p>
+          이제 3단계에서 유도한 수식들을 C# <code>readonly record struct</code> 코드로 그대로 옮겨 적어 봅시다.
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · 축 정렬 경계 상자 BoundsD &amp; 카메라 변환기 ViewportTransform 완성본</span>
+            <a class="source-link-pill" href="../src/VisionGeometry/ViewportTransform.cs">src/VisionGeometry/ViewportTransform.cs</a>
+          </div>
+          <pre><code>using System;
+
+namespace VisionGeometry;
+
+/// &lt;summary&gt;
+/// 축에 나란한 사각형 영역(Axis-Aligned Bounding Box)을 표현하는 불변 값 타입입니다.
+/// &lt;/summary&gt;
+public readonly record struct BoundsD(double Left, double Top, double Right, double Bottom)
+{
+    public double Width =&gt; Right - Left;
+    public double Height =&gt; Bottom - Top;
+    public PointD Center =&gt; new((Left + Right) * 0.5, (Top + Bottom) * 0.5);
+
+    // 점 p가 상자 내부(경계선 포함)에 들어왔는지 검사합니다.
+    public bool Contains(PointD p) =&gt;
+        p.X &gt;= Left &amp;&amp; p.X &lt;= Right &amp;&amp; p.Y &gt;= Top &amp;&amp; p.Y &lt;= Bottom;
+
+    // 두 상자가 1픽셀이라도 서로 겹치는지(교차하는지) 검사합니다.
+    public bool Intersects(BoundsD b) =&gt;
+        Right &gt;= b.Left &amp;&amp; Left &lt;= b.Right &amp;&amp; Bottom &gt;= b.Top &amp;&amp; Top &lt;= b.Bottom;
+
+    // 상자 사방을 margin만큼 넓힌 새 상자를 반환합니다.
+    public BoundsD Inflate(double margin) =&gt;
+        new(Left - margin, Top - margin, Right + margin, Bottom + margin);
+}
+
+/// &lt;summary&gt;
+/// 원본 이미지 픽셀 좌표계와 화면 논리 좌표계(DIP)를 양방향으로 통역하는 불변 카메라 구조체입니다.
+/// &lt;/summary&gt;
+public readonly record struct ViewportTransform(double Zoom, double PanX, double PanY, double DpiScale = 1.0)
+{
+    public const double MinZoom = 0.01;
+    public const double MaxZoom = 64.0;
+
+    // (식 2.1) 정방향: 원본 이미지 픽셀 → 모니터 화면 DIP
+    public PointD ImageToScreen(PointD imagePoint) =&gt;
+        new((imagePoint.X * Zoom) + PanX, (imagePoint.Y * Zoom) + PanY);
+
+    // (식 2.1) 역방향: 모니터 화면 DIP → 원본 이미지 픽셀
+    public PointD ScreenToImage(PointD screenPoint) =&gt;
+        new((screenPoint.X - PanX) / Zoom, (screenPoint.Y - PanY) / Zoom);
+
+    // 화면을 (deltaDipX, deltaDipY)만큼 평행이동한 새 뷰포트를 반환합니다.
+    public ViewportTransform PanBy(double deltaDipX, double deltaDipY) =&gt;
+        this with { PanX = PanX + deltaDipX, PanY = PanY + deltaDipY };
+
+    // (식 2.2) 마우스 커서 위치(screenAnchor) 아래의 이미지 지점을 고정한 채 배율을 변경합니다.
+    public ViewportTransform ZoomAt(PointD screenAnchor, double targetZoom)
+    {
+        double clampedZoom = Math.Clamp(targetZoom, MinZoom, MaxZoom);
+        PointD imageAnchor = ScreenToImage(screenAnchor);
+        double newPanX = screenAnchor.X - (imageAnchor.X * clampedZoom);
+        double newPanY = screenAnchor.Y - (imageAnchor.Y * clampedZoom);
+        return this with { Zoom = clampedZoom, PanX = newPanX, PanY = newPanY };
+    }
+
+    // (식 2.3) 원본 이미지(imageWidth x imageHeight) 전체를 뷰포트 창 정중앙에 맞춥니다.
+    public static ViewportTransform Fit(
+        double imageWidth, double imageHeight,
+        double viewWidthDip, double viewHeightDip,
+        double dpiScale = 1.0)
+    {
+        double scaleX = viewWidthDip / Math.Max(1.0, imageWidth);
+        double scaleY = viewHeightDip / Math.Max(1.0, imageHeight);
+        double zoom = Math.Clamp(Math.Min(scaleX, scaleY), MinZoom, MaxZoom);
+        double panX = (viewWidthDip - (imageWidth * zoom)) * 0.5;
+        double panY = (viewHeightDip - (imageHeight * zoom)) * 0.5;
+        return new ViewportTransform(zoom, panX, panY, dpiScale);
+    }
+}</code></pre>
+
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>핵심 코드 구문</th>
+                <th>무슨 역할을 하며 왜 이렇게 작성했을까요?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Right &gt;= b.Left &amp;&amp; Left &lt;= b.Right ...</code></td>
+                <td>두 사각형이 안 겹치려면 한쪽이 완전히 왼쪽·오른쪽·위·아래에 있어야 합니다. 그 반대 조건을 쓰면 단 4번의 부등호 비교만으로 겹침 여부를 즉시 알아냅니다.</td>
+              </tr>
+              <tr>
+                <td><code>ImageToScreen(PointD imagePoint)</code></td>
+                <td>(식 2.1)의 정방향 수식 <code>x * Zoom + PanX</code>를 그대로 구현합니다. ROI 도형을 모니터 화면에 그릴 때 사용합니다.</td>
+              </tr>
+              <tr>
+                <td><code>ScreenToImage(PointD screenPoint)</code></td>
+                <td>(식 2.1)의 역방향 수식 <code>(x - PanX) / Zoom</code>을 구현합니다. 마우스로 클릭한 화면 위치가 사진의 몇 번 픽셀인지 찾을 때 사용합니다.</td>
+              </tr>
+              <tr>
+                <td><code>this with { PanX = PanX + deltaDipX, ... }</code></td>
+                <td>C# <code>record struct</code>의 <strong>비파괴 복사(<code>with</code> 식)</strong> 문법입니다. 기존 구조체를 덮어쓰지 않고, <code>Zoom</code>과 <code>DpiScale</code>은 그대로 유지한 채 <code>PanX, PanY</code>만 바뀐 새 구조체를 만듭니다.</td>
+              </tr>
+              <tr>
+                <td><code>Math.Clamp(targetZoom, MinZoom, MaxZoom)</code></td>
+                <td>배율이 너무 작아져 <code>0</code>이 되거나 무한히 커지는 것을 막아 <code>ScreenToImage</code>의 나눗셈이 언제나 안전하게 동작하도록 보장합니다.</td>
+              </tr>
+              <tr>
+                <td><code>PointD imageAnchor = ScreenToImage(screenAnchor);</code></td>
+                <td>(식 2.2)의 1단계입니다. 배율을 바꾸기 전에 먼저 현재 마우스 커서 아래에 놓인 원본 이미지 픽셀 좌표를 구해 기억해 둡니다.</td>
+              </tr>
+              <tr>
+                <td><code>screenAnchor.X - (imageAnchor.X * clampedZoom)</code></td>
+                <td>(식 2.2)의 2단계입니다. 새 배율(<code>clampedZoom</code>)을 적용한 뒤에도 <code>imageAnchor</code>가 <code>screenAnchor</code> 위치에 그대로 머물도록 새 <code>PanX, PanY</code>를 역산합니다.</td>
+              </tr>
+              <tr>
+                <td><code>Math.Min(scaleX, scaleY)</code></td>
+                <td>(식 2.3)에서 가로 맞춤 배율과 세로 맞춤 배율 중 더 작은 쪽을 택해 사진이 화면 밖으로 잘리지 않게 합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & UML 다이어그램 (#sec-solid-grasp, #sec-diagrams)
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: 왜 좌표 변환을 <code>ViewportTransform</code> 하나로 모았을까?</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <p class="solid-grasp-intro">
+          처음 프로그램을 짤 때는 마우스 클릭 이벤트 함수마다 직접 <code>(mouseX - panX) / zoom</code> 수식을 복사해서 붙여넣기 쉽습니다.<br/>
+          방금 우리가 만든 것처럼 <code>ViewportTransform</code> 클래스로 분리하면 어떤 강력한 장점이 생길까요?
+        </p>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Information Expert (정보 전문가)</span>
+            <h4>배율(<code>Zoom</code>)과 위치(<code>Pan</code>)를 가진 객체가 변환 공식도 직접 책임진다</h4>
+            <p><code>Zoom, PanX, PanY, DpiScale</code> 데이터를 모두 들고 있는 전문가가 바로 <code>ViewportTransform</code>이므로, 화면↔이미지 변환 공식과 <code>ZoomAt</code> 계산을 이 구조체 안에 캡슐화했습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>카메라 렌즈 수식 계산과 마우스 드래그 상태 관리의 분리</h4>
+            <p><code>ViewportTransform</code>은 오직 '카메라 좌표 변환 수학'만 수행하고, 마우스 버튼을 누른 채 화면을 끌고 다니는 상태 관리는 06장에서 배울 <code>PanGesture</code>가 별도로 담당합니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Low Coupling (낮은 결합도)</span>
+            <h4>클릭 판정기·렌더러·타일 계산기가 똑같은 변환 객체를 공유</h4>
+            <p>클릭 판정기(<code>RoiHitTester</code>), 장면 조립기(<code>ScenePainter</code>), 타일 계산기(<code>TilePlanner</code>)가 모두 동일한 <code>ViewportTransform</code>을 받아 쓰므로, 화면에 그려진 위치와 마우스가 클릭되는 위치가 0.001픽셀도 어긋나지 않습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · 불변성 (Immutability)</span>
+            <h4>줌/패닝 시 기존 값을 덮어쓰지 않고 새 <code>ViewportTransform</code> 반환</h4>
+            <p><code>ZoomAt()</code>이나 <code>PanBy()</code>는 기존 구조체를 수정하지 않고 <code>with</code> 식으로 새 구조체를 반환하므로, 백그라운드 렌더링 스레드가 화면을 그리는 도중에 배율이 반쪽만 바뀌는 화면 깨짐 버그가 원천 차단됩니다.</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 왜 이 구조가 초고속 최적화에 유리할까요?</strong><br/>8K~32K 거대 이미지를 확대할 때 수억 개의 이미지 픽셀을 다시 계산하는 게 아니라, <code>ViewportTransform</code>의 숫자 3개(<code>Zoom, PanX, PanY</code>)만 바꾸어 GPU와 타일 계산기에 넘기므로 32K 영상도 0.001ms 만에 즉시 확대/이동됩니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>02장 카메라 뷰포트(<code>ViewportTransform</code>)와 주변 클래스들의 연결 구조</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"readonly record struct","title":"ViewportTransform","role":"화면(DIP) ↔ 원본 이미지(px) 양방향 좌표 변환 및 커서 고정 줌 계산기","color":"#38bdf8","members":["+ Scale: double (확대 배율)","+ PanX, PanY: double (화면 밀림)","+ DpiScale: double (모니터 배율)","+ ImageToScreen(PointD): PointD","+ ScreenToImage(PointD): PointD","+ ZoomAt(anchorDip, factor): ViewportTransform","+ FitImage(imgW, imgH, viewW, viewH)"]},{"stereotype":"IGesture 구현체","title":"PanGesture","role":"마우스 휠 클릭/우클릭 드래그로 화면(PanX, PanY)을 미는 제스처","color":"#fbbf24","members":["- _lastDip: PointD","+ Update(currentDip): PanBy 호출","+ Commit() / Cancel()"]},{"stereotype":"GRASP Controller","title":"InteractionController","role":"마우스 휠 회전 시 ZoomAt을 호출하고 우클릭 시 PanGesture 시작","color":"#f472b6","members":["+ Viewport: ViewportTransform","+ MouseWheel(dip, delta)","+ FitImage() / FocusBounds()"]},{"stereotype":"LOD Tile Calculator","title":"TilePlanner","role":"현재 ViewportTransform으로 화면에 보이는 이미지 타일 번호만 골라냄","color":"#34d399","members":["+ Plan(viewport, imgW, imgH)","- ComputeVisibleImageBounds()"]}],"edges":[{"from":2,"to":1,"label":"우클릭 시 생성"},{"from":1,"to":0,"label":"드래그만큼 PanBy 갱신"},{"from":2,"to":0,"label":"MouseWheel → ZoomAt 호출"},{"from":3,"to":0,"label":"ScreenToImage로 가시 영역 계산"}],"tiers":[[1,2,3],[0]]}</script>
+        <div class="diagram-caption">방금 우리가 작성한 <code>ViewportTransform</code>을 앞으로 만들 <code>InteractionController</code>, <code>PanGesture</code>, <code>TilePlanner</code>가 어떻게 함께 사용하는지 보여주는 설계도입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>02장 시퀀스 다이어그램 · 마우스 휠 확대(<code>ZoomAt</code>) 시 커서 위치 고정 호출 순서</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["Dx12Viewport (HWND)","InteractionController","ViewportTransform","RenderWorker"],"messages":[{"from":0,"to":1,"text":"OnMouseWheel(anchorDip, wheelDelta)"},{"from":1,"to":2,"text":"ZoomAt(anchorDip, zoomFactor)"},{"from":2,"to":2,"text":"1단계: anchorImg = ScreenToImage(anchorDip) [현재 커서 아래 사진 픽셀 기억]"},{"from":2,"to":2,"text":"2단계: newPan = anchorDip - anchorImg * newScale [안 밀리게 새 Pan 역산]"},{"from":2,"to":1,"text":"새 ViewportTransform 반환","ret":true},{"from":0,"to":3,"text":"RequestFrame(newViewport)"}]}</script>
+        <div class="diagram-caption">사용자가 마우스 휠을 굴릴 때 마우스 아래 이미지 좌표(<code>anchorImg</code>)를 먼저 구하고 새 <code>Pan</code>을 역산하는 시간 순서입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 02장 마무리 셀프 체크 &amp; 다음 장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · <code>ScreenToImage(ImageToScreen(p))</code>를 실행하면 어떤 값이 나와야 정상일까요?</summary>
+          <p><strong>정답:</strong> 원본 사진 좌표 <code>p</code>를 모니터 화면 좌표로 바꿨다가(<code>× Zoom + Pan</code>) 다시 역함수로 되돌렸으므로(<code>(화면 - Pan) ÷ Zoom</code>), 원래 사진 좌표 <code>p</code>가 오차 없이 그대로 나와야 합니다! 실제 단위 테스트에서도 이 왕복 항등식(Round-trip Identity)으로 뷰포트 코드를 검증합니다.</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 다음 장(03장)에서는 무엇을 만들게 되나요?</summary>
+          <p><strong>징검다리:</strong> 이제 마우스가 원본 사진의 몇 번 픽셀을 가리키는지 정확히 알게 되었습니다! 다음 <strong>03장</strong>에서는 사진 위에 <strong>사각형(Rectangle), 원/타원(Circle), 삼각형(Triangle), 자유 다각형(Polygon)</strong> 등 4가지 ROI 도형을 그리고 회전시키는 <code>RoiGeometry</code> 엔진을 직접 만들어 봅니다.</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="01-csharp-and-math-prereq.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">01장 · 사전지식: C# 실전 문법 &amp; 2D 벡터 수학</span>
+        </a>
+        <a class="pager-link" href="03-roi-shapes-and-polygons.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">03장 · 도형 엔진(사각형·원·폴리곤)과 폐루프 수학</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

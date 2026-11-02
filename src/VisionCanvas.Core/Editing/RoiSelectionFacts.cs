@@ -8,28 +8,16 @@ public sealed class RoiSelectionFacts
     private readonly Lazy<bool> _hasMultipleRoots;
     private readonly Lazy<bool> _canGroup;
 
-    public Roi? First
-    {
-        get;
-    }
+    public Roi? First { get; }
 
-    public bool HasGroup
-    {
-        get;
-    }
+    public bool HasGroup { get; }
 
     public bool HasMultipleRoots => _hasMultipleRoots.Value;
     public bool CanGroup => _canGroup.Value;
 
-    public bool HasMixedFilters
-    {
-        get;
-    }
+    public bool HasMixedFilters { get; }
 
-    public ImmutableArray<Roi> RegisteredFilters
-    {
-        get;
-    }
+    public ImmutableArray<Roi> RegisteredFilters { get; }
 
     internal RoiSelectionFacts(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection, RoiSnapshot snapshot)
     {
@@ -41,9 +29,7 @@ public sealed class RoiSelectionFacts
         FilterSettings? firstSettings = null;
         // Large partial selections scan immutable values once instead of performing a tree lookup
         // for every randomly ordered selected ID. Small selections keep the direct lookup path.
-        var selectedRois = selection.Count == rois.Count ? rois.Values
-            : selection.Count > rois.Count / 8 ? rois.Values.Where(roi => selection.Contains(roi.Id))
-            : selection.Select(id => rois[id]);
+        var selectedRois = EnumerateSelectedRois(rois, selection);
         foreach (var roi in selectedRois)
         {
             if (First is null || roi.Order < First.Order)
@@ -68,6 +54,21 @@ public sealed class RoiSelectionFacts
         }
         registered.Sort(Comparer<Roi>.Create((a, b) => a.Order.CompareTo(b.Order)));
         RegisteredFilters = registered.ToImmutable();
+    }
+
+    private static IEnumerable<Roi> EnumerateSelectedRois(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection)
+    {
+        if (selection.Count == rois.Count)
+        {
+            return rois.Values;
+        }
+
+        if (selection.Count > rois.Count / 8)
+        {
+            return rois.Values.Where(roi => selection.Contains(roi.Id));
+        }
+
+        return selection.Select(id => rois[id]);
     }
 
     private static bool FindMultipleRoots(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection)

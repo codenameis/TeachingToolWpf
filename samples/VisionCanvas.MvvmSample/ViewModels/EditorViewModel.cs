@@ -45,6 +45,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         Input = input;
         Layout = layout;
         KeyAction = HandleKey;
+        Navigation = new(editor, input, layout, () => IsInputEnabled);
         // () => ... 는 '나중에 호출할 함수'를 전달하는 문법이다. 생성 순간 파일 창이 열리는 것은 아니다.
         // 두 번째 함수는 실행 가능 여부다. 파일 로딩 중에는 다른 열기 요청을 시작하지 않는다.
         OpenCommand = CreateAsync(async () =>
@@ -84,7 +85,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         {
             _images.Cancel();
             Input.Cancel();
-        }, () => !_disposed);
+        }, () => !_disposed && Input.IsEnabled);
         // 그룹화 가능 여부도 Core의 판단을 사용한다. VM에서 같은 계층 규칙을 중복 작성하지 않는다.
         GroupCommand = Create(() => _editor.GroupSelection(), () => CanEdit && _editor.State.SelectionFacts.CanGroup);
         UngroupCommand = Create(_editor.UngroupSelection, () => CanEdit && _editor.State.SelectionFacts.HasGroup);
@@ -112,7 +113,11 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
     // Scene은 '현재 무엇을 그릴지'를 담은 데이터다. 픽셀을 직접 그리는 객체는 아니다.
     // null!의 !는 컴파일러에 초기화를 보장한다고 알린다. 실제 값은 생성자의 Refresh에서 넣는다.
     public RenderScene Scene { get; private set; } = null!;
-    public bool IsInputEnabled => !_disposed && !_images.IsBusy;
+    public ViewportNavigationViewModel Navigation { get; }
+
+    public bool IsNavigationEnabled => Input.IsEnabled && !_disposed;
+
+    public bool IsInputEnabled => IsNavigationEnabled && !_images.IsBusy;
     private bool CanEdit => IsInputEnabled && _editor.State.Image is not null && !Input.IsDragging;
     private bool HasSelection => _editor.State.SelectionCount > 0;
     public string Status => _status;
@@ -223,6 +228,14 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
 
     public bool HandleKey(Key key, bool control, bool shift)
     {
+        if (!Input.IsEnabled)
+        {
+            return false;
+        }
+        if (CanEdit && ViewportKeyboard.Nudge(Input, key, control, shift))
+        {
+            return true;
+        }
         // 키와 Ctrl/Shift 상태 세 값을 묶어서 비교한다. _는 해당 값이 무엇이든 상관없다는 뜻이다.
         // 버튼과 같은 명령을 실행하므로 단축키에 편집 규칙을 따로 복사할 필요가 없다.
         var command = (key, control, shift) switch
@@ -263,6 +276,8 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
         // DIP는 WPF의 화면 크기 단위다. DPI 배율이 달라도 입력과 표시가 같은 위치를 가리켜야 한다.
+        Input.NavigationOnly = !IsInputEnabled;
+        Navigation.Refresh();
         Input.SetViewportSize(Layout.Width, Layout.Height);
         // 기존 문서와 미리보기 데이터를 묶는다. 이 줄에서 큰 이미지의 픽셀 배열을 복사하지 않는다.
         Scene = new(_editor.State, _images.Image, _images.Generation, Layout.Width, Layout.Height, Layout.Dpi,
@@ -271,6 +286,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         // nameof(Scene)은 "Scene"이라는 문자열을 만들며, 속성 이름을 바꿀 때 함께 추적할 수 있다.
         PropertyChanged?.Invoke(this, new(nameof(Scene)));
         PropertyChanged?.Invoke(this, new(nameof(IsInputEnabled)));
+        PropertyChanged?.Invoke(this, new(nameof(IsNavigationEnabled)));
         PropertyChanged?.Invoke(this, new(nameof(Summary)));
         PropertyChanged?.Invoke(this, new(nameof(ToolDescription)));
         RefreshRoiItems();

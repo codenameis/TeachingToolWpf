@@ -7,8 +7,13 @@ namespace VisionCanvas.Core.Editing;
 /// <summary>Prepares an immutable paste result without touching the session, UI or history.</summary>
 internal static class RoiPaste
 {
-    public static DocumentState Prepare(DocumentState before, RoiClipboardContent content, ImageReference image,
-        PointD step, long order, CancellationToken token)
+    public static DocumentState Prepare(
+        DocumentState before,
+        RoiClipboardContent content,
+        ImageReference image,
+        PointD step,
+        long order,
+        CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         var templates = content.Entries;
@@ -16,12 +21,8 @@ internal static class RoiPaste
         var ids = templates.ToDictionary(r => r.Id, _ => Guid.NewGuid());
         var rois = before.Rois.ToBuilder();
         var roots = new HashSet<Guid>();
-        var batches = before.RepeatedRois;
-        var selected = ImmutableDictionary.CreateBuilder<Guid, RoiCellSet>();
-        var repeatedIndex = 0;
         foreach (var template in templates)
         {
-            AddRepeatedBefore(template.Order);
             token.ThrowIfCancellationRequested();
             var id = ids[template.Id];
             if (template.ParentId is not { } parent || !ids.ContainsKey(parent))
@@ -29,16 +30,22 @@ internal static class RoiPaste
                 roots.Add(id);
             }
 
+            Guid? resolvedParent = null;
+            if (template.ParentId is { } originalParent && ids.TryGetValue(originalParent, out var copiedParent))
+            {
+                resolvedParent = copiedParent;
+            }
+
             rois.Add(id, template with
             {
                 Id = id,
                 Geometry = placement.Apply(template.Geometry),
-                ParentId = template.ParentId is { } originalParent && ids.TryGetValue(originalParent, out var copiedParent) ? copiedParent : null,
+                ParentId = resolvedParent,
                 Order = ++order,
                 Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사"
             });
         }
-        AddRepeatedBefore(long.MaxValue);
+
         foreach (var id in ids.Values)
         {
             token.ThrowIfCancellationRequested();
@@ -47,24 +54,10 @@ internal static class RoiPaste
                 throw new InvalidOperationException("ROI 계층은 RootGroup을 포함하여 최대 4단계입니다.");
             }
         }
-        var result = before.WithRois(rois.ToImmutable(), ids.Values) with
-        {
-            Selection = RoiIdSet.CreateRange(roots),
-            RepeatedRois = batches,
-            RepeatedSelection = selected.ToImmutable()
-        };
+
+        var result = before.WithRois(rois.ToImmutable(), ids.Values)
+            .WithSelection(RoiIdSet.CreateRange(roots));
         token.ThrowIfCancellationRequested();
         return result;
-
-        void AddRepeatedBefore(long nextOrder)
-        {
-            while (repeatedIndex < content.Repeated.Length && content.Repeated[repeatedIndex].Order <= nextOrder)
-            {
-                token.ThrowIfCancellationRequested();
-                var batch = content.Repeated[repeatedIndex++].Place(Guid.NewGuid(), ++order, placement);
-                batches = batches.Add(batch.Id, batch);
-                selected.Add(batch.Id, batch.Cells);
-            }
-        }
     }
 }

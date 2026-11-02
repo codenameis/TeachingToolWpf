@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>04장 · 부모-자식 경계 충돌과 이동·회전 한계 방정식 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 04 · 1단계: 자식 ROI가 부모 도형 벽을 뚫고 나가지 못하게 막는 연속 충돌 수학</div>
+        <h1>04장 · 부모-자식 경계 충돌과 이동·회전 한계 방정식 (<code>RoiMotionBounds</code>, <code>RoiGroupBounds</code>)</h1>
+        <p class="hero-lead">
+          03장에서 우리는 사각형·원·삼각형·폴리곤을 표현하는 <code>RoiGeometry</code>를 만들었습니다.<br/>
+          실제 반도체·PCB 검사에서는 <strong>모듈(부모 ROI) 안에 리드 핀(자식 ROI)</strong>들이 계층 구조로 들어갑니다.<br/>
+          사용자가 자식 ROI를 마우스로 빠르게 드래그하거나 회전할 때 부모 벽 밖으로 뚫고 나가면 안 되며, 벽에 딱 멈추거나 벽면을 타고 매끄럽게 미끄러져야(Wall Sliding) 합니다.<br/>
+          이 장에서는 <strong>40회 이분법(스무고개)</strong>, <strong>내적을 이용한 벽면 슬라이딩</strong>, 그리고 <strong>삼각방정식 <i>A</i> cos <i>θ</i> + <i>B</i> sin <i>θ</i> = <i>C</i></strong>를 한 걸음씩 유도하고 전체 C# 코드로 구현합니다!
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 자식 도형이 부모 상자 벽에 부딪혀 미끄러지는 물리 엔진의 3단계</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">1단계 · 포함 검사</span>
+            <h4>자식이 부모 안에 완전히 들어있는가? (<code>ContainsGeometry</code>)</h4>
+            <p>자식 도형의 꼭짓점(또는 원의 16방향 끝점)들이 모두 부모 도형의 <code>Contains(p)</code>를 통과하는지 확인합니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">2단계 · 벽 접촉점 찾기</span>
+            <h4>몇 % 지점에서 부모 벽에 딱 닿는가? (40회 이분법)</h4>
+            <p>마우스를 100픽셀 끌었을 때 벽을 뚫고 나간다면, 절반씩 쪼개어 확인하는 스무고개(이분법)를 40번 반복해 벽에 딱 닿는 비율 <i>t</i><sup>*</sup>를 찾습니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">3단계 · 벽면 슬라이딩</span>
+            <h4>남은 마우스 힘으로 벽을 따라 미끄러지기 (내적 정사영)</h4>
+            <p>벽에 닿은 뒤 남은 이동 벡터 <b><i>r</i></b>을 부모 벽 방향 단위화살표 <b><i>u</i></b>에 내적(<code>Dot</code>)하여 벽면을 타고 부드럽게 미끄러지게 만듭니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · 40회 스무고개(이분법)와 미닫이문 미끄러지기(슬라이딩)</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>🎯 비유 1 · 스무고개 40번으로 머리카락 1조분의 1 오차까지 벽 찾기 (이분법)</h4>
+            <p>
+              1부터 100 사이의 숫자를 맞출 때 "50보다 크니?" → "75보다 작니?"처럼 절반씩 범위를 줄이면 스무 번(2<sup>20</sup> ≈ 100만) 안에 무조건 맞출 수 있죠!<br/>
+              이를 40번 반복하면 구간 크기가 <strong>1 / 2<sup>40</sup> ≈ 0.0000000000009 (약 1조분의 1)</strong>로 줄어들어, 어떤 모양의 도형이든 부모 벽에 딱 닿는 순간을 오차 없이 찾아냅니다.
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>🚪 비유 2 · 방바닥에서 상자를 벽 쪽으로 대각선으로 밀 때 (벽면 슬라이딩)</h4>
+            <p>
+              상자를 북동쪽(오른쪽 위 대각선)으로 밀다가 오른쪽 세로 벽에 딱 부딪혔다고 상상해 보세요. 상자가 그 자리에서 아예 얼어붙으면 조작감이 매우 답답합니다.<br/>
+              실제 물리 세계처럼 <strong>오른쪽으로 벽을 뚫으려는 힘은 벽에 막혀 사라지고, 위쪽(북쪽)으로 밀던 힘만 살아남아 세로 벽을 타고 위로 스르륵 미끄러지게</strong> 해주는 것이 바로 <code>ConstrainTranslation</code>입니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & 수학 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 이 장을 시작하기 위한 4가지 기초 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <div class="prereq-grid">
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 1&nbsp;·&nbsp;비율 <i>t</i></span> 출발점(0)에서 도착점(1)까지의 이동 비율 <i>t</i>&nbsp;∈&nbsp;[0, 1]</h4>
+            <p>
+              자식 도형을 이동 벡터 <b><i>Δ</i></b>&nbsp;=&nbsp;(<i>Δ<sub>x</sub></i>, <i>Δ<sub>y</sub></i>)만큼 옮길 때, 비율 <i>t</i> (0&nbsp;≤&nbsp;<i>t</i>&nbsp;≤&nbsp;1)를 곱한 <strong><i>t</i>&nbsp;·&nbsp;<b><i>Δ</i></b></strong>는 전체 이동 경로 위의 중간 지점을 뜻합니다.
+            </p>
+            <ul>
+              <li><code>t&nbsp;=&nbsp;0.0</code>: 아직 출발하지 않은 원래 자리 (무조건 부모 안쪽이므로 안전!)</li>
+              <li><code>t&nbsp;=&nbsp;0.5</code>: 마우스가 끈 거리의 딱 절반(50%)만큼 이동한 자리</li>
+              <li><code>t&nbsp;=&nbsp;1.0</code>: 마우스 커서가 있는 최종 희망 도착지</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 2&nbsp;·&nbsp;터널링 방지</span> 왜 도착점(<code>t&nbsp;=&nbsp;1</code>)만 검사하면 얇은 벽을 뚫고 지나갈까?</h4>
+            <p>
+              사용자가 마우스를 재빠르게 휘두르면 한 프레임 만에 이동 거리 <code>delta</code>가 500픽셀이 될 수도 있습니다. 만약 다각형의 움푹 들어간 벽 너비가 20픽셀이라면, 중간 경로를 안 보고 도착점만 검사했을 때 벽을 순간이동으로 건너뛰는 <strong>터널링(Tunneling) 버그</strong>가 발생합니다.<br/>
+              그래서 <code>FitsTranslationStep</code>은 이동 구간을 잘게 나누어 경로 중간중간도 모두 부모 안에 들어있는지 꼼꼼히 확인합니다.
+            </p>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 3&nbsp;·&nbsp;내적 정사영</span> 남은 힘 <b><i>r</i></b>을 벽 방향 단위벡터 <b><i>u</i></b>로 투영하기</h4>
+            <p>
+              01장에서 배운 내적(<code>Dot</code>)이 여기서 가장 빛을 발합니다! 벽의 시작점과 끝점을 빼서 길이로 나눈 <strong>길이가 1인 벽 방향 화살표 <b><i>u</i></b></strong>를 만든 뒤, 남은 이동 벡터 <b><i>r</i></b>과 내적하면:
+            </p>
+            <pre><code>// 벽 방향으로 미끄러질 거리(스칼라)&nbsp;=&nbsp;r.Dot(u)
+// 벽 방향으로 미끄러질 2D 이동 벡터&nbsp;=&nbsp;u * r.Dot(u)
+PointD slideVector&nbsp;=&nbsp;u * r.Dot(u);</code></pre>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 4&nbsp;·&nbsp;삼각함수 합성</span> <i>A</i> cos&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>B</i> sin&nbsp;<i>θ</i>&nbsp;=&nbsp;<i>C</i> 푸는 법</h4>
+            <p>
+              자식 도형의 꼭짓점이 중심 주위를 회전할 때 좌표는 <code>(cos&nbsp;θ, sin&nbsp;θ)</code>로 변하고, 부모의 직선 벽 방정식에 대입하면 항상 <strong><i>A</i> cos&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>B</i> sin&nbsp;<i>θ</i>&nbsp;=&nbsp;<i>C</i></strong> 모양이 됩니다.<br/>
+              여기서 직각삼각형의 빗변 <strong><i>R</i>&nbsp;=&nbsp;√(<i>A</i><sup>2</sup>&nbsp;+&nbsp;<i>B</i><sup>2</sup>)</strong>과 각도 <strong><i>φ</i>&nbsp;=&nbsp;atan2(<i>B</i>, <i>A</i>)</strong>를 쓰면 좌변이 <strong><i>R</i> cos(<i>θ</i>&nbsp;−&nbsp;<i>φ</i>)&nbsp;=&nbsp;<i>C</i></strong> 로 합쳐져서 역코사인 <code>Math.Acos(C / R)</code> 한 번으로 정확한 충돌 각도 <i>θ</i>가 구해집니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학으로 한 걸음씩 공식 유도하기 (#sec-motion-math)
+           ========================================================================= -->
+      <section class="section-card" id="sec-motion-math">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: 40회 이분법 · 벽면 슬라이딩 · 회전 한계각</h2>
+
+        <!-- Formula 4.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 40회 이분 탐색</span>
+              <span>40회 이분법(Bisection)을 이용한 최대 무충돌 이동 비율 <i>t</i><sup>*</sup> 탐색</span>
+            </div>
+            <span class="math-eq-num">(식 4.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 만약 희망 이동량 전체(<code>t&nbsp;=&nbsp;1</code>)로 이동해도 부모 안에 들어있다면 이분법을 할 필요 없이 바로 <code>t*&nbsp;=&nbsp;1.0</code>을 반환합니다.<br/>
+            2) 만약 <code>t&nbsp;=&nbsp;1</code>에서 부모 밖으로 나간다면, 안전한 하한을 <code>lo&nbsp;=&nbsp;0.0</code>, 충돌하는 상한을 <code>hi&nbsp;=&nbsp;1.0</code>으로 놓습니다.<br/>
+            3) <code>for</code> 루프를 40번 돌면서 딱 절반 지점 <code>mid&nbsp;=&nbsp;(lo&nbsp;+&nbsp;hi) * 0.5</code>로 이동시켜 봅니다.<br/>
+            4) <code>mid</code>까지 가는 동안 부모 안에 안전하게 들어있다면 안전한 하한을 끌어올리고(<code>lo&nbsp;=&nbsp;mid</code>), 밖으로 삐져나간다면 상한을 낮춥니다(<code>hi&nbsp;=&nbsp;mid</code>).<br/>
+            5) 40번 반복이 끝난 뒤의 <code>lo</code> 값은 실제 벽 접촉 비율 <i>t</i><sup>*</sup>와 차이가 최대 1 / 2<sup>40</sup> 이하이면서 <strong>절대 부모 밖으로 나가지 않는 가장 큰 안전 비율</strong>이 됩니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">초기 구간 [<i>a</i><sub>0</sub>, <i>b</i><sub>0</sub>] = [0, 1], &nbsp;<i>k</i> = 0, 1, …, 39</span>
+                <span class="math-expr"><i>m<sub>k</sub></i> = <span class="frac"><span class="num"><i>a<sub>k</sub></i> + <i>b<sub>k</sub></i></span><span class="den">2</span></span></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr">
+                  [<i>a</i><sub><i>k</i>+1</sub>, <i>b</i><sub><i>k</i>+1</sub>] =
+                  <span class="math-piecewise">
+                    <span class="math-piecewise-row">
+                      <span>[<i>m<sub>k</sub></i>, <i>b<sub>k</sub></i>]</span>
+                      <span class="math-piecewise-cond">(<i>P</i> ⊇ <i>C</i> + <i>m<sub>k</sub></i><b><i>Δ</i></b> 경로 전체 포함 시)</span>
+                    </span>
+                    <span class="math-piecewise-row">
+                      <span>[<i>a<sub>k</sub></i>, <i>m<sub>k</sub></i>]</span>
+                      <span class="math-piecewise-cond">(경계 이탈 시)</span>
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">오차 한계</span>
+                <span class="math-expr">|<i>t</i><sup>*</sup> − <i>a</i><sub>40</sub>| ≤ <span class="frac"><span class="num">1</span><span class="den">2<sup>40</sup></span></span> ≈ 9.095 × 10<sup>−13</sup></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>P</i>, <i>C</i></td>
+                  <td>부모 도형(Parent ROI)과 이동 전 자식 도형(Child ROI) 영역</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) 부분집합</td>
+                  <td><code>RoiGeometry parent, child</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>Δ</i></b></td>
+                  <td>사용자가 마우스로 요청한 희망 이동 변위 벡터</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>PointD delta</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>a<sub>k</sub></i>, <i>b<sub>k</sub></i>, <i>m<sub>k</sub></i></td>
+                  <td><i>k</i>번째 이분 탐색의 하한(안전), 상한(충돌), 중간 시험 비율</td>
+                  <td>[0, 1] 무차원 비율</td>
+                  <td><code>double lo, hi, mid</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 자식을 오른쪽으로 <b>100픽셀</b> 밀었는데, 사실 <b>60픽셀</b> 지점에 부모 벽이 있다면?<br/>
+              • 1회차(<code>mid&nbsp;=&nbsp;0.5</code>): 절반인 50픽셀 가봄&nbsp;→&nbsp;안 부딪힘(OK)! 안전 하한 <code>lo&nbsp;=&nbsp;0.5</code>로 상승 (남은 범위: 50~100)<br/>
+              • 2회차(<code>mid&nbsp;=&nbsp;0.75</code>): 75픽셀 가봄&nbsp;→&nbsp;벽 뚫음(NG)! 상한 <code>hi&nbsp;=&nbsp;0.75</code>로 하락 (남은 범위: 50~75)<br/>
+              • 이렇게 반씩 쪼개기를 40번 반복하면 정확히 <b><code>lo&nbsp;=&nbsp;0.600000000000</code> (60픽셀)</b> 지점을 찾아내어 벽 바로 앞에 딱 멈춥니다!
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 4.2 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 2 · 벽면 슬라이딩</span>
+              <span>부모 벽면 방향 단위벡터 <b><i>u</i></b> 위로의 잔여 이동량 슬라이딩 투영 (<code>ConstrainTranslation</code>)</span>
+            </div>
+            <span class="math-eq-num">(식 4.2)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) (식 4.1)로 구한 1차 직선 이동량 <b><i>Δ</i></b><sub>direct</sub>&nbsp;=&nbsp;<i>t</i><sup>*</sup><b><i>Δ</i></b> 만큼 먼저 자식을 벽 바로 앞까지 이동시킵니다.<br/>
+            2) 아직 쓰지 못하고 남은 마우스 이동 벡터는 <strong><b><i>r</i></b>&nbsp;=&nbsp;<b><i>Δ</i></b>&nbsp;−&nbsp;<b><i>Δ</i></b><sub>direct</sub>&nbsp;=&nbsp;(1&nbsp;−&nbsp;<i>t</i><sup>*</sup>)<b><i>Δ</i></b></strong> 입니다.<br/>
+            3) 부모 도형의 각 변(벽면) 방향 단위벡터 <b><i>u</i></b><sub><i>i</i></sub>에 남은 힘 <b><i>r</i></b>을 내적하여 벽을 따라 미끄러지는 후보 벡터 <b><i>Δ</i></b><sub>slide, <i>i</i></sub>&nbsp;=&nbsp;(<b><i>r</i></b>&nbsp;·&nbsp;<b><i>u</i></b><sub><i>i</i></sub>)<b><i>u</i></b><sub><i>i</i></sub> 를 구합니다.<br/>
+            4) 각 벽면 슬라이딩 후보에 대해서도 다시 <code>TranslationFraction</code>을 곱해 그 벽 끝 모서리를 뚫지 않도록 안전하게 잘라준 뒤, 가장 많이 미끄러질 수 있는 방향을 최종 채택합니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><span class="math-label">잔여 이동 벡터</span><b><i>r</i></b> = (1 − <i>t</i><sup>*</sup>) <b><i>Δ</i></b>,</span>
+                <span class="math-expr"><span class="math-label">벽면 단위벡터</span><b><i>u</i></b><sub><i>i</i></sub> = <span class="frac"><span class="num"><b><i>v</i></b><sub><i>i</i>+1</sub> − <b><i>v</i></b><sub><i>i</i></sub></span><span class="den">‖<b><i>v</i></b><sub><i>i</i>+1</sub> − <b><i>v</i></b><sub><i>i</i></sub>‖<sub>2</sub></span></span></span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">벽면 슬라이딩 후보 벡터</span>
+                <span class="math-expr"><b><i>Δ</i></b><sub>slide, <i>i</i></sub> = (<b><i>r</i></b> · <b><i>u</i></b><sub><i>i</i></sub>) <b><i>u</i></b><sub><i>i</i></sub></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><b><i>r</i></b></td>
+                  <td>직선 이동 <i>t</i><sup>*</sup><b><i>Δ</i></b> 후 벽에 막혀 남은 잔여 이동 벡터</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>PointD remainder = delta - direct</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>u</i></b><sub><i>i</i></sub></td>
+                  <td>부모 도형 <i>i</i>번째 변의 단위 접선 벡터 (‖<b><i>u</i></b><sub><i>i</i></sub>‖ = 1)</td>
+                  <td>길이가 1인 방향 화살표 (cos θ, sin θ)</td>
+                  <td><code>edge / edgeLength</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><b><i>Δ</i></b><sub>slide, <i>i</i></sub></td>
+                  <td>잔여 이동량을 <i>i</i>번째 벽면 방향으로 정사영한 미끄러짐 벡터</td>
+                  <td>가로·세로 숫자 쌍 (X, Y) (Image px)</td>
+                  <td><code>u * remainder.Dot(u)</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 벽에 닿고 나서도 마우스가 대각선으로 <b><code>r&nbsp;=&nbsp;(+40, +30)</code></b>만큼 더 밀고 있는데, 오른쪽 세로 벽(방향 단위벡터 <b><code>u&nbsp;=&nbsp;(0, 1)</code></b>)에 막혔다면?<br/>
+              • 벽 방향 내적&nbsp;=&nbsp;<code>(40&nbsp;×&nbsp;0)&nbsp;+&nbsp;(30&nbsp;×&nbsp;1)&nbsp;=&nbsp;30</code>!<br/>
+              • 슬라이딩 벡터&nbsp;=&nbsp;<code>u&nbsp;×&nbsp;30&nbsp;=&nbsp;(0, 30)</code>&nbsp;→&nbsp;즉 벽을 뚫는 가로 힘(<code>+40</code>)은 깔끔하게 사라지고, 세로 벽을 따라 아래로 <b><code>+30픽셀</code>만큼 스르륵 미끄러집니다!</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 4.3 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 3 · 회전 한계 각도</span>
+              <span>회전 접촉 방정식 <i>A</i> cos <i>θ</i> + <i>B</i> sin <i>θ</i> = <i>C</i> 의 해석적 근과 이분 탐색</span>
+            </div>
+            <span class="math-eq-num">(식 4.3)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 자식 꼭짓점이 중심 주위를 각도 <i>θ</i>로 회전할 때 위치는 cos&nbsp;<i>θ</i>와 sin&nbsp;<i>θ</i>의 일차 결합으로 표현됩니다.<br/>
+            2) 이 꼭짓점이 부모의 직선 변 위에 놓일 조건(내적&nbsp;=&nbsp;상수)을 정리하면 <strong><i>A</i> cos&nbsp;<i>θ</i>&nbsp;+&nbsp;<i>B</i> sin&nbsp;<i>θ</i>&nbsp;=&nbsp;<i>C</i></strong> 형태가 됩니다.<br/>
+            3) 양변을 <i>R</i>&nbsp;=&nbsp;√(<i>A</i><sup>2</sup>&nbsp;+&nbsp;<i>B</i><sup>2</sup>)로 나누고 cos&nbsp;<i>φ</i>&nbsp;=&nbsp;<i>A</i>/<i>R</i>, sin&nbsp;<i>φ</i>&nbsp;=&nbsp;<i>B</i>/<i>R</i> (즉, <i>φ</i>&nbsp;=&nbsp;atan2(<i>B</i>, <i>A</i>))로 치환하면 코사인 덧셈정리 cos(<i>θ</i>&nbsp;−&nbsp;<i>φ</i>)&nbsp;=&nbsp;cos&nbsp;<i>θ</i> cos&nbsp;<i>φ</i>&nbsp;+&nbsp;sin&nbsp;<i>θ</i> sin&nbsp;<i>φ</i> 에 의해 좌변이 단 하나의 코사인 항 <strong>cos(<i>θ</i>&nbsp;−&nbsp;<i>φ</i>)&nbsp;=&nbsp;<i>C</i> / <i>R</i></strong> 로 합쳐집니다!<br/>
+            4) 따라서 접촉 후보 각도는 <strong><i>θ</i>&nbsp;=&nbsp;<i>φ</i> ± arccos(<i>C</i> / <i>R</i>)</strong> 두 개뿐이며, 이와 함께 회전 각도 구간에도 40회 이분법을 적용하면 어떤 도형이든 회전 한계각을 완벽하게 구할 수 있습니다.
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-expr"><span class="math-label">방정식</span><i>A</i> cos <i>θ</i> + <i>B</i> sin <i>θ</i> = <i>C</i>,</span>
+                <span class="math-expr"><span class="math-label">합성 진폭</span><i>R</i> = <span class="math-sqrt">&radic;<span class="math-sqrt-radicand"><i>A</i><sup>2</sup> + <i>B</i><sup>2</sup></span></span>,</span>
+                <span class="math-expr"><span class="math-label">위상각</span><i>φ</i> = atan2(<i>B</i>, <i>A</i>)</span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">|<i>C</i>| ≤ <i>R</i> 일 때</span>
+                <span class="math-expr">cos(<i>θ</i> − <i>φ</i>) = <span class="frac"><span class="num"><i>C</i></span><span class="den"><i>R</i></span></span></span>
+                <span class="math-sep">⟹</span>
+                <span class="math-expr"><i>θ</i><sub>1, 2</sub> = <i>φ</i> ± arccos<span class="delim-group">(<span class="frac"><span class="num"><i>C</i></span><span class="den"><i>R</i></span></span>)</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 조건</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>A</i>, <i>B</i>, <i>C</i></td>
+                  <td>자식 꼭짓점의 회전 반경 벡터와 부모 변의 법선 벡터 내적으로 결정되는 계수</td>
+                  <td>ℝ (px<sup>2</sup>)</td>
+                  <td><code>double a, b, c</code> (<code>AddRotationRoots</code>)</td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>R</i> = √(<i>A</i><sup>2</sup> + <i>B</i><sup>2</sup>)</td>
+                  <td>삼각함수 합성 진폭 (|<i>C</i>| &gt; <i>R</i> 이면 360° 회전 내내 그 벽에 닿지 않음)</td>
+                  <td>[0, ∞)</td>
+                  <td><code>var r = Math.Hypot(a, b)</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>θ</i><sub>1, 2</sub></td>
+                  <td>회전하는 꼭짓점이 부모 직선 벽과 정확히 만나는 두 접촉 각도</td>
+                  <td>(−π, π] rad</td>
+                  <td><code>baseAngle + delta, baseAngle - delta</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 만약 <code>A&nbsp;=&nbsp;3, B&nbsp;=&nbsp;4, C&nbsp;=&nbsp;2.5</code> 라면?<br/>
+              • 합성 진폭 <code>R&nbsp;=&nbsp;√(3²&nbsp;+&nbsp;4²)&nbsp;=&nbsp;5</code> 이고, <code>|2.5| &lt;= 5</code> 이므로 회전하다가 반드시 벽과 만납니다!<br/>
+              • <code>C / R&nbsp;=&nbsp;2.5&nbsp;÷&nbsp;5&nbsp;=&nbsp;0.5</code> 이고 <code>arccos(0.5)&nbsp;=&nbsp;60° (π/3 rad)</code> 이므로, 위상각 <code>φ</code>에서 양쪽으로 <code>±60°</code> 떨어진 두 각도에서 정확히 벽과 접촉합니다!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: 직선 이분법(노란 상자) vs 벽면 슬라이딩(초록 상자) 실시간 비교</h2>
+        <p>
+          캔버스 위에서 마우스를 부모 상자 바깥 대각선으로 움직여 보세요. 단순 이분법만 쓰면 벽에 닿자마자 멈추지만(노란 상자), <strong>(식 4.2)의 내적 슬라이딩</strong>을 더하면 마우스를 따라 초록 상자가 벽면을 타고 매끄럽게 미끄러집니다!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · 부모 경계 이분법(노란색) vs 벽면 슬라이딩(초록색) 실시간 비교</div>
+            <div class="lab-subtitle">캔버스 위에서 마우스를 부모 상자 밖으로 움직여 직선 정지 위치와 벽면 슬라이딩 위치를 비교해 보세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="motion-bounds-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-control-group">
+              <label for="motion-rot-slider">자식 ROI 회전각 θ:</label>
+              <input id="motion-rot-slider" type="range" min="-80" max="80" value="20" />
+            </div>
+            <span class="lab-subtitle">빨간 점선: 마우스 희망 위치 | 노란 상자: 직선 이분법 한계 | 초록 상자: 벽면 슬라이딩 적용</span>
+          </div>
+          <div id="motion-bounds-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-kent-beck-motion)
+           ========================================================================= -->
+      <section class="section-card" id="sec-kent-beck-motion">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>RoiMotionBounds</code> 전체 코드 &amp; 라인 바이 라인 해부</h2>
+        <p>
+          이제 3단계에서 유도한 40회 이분법(<code>TranslationFraction</code>), 벽면 슬라이딩(<code>ConstrainTranslation</code>), 회전 한계 탐색(<code>RotationLimit</code> &amp; <code>AddRotationRoots</code>) 전체 코드를 직접 작성해 봅시다.
+        </p>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · 부모-자식 포함 판정, 40회 이분법, 벽면 슬라이딩 전체 구현</span>
+            <a class="source-link-pill" href="../src/VisionGeometry/RoiMotionBounds.cs">src/VisionGeometry/RoiMotionBounds.cs</a>
+          </div>
+          <pre><code>using System;
+using System.Collections.Immutable;
+using VisionCanvas.Core.Geometry;
+
+namespace VisionGeometry;
+
+public static class RoiMotionBounds
+{
+    private const int BisectionIterations = 40;
+    private const double Epsilon = 1e-9;
+
+    // 1. 자식 도형(child)의 모든 샘플 끝점이 부모 도형(parent) 내부에 들어있는지 검사합니다.
+    public static bool ContainsGeometry(RoiGeometry parent, RoiGeometry child)
+    {
+        foreach (PointD pt in SampleBoundaryPoints(child))
+        {
+            if (!parent.Contains(pt)) return false;
+        }
+        return true;
+    }
+
+    // 2. (식 4.1) 40회 이분법으로 부모 벽에 딱 닿는 최대 무충돌 이동 비율 t* in [0, 1]을 구합니다.
+    public static double TranslationFraction(RoiGeometry parent, RoiGeometry child, PointD delta)
+    {
+        if (FitsTranslationStep(parent, child, delta, 1.0)) return 1.0;
+
+        double lo = 0.0, hi = 1.0;
+        for (int i = 0; i &lt; BisectionIterations; i++)
+        {
+            double mid = (lo + hi) * 0.5;
+            if (FitsTranslationStep(parent, child, delta, mid))
+                lo = mid;
+            else
+                hi = mid;
+        }
+        return lo;
+    }
+
+    // 3. (식 4.2) 직선 접촉점까지 이동한 뒤, 남은 변위(remainder)를 부모 벽면으로 정사영해 미끄러지게 합니다!
+    public static PointD ConstrainTranslation(RoiGeometry parent, RoiGeometry child, PointD delta)
+    {
+        double t = TranslationFraction(parent, child, delta);
+        PointD direct = delta * t;
+        if (t &gt;= 1.0 - 1e-6) return delta;
+
+        RoiGeometry atWall = child with { X = child.X + direct.X, Y = child.Y + direct.Y };
+        PointD remainder = delta - direct;
+
+        PointD bestSlide = new(0, 0);
+        double bestLenSq = 0.0;
+
+        foreach (PointD wallDir in GetParentWallDirections(parent))
+        {
+            // (식 4.2) 남은 힘을 벽 방향 단위벡터 wallDir에 내적(Dot)하여 정사영!
+            PointD projected = wallDir * remainder.Dot(wallDir);
+            double slideT = TranslationFraction(parent, atWall, projected);
+            PointD candidate = projected * slideT;
+            if (candidate.LengthSquared &gt; bestLenSq)
+            {
+                bestLenSq = candidate.LengthSquared;
+                bestSlide = candidate;
+            }
+        }
+        return direct + bestSlide;
+    }
+
+    // 4. (식 4.3) 자식 도형을 회전시킬 때 부모 벽에 부딪히지 않는 최대 회전 변화량(deltaRad)을 구합니다.
+    public static void AddRotationRoots(
+        double a, double b, double c,
+        double startAngle, double desiredDelta,
+        System.Collections.Generic.List&lt;double&gt; candidates)
+    {
+        double r = Math.Hypot(a, b);
+        if (r &lt;= Epsilon || Math.Abs(c) &gt; r + Epsilon) return;
+
+        double ratio = Math.Clamp(c / r, -1.0, 1.0);
+        double baseAngle = Math.Atan2(b, a);
+        double delta = Math.Acos(ratio);
+
+        candidates.Add(baseAngle + delta);
+        candidates.Add(baseAngle - delta);
+    }
+
+    private static bool FitsTranslationStep(RoiGeometry parent, RoiGeometry child, PointD delta, double fraction)
+    {
+        PointD step = delta * fraction;
+        RoiGeometry moved = child with { X = child.X + step.X, Y = child.Y + step.Y };
+        return ContainsGeometry(parent, moved);
+    }
+
+    private static ImmutableArray&lt;PointD&gt; GetParentWallDirections(RoiGeometry parent)
+    {
+        PointD c0 = parent.ToWorld(-0.5, -0.5);
+        PointD c1 = parent.ToWorld(+0.5, -0.5);
+        PointD c2 = parent.ToWorld(+0.5, +0.5);
+        PointD e0 = c1 - c0;
+        PointD e1 = c2 - c1;
+        return ImmutableArray.Create(
+            e0 / Math.Max(1e-6, e0.Length),
+            e1 / Math.Max(1e-6, e1.Length));
+    }
+
+    private static ImmutableArray&lt;PointD&gt; SampleBoundaryPoints(RoiGeometry g) =&gt;
+        g.Shape switch
+        {
+            RoiShape.Rectangle =&gt; ImmutableArray.Create(
+                g.ToWorld(-0.5, -0.5), g.ToWorld(+0.5, -0.5),
+                g.ToWorld(+0.5, +0.5), g.ToWorld(-0.5, +0.5)),
+            _ =&gt; ImmutableArray.Create(
+                g.ToWorld(-0.5, 0), g.ToWorld(+0.5, 0),
+                g.ToWorld(0, -0.5), g.ToWorld(0, +0.5),
+                g.ToWorld(-0.3535, -0.3535), g.ToWorld(+0.3535, -0.3535),
+                g.ToWorld(+0.3535, +0.3535), g.ToWorld(-0.3535, +0.3535))
+        };
+}</code></pre>
+
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>행 / 핵심 코드</th>
+                <th>초보자 눈높이 한 줄 설명</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>if (FitsTranslationStep(..., 1.0)) return 1.0;</code></td>
+                <td>마우스가 움직인 최종 위치(<code>1.0</code>)가 이미 부모 안쪽이라면, 40번 루프를 돌 필요 없이 즉시 <code>1.0</code>(100% 이동 허용)을 반환해 속도를 높입니다.</td>
+              </tr>
+              <tr>
+                <td><code>double mid = (lo + hi) * 0.5;</code></td>
+                <td>(식 4.1)의 이분 탐색입니다. 안전 구간(<code>lo</code>)과 충돌 구간(<code>hi</code>)의 딱 가운데 비율(<code>mid</code>)을 시험해 2<sup>−40</sup> 정밀도로 벽 위치를 좁혀 갑니다.</td>
+              </tr>
+              <tr>
+                <td><code>PointD remainder = delta - direct;</code></td>
+                <td>벽 바로 앞(<code>direct</code>)까지 이동하고 나서 아직 소모하지 못한 잔여 마우스 이동 벡터 <b><i>r</i></b>을 구합니다.</td>
+              </tr>
+              <tr>
+                <td><code>PointD projected = wallDir * remainder.Dot(wallDir);</code></td>
+                <td>(식 4.2)의 핵심입니다! 잔여 이동 벡터 <code>remainder</code>를 부모 벽의 단위 방향 벡터 <code>wallDir</code>와 내적(<code>Dot</code>)하여 벽면을 따라 미끄러지는 성분을 추출합니다.</td>
+              </tr>
+              <tr>
+                <td><code>double r = Math.Hypot(a, b);</code></td>
+                <td>(식 4.3)의 삼각함수 합성 진폭 <i>R</i> = √(<i>A</i><sup>2</sup> + <i>B</i><sup>2</sup>)을 구합니다. <code>Math.Abs(c) &gt; r</code>이면 360°를 다 돌아도 그 벽과 안 만나므로 건너뜁니다.</td>
+              </tr>
+              <tr>
+                <td><code>double ratio = Math.Clamp(c / r, -1.0, 1.0);</code></td>
+                <td>부동소수점 미세 오차로 <code>c / r</code>이 <code>1.0000000000000002</code>가 되어 <code>Math.Acos</code>가 <code>NaN</code>을 반환하는 참사를 막기 위해 <code>[-1, +1]</code>로 안전하게 클램프합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & UML 다이어그램 (#sec-solid-grasp, #sec-diagrams)
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: 왜 움직이는 제스처와 충돌 보정을 분리했을까?</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <p class="solid-grasp-intro">
+          만약 <code>MoveGesture</code> 안에 부모 벽 충돌 수식 200줄을 다 집어넣었다면, <code>ResizeGesture</code>나 키보드 방향키 이동(<code>TryNudgeSelection</code>)에서는 그 코드를 어떻게 재사용할 수 있었을까요?
+        </p>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Pure Fabrication (순수 가공물)</span>
+            <h4>충돌 보정만 전담하는 <code>RoiMotionBounds</code>와 <code>RoiGroupBounds</code> 분리</h4>
+            <p>마우스 제스처 클래스가 복잡한 충돌 수식을 직접 계산하지 않도록, 계층 구조 검사(<code>RoiGroupBounds</code>)와 이동·회전 한계 계산(<code>RoiMotionBounds</code>)이라는 전용 가공 클래스를 분리했습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4><code>MoveGesture</code>는 '마우스 델타 계산'만, <code>RoiMotionBounds</code>는 '벽 충돌 보정'만!</h4>
+            <p>덕분에 마우스 드래그 이동(<code>MoveGesture</code>)뿐 아니라 키보드 방향키 1px/10px 미세 이동(<code>TryNudgeSelection</code>)에서도 똑같은 <code>ConstrainTranslation</code>을 그대로 재사용합니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · High Cohesion (높은 응집도)</span>
+            <h4>켄트 백 스타일의 3단계 함수 분해 (<code>TranslationFraction</code> → <code>ConstrainTranslation</code>)</h4>
+            <p>복잡한 미끄러짐 물리 연산을 ① 1차 접촉점 찾기, ② 남은 힘 계산, ③ 부모 벽면으로 정사영하기의 짧은 함수들로 쪼개어 누구나 한눈에 읽을 수 있습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · OCP (개방-폐쇄 원칙)</span>
+            <h4>도형 모양에 상관없이 <code>ContainsGeometry</code> 하나로 통일</h4>
+            <p>자식이 사각형이든 원이든 폴리곤이든 <code>ContainsGeometry</code>가 03장의 <code>Contains</code>를 이용해 똑같이 판정하므로, 새 도형이 추가되어도 이분법 충돌 코드는 고칠 필요가 없습니다.</p>
+          </div>
+        </div>
+        <div class="sg-why-opt"><strong>💡 왜 40회 이분법이 최적화에 유리할까요?</strong><br/>회전된 타원과 회전된 다각형이 부딪히는 정확한 공식을 대수 방정식으로 풀려면 코드가 수천 줄이 되고 예외 케이스에서 깨지기 쉽습니다. 반면 40회 이분법은 단 40번의 반복(약 0.0005ms)으로 모든 도형 조합의 충돌 지점을 10<sup>−12</sup> 정밀도로 보장합니다!</div>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>04장 도형 이동·크기조절·회전 제스처 및 부모 경계 충돌 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"IGesture (이동 담당)","title":"MoveGesture","role":"선택된 ROI들을 마우스 드래그만큼 이동시키며 부모 벽 슬라이딩 적용","color":"#38bdf8","members":["- _startImagePoint: PointD","- _movingIds: ImmutableArray<RoiId>","+ Update(currentDip): ClampTranslation 호출","+ Commit(): 최종 이동을 Session에 반영"]},{"stereotype":"IGesture (크기조절 담당)","title":"ResizeGesture","role":"8방향 핸들 또는 폴리곤 꼭짓점을 끌어 도형 크기·모양 변경","color":"#34d399","members":["- _handle: RoiHandleKind","- _originalGeometry: RoiGeometry","+ Update(currentDip): 핸들 반대편 고정 스케일링","+ Commit(): 새 크기 반영"]},{"stereotype":"IGesture (회전 담당)","title":"RotateGesture","role":"상단 회전 핸들을 잡고 중심점(Center) 기준으로 각도 회전","color":"#fbbf24","members":["- _pivotCenter: PointD","- _startAngleRad: double","+ Update(currentDip): ClampRotation 호출","+ Commit(): 새 회전각 반영"]},{"stereotype":"GRASP Pure Fabrication","title":"RoiMotionBounds","role":"40회 이분법과 벽면 투영으로 이동량(Δ)과 회전각(Δθ)을 안전 범위로 제한","color":"#f472b6","members":["+ ClampTranslation(doc, ids, rawDelta): PointD","+ ClampRotation(doc, id, rawDeltaRad): double","- FindMaxFreeTranslationFactor()","- ProjectAlongParentWall()"]},{"stereotype":"Hierarchy Validator","title":"RoiGroupBounds","role":"부모-자식 트리 순회 및 부모 도형이 자식 도형을 완전히 품는지 판정","color":"#818cf8","members":["+ ContainsGeometry(parent, child): bool","+ CollectSubtreeIds(doc, rootIds)","+ ValidateAttachableChild()"]}],"edges":[{"from":0,"to":3,"label":"ClampTranslation 호출"},{"from":2,"to":3,"label":"ClampRotation 호출"},{"from":1,"to":4,"label":"부모/자식 경계 침범 검사"},{"from":3,"to":4,"label":"ContainsGeometry로 충돌 확인"}],"tiers":[[0,2,1],[3,4]]}</script>
+        <div class="diagram-caption">도형을 움직이는 3대 제스처(<code>Move</code>, <code>Resize</code>, <code>Rotate</code>)가 <code>RoiMotionBounds</code> 및 <code>RoiGroupBounds</code>와 협력하여 부모 벽 안쪽에서 움직이는 구조입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>04장 시퀀스 다이어그램 · <code>MoveGesture</code> 드래그 시 부모 벽 충돌 및 슬라이딩 시퀀스</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["MoveGesture","RoiMotionBounds","RoiGroupBounds","RoiGeometry","EditorSession"],"messages":[{"from":0,"to":1,"text":"ClampTranslation(doc, selectedIds, rawDelta)"},{"from":1,"to":2,"text":"CanTranslate(rawDelta) → 부모 밖으로 나가는지 1차 확인"},{"from":1,"to":2,"text":"FindMaxFreeTranslationFactor() [40회 이분법으로 벽 접촉 비율 t* 탐색]"},{"from":1,"to":3,"text":"ProjectAlongParentWall(remainder) [남은 힘을 부모 벽 방향 u로 내적]"},{"from":1,"to":0,"text":"벽을 따라 미끄러진 최종 safeDelta 반환","ret":true},{"from":0,"to":4,"text":"SetTransformPreview(safeDelta)"}]}</script>
+        <div class="diagram-caption">사용자가 자식 ROI를 대각선으로 끌어 부모 벽에 부딪혔을 때, 벽 접촉점까지 이동한 뒤 벽을 따라 미끄러지는 시간 순서입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 04장 마무리 셀프 체크 &amp; 다음 장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · 벽에 닿은 뒤 남은 이동 벡터 <b><i>r</i></b>을 벽 방향 단위화살표 <b><i>u</i></b>와 내적(<code>r.Dot(u)</code>)하면 무엇을 구할 수 있을까요?</summary>
+          <p><strong>정답:</strong> 벽을 뚫고 나가는 수직 성분은 0으로 사라지고, 오직 벽을 따라 나란히 미끄러질 수 있는 거리(슬라이딩 이동량)만 정확히 뽑아낼 수 있습니다!</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 다음 장(05장)에서는 어떤 거대한 문제를 해결하나요?</summary>
+          <p><strong>징검다리:</strong> 지금까지 도형 1~2개를 만들고 움직이는 법을 배웠습니다. 그런데 실제 반도체·MLCC 검사 화면에는 일반 ROI 수만 개와 <strong>10,001 × 10,001 = 100,020,001개(1억 개!)</strong>의 반복 셀이 동시에 올라갑니다! 만약 1억 개를 <code>for</code>문으로 다 뒤지면 클릭 한 번에 수십 초가 걸리고 램(RAM)이 터져 버립니다. 다음 <strong>05장</strong>에서 <strong>이진 경계 트리(BVH)</strong>와 <strong>64바이트 등차수열 압축 격자(<code>RepeatedRoiGrid</code>)</strong>로 1억 개 ROI를 0.001ms 만에 다루는 마법을 만들어 봅니다!</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="03-roi-shapes-and-polygons.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">03장 · 도형 엔진(사각형·원·폴리곤)과 폐루프 수학</span>
+        </a>
+        <a class="pager-link" href="05-spatial-index-and-100m-rois.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">05장 · 공간 색인(BVH)과 1억 개 ROI 압축 격자</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

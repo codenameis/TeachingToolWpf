@@ -10,6 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TeachingToolWpf.Presentation\TeachingToolWpf.Presentation.csproj" />
+    <ProjectReference Include="..\TeachingToolWpf.Diagnostics\TeachingToolWpf.Diagnostics.csproj" />
     <ProjectReference Include="..\CpuMatching.Cuda\CpuMatching.Cuda.csproj" />
     <ProjectReference Include="..\PoseMatch.Tdcm.TorchSharp\PoseMatch.Tdcm.TorchSharp.csproj" />
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
@@ -21,11 +23,12 @@
     <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\README.md;..\..\AGENTS.md;..\..\Agent.MD;..\..\THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\README.md;..\..\THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\AGENTS.md;..\..\Agent.MD" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
     <None Include="..\..\licenses\**\*" Exclude="..\..\licenses\NetVips*;..\..\licenses\LGPL-3.0.txt;..\..\licenses\GPL-3.0.txt;..\..\licenses\skia\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\docs\**\*.md;..\..\docs\**\*.json;..\..\docs\**\*.csv;..\..\docs\**\*.zip" Link="docs\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\tasks\*.md" Link="tasks\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\scripts\Summarize-*.ps1" Link="scripts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\**\*.md;..\..\docs\**\*.json;..\..\docs\**\*.csv;..\..\docs\**\*.zip" Link="docs\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <None Include="..\..\tasks\*.md" Link="tasks\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <None Include="..\..\scripts\Summarize-*.ps1" Link="scripts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,5 +37,4 @@
   </ItemGroup>
 
   <Import Project="../../build/InspectionNativeRuntime.props" />
-  <Import Project="../../build/ImageLoaderHost.props" />
 </Project>

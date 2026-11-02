@@ -6,6 +6,22 @@ namespace TeachingToolWpf.Imaging.Tests;
 
 public sealed class MatchingImageReaderCacheTests
 {
+    [Fact]
+    public async Task CallerBufferCanBeReusedForSmallerWindowsWithoutExposingItsTail()
+    {
+        var loader = new Loader(1024, 512, PixelKind.Rgba32);
+        using var reader = await Open(loader);
+        var buffer = new byte[200 * 180];
+        reader.Read(440, 220, 200, 180, default, buffer: buffer);
+        buffer[64] = 253;
+        var expected = reader.Read(601, 410, 8, 8, default);
+        var actual = reader.Read(601, 410, 8, 8, default, buffer: buffer);
+        Assert.Equal(64, actual.Pixels.Length);
+        Assert.Equal(expected.Pixels.ToArray(), actual.Pixels.ToArray());
+        Assert.Equal(253, buffer[64]);
+        Assert.Throws<ArgumentException>(() => reader.Read(0, 0, 8, 8, default, buffer: new byte[63]));
+    }
+
     [Theory]
     [InlineData(PixelKind.Gray8, 1)]
     [InlineData(PixelKind.Gray8, 2)]

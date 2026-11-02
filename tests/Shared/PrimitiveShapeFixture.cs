@@ -1,7 +1,7 @@
 using System.IO;
-using VisionImaging.Fixtures;
 using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionImaging.Fixtures;
 
 namespace TeachingToolWpf.Imaging.Tests;
 
@@ -33,6 +33,9 @@ internal static class PrimitiveShapeFixture
                     var inside = shape.Kind switch
                     {
                         PrimitiveShapeKind.Circle => (localX * localX) + (localY * localY) <= 1600,
+                        PrimitiveShapeKind.Ring => (localX * localX) + (localY * localY) is >= 625 and <= 2500,
+                        PrimitiveShapeKind.RectangleFrame => Math.Abs(localX) <= 48 && Math.Abs(localY) <= 36 &&
+                            (Math.Abs(localX) >= 30 || Math.Abs(localY) >= 20),
                         PrimitiveShapeKind.Rectangle => Math.Abs(localX) <= 48 && Math.Abs(localY) <= 30,
                         PrimitiveShapeKind.Cross => (Math.Abs(localX) <= 14 && Math.Abs(localY) <= 48) ||
                             (Math.Abs(localX) <= 48 && Math.Abs(localY) <= 14),

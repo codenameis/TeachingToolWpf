@@ -10,6 +10,7 @@ using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Layers;
+using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionGeometry;
 using VisionImaging;
@@ -22,6 +23,8 @@ internal sealed class SampleWindow : Window
     private readonly IImageLoader _loader;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly WrapPanel _toolbar = new();
+    private readonly ViewportLayout _layout = new();
+    private readonly ViewportNavigationViewModel _navigation;
     private readonly TextBlock _status = new() { Margin = new(8) };
     private readonly ListBox _rois = new() { SelectionMode = SelectionMode.Extended, DisplayMemberPath = nameof(RoiRow.Label) };
     private readonly TaskCompletionSource<string> _rendererReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -80,6 +83,7 @@ internal sealed class SampleWindow : Window
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VisionCanvas.Sample", "ImageCache");
         _loader = ImageLoaderHost.Create(cache);
         Input = new(Session);
+        _navigation = new(Session, Input, _layout, () => !_busy);
         Viewport.Input = Input;
         Viewport.InputEnabled = () => !_busy;
         Viewport.KeyAction = HandleKey;
@@ -91,14 +95,19 @@ internal sealed class SampleWindow : Window
         Input.Changed += Publish;
         _rois.SelectionChanged += (_, _) =>
         {
-            if (!_updatingRows && !_busy)
+            if (!_updatingRows && !_busy && Input.IsEnabled)
             {
                 Session.Select(_rois.SelectedItems.Cast<RoiRow>().Select(row => row.Id));
             }
         };
         BuildContent();
-        PreviewKeyDown += (_, e) => e.Handled = HandleKey(e.Key,
-            Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+        PreviewKeyDown += (_, e) =>
+        {
+            if (!ViewportKeyboard.IsControlInput(Keyboard.FocusedElement) && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+            {
+                e.Handled = HandleKey(e.Key, Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+            }
+        };
         Closing += (_, _) =>
         {
             Input.Cancel();
@@ -153,6 +162,9 @@ internal sealed class SampleWindow : Window
         AddButton("크로스헤어", () => GuideLayer.IsVisible = !GuideLayer.IsVisible);
 
         var root = new DockPanel();
+        var navigation = new ViewportNavigationBar { DataContext = _navigation };
+        DockPanel.SetDock(navigation, Dock.Top);
+        root.Children.Add(navigation);
         DockPanel.SetDock(_toolbar, Dock.Top);
         root.Children.Add(_toolbar);
         DockPanel.SetDock(_status, Dock.Bottom);
@@ -208,7 +220,10 @@ internal sealed class SampleWindow : Window
         finally
         {
             _busy = false;
-            _toolbar.IsEnabled = true;
+            _toolbar.IsEnabled = Input.IsEnabled;
+            _rois.IsEnabled = Input.IsEnabled;
+            _navigation.Refresh();
+            Viewport.IsInputEnabled = Input.IsEnabled;
         }
     }
 
@@ -389,6 +404,11 @@ internal sealed class SampleWindow : Window
             return;
         }
         Input.SetViewportSize(Viewport.ViewWidth, Viewport.ViewHeight);
+        _layout.Update(Viewport.ViewWidth, Viewport.ViewHeight, Viewport.Dpi);
+        _navigation.Refresh();
+        _toolbar.IsEnabled = !_busy && Input.IsEnabled;
+        _rois.IsEnabled = !_busy && Input.IsEnabled;
+        Viewport.IsInputEnabled = !_busy && Input.IsEnabled;
         Viewport.Submit(CreateScene());
         _updatingRows = true;
         try
@@ -420,9 +440,13 @@ internal sealed class SampleWindow : Window
 
     private bool HandleKey(Key key, bool control, bool shift)
     {
-        if (_busy)
+        if (_busy || !Input.IsEnabled)
         {
             return false;
+        }
+        if (ViewportKeyboard.Nudge(Input, key, control, shift))
+        {
+            return true;
         }
         if (key == Key.Escape)
         {

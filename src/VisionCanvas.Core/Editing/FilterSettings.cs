@@ -16,10 +16,18 @@ public enum RoiFilterExecution
 public sealed record FilterSettings(RoiFilterKind Kind, double Threshold = 128, double EdgeLow = 50, double EdgeHigh = 150,
     int Radius = 3, double Sigma = 1, RoiFilterExecution Execution = RoiFilterExecution.CpuOnly)
 {
-    public bool IsIndustrial => Kind >= RoiFilterKind.Gaussian;
-    public bool UsesRadius => IsIndustrial && Kind != RoiFilterKind.NativeThreshold;
-    public bool UsesSigma => Kind is RoiFilterKind.Gaussian or RoiFilterKind.GaussianBlackHatThreshold;
-    public bool UsesNativeThreshold => Kind is RoiFilterKind.NativeThreshold or RoiFilterKind.GaussianBlackHatThreshold;
+    public static bool IsIndustrialKind(RoiFilterKind kind) => kind >= RoiFilterKind.Gaussian;
+
+    public static bool UsesRadiusKind(RoiFilterKind kind) => IsIndustrialKind(kind) && kind != RoiFilterKind.NativeThreshold;
+
+    public static bool UsesSigmaKind(RoiFilterKind kind) => kind is RoiFilterKind.Gaussian or RoiFilterKind.GaussianBlackHatThreshold;
+
+    public static bool UsesNativeThresholdKind(RoiFilterKind kind) => kind is RoiFilterKind.NativeThreshold or RoiFilterKind.GaussianBlackHatThreshold;
+
+    public bool IsIndustrial => IsIndustrialKind(Kind);
+    public bool UsesRadius => UsesRadiusKind(Kind);
+    public bool UsesSigma => UsesSigmaKind(Kind);
+    public bool UsesNativeThreshold => UsesNativeThresholdKind(Kind);
 
     public void Validate()
     {

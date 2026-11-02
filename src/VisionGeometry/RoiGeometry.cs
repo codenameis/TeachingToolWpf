@@ -3,30 +3,15 @@ namespace VisionGeometry;
 
 public sealed record RoiGeometry
 {
-    public PointD Center
-    {
-        get;
-    }
+    public PointD Center { get; }
 
-    public double Width
-    {
-        get;
-    }
+    public double Width { get; }
 
-    public double Height
-    {
-        get;
-    }
+    public double Height { get; }
 
-    public double Angle
-    {
-        get;
-    }
+    public double Angle { get; }
 
-    public RoiShape Shape
-    {
-        get;
-    }
+    public RoiShape Shape { get; }
 
     public double Area => Width * Height * Shape.AreaFactor;
 
@@ -34,7 +19,39 @@ public sealed record RoiGeometry
 
     public PointD ContainmentAnchor => Radius > 0 ? Center : ToWorld(new(Shape.Vertices[0].X * Width, Shape.Vertices[0].Y * Height));
 
-    public PointD[] Outline => Shape.Vertices.Select(p => ToWorld(new(p.X * Width, p.Y * Height))).ToArray();
+    public int VertexCount => Shape.Vertices.Length;
+
+    public PointD GetVertex(int index)
+    {
+        var vertex = Shape.Vertices[index];
+        return ToWorld(new(vertex.X * Width, vertex.Y * Height));
+    }
+
+    public void CopyOutlineTo(Span<PointD> destination)
+    {
+        var vertices = Shape.Vertices;
+        if (destination.Length < vertices.Length)
+        {
+            throw new ArgumentException("버퍼 크기가 도형 꼭짓점 수보다 작습니다.", nameof(destination));
+        }
+
+        for (var i = 0; i < vertices.Length; i++)
+        {
+            var vertex = vertices[i];
+            destination[i] = ToWorld(new(vertex.X * Width, vertex.Y * Height));
+        }
+    }
+
+    public PointD[] Outline
+    {
+        get
+        {
+            var vertices = Shape.Vertices;
+            var result = new PointD[vertices.Length];
+            CopyOutlineTo(result);
+            return result;
+        }
+    }
 
     public string ShapeName => Shape.Kind switch
     {
@@ -136,11 +153,17 @@ public sealed record RoiGeometry
 
     public static RoiGeometry Polygon(IEnumerable<PointD> vertices)
     {
-        var points = vertices.ToArray();
+        var points = vertices as PointD[] ?? vertices.ToArray();
         PolygonMath.Validate(points);
-        var bounds = BoundsD.FromPoints(points);
-        var normalized = points.Select(p => new PointD((p.X - bounds.Center.X) / bounds.Width, (p.Y - bounds.Center.Y) / bounds.Height)).ToImmutableArray();
-        return new(bounds.Center, bounds.Width, bounds.Height, 0, new RoiShape.PolygonShape(RoiShapeKind.Polygon, normalized));
+        var bounds = BoundsD.FromPoints(points.AsSpan());
+        var normalized = ImmutableArray.CreateBuilder<PointD>(points.Length);
+        for (var i = 0; i < points.Length; i++)
+        {
+            var p = points[i];
+            normalized.Add(new PointD((p.X - bounds.Center.X) / bounds.Width, (p.Y - bounds.Center.Y) / bounds.Height));
+        }
+
+        return new(bounds.Center, bounds.Width, bounds.Height, 0, new RoiShape.PolygonShape(RoiShapeKind.Polygon, normalized.MoveToImmutable()));
     }
 
     public double Support(PointD direction) => (Center.X * direction.X) + (Center.Y * direction.Y)
@@ -152,40 +175,26 @@ public sealed record RoiGeometry
 
     public PointD ToLocal(PointD world) => (world - Center).Rotate(-Angle);
 
-    public PointD[] FrameCorners =>
-    [
-        ToWorld(new(-Width / 2, -Height / 2)), ToWorld(new(Width / 2, -Height / 2)),
-        ToWorld(new(Width / 2, Height / 2)), ToWorld(new(-Width / 2, Height / 2))
-    ];
+    public QuadPoints FrameCorners => new(
+        ToWorld(new(-Width / 2, -Height / 2)),
+        ToWorld(new(Width / 2, -Height / 2)),
+        ToWorld(new(Width / 2, Height / 2)),
+        ToWorld(new(-Width / 2, Height / 2)));
 
-    public BoundsD Bounds
-    {
-        get
-        {
-            if (Radius > 0)
-            {
-                return new(Center.X - Radius, Center.Y - Radius, Center.X + Radius, Center.Y + Radius);
-            }
+    public BoundsD Bounds => Shape.ComputeBounds(Center, Width, Height, Angle);
 
-            if (Shape.Kind == RoiShapeKind.Rectangle)
-            {
-                // 회전 사각형을 감싸는 축 정렬 경계. 실제 ROI 내부 판정은 Contains가 담당한다.
-                var (sine, cosine) = Math.SinCos(Angle * Math.PI / 180);
-                var halfBoundsWidth = ((Width * Math.Abs(cosine)) + (Height * Math.Abs(sine))) / 2;
-                var halfBoundsHeight = ((Width * Math.Abs(sine)) + (Height * Math.Abs(cosine))) / 2;
-                return new(Center.X - halfBoundsWidth, Center.Y - halfBoundsHeight,
-                    Center.X + halfBoundsWidth, Center.Y + halfBoundsHeight);
-            }
-            return new(-Support(new(-1, 0)), -Support(new(0, -1)), Support(new(1, 0)), Support(new(0, 1)));
-        }
-    }
-
+    /// <summary>점이 도형 안인지 확인한다. <paramref name="tolerance"/>만큼은 경계 밖도 허용한다.</summary>
     public bool Contains(PointD world, double tolerance = 0)
     {
         var local = ToLocal(world);
         return Shape.ContainsLocal(local, Width, Height, tolerance);
     }
 
+    /// <summary>자식 도형이 이 도형 안에 완전히 들어가는지 확인한다. 크기가 같거나 경계가 겹치면 false다.</summary>
+    /// <remarks>
+    /// "이 ROI가 부모가 될 수 있는가"를 판정할 때 쓴다. 경계가 정확히 닿는 경우까지 포함하려면 <see cref="Covers"/>를 쓴다.
+    /// 면적이 같으면 계산 없이 false를 돌려주는 것은 최적화이며, 판정 결과는 <see cref="Covers"/>와 같다.
+    /// </remarks>
     public bool Contains(RoiGeometry child)
     {
         var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
@@ -197,14 +206,27 @@ public sealed record RoiGeometry
         return Covers(child);
     }
 
-    /// <summary>Actual shape containment including equal boundaries; drawing uses the stricter Contains check.</summary>
+    /// <summary>경계가 닿는 경우까지 포함해 판정한다. <see cref="Contains(RoiGeometry)"/>보다 한 단계 느슨하다.</summary>
     public bool Covers(RoiGeometry child)
     {
         var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
         if (Radius > 0)
         {
-            return child.Radius > 0 ? (Center - child.Center).Length + child.Radius <= Radius + tolerance
-                : child.Outline.All(p => Contains(p, tolerance));
+            if (child.Radius > 0)
+            {
+                return (Center - child.Center).Length + child.Radius <= Radius + tolerance;
+            }
+
+            var childVertexCount = child.VertexCount;
+            for (var i = 0; i < childVertexCount; i++)
+            {
+                if (!Contains(child.GetVertex(i), tolerance))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         if (Shape.Kind == RoiShapeKind.Rectangle)
@@ -216,16 +238,55 @@ public sealed record RoiGeometry
                 child.Support(y) - Dot(Center, y) <= (Height / 2) + tolerance &&
                 child.Support(y * -1) + Dot(Center, y) <= (Height / 2) + tolerance;
         }
-        var boundary = Outline;
+
+        var parentCount = VertexCount;
+        Span<PointD> boundary = parentCount <= 64 ? stackalloc PointD[parentCount] : new PointD[parentCount];
+        CopyOutlineTo(boundary);
+        return CoversWithBoundary(boundary, child, tolerance);
+    }
+
+    internal bool CoversWithBoundary(ReadOnlySpan<PointD> boundary, RoiGeometry child, double tolerance)
+    {
         if (child.Radius > 0)
         {
-            return Contains(child.Center, tolerance) && Enumerable.Range(0, boundary.Length)
-                .All(i => PolygonMath.Distance(child.Center, boundary[i], boundary[(i + 1) % boundary.Length]) + tolerance >= child.Radius);
+            if (!Contains(child.Center, tolerance))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < boundary.Length; i++)
+            {
+                var next = (i + 1) % boundary.Length;
+                if (PolygonMath.Distance(child.Center, boundary[i], boundary[next]) + tolerance < child.Radius)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        var childBoundary = child.Outline;
-        return childBoundary.All(p => Contains(p, tolerance)) && Enumerable.Range(0, childBoundary.Length)
-            .All(i => PolygonMath.ContainsSegment(boundary, childBoundary[i], childBoundary[(i + 1) % childBoundary.Length], tolerance));
+        var childCount = child.VertexCount;
+        Span<PointD> childBoundary = childCount <= 64 ? stackalloc PointD[childCount] : new PointD[childCount];
+        child.CopyOutlineTo(childBoundary);
+        for (var i = 0; i < childBoundary.Length; i++)
+        {
+            if (!Contains(childBoundary[i], tolerance))
+            {
+                return false;
+            }
+        }
+
+        for (var i = 0; i < childBoundary.Length; i++)
+        {
+            var next = (i + 1) % childBoundary.Length;
+            if (!PolygonMath.ContainsSegment(boundary, childBoundary[i], childBoundary[next], tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static double Dot(PointD a, PointD b) => (a.X * b.X) + (a.Y * b.Y);

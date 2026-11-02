@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Vulkan VisionCanvas 실제 코드를 C# 기초를 배운 고등학생 눈높이로 읽는 오프라인 교육서"><title>Vulkan 코드 교육 · VisionCanvas</title><link rel="stylesheet" href="../assets/manual.css"><link rel="stylesheet" href="../assets/renderer-guides.css"><script src="../assets/renderer-guides.js" defer></script><script src="../assets/code-blocks.js" defer></script></head>
+<body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="topbar"><a class="brand" href="../index.html">VISION<span>CANVAS</span><small>코드 교육서</small></a><span class="edition">C# 기초 이후 · 2026.10.16</span><button type="button" id="print">인쇄 / PDF</button></header>
+<div class="layout"><aside class="sidebar"><p class="eyebrow">Vulkan · CODE READING</p><nav aria-label="이 안내서 차례"><a href="#start">01 · 출발점</a><a href="#map">02 · 코드 지도</a><a href="#boot">03 · 시작과 연결</a><a href="#coordinates">04 · 좌표 계산</a><a href="#editing">05 · ROI와 이력</a><a href="#navigation">06 · 키·잠금·목록</a><a href="#lab">07 · 직접 실험</a><a href="#images">08 · 영상과 타일</a><a href="#render">09 · 렌더링 흐름</a><a href="#lifetime">10 · 자원의 수명</a><a href="#extend">11 · 확장과 성능</a><a href="#practice">12 · 실행과 실습</a><a href="#terms">용어·다음 읽기</a></nav><p class="sidebar-note">예상 → 코드 → 계산 → 설명<br>코드창은 눌러서 펼칩니다.</p></aside><main id="main">
+<div class="guide-intro"><p class="eyebrow">두 종류의 동기화부터</p><h1>Vulkan<br>명시적인 GPU 수명과 화면 표시 배우기</h1><p class="lead">빈 화면을 얻고, 그 위에 그림을 그린 뒤, 완성한 화면을 내보냅니다. 이 순서를 Vulkan 코드에서 따라갑니다. 특히 “그려도 되는 때”와 “다 쓴 메모리를 정리해도 되는 때”를 어떻게 구별하는지 배웁니다.</p><nav class="backend-links" aria-label="다른 코드 교육서"><a href="../wpf/index.html">WPF</a><a href="../dx12/index.html">DX12</a><a href="../vulkan/index.html" aria-current="page">Vulkan</a><a href="../wgpu/index.html">wgpu</a><a href="../skia/index.html">Skia</a></nav><p class="guide-meta">대상: 변수·반복문·메서드·클래스를 배운 고등학생. 그래픽 API와 대학 수학을 먼저 알 필요는 없습니다. 첫 번째 읽기에서는 1~7장의 상황·예제·실험을 따라가세요. 두 번째 읽기에서 8~12장의 실제 코드와 자원 관리를 살펴봅니다. C# 발췌는 저장소의 실제 코드이며, HTML 모형은 원리를 설명하는 별도 JavaScript입니다.</p></div><section id="start"><h2>01. 무엇을 만들고 있는가?</h2>
+
+<p>사진 편집 앱에서 얼굴 주변에 사각형을 그려 본 적이 있나요? 공장 사진에서도 같은 방법으로 “이 부품만 살펴보자”라고 표시할 수 있습니다. 그 표시 영역을 <strong>ROI(Region of Interest, 관심 영역)</strong>라고 합니다. 이 프로그램에서는 큰 사진을 열고 ROI를 옮기거나 크기를 바꿉니다. 잘못 옮겼다면 Undo로 되돌립니다. 먼저 “사각형 하나를 오른쪽으로 옮긴다”는 장면만 머릿속에 두세요. 뒤의 클래스 이름은 그 일을 나누어 맡은 담당자입니다.</p>
+<div class="guide-step"><strong>처음 읽을 때와 다시 읽을 때</strong><p>처음에는 아래 일곱 단어와 “입력 → 문서 변경 → 새 그림”을 익히세요. 7장의 모형에서 오른쪽 이동·Undo·확대를 직접 눌러 본 뒤, 왜 결과가 다른지 말해 봅니다. 그다음 코드창에서 설명에 나온 메서드를 찾으세요.</p><p>심화 읽기는 8~12장입니다. 타일 읽기와 자원 수명을 따라가되, 모르는 포인터·GPU 함수는 표시해 두고 먼저 입력값과 결과를 확인합니다. 코드와 검증 한계는 생략하지 않았으므로 필요한 순간 다시 펼쳐 볼 수 있습니다.</p></div><h3>먼저 만나 볼 일곱 단어</h3><div class="guide-table" tabindex="0" aria-label="첫 읽기 용어"><table><thead><tr><th scope="col">단어</th><th scope="col">지금 이해할 뜻</th></tr></thead><tbody><tr><th scope="row">Vulkan</th><td>GPU에게 그림 그리는 일을 전달하는 API입니다. API는 프로그램끼리 주고받는 요청의 규칙입니다.</td></tr><tr><th scope="row">surface</th><td>그림을 내보낼 창과 연결된 출력 대상입니다.</td></tr><tr><th scope="row">swapchain</th><td>창에 표시할 이미지들을 번갈아 쓰도록 관리하는 묶음입니다.</td></tr><tr><th scope="row">queue</th><td>GPU에게 작업을 제출하는 통로입니다. 제출만 했다고 완료된 것은 아닙니다.</td></tr><tr><th scope="row">render pass</th><td>어느 화면에 어떤 방식으로 그릴지 묶어 진행하는 그리기 구간입니다.</td></tr><tr><th scope="row">fence</th><td>CPU가 GPU 작업 완료를 확인하는 표식입니다. 작업용 메모리 재사용에 필요합니다.</td></tr><tr><th scope="row">semaphore</th><td>GPU 쪽 작업 사이에 순서를 맞추는 신호입니다. 화면을 얻은 뒤 그리기, 그린 뒤 표시하기를 연결합니다.</td></tr></tbody></table></div>
+<div class="guide-step"><strong>이번 편을 마치면 설명할 수 있어야 할 것</strong>“방향키를 눌러 ROI가 1픽셀 움직이고 화면이 바뀌었다.” 이 한 문장을 입력 → 편집 → 장면 → 표시의 네 단계로 설명해 보세요.</div>
+<div class="guide-table" tabindex="0" aria-label="이름 비교표"><table><thead><tr><th scope="col">이름</th><th scope="col">이 저장소에서 맡는 역할</th><th scope="col">헷갈리지 말 것</th></tr></thead><tbody><tr><td>WPF</td><td>창, 버튼, 바인딩, UI 이벤트</td><td>독립 GPU API 이름이 아니다. 이 프로젝트의 Canvas는 HWND를 호스트한다.</td></tr><tr><td>DX12</td><td>기본 GPU 렌더러, HLSL, Windows swapchain</td><td>WPF UI와 함께 쓰인다. WARP 소프트웨어 경로도 있다.</td></tr><tr><td>Vulkan</td><td>같은 Core/장면을 Vulkan 명령으로 표시</td><td>현재 호스트는 Windows WPF다. 다른 OS UI까지 구현했다는 뜻은 아니다.</td></tr><tr><td>wgpu</td><td>native WebGPU API → 현재 Windows DX12 백엔드</td><td>브라우저의 JavaScript WebGPU 앱이나 별도 GPU 종류가 아니다.</td></tr><tr><td>Skia</td><td>현재 구현은 CPU bitmap raster → HWND 복사</td><td>이 저장소의 경로를 GPU Skia나 60FPS 구현이라고 부르지 않는다.</td></tr></tbody></table></div>
+<p>각 안내서는 공통 기능과 해당 구현의 차이를 함께 설명합니다. 백엔드 편집 샘플은 메인 앱의 검사·학습 패널 전체를 복제하지 않습니다. <strong>표시, 편집, 검사 알고리즘, 실제 카메라 수집은 서로 다른 책임</strong>입니다.</p>
+<details class="deep-dive"><summary>먼저 예상하기: 렌더러를 바꾸면 Undo도 다시 만들어야 할까?</summary><p>아닙니다. 문서와 이력은 VisionCanvas.Core가 소유합니다. 렌더러는 현재 장면을 받아 표시하므로, GPU API를 바꿔도 같은 편집 규칙을 재사용합니다.</p></details></section><section id="map"><h2>02. 폴더를 역할로 읽기</h2>
+<ol class="guide-flow"><li><strong>1. 사용자 입력</strong><small>View / HWND</small></li><li><strong>2. 편집 판단</strong><small>InteractionController</small></li><li><strong>3. 문서 갱신</strong><small>EditorSession</small></li><li><strong>4. 표시 요청</strong><small>RenderScene</small></li><li><strong>5. 화면 출력</strong><small>Vulkan</small></li></ol>
+<p>오른쪽 방향키를 눌렀다고 생각해 보세요. 입력 담당이 키를 받고, 편집 담당이 ROI의 새 위치를 정하고, 표시 담당이 그 위치를 그립니다. 위 화살표는 이 요청과 데이터의 전달 방향입니다. 클래스의 상속 관계를 뜻하지는 않습니다. 또한 모두가 한 줄로 기다리며 실행되는 것도 아닙니다. 버튼과 입력을 맡는 UI 스레드, 그림을 맡는 렌더 스레드는 서로 다른 실행 흐름이며 최신 장면을 주고받습니다.</p>
+<div class="guide-table" tabindex="0" aria-label="먼저 찾을 위치 비교표"><table><thead><tr><th scope="col">먼저 찾을 위치</th><th scope="col">찾아 읽을 이름</th><th scope="col">알아낼 질문</th></tr></thead><tbody><tr><td>samples/VisionCanvas.VulkanSample/App.xaml.cs</td><td>OnStartup</td><td>누가 객체를 만들고 누가 종료시키는가?</td></tr><tr><td>src/VisionCanvas.Core/Interaction</td><td>InteractionController / MoveGesture</td><td>입력이 어떤 편집 명령으로 바뀌는가?</td></tr><tr><td>src/VisionCanvas.Core/Editing</td><td>EditorSession / DocumentState / EditHistory</td><td>어떤 값이 바뀌고 Undo는 무엇을 기억하는가?</td></tr><tr><td>src/VisionCanvas/Presentation</td><td>ImageCoordinator / ViewportNavigationViewModel</td><td>영상 교체와 화면 탐색을 누가 조율하는가?</td></tr><tr><td>src/VisionCanvas/Controls</td><td>Dx12Viewport</td><td>WPF와 native HWND 입력을 어떻게 연결하는가?</td></tr><tr><td>src/VisionCanvas.Vulkan</td><td>이 안내서 9~10장의 클래스</td><td>백엔드에만 필요한 자원은 무엇인가?</td></tr><tr><td>tests/VisionCanvas.Vulkan.Tests</td><td>테스트 클래스</td><td>그 동작이 깨졌는지 어떤 조건으로 판단하는가?</td></tr></tbody></table></div>
+<p><code>src</code>는 재사용 라이브러리/제품 코드, <code>samples</code>는 연결 예제, <code>tests</code>는 검증, <code>docs</code>는 설계와 측정 기록입니다. 진단을 배우더라도 샘플 App의 실행 경로에 벤치마크를 끼워 넣지 않습니다.</p>
+<p>처음에는 코드창 제목을 읽고, 펼친 뒤 설명에 나온 메서드 한 개를 찾아보세요. 모든 줄을 한 번에 외울 필요는 없습니다. 자세히 따라가고 싶으면 코드창에 적힌 경로와 메서드 이름을 IDE에서 찾습니다. 발췌는 원본에서 이어지는 줄을 가져온 것이어서 <code>using</code>과 바깥 클래스가 빠질 수 있습니다. 따라서 새 프로젝트에 이 조각만 붙이는 대신, 12장의 실행 명령으로 준비된 샘플을 실행합니다.</p></section><section id="boot"><h2>03. 공통 호스트에서 렌더러를 교체하기</h2>
+<p>이 샘플도 WPF 창입니다. App은 서비스와 VM을 만들고, View는 바인딩·키 전달·컨트롤 수명을 맡습니다. Core는 어느 GPU인지 모른 채 ROI와 이력을 처리합니다.</p>
+<details class="code-example" id="source-1"><summary>VulkanViewport: 교체 지점을 전체 코드로 읽기 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 24줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="VulkanViewport: 교체 지점을 전체 코드로 읽기"><code data-language="csharp" data-source="../../src/VisionCanvas.Vulkan/Controls/VulkanViewport.cs" data-kind="excerpt" data-start="1" data-end="24">using VisionCanvas.Controls;
+using VisionCanvas.Imaging;
+using VisionCanvas.Rendering;
+using VisionCanvas.Vulkan.Rendering;
+
+namespace VisionCanvas.Vulkan.Controls;
+
+/// &lt;summary&gt;기존 Canvas의 WPF/Win32 입력·레이어·수명을 공유하는 Vulkan 전용 컨트롤.&lt;/summary&gt;
+public sealed class VulkanViewport : Dx12Viewport
+{
+    protected override IRenderWorker CreateRenderer(nint handle, TileWorker tiles, ITextRasterizer rasterizer,
+        LatestFrameMailbox frames, IFramePreparer preparer)
+    {
+        ArgumentNullException.ThrowIfNull(tiles);
+        ArgumentNullException.ThrowIfNull(rasterizer);
+        ArgumentNullException.ThrowIfNull(frames);
+        ArgumentNullException.ThrowIfNull(preparer);
+        if (DevicePreference == RenderDevicePreference.Software)
+        {
+            throw new NotSupportedException(&quot;Vulkan Canvas는 하드웨어 Vulkan GPU가 필요합니다.&quot;);
+        }
+        return new VulkanRenderWorker(handle, tiles, rasterizer, frames, preparer);
+    }
+}</code></pre>
+<p class="source">src/VisionCanvas.Vulkan/Controls/VulkanViewport.cs · 1–24행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p><code>Dx12Viewport</code>를 상속하는 것은 기존 HWND 입력과 소스 수명을 재사용하기 위해서입니다. 이름에 DX12가 남아 있어도 <code>CreateRenderer</code>는 VulkanRenderWorker를 돌려줍니다. 이 경로는 DX12 device를 만들지 않습니다. 공통 어셈블리 참조 때문에 DX12 패키지가 전이 의존성에는 남습니다.</p>
+<details class="code-example" id="source-2"><summary>App이 서비스·ViewModel·창을 조립하는 순서 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 16줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="App이 서비스·ViewModel·창을 조립하는 순서"><code data-language="csharp" data-source="../../samples/VisionCanvas.VulkanSample/App.xaml.cs" data-kind="excerpt" data-start="15" data-end="30">    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+        var window = new EditorWindow();
+        var editor = new EditorSession();
+        var input = new InteractionController(editor);
+        var layout = new ViewportLayout();
+        var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), &quot;VisionCanvas.VulkanSample&quot;, &quot;ImageCache&quot;);
+        var images = new ImageCoordinator(editor, window.Viewport, layout, new ImageLoader(cache));
+        var model = new EditorViewModel(editor, input, layout, images, new ImageFilePicker(window));
+        window.DataContext = model;
+        window.Closing += (_, _) =&gt; model.Dispose();
+        MainWindow = window;
+        window.Show();
+    }
+}</code></pre>
+<p class="source">samples/VisionCanvas.VulkanSample/App.xaml.cs · 15–30행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>생성자로 이미 만든 객체를 전달하는 것이 의존성 주입입니다. 특별한 컨테이너 라이브러리가 있어야만 가능한 기법이 아닙니다. <code>using</code>과 종료 이벤트는 누가 어떤 자원을 끝까지 책임지는지 알려 줍니다.</p>
+<details class="deep-dive"><summary>백엔드 교체 시 어디까지 같이 바꾸어야 할까?</summary><p>장치, 텍스처/버퍼, 그리기 명령, 표시 표면과 수명 처리가 주 대상입니다. ROI 경계 검사나 Undo를 백엔드 프로젝트로 옮기면 같은 규칙이 여러 벌이 되어 수정 때 쉽게 어긋납니다.</p></details></section><section id="coordinates"><h2>04. 원본 픽셀과 화면 좌표는 다르다</h2>
+<p>휴대전화에서 지도를 확대해도 학교의 실제 주소는 바뀌지 않습니다. 사진도 같습니다. 원본에서 (100, 80)에 있는 부품은 화면을 확대해도 원본 좌표가 (100, 80)입니다. 달라지는 것은 화면에서 보이는 위치와 크기입니다. 그래서 <strong>ROI의 위치는 원본 픽셀(px)로 저장하고, 그릴 때만 화면 좌표(DIP)로 바꿉니다.</strong> DIP는 WPF가 화면 배치를 계산할 때 쓰는 길이 단위입니다. 원본 픽셀과 모니터의 실제 픽셀, DIP를 같은 것으로 생각하지 마세요.</p>
+<div class="formula">화면 위치 = 원본 위치 × Scale + Offset<br>원본 위치 = (화면 위치 − Offset) ÷ Scale</div>
+<p>숫자를 하나씩 넣어 봅시다. Scale은 원본 1픽셀을 화면에서 얼마나 크게 그릴지 정하는 배율입니다. Scale이 0.5이면 원본 가로 100픽셀을 먼저 50 DIP로 줄입니다. Offset은 화면 전체를 밀어 놓은 거리입니다. 가로 이동 20 DIP를 더하면 70 DIP가 됩니다. 세로도 80픽셀을 40 DIP로 줄이고 30 DIP를 더하므로 70 DIP입니다. 거꾸로 원본을 찾을 때는 먼저 이동값을 빼고, 0.5로 나눕니다. 그러면 원래의 (100, 80)으로 돌아옵니다.</p><p>여기까지는 WPF의 화면 단위입니다. DPI 배율이 1.5이면 70 DIP를 모니터의 105픽셀에 표시합니다. 이 마지막 변환은 호스트가 맡습니다. 첫 읽기에서는 “원본 위치 → 확대/축소 → 화면 이동” 순서를 설명할 수 있으면 됩니다.</p>
+<details class="code-example" id="source-3"><summary>원본 ↔ 화면 변환과 화면 맞춤 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 36줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="원본 ↔ 화면 변환과 화면 맞춤"><code data-language="csharp" data-source="../../src/VisionGeometry/ViewportTransform.cs" data-kind="excerpt" data-start="4" data-end="39">public readonly record struct ViewportTransform(double Scale, PointD Offset)
+{
+    public static ViewportTransform Identity =&gt; new(1, new(0, 0));
+
+    public PointD ImageToScreen(PointD point) =&gt; (point * Scale) + Offset;
+
+    public PointD ScreenToImage(PointD point) =&gt; (point - Offset) / Scale;
+
+    public ViewportTransform Pan(PointD delta) =&gt; this with { Offset = Offset + delta };
+
+    public ViewportTransform ZoomAt(PointD anchor, double factor)
+    {
+        if (!double.IsFinite(factor) || factor &lt;= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(factor));
+        }
+
+        var scale = Math.Clamp(Scale * factor, 0.00001, 128);
+        // anchor 아래의 원본 좌표가 확대 후에도 같은 화면 위치에 오도록 Offset을 역산한다.
+        return new(scale, anchor - (ScreenToImage(anchor) * scale));
+    }
+
+    public static ViewportTransform Fit(double imageWidth, double imageHeight, double viewWidth, double viewHeight)
+    {
+        if (imageWidth &lt;= 0 || imageHeight &lt;= 0 || viewWidth &lt;= 0 || viewHeight &lt;= 0)
+        {
+            return Identity;
+        }
+
+        // 두 축 모두 들어가는 배율에 여백을 두고, 남은 공간의 절반만큼 이동해 중앙에 둔다.
+        var scale = Math.Min(viewWidth / imageWidth, viewHeight / imageHeight) * 0.92;
+        return new(scale, new(
+            (viewWidth - (imageWidth * scale)) / 2,
+            (viewHeight - (imageHeight * scale)) / 2));
+    }
+}</code></pre>
+<p class="source">src/VisionGeometry/ViewportTransform.cs · 4–39행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<ol><li><code>readonly record struct</code>: 작은 값 묶음이며 생성된 값 비교를 사용할 수 있습니다.</li><li><code>with</code>: 기존 값에서 지정한 부분만 바꾼 새 값을 만듭니다. 내부 참조까지 모두 깊은 복사한다는 뜻은 아닙니다.</li><li><code>ZoomAt</code>: 커서 아래의 원본 점을 먼저 구하고, 새 배율에서도 그 점이 커서 아래에 있도록 Offset을 다시 구합니다.</li></ol>
+<h3>ROI 맞춤을 손으로 계산하기</h3><p>200×100 px의 영역을 800×600 DIP 화면에 맞추면 두 축 비율은 4와 6입니다. 작은 값 4에 여유 계수 0.92를 곱해 Scale=3.68을 얻습니다. 표시 크기는 736×368 DIP, 중앙 여백은 좌우 32 DIP·상하 116 DIP입니다. 영역 왼쪽 위가 (100, 50)이라면 Offset=(32−368, 116−184)=(-336, -68)입니다.</p>
+<details class="deep-dive"><summary>왜 화면에서 1칸 이동시키는 대신 원본 1px를 움직일까?</summary><p>검사 영역의 좌표를 일정하게 바꾸기 위해서입니다. Scale=0.25에서 원본 1px 이동은 화면 0.25 DIP로 보입니다. 화면 1 DIP를 무조건 더하면 원본에서는 4px 이동해 확대율마다 결과가 달라집니다.</p></details></section><section id="editing"><h2>05. ROI 이동과 Undo가 한 팀인 이유</h2>
+<p>공책에 붙인 메모지를 손가락으로 밀다가 놓는 장면을 떠올려 보세요. 손이 움직이는 동안 여러 위치를 지나지만, 우리는 “메모지를 한 번 옮겼다”고 말합니다. ROI 드래그도 같습니다. 마우스 이동 이벤트가 30번 와도 사용자는 한 번의 Undo로 시작 위치로 돌아가기를 기대합니다. 그래서 <strong>끌고 있는 동안에는 미리보기만 바꾸고, 놓을 때 한 번 확정</strong>합니다. MoveGesture는 이동 동작을 계산하고, EditorSession은 문서와 확정을 관리하며, 렌더러는 현재 보일 모습을 그립니다.</p>
+<ol class="guide-flow"><li><strong>1. Down</strong><small>시작 상태 기억 / BeginPreview</small></li><li><strong>2. Move</strong><small>시작점 기준 이동 계산</small></li><li><strong>3. Up</strong><small>마지막 위치 반영 / CommitPreview</small></li><li><strong>4. Cancel</strong><small>시작 ROI 복원 / 이력 없음</small></li></ol>
+<details class="code-example" id="source-4"><summary>드래그 이동량을 원본 px로 계산하기 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 29줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="드래그 이동량을 원본 px로 계산하기"><code data-language="csharp" data-source="../../src/VisionCanvas.Core/Interaction/MoveGesture.cs" data-kind="excerpt" data-start="5" data-end="33">internal sealed class MoveGesture(InteractionController controller, PointD dragStartScreen) : EditGesture(controller)
+{
+    private (PointD Translation, bool AllowSlide)? _lastRequest;
+
+    protected override string Name =&gt; &quot;ROI 이동&quot;;
+
+    public override void Move(PointD screen, InputModifiers modifiers)
+    {
+        var translationInImage = (screen - dragStartScreen) / InitialViewport.Scale;
+        if ((screen - dragStartScreen).Length &lt; MinimumDragDistanceDip)
+        {
+            translationInImage = new();
+        }
+
+        if (modifiers.HasFlag(InputModifiers.Shift))
+        {
+            translationInImage = Math.Abs(translationInImage.X) &gt; Math.Abs(translationInImage.Y) ? new(translationInImage.X, 0) : new(0, translationInImage.Y);
+        }
+
+        var request = (Translation: translationInImage, AllowSlide: !modifiers.HasFlag(InputModifiers.Shift));
+        if (_lastRequest == request)
+        {
+            // 같은 위치의 Mouse Up은 벽 접촉 계산을 반복하지 않고 표시한 결과를 그대로 확정한다.
+            return;
+        }
+        Controller.PreviewTranslation(request.Translation, request.AllowSlide);
+        _lastRequest = request;
+    }
+}</code></pre>
+<p class="source">src/VisionCanvas.Core/Interaction/MoveGesture.cs · 5–33행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>이 줄은 “처음 누른 곳에서 지금까지 얼마나 움직였는가?”를 구합니다. 예를 들어 2배로 확대된 화면에서 오른쪽으로 20 DIP를 끌면, 원본에서는 오른쪽으로 10픽셀 이동합니다. <code>screen - dragStartScreen</code>이 화면에서 움직인 거리이고, <code>InitialViewport.Scale</code>로 나누면 원본 거리가 됩니다. 직전 이동값에 다시 더하는 것이 아니라 시작점부터 다시 구하므로 그 과정의 누적 오차를 피합니다.</p><p>Shift를 누른 드래그는 가로·세로 중 더 크게 움직인 축 하나만 남깁니다. 같은 요청이 반복되면 처리를 건너뜁니다. 여기서 Shift는 방향을 고정하는 기능입니다. 방향키와 함께 누를 때의 “10픽셀 이동”과 구별하세요.</p>
+<details class="code-example" id="source-5"><summary>방향키도 기존 선택 변환과 경계 제한을 재사용 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 9줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="방향키도 기존 선택 변환과 경계 제한을 재사용"><code data-language="csharp" data-source="../../src/VisionCanvas.Core/Editing/EditorSession.cs" data-kind="excerpt" data-start="258" data-end="266">    public void TranslateSelection(PointD delta)
+    {
+        var selection = State.TransformSelection;
+        var transform = new RigidTransform2D(default, 0, selection.Constrain(delta));
+        Commit(&quot;ROI 이동&quot;, selection.Apply(transform) with
+        {
+            Viewport = State.Viewport
+        });
+    }</code></pre>
+<p class="source">src/VisionCanvas.Core/Editing/EditorSession.cs · 258–266행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>오른쪽으로 10픽셀을 옮기려고 해도, 부모 영역의 벽까지 3픽셀만 남았다면 요청을 그대로 적용할 수 없습니다. <code>selection.Constrain(delta)</code>는 부모와 이미지 경계를 살펴 실제로 허용할 이동량을 정합니다. 부모와 자식을 같이 옮길 때 자식을 두 번 옮기지 않는 규칙도 공통 편집 계층이 맡습니다. 버튼 코드에서 X와 Y를 직접 바꾸는 대신 이 경로를 호출해야 경계 검사와 Undo 기록을 함께 지킬 수 있습니다.</p>
+<details class="code-example" id="source-6"><summary>이력 기록에 성공한 뒤 새 상태 게시 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 22줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="이력 기록에 성공한 뒤 새 상태 게시"><code data-language="csharp" data-source="../../src/VisionCanvas.Core/Editing/EditorSession.cs" data-kind="excerpt" data-start="460" data-end="481">    private void Commit(string name, DocumentState next, bool replacesImage = false)
+    {
+        if (_previewStart is not null)
+        {
+            throw new InvalidOperationException(&quot;진행 중인 편집을 먼저 완료하세요.&quot;);
+        }
+
+        if (!replacesImage &amp;&amp; State.SameContent(next) &amp;&amp; State.Image == next.Image)
+        {
+            return;
+        }
+
+        var edit = new DocumentEdit(name, State, next, replacesImage);
+        if (edit.IsEmpty)
+        {
+            return;
+        }
+
+        // 이력 예산 검사와 Redo 분기 처리가 성공한 뒤에만 새 문서를 게시한다.
+        _history.Push(edit, State, next);
+        Publish(next);
+    }</code></pre>
+<p class="source">src/VisionCanvas.Core/Editing/EditorSession.cs · 460–481행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>사각형을 끌었다가 시작점에 그대로 놓으면 위치가 바뀌지 않습니다. 이 경우에는 취소할 편집도 없으므로 <code>return</code>으로 끝내고 빈 Undo 기록을 만들지 않습니다. 실제 내용이 바뀌었다면 이력을 저장할 메모리 여유를 확인하고 Redo 갈래를 처리한 뒤, <code>Publish</code>로 새 문서 상태를 알립니다.</p><p>Redo 갈래는 “취소했던 작업을 다시 하는 길”입니다. A 상태에서 B로 편집했다가 Undo로 A에 돌아온 뒤 새로 C를 만들었다면, B로 가던 옛 Redo 길은 사라집니다. 여기서 <code>SameContent</code>가 비교하는 문서 내용과, 화면 확대나 선택 상태는 구별해야 합니다.</p>
+<h3>그룹·마스크·반복 셀</h3><p>계층은 실제 <code>ParentId</code> 연결로 관리합니다. 마스크는 ROI 내부의 제외 영역이며 검색 여유와도 별개입니다. 반복 격자는 행·열·간격·개별 수정값을 저장합니다. 공통 격자는 10,001×10,001=100,020,001셀을 표현하지만 일반 ROI 객체를 1억 번 만드는 방식이 아닙니다. 축소 화면에서는 요약 표시를 사용합니다.</p>
+<details class="code-example" id="source-7"><summary>반복 셀의 기본 위치와 개별 수정값 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 16줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="반복 셀의 기본 위치와 개별 수정값"><code data-language="csharp" data-source="../../src/VisionCanvas.Core/Editing/RepeatedRoiGrid.cs" data-kind="excerpt" data-start="65" data-end="80">    public RoiGeometry LocalGeometry(int index)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Count);
+        return Overrides.TryGetValue(index, out var geometry) ? geometry : BaseGeometry(index);
+    }
+
+    private RoiGeometry BaseGeometry(int index) =&gt; new(new(
+        ((index % Columns) - ((Columns - 1) / 2d)) * Pitch,
+        ((index / Columns) - ((Rows - 1) / 2d)) * Pitch), CellWidth, CellHeight, 0);
+
+    public RoiGeometry Geometry(int index)
+    {
+        var local = LocalGeometry(index);
+        return local.WithFrame(Pose.Apply(local.Center), local.Width, local.Height, local.Angle + Angle);
+    }</code></pre>
+<p class="source">src/VisionCanvas.Core/Editing/RepeatedRoiGrid.cs · 65–80행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>열 번호는 <code>index % Columns</code>, 행 번호는 정수 나눗셈 <code>index / Columns</code>입니다. <code>Overrides</code>에 수정값이 있으면 그것을 쓰고, 없으면 규칙으로 계산합니다. 여기서 자료구조를 쉽게 보이게 하려고 거대한 <code>List&lt;Roi&gt;</code>로 펼치면 시간·메모리 특성이 완전히 달라집니다.</p></section><section id="navigation"><h2>06. 방향키, 입력 잠금, 선택 없는 목록 확대</h2>
+<p>사진 속 사각형을 오른쪽으로 옮기는 일, 사진을 확대해서 보는 일, 마우스 조작을 막는 일은 서로 다릅니다. 이동은 ROI가 저장된 문서를 바꿉니다. 확대는 바라보는 방법인 Viewport만 바꿉니다. 잠금은 사용자 입력을 받아도 되는지 바꿉니다. 따라서 <strong>잠갔다고 새 영상까지 멈추면 안 되고, 확대했다고 ROI의 원본 위치가 바뀌면 안 됩니다.</strong> 아래 코드는 이 세 상태가 어디서 나뉘는지 보여 줍니다.</p>
+<div class="guide-table" tabindex="0" aria-label="동작 비교표"><table><thead><tr><th scope="col">동작</th><th scope="col">바뀌는 것</th><th scope="col">바뀌지 않는 것</th></tr></thead><tbody><tr><td>방향키 / Shift+방향키</td><td>선택 ROI를 원본 1px / 10px 이동; 실제 변경 시 이력</td><td>확대 배율에 따른 이동 단위</td></tr><tr><td>검사 화면 잠금</td><td>입력 금지; 진행 중 preview·capture 취소</td><td>새 프레임 게시와 렌더링</td></tr><tr><td>ROI 위치 목록에서 B 지정</td><td>B의 현재 경계에 화면 맞춤</td><td>편집 선택 A와 Undo/Redo</td></tr><tr><td>전체 보기</td><td>이미지 전체에 Viewport 맞춤</td><td>ROI 형상과 편집 선택</td></tr><tr><td>NavigationOnly</td><td>로딩/준비 중 편집만 일시 제한</td><td>전체 입력 잠금과 같은 상태가 아니다. 기존 탐색·취소 경로를 유지한다.</td></tr></tbody></table></div>
+<details class="code-example" id="source-8"><summary>키 이름을 원본 이동 벡터로 바꾸기 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 17줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="키 이름을 원본 이동 벡터로 바꾸기"><code data-language="csharp" data-source="../../src/VisionCanvas/Presentation/ViewportKeyboard.cs" data-kind="excerpt" data-start="29" data-end="45">    public static bool Nudge(InteractionController input, Key key, bool control, bool shift)
+    {
+        if (control || key is not (Key.Left or Key.Right or Key.Up or Key.Down))
+        {
+            return false;
+        }
+        var step = shift ? 10 : 1;
+        var delta = key switch
+        {
+            Key.Left =&gt; new PointD(-step, 0),
+            Key.Right =&gt; new(step, 0),
+            Key.Up =&gt; new(0, -step),
+            _ =&gt; new(0, step)
+        };
+        return input.NudgeSelection(delta);
+    }
+}</code></pre>
+<p class="source">src/VisionCanvas/Presentation/ViewportKeyboard.cs · 29–45행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p><code>switch</code> 식은 왼쪽을 (-step, 0), 위쪽을 (0, -step)으로 바꿉니다. 문서 변경은 <code>input.NudgeSelection</code>으로 넘깁니다. 텍스트 상자와 목록에 초점이 있을 때는 View가 <code>IsControlInput</code>으로 걸러서 글 편집/목록 탐색 키가 ROI로 새지 않게 합니다.</p>
+<details class="code-example" id="source-9"><summary>잠금 전환과 방향키 허용 조건 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 25줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="잠금 전환과 방향키 허용 조건"><code data-language="csharp" data-source="../../src/VisionCanvas.Core/Interaction/InteractionController.cs" data-kind="excerpt" data-start="27" data-end="51">    public bool IsEnabled
+    {
+        get =&gt; _isEnabled;
+        set
+        {
+            if (_isEnabled == value)
+            {
+                return;
+            }
+            _isEnabled = value;
+            Cancel();
+        }
+    }
+
+    /// &lt;summary&gt;원본 픽셀 단위의 이동. 기존 부모/이미지 경계와 한 번의 Undo를 사용한다.&lt;/summary&gt;
+    public bool NudgeSelection(PointD delta)
+    {
+        if (!IsEnabled || NavigationOnly || IsDragging || editor.IsPreviewing ||
+            _polygonPoints.Count &gt; 0 || editor.State.SelectionCount == 0)
+        {
+            return false;
+        }
+        editor.TranslateSelection(delta);
+        return true;
+    }</code></pre>
+<p class="source">src/VisionCanvas.Core/Interaction/InteractionController.cs · 27–51행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>잠금을 켜는 순간 <code>Cancel()</code>이 호출됩니다. 단순히 다음 Move 이벤트만 무시하면 이미 그리던 preview나 마우스 캡처가 남을 수 있기 때문입니다. <code>NavigationOnly</code>, 진행 중 제스처, 폴리곤 작성 중에도 방향키 편집을 거부합니다.</p>
+<details class="code-example" id="source-10"><summary>HWND 경계에서도 실제 입력을 차단하는 앞부분 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 15줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="HWND 경계에서도 실제 입력을 차단하는 앞부분"><code data-language="csharp" data-source="../../src/VisionCanvas/Controls/Dx12Viewport.cs" data-kind="excerpt" data-start="308" data-end="322">    protected override nint WndProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
+    {
+        var windowMessage = (NativeWindowMessage)message;
+        var input = PointerInput ?? Input;
+        try
+        {
+            // 마우스 버튼 전체/휠/키의 native 메시지를 먼저 차단한다. HwndHost의 IsEnabled만으로는 부족하다.
+            var inputEnabled = IsEnabled &amp;&amp; IsInputEnabled &amp;&amp; (InputEnabled?.Invoke() ?? true) &amp;&amp;
+                (input is not InteractionController controller || controller.IsEnabled);
+            if (!inputEnabled &amp;&amp; ((message &gt;= 0x0200 &amp;&amp; message &lt;= 0x020E) || (message &gt;= 0x0100 &amp;&amp; message &lt;= 0x0109)))
+            {
+                CancelInput();
+                handled = true;
+                return 0;
+            }</code></pre>
+<p class="source">src/VisionCanvas/Controls/Dx12Viewport.cs · 308–322행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>WPF 버튼을 비활성화한 것만으로 native HWND의 모든 키·휠 메시지가 사라지지는 않습니다. 공통 호스트가 메시지를 막고, Core도 편집 진입을 막습니다. App의 별도 편집 버튼 역시 같은 가용성에 연결해야 합니다.</p>
+<details class="code-example" id="source-11"><summary>FocusRoi / FocusBounds / FitImage의 실제 구현 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 40줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="FocusRoi / FocusBounds / FitImage의 실제 구현"><code data-language="csharp" data-source="../../src/VisionCanvas.Core/Editing/EditorSession.Navigation.cs" data-kind="excerpt" data-start="8" data-end="47">    public bool FocusRoi(Guid id, double viewWidth, double viewHeight)
+    {
+        if (State.Rois.TryGetValue(id, out var roi))
+        {
+            return FocusBounds(roi.Geometry.Bounds, viewWidth, viewHeight);
+        }
+        return State.RepeatedRois.TryGetValue(id, out var batch) &amp;&amp; FocusBounds(batch.Bounds, viewWidth, viewHeight);
+    }
+
+    /// &lt;summary&gt;외부 검사 결과 목록의 원본 좌표 영역도 ROI 선택 없이 표시한다.&lt;/summary&gt;
+    public bool FocusBounds(BoundsD bounds, double viewWidth, double viewHeight)
+    {
+        if (IsPreviewing || !ValidView(viewWidth, viewHeight) ||
+            !double.IsFinite(bounds.Left) || !double.IsFinite(bounds.Top) ||
+            !double.IsFinite(bounds.Right) || !double.IsFinite(bounds.Bottom) ||
+            !double.IsFinite(bounds.Width) || !double.IsFinite(bounds.Height) || bounds.Width &lt;= 0 || bounds.Height &lt;= 0)
+        {
+            return false;
+        }
+        var fit = ViewportTransform.Fit(bounds.Width, bounds.Height, viewWidth, viewHeight);
+        SetViewport(fit with
+        {
+            Offset = fit.Offset - (new PointD(bounds.Left, bounds.Top) * fit.Scale)
+        });
+        return true;
+    }
+
+    public bool FitImage(double viewWidth, double viewHeight)
+    {
+        if (IsPreviewing || !ValidView(viewWidth, viewHeight) || State.Image is not { } image)
+        {
+            return false;
+        }
+        SetViewport(ViewportTransform.Fit(image.Width, image.Height, viewWidth, viewHeight));
+        return true;
+    }
+
+    private static bool ValidView(double width, double height)
+        =&gt; double.IsFinite(width) &amp;&amp; double.IsFinite(height) &amp;&amp; width &gt; 0 &amp;&amp; height &gt; 0;
+}</code></pre>
+<p class="source">src/VisionCanvas.Core/Editing/EditorSession.Navigation.cs · 8–47행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p><code>FocusRoi</code>는 일반 ROI나 반복 배치의 <strong>현재 경계</strong>를 찾습니다. <code>FocusBounds</code>는 원본 영역을 받고, <code>FitImage</code>는 전체 이미지로 돌아갑니다. 모두 <code>SetViewport</code>를 사용합니다. 없는 ID, 0 크기, 비정상 수치, 진행 중 preview에서는 false를 반환합니다.</p>
+<p>이 Core API는 프로그램의 표시 요청이어서 사용자 잠금과 독립적입니다. 제공된 목록 UI는 잠금 시 탐색 버튼도 막습니다. 외부 검사 결과 목록에서는 ROI를 선택하지 말고 <code>session.FocusBounds(resultBounds, layout.Width, layout.Height)</code>를 호출하면 됩니다. 문서를 소유한 실행 문맥에서 호출해야 합니다.</p>
+<details class="deep-dive"><summary>왜 반복 ROI 1억 개를 목록에 1억 행으로 만들지 않을까?</summary><p>목록은 배치 한 행으로 유지합니다. ViewportNavigationViewModel.RefreshTargets는 목록을 펼칠 때 행 버전이 바뀐 경우에만 항목을 다시 만듭니다. 프레임마다 또는 포인터가 움직일 때마다 전체를 열거하지 않습니다.</p></details></section><section id="lab"><h2>07. 목록은 B를 보고, 편집 선택은 A를 유지하기</h2>
+<p>아래는 <strong>교육용 모형</strong>입니다. 원본 이미지는 1,000×600 px, 논리 화면은 600×360 DIP로 고정합니다. 실제 WPF·Core·GPU를 실행하지 않으며, 회전·부모·마스크·드래그와 완전한 이력 구현은 생략했습니다.</p>
+<ol><li>오른쪽 버튼으로 A를 1px 이동합니다. Shift를 누르면 10px입니다.</li><li>목록에서 B를 지정합니다. 화면이 B에 맞춰져도 “편집 선택: A”와 Undo 건수는 유지됩니다.</li><li>검사 잠금을 켜고 “새 영상 게시”를 누릅니다. 프레임은 바뀌지만 ROI와 화면은 움직이지 않습니다.</li><li>잠금을 풀고 전체 보기 → Undo를 누릅니다. A의 이동만 되돌아갑니다.</li></ol>
+<div class="lesson-lab" data-navigation-lab>
+<div class="lesson-controls"><label><input type="checkbox" data-lock>검사 화면 잠금</label><label>위치 보기 <select data-target data-edit><option value="">대상 지정</option><option value="A">ROI A</option><option value="B">ROI B</option></select></label><button type="button" data-focus data-edit>ROI 맞춤</button><button type="button" data-fit data-edit>전체 보기</button></div>
+<svg class="lesson-stage" viewBox="0 0 600 360" tabindex="0" role="group" aria-label="방향키로 ROI A를 이동하는 교육 화면" aria-describedby="lab-help"><title>선택 A와 탐색 B를 분리한 좌표 실습</title><g data-world transform="translate(24 14.4) scale(.552)"><rect data-image width="1000" height="600" fill="#d5e2df"/><path d="M0 200H1000 M0 400H1000 M200 0V600 M400 0V600 M600 0V600 M800 0V600" stroke="#8da3a3" fill="none"/><rect data-roi-a x="150" y="100" width="120" height="80" fill="#f5dabd" stroke="#9b3912" stroke-width="3" vector-effect="non-scaling-stroke"/><text data-label-a x="158" y="128">A · 선택</text><rect x="600" y="300" width="200" height="160" fill="#bad8ed" stroke="#244b69" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="608" y="328">B · 탐색 대상</text></g></svg>
+<div class="lesson-controls"><button type="button" data-move="-1,0" data-edit aria-label="왼쪽으로 1픽셀">← 왼쪽</button><button type="button" data-move="0,-1" data-edit aria-label="위로 1픽셀">↑ 위</button><button type="button" data-move="0,1" data-edit aria-label="아래로 1픽셀">↓ 아래</button><button type="button" data-move="1,0" data-edit aria-label="오른쪽으로 1픽셀">→ 오른쪽</button><button type="button" data-undo>Undo</button><button type="button" data-publish>새 영상 게시</button><button type="button" data-reset>학습 모형 초기화</button></div>
+<output class="lesson-values" aria-live="polite">편집 선택: A · A 위치 (150, 100) px · Undo 0건 · 프레임 1</output><p class="lesson-note" id="lab-help">Tab으로 그림에 초점을 준 뒤 방향키 / Shift+방향키로도 조작할 수 있습니다. 목록의 방향키는 목록 자체를 조작합니다. 새 영상 게시는 수동으로 다음 프레임을 흉내 냅니다. 초기화는 수업용 제어라 잠금 중에도 사용할 수 있습니다.</p><noscript><p>JavaScript가 꺼져 있습니다. 실험 버튼은 동작하지 않지만 코드와 설명·풀이를 읽을 수 있습니다.</p></noscript></div>
+<details class="deep-dive"><summary>B로 확대하자 A가 화면 밖으로 사라졌다. 선택을 잃은 것일까?</summary><p>아닙니다. 선택은 문서가 가진 A의 ID이고, 화면 맞춤은 Viewport의 배율과 Offset입니다. 전체 보기를 누르면 이동한 A를 다시 볼 수 있습니다. 렌더링 가시성과 편집 선택을 같은 상태로 취급하지 마세요.</p></details></section><section id="images"><h2>08. 큰 파일과 계속 들어오는 영상</h2>
+<h3>파일: 필요한 조각을 필요한 해상도로</h3><p>커다란 지도를 책상 전체에 펼치지 않고, 지금 보는 동네 쪽만 꺼낸다고 생각해 보세요. 큰 이미지도 화면에 필요한 부분만 읽을 수 있습니다. 이 작은 조각이 <strong>타일</strong>입니다. 멀리서 전체를 볼 때는 자세한 지도 대신 간단한 축소 지도를 씁니다. 여러 크기의 축소본을 준비한 묶음을 <strong>피라미드</strong>라고 부릅니다.</p><p>8K/24K 파일을 매 프레임 통째로 다시 읽는 대신, 알맞은 축소 단계와 타일을 골라 사용합니다. 단, 처음 파일을 열 때 원본을 해석하는 디코딩과 캐시 준비에는 시간이 듭니다. 화면에서 보기 좋게 줄인 영상과 검사에 필요한 원본은 분리합니다. 축소 화면이 흐릿하다고 검사 원본까지 바뀐 것은 아닙니다.</p>
+<details class="code-example" id="source-12"><summary>현재 화면에 필요한 타일 주소 계산 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 33줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="현재 화면에 필요한 타일 주소 계산"><code data-language="csharp" data-source="../../src/VisionCanvas/Imaging/TilePlanner.cs" data-kind="excerpt" data-start="9" data-end="41">    public static IReadOnlyList&lt;TileKey&gt; Visible(ImageInfo image, ViewportTransform view, double width, double height, double dpi)
+    {
+        if (width &lt;= 0 || height &lt;= 0 || view.Scale &lt;= 0 || dpi &lt;= 0)
+        {
+            return [];
+        }
+
+        // Scale은 DIP/원본 픽셀, dpi는 물리 픽셀/DIP다. 곱한 값으로 표시 해상도를 고른다.
+        var level = Math.Clamp((int)Math.Floor(Math.Log2(1 / (view.Scale * dpi))), 0, image.Levels - 1);
+        var downsampleFactor = 1 &lt;&lt; level;
+        var tileSpanInImage = (double)ImageInfo.TileSize * downsampleFactor;
+        var imageTopLeft = view.ScreenToImage(new PointD(0, 0));
+        var imageBottomRight = view.ScreenToImage(new PointD(width, height));
+        var columnCount = (int)Math.Ceiling(image.Width / tileSpanInImage);
+        var rowCount = (int)Math.Ceiling(image.Height / tileSpanInImage);
+
+        // 시작은 포함하고 끝은 제외한다. 이미지 밖 여백에는 타일을 요청하지 않는다.
+        var firstColumn = Math.Clamp((int)Math.Floor(imageTopLeft.X / tileSpanInImage), 0, columnCount);
+        var firstRow = Math.Clamp((int)Math.Floor(imageTopLeft.Y / tileSpanInImage), 0, rowCount);
+        var columnEnd = Math.Clamp((int)Math.Ceiling(imageBottomRight.X / tileSpanInImage), 0, columnCount);
+        var rowEnd = Math.Clamp((int)Math.Ceiling(imageBottomRight.Y / tileSpanInImage), 0, rowCount);
+        var result = new List&lt;TileKey&gt;();
+        for (var row = firstRow; row &lt; rowEnd; row++)
+        {
+            for (var column = firstColumn; column &lt; columnEnd; column++)
+            {
+                result.Add(new(level, column, row));
+            }
+        }
+
+        return result;
+    }
+}</code></pre>
+<p class="source">src/VisionCanvas/Imaging/TilePlanner.cs · 9–41행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>예를 들어 Scale=0.25, DPI=1이면 원본 4px가 물리 화면 1px에 들어갑니다. <code>log2(1 / 0.25)=2</code>이므로 2단계를 고릅니다. 화면 왼쪽 위를 원본으로 역변환하고, 시작 타일에는 floor(내림), 끝에는 ceil(올림)을 써서 경계에 걸친 타일까지 포함합니다. 단계와 범위는 실제 이미지 크기로 제한합니다.</p>
+<p>TilePlanner는 “어느 조각이 필요한가?”라는 주소 목록만 구합니다. 실제 파일 읽기와 취소는 TileWorker가 맡고, 표시 쪽으로 데이터를 옮기거나 더 이상 필요 없는 것을 빼는 일은 GpuImageResources가 맡습니다. 예를 들어 사진 A를 읽다가 B로 바꿨는데 A의 타일이 늦게 도착할 수 있습니다. 그래서 작업에 영상의 세대 번호인 <code>generation</code>을 붙여 B의 화면에 A 조각이 섞이지 않게 합니다.</p>
+<h3>라이브: 오래된 대기 프레임을 쌓지 않기</h3><p>생산자가 10, 11, 12번 프레임을 보내는 동안 소비자가 늦으면 대기 중인 최신 프레임 12만 남깁니다. 표시 지연을 줄이는 정책이지, 모든 프레임 검사·저장을 보장하는 큐가 아닙니다. 전수 검사가 필요하면 수집/검사 파이프라인에서 별도의 계약을 정해야 합니다.</p>
+<details class="code-example" id="source-13"><summary>최신 프레임 한 칸과 소유권 전달 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 30줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="최신 프레임 한 칸과 소유권 전달"><code data-language="csharp" data-source="../../src/VisionCanvas/Imaging/LatestFrameMailbox.cs" data-kind="excerpt" data-start="29" data-end="58">    public void Publish(VideoFrame frame)
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                frame.Dispose();
+                return;
+            }
+            if (_pending is not null)
+            {
+                _pending.Dispose();
+                Interlocked.Increment(ref _dropped);
+            }
+            _latest?.Dispose();
+            _latest = frame.Retain();
+            _pending = frame;
+            Available?.Invoke();
+        }
+    }
+
+    public VideoFrame? Take()
+    {
+        lock (_gate)
+        {
+            var frame = _pending;
+            _pending = null;
+            return frame;
+        }
+    }</code></pre>
+<p class="source">src/VisionCanvas/Imaging/LatestFrameMailbox.cs · 29–58행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p><code>lock</code>은 두 스레드가 슬롯을 동시에 바꾸지 못하게 합니다. 교체되는 pending 참조는 Dispose하고, <code>Retain</code>은 마지막 프레임을 재표시할 참조를 보유합니다. 같은 픽셀을 가리키는 참조라도 소유권 단위는 각각 반환해야 합니다. PublishFrame 이후 호출자가 그 프레임을 수정하거나 임의로 Dispose하지 않습니다.</p>
+<details class="code-example" id="source-14"><summary>파일 준비 → 소유권 이전 → 문서 확정 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 37줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="파일 준비 → 소유권 이전 → 문서 확정"><code data-language="csharp" data-source="../../src/VisionCanvas/Presentation/ImageCoordinator.cs" data-kind="excerpt" data-start="158" data-end="194">    private async Task LoadAndCommitAsync(ImageReference reference, Action&lt;ImageInfo&gt; commit, CancellationToken token, Action? validate = null,
+        Action&lt;ImageInfo&gt;? validateImage = null)
+    {
+        // 준비 단계에서는 이 메서드가 소스를 소유한다. 표시 쪽에 넘기지 못하면 finally에서 해제한다.
+        ITileSource? prepared = null;
+        try
+        {
+            prepared = await loader.LoadAsync(reference, new Progress&lt;string&gt;(text =&gt; Status?.Invoke(text)), token);
+            // 로더가 취소 직전에 끝났을 수도 있으므로, 결과를 받은 뒤에도 취소 여부를 다시 확인한다.
+            token.ThrowIfCancellationRequested();
+            validate?.Invoke();
+            var info = prepared.Info;
+            validateImage?.Invoke(info);
+            // 기존 호스트의 라이브 소스도 새 파일 준비에 성공한 뒤에만 중지해야 실패 시 계속 표시할 수 있다.
+            if (beforeSourceChange is not null)
+            {
+                await beforeSourceChange();
+            }
+            // 기존 소스 중지를 시작한 뒤에는 새 소스 설치까지 마친다.
+            // 여기서 늦은 Esc로 새 소스를 버리면, 기존 소스도 이미 멈춰 화면과 문서가 어긋날 수 있다.
+            validate?.Invoke();
+            // SetSource 성공 후에는 표시 쪽이 새 소스의 해제를 책임진다.
+            // 이전 소스는 진행 중인 타일 읽기가 끝난 뒤 해제되어, 읽는 중에 자원이 사라지지 않는다.
+            Generation = display.SetSource(prepared);
+            // null은 해제가 아니다. finally에서 같은 소스를 다시 해제하지 않도록 소유권 이전을 표시한다.
+            prepared = null;
+            Image = info;
+            commit(info);
+            Changed?.Invoke();
+            Status?.Invoke($&quot;{info.Name} · {info.Width:N0} × {info.Height:N0} · {info.Pixels}&quot;);
+        }
+        finally
+        {
+            // 소유권을 넘기기 전에 실패·취소했다면 이쪽에서 해제한다. 성공 시 prepared는 null이다.
+            prepared?.Dispose();
+        }
+    }</code></pre>
+<p class="source">src/VisionCanvas/Presentation/ImageCoordinator.cs · 158–194행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p><code>prepared = null</code>은 소스를 해제하는 줄이 아닙니다. <code>SetSource</code> 성공 후 Canvas가 해제를 맡았으므로 finally에서 중복 Dispose하지 않게 표시하는 줄입니다. <code>await</code>는 완료를 기다리는 표현이며 자동으로 모든 코드를 새 스레드에 옮기는 키워드는 아닙니다.</p>
+<details class="deep-dive"><summary>잠금을 켰는데 프레임이 멈춘다면 어디부터 볼까?</summary><p>입력 허용 조건을 PublishFrame이나 renderer.Submit 조건에도 잘못 넣었는지 봅니다. 잠금은 사용자 입력과 외부 편집 명령을 막지만, 영상 생산과 표시 요청은 유지해야 합니다. 실제 코드 테스트는 잠금 중 다른 값의 8K 프레임 두 장이 표시되는지 검사합니다.</p></details></section><section id="render"><h2>09. Vulkan: 화면을 얻고 명령을 제출하기</h2>
+<p>Vulkan으로 그리기 전에 “어느 GPU에 일을 맡길지”와 “어느 창에 보여 줄지”부터 정해야 합니다. <code>VulkanDevice</code>가 이 준비를 맡습니다. 시작 객체인 instance를 만들고, Win32 surface로 Windows 창을 연결하고, GPU와 작업 제출 통로인 queue를 고릅니다. <code>VulkanSurface</code>는 표시용 이미지 여러 장을 번갈아 사용하는 swapchain을 관리합니다.</p><p>현재 코드는 그리기(graphics)와 화면 표시(present)를 같은 queue family에서 처리할 수 있는 장치를 선택합니다. queue family는 같은 기능을 지원하는 제출 통로들의 종류입니다. 장치는 별도 그래픽 장치인 discrete GPU를 우선합니다. 첫 읽기에서는 이 선택 조건을 외우기보다 Device는 준비, Surface는 표시 이미지 관리라는 역할을 구별하세요.</p>
+<ol class="guide-flow"><li><strong>1. Begin</strong><small>슬롯 fence 완료 확인</small></li><li><strong>2. Acquire</strong><small>쓸 swapchain 이미지 획득</small></li><li><strong>3. Upload</strong><small>타일·라벨 전송 명령</small></li><li><strong>4. Render pass</strong><small>sprite / mask / ROI</small></li><li><strong>5. Queue submit</strong><small>완성될 명령 제출</small></li><li><strong>6. Present</strong><small>준비 신호를 기다려 표시</small></li></ol>
+<details class="code-example" id="source-15"><summary>슬롯과 swapchain 이미지 획득 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 49줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="슬롯과 swapchain 이미지 획득"><code data-language="csharp" data-source="../../src/VisionCanvas.Vulkan/Rendering/VulkanSurface.cs" data-kind="excerpt" data-start="197" data-end="245">    public bool Begin(int width, int height)
+    {
+        if (width &lt;= 0 || height &lt;= 0)
+        {
+            return false;
+        }
+        if (_recreate || width != Width || height != Height)
+        {
+            _gpu.WaitIdle();
+            DestroySwapchain();
+            CreateSwapchain(width, height);
+            _recreate = false;
+        }
+        var frame = _frames[FrameIndex];
+        // 유한 대기로 종료 신호를 주기적으로 확인한다. UI 스레드는 이 fence를 기다리지 않는다.
+        var wait = _gpu.Api.vkWaitForFences(frame.Fence, true, 100_000_000);
+        if (wait == VkResult.Timeout)
+        {
+            return false;
+        }
+        Check(wait, &quot;vkWaitForFences&quot;);
+        var acquire = _gpu.Api.vkAcquireNextImageKHR(_swapchain, 100_000_000, frame.Acquired, VkFence.Null, out _imageIndex);
+        if (acquire == VkResult.ErrorOutOfDateKHR)
+        {
+            _recreate = true;
+            return false;
+        }
+        if (acquire is VkResult.Timeout or VkResult.NotReady)
+        {
+            return false;
+        }
+        if (acquire == VkResult.SuboptimalKHR)
+        {
+            _recreate = true;
+        }
+        else
+        {
+            Check(acquire, &quot;vkAcquireNextImageKHR&quot;);
+        }
+        foreach (var resource in frame.Retired)
+        {
+            resource.Dispose();
+        }
+        frame.Retired.Clear();
+        Check(_gpu.Api.vkResetCommandPool(frame.Pool, 0), &quot;vkResetCommandPool&quot;);
+        var begin = new VkCommandBufferBeginInfo { flags = VkCommandBufferUsageFlags.OneTimeSubmit };
+        Check(_gpu.Api.vkBeginCommandBuffer(Commands, &amp;begin), &quot;vkBeginCommandBuffer&quot;);
+        return true;
+    }</code></pre>
+<p class="source">src/VisionCanvas.Vulkan/Rendering/VulkanSurface.cs · 197–245행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>창이 최소화되어 크기가 0이거나 화면 이미지를 얻는 데 잠시 Timeout이 나면, 이번 시도를 false로 끝내고 다음 기회를 기다립니다. 창 크기가 달라졌다면 예전 GPU 작업이 끝난 뒤 새 크기의 swapchain을 만듭니다.</p><p>여기에는 번호가 두 개 있습니다. <code>FrameIndex</code>는 명령과 메모리를 보관할 작업 자리의 번호이고, <code>_imageIndex</code>는 이번에 그림을 그릴 표시 이미지의 번호입니다. 책상 자리 번호와 그 위에 놓인 종이 번호가 다른 것처럼, 둘을 항상 같다고 가정하면 아직 쓰는 자원을 덮어쓸 수 있습니다.</p>
+<details class="code-example" id="source-16"><summary>전송 뒤 render pass에서 그리기 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 12줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="전송 뒤 render pass에서 그리기"><code data-language="csharp" data-source="../../src/VisionCanvas.Vulkan/Rendering/VulkanRenderWorker.cs" data-kind="excerpt" data-start="183" data-end="194">                    // 타일/라벨 전송은 render pass 시작 전에 끝낸다.
+                    surface.BeginDrawing();
+                    if (mesh is not null)
+                    {
+                        sprites.Draw(mesh, surface, painter.RoiBatchBoundary, () =&gt;
+                        {
+                            masks.Draw(scene!, surface, resourcesForFrame);
+                            repeated.Draw(scene!, surface, resourcesForFrame);
+                            rois.Draw(scene!, surface, resourcesForFrame);
+                        });
+                    }
+                    surface.EndDrawing();</code></pre>
+<p class="source">src/VisionCanvas.Vulkan/Rendering/VulkanRenderWorker.cs · 183–194행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>공통 painter가 정한 겹침 순서를 VulkanSpritePipeline이 유지하고, callback에서 마스크·반복셀·ROI를 그립니다. 타일/라벨 전송을 render pass보다 먼저 끝내는 순서가 중요합니다. 임의로 upload를 Draw 안으로 옮기지 마세요.</p>
+<h3>기존 HLSL을 SPIR-V로 사용하기</h3><details class="code-example" id="source-17"><summary>shaderc 설정과 UTF-8 입력 <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 21줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="shaderc 설정과 UTF-8 입력"><code data-language="csharp" data-source="../../src/VisionCanvas.Vulkan/Rendering/VulkanShaderCompiler.cs" data-kind="excerpt" data-start="59" data-end="79">            ShadercCompileOptionsSetSourceLanguage(options, SourceLanguage.HLSL);
+            ShadercCompileOptionsSetTargetEnv(options, TargetEnvironment.Vulkan, (uint)TargetEnvironmentVersion.Vulkan_1_1);
+            ShadercCompileOptionsSetOptimizationLevel(options, OptimizationLevel.Performance);
+            ShadercCompileOptionsSetHlslOffsets(options, true);
+            ShadercCompileOptionsSetAutoMapLocations(options, true);
+            ShadercCompileOptionsSetInvertY(options, stage == ShaderKind.VertexShader);
+            string[] registers = [&quot;t0&quot;, &quot;t1&quot;, &quot;b0&quot;, &quot;s0&quot;, &quot;s1&quot;];
+            using var set = new Utf8Name(&quot;0&quot;);
+            for (var index = 0; index &lt; registers.Length; index++)
+            {
+                using var register = new Utf8Name(registers[index]);
+                using var binding = new Utf8Name(index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                ShadercCompileOptionsSetHlslRegisterSetAndBinding(options, register.Pointer, set.Pointer, binding.Pointer);
+            }
+            var bytes = Encoding.UTF8.GetBytes(File.ReadAllText(path));
+            using var name = new Utf8Name(path);
+            using var entryName = new Utf8Name(entry);
+            fixed (byte* source = bytes)
+            {
+                result = ShadercCompileIntoSpv(compiler, source, (nuint)bytes.Length, (uint)stage, name.Pointer, entryName.Pointer, options);
+            }</code></pre>
+<p class="source">src/VisionCanvas.Vulkan/Rendering/VulkanShaderCompiler.cs · 59–79행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>셰이더는 GPU가 실행하는 작은 프로그램입니다. 이 프로젝트에 이미 있는 HLSL 코드를 Vulkan에서도 쓰기 위해, shaderc라는 변환 도구로 SPIR-V 바이트코드를 만듭니다. 사람이 쓴 설명을 실행할 수 있는 형식으로 번역하는 과정이라고 생각하세요.</p><p>심화 읽기에서는 두 연결을 봅니다. HLSL의 재료 번호인 레지스터를 Vulkan의 descriptor binding에 대응시키고, 정점의 Y 방향을 맞춥니다. 또한 한글 한 글자는 UTF-8에서 여러 바이트가 될 수 있으므로 글자 수 대신 <code>bytes.Length</code>를 넘깁니다. <code>fixed</code>는 이 호출 동안 배열 주소가 이동하지 않게 해서 네이티브 코드가 올바른 위치를 읽도록 합니다.</p>
+<details class="deep-dive"><summary>Vulkan의 화면이 뒤집혔다면 ROI의 Y값을 반대로 저장해야 할까?</summary><p>아닙니다. 문서의 원본 좌표 계약은 그대로 두고, 정점 좌표 변환·viewport·셰이더의 Y 처리 경계를 확인합니다. 저장 좌표를 바꾸면 다른 렌더러와 검사 좌표까지 함께 깨집니다.</p></details></section><section id="lifetime"><h2>10. fence와 semaphore를 구분하기</h2>
+<div class="guide-table" tabindex="0" aria-label="실행 위치 비교표"><table><thead><tr><th scope="col">실행 위치</th><th scope="col">소유할 일</th><th scope="col">피할 일</th></tr></thead><tbody><tr><td>UI 스레드</td><td>입력, 문서 변경, WPF 바인딩, Viewport 크기</td><td>GPU 완료를 매 프레임 동기 대기</td></tr><tr><td>작업 스레드</td><td>파일 I/O, 디코드, 타일 준비, 취소 확인</td><td>늦은 결과로 새 문서 덮어쓰기</td></tr><tr><td>렌더 스레드</td><td>렌더 자원, 그리기, 표시, 완료 후 해제</td><td>다른 스레드에서 동시에 같은 native 자원 조작</td></tr></tbody></table></div><div class="guide-table" tabindex="0" aria-label="개념 비교표"><table><thead><tr><th scope="col">개념</th><th scope="col">이 구현에서 확인할 대상</th><th scope="col">필요한 이유</th></tr></thead><tbody><tr><td>frame.Fence</td><td>CPU가 슬롯을 다시 쓰기 전 GPU 완료 확인</td><td>command pool / 업로드 / 지연 해제 자원의 수명 보호</td></tr><tr><td>frame.Acquired semaphore</td><td>swapchain 이미지 사용 가능 신호</td><td>제출한 그리기가 이미지 획득을 기다리게 함</td></tr><tr><td>_presentReady[_imageIndex]</td><td>그리기 뒤 present가 기다리는 신호</td><td>표시 작업이 완성되지 않은 이미지를 읽지 않게 함</td></tr><tr><td>FrameIndex ≠ _imageIndex</td><td>2개 작업 슬롯과 swapchain 이미지 수</td><td>동기화 객체를 잘못 재사용하지 않도록 구분</td></tr></tbody></table></div>
+<details class="code-example" id="source-18"><summary>제출 신호와 present 대기, Retire <span class="code-language">csharp</span></summary>
+<div class="code-toolbar"><span>실제 소스 · 43줄 · 연속 발췌</span><button type="button" data-copy-code hidden>코드 복사</button></div>
+<pre tabindex="0" aria-label="제출 신호와 present 대기, Retire"><code data-language="csharp" data-source="../../src/VisionCanvas.Vulkan/Rendering/VulkanSurface.cs" data-kind="excerpt" data-start="267" data-end="309">    public void Present()
+    {
+        var frame = _frames[FrameIndex];
+        Check(_gpu.Api.vkEndCommandBuffer(Commands), &quot;vkEndCommandBuffer&quot;);
+        Check(_gpu.Api.vkResetFences(frame.Fence), &quot;vkResetFences&quot;);
+        var acquired = frame.Acquired;
+        var ready = _presentReady[_imageIndex];
+        var commands = Commands;
+        var stage = VkPipelineStageFlags.ColorAttachmentOutput;
+        var submit = new VkSubmitInfo
+        {
+            waitSemaphoreCount = 1,
+            pWaitSemaphores = &amp;acquired,
+            pWaitDstStageMask = &amp;stage,
+            commandBufferCount = 1,
+            pCommandBuffers = &amp;commands,
+            signalSemaphoreCount = 1,
+            pSignalSemaphores = &amp;ready
+        };
+        Check(_gpu.Api.vkQueueSubmit(_gpu.Queue, 1, &amp;submit, frame.Fence), &quot;vkQueueSubmit&quot;);
+        var chain = _swapchain;
+        var index = _imageIndex;
+        var present = new VkPresentInfoKHR
+        {
+            waitSemaphoreCount = 1,
+            pWaitSemaphores = &amp;ready,
+            swapchainCount = 1,
+            pSwapchains = &amp;chain,
+            pImageIndices = &amp;index
+        };
+        var result = _gpu.Api.vkQueuePresentKHR(_gpu.Queue, &amp;present);
+        if (result is VkResult.ErrorOutOfDateKHR or VkResult.SuboptimalKHR)
+        {
+            _recreate = true;
+        }
+        else
+        {
+            Check(result, &quot;vkQueuePresentKHR&quot;);
+        }
+        FrameIndex = (FrameIndex + 1) % _frames.Length;
+    }
+
+    public void Retire(IDisposable resource) =&gt; _frames[FrameIndex].Retired.Add(resource);</code></pre>
+<p class="source">src/VisionCanvas.Vulkan/Rendering/VulkanSurface.cs · 267–309행 · 2026-10-16 로컬 코드 기준</p><p class="code-copy-status" role="status"></p></details>
+<p>순서를 말로 읽어 봅시다. “쓸 화면 이미지를 얻었다”는 acquired 신호가 와야 submit한 그리기 작업을 진행합니다. 그리기가 끝나면 ready 신호를 보냅니다. present는 이 ready를 기다린 뒤 그림을 표시합니다. 이런 GPU 쪽 작업 순서를 연결하는 것이 semaphore입니다.</p><p>한편 CPU가 메모리를 다시 쓰거나 해제하려면 GPU 완료를 fence로 확인해야 합니다. 제출 성공은 완료와 다릅니다. <code>Retire</code>는 “이 자원은 나중에 정리할 것”이라고 현재 슬롯의 목록에 넣습니다. 다음 Begin에서 해당 fence의 완료를 확인한 뒤 실제로 해제합니다.</p>
+<h3>왜 일부 포인터 코드가 필요한가?</h3><p><code>unsafe</code>, <code>&amp;commands</code>, <code>pWaitSemaphores</code>는 native Vulkan 구조체의 주소를 전달하는 부분입니다. C# 배열만으로 숨기려면 복사/수명 계약이 추가될 수 있습니다. 여기서는 포인터가 가리키는 값이 호출 동안 살아 있는지와 native 호출이 데이터를 즉시 읽는지부터 확인합니다.</p>
+<p>재시작이나 캡처를 “일반 프레임마다 하는 일”로 옮기지 않습니다. Readback은 GPU→CPU 복사와 완료 대기를 동반합니다. 현재 검증 기록은 실제 표시/픽셀 비교를 포함하지만 Vulkan validation layer 및 장기간 자원 안정성을 모두 검증했다는 뜻은 아닙니다.</p></section><section id="extend"><h2>11. 어디를 바꿀지 먼저 결정하기</h2>
+<div class="guide-table" tabindex="0" aria-label="원하는 변경 비교표"><table><thead><tr><th scope="col">원하는 변경</th><th scope="col">수정할 경계</th><th scope="col">보존할 조건</th></tr></thead><tbody><tr><td>외부 결과 목록에서 확대</td><td>FocusBounds / FocusRoi를 호출하는 VM</td><td>편집 선택·Undo/Redo 보존, 원본 좌표 전달</td></tr><tr><td>키보드 이동 규칙</td><td>ViewportKeyboard + InteractionController</td><td>텍스트/목록 포커스, 부모·이미지 경계, 잠금</td></tr><tr><td>ROI의 모양이나 편집 규칙</td><td>VisionGeometry + Core</td><td>ID·ParentId·마스크·이력·회전 도형 포함 판정</td></tr><tr><td>화면에만 붙는 검사 표시</td><td>RenderScene / DrawingLayer / ResultOverlay</td><td>문서 ROI를 불필요하게 생성하지 않음</td></tr><tr><td>다른 렌더 API 지원</td><td>호스트의 CreateRenderer와 전용 렌더 프로젝트</td><td>공통 Core/타일/장면 계약 재사용</td></tr><tr><td>검사 알고리즘 추가</td><td>VisionInspection / 알고리즘 서비스 / VM 연결</td><td>표시 해상도와 검사 원본을 혼동하지 않음</td></tr></tbody></table></div>
+<h3>읽기 쉬운 리팩토링의 기준</h3><p>“코드를 짧게 만든다”보다 “지금 어떤 단계인지 보인다”가 먼저입니다. 메서드를 나눌 때 반환값·소유권·실행 순서를 명시하고, 포인터·풀링·비동기 완료 같은 성능 조건은 설명을 붙여 보존합니다. 기존 <code>ImageCoordinator.LoadAndCommitAsync</code>, <code>TilePlanner.Visible</code>, <code>EditorSession.Commit</code>처럼 하나의 규칙을 맡은 메서드를 출발점으로 읽으세요.</p>
+<p>이번 교육서 작성에서는 제품 C#의 연산·버퍼·렌더 루프를 변경하지 않았습니다. 이미 나뉜 단계와 실제 연속 발췌를 연결해 읽기 부담을 줄였습니다. 이 선택은 “성능을 측정해 더 빨라졌다”는 주장이 아니라 제품 실행 경로에 변경을 넣지 않았다는 뜻입니다.</p>
+<div class="guide-table" tabindex="0" aria-label="쉽게 보이는 변경 비교표"><table><thead><tr><th scope="col">쉽게 보이는 변경</th><th scope="col">숨은 비용 또는 오류</th><th scope="col">먼저 확인할 것</th></tr></thead><tbody><tr><td>프레임마다 모든 ROI를 ToArray</td><td>큰 배열·GC·UI 정지</td><td>가시 영역, 기존 캐시와 버전 사용</td></tr><tr><td>반복 격자를 일반 ROI 목록으로 변환</td><td>셀 수만큼 시간·메모리 증가</td><td>압축 범위와 개별 override 유지</td></tr><tr><td>GPU 전송 버퍼를 바로 Dispose</td><td>아직 GPU가 읽는 중일 수 있음</td><td>슬롯 완료와 Retire 계약</td></tr><tr><td>모든 작업에 Task.Run 추가</td><td>문서 소유 스레드 위반, 순서 경합</td><td>작업 경계·취소·새 문서 여부 확인</td></tr><tr><td>잠금 때 렌더러도 정지</td><td>검사 영상 갱신까지 중단</td><td>입력 허용과 프레임 게시 분리</td></tr><tr><td>빠른 후보만 남겨 검사 시간 단축</td><td>누락률·위치/각도 결과 변화</td><td>같은 입력·점수·후보·전수 결과 기준</td></tr></tbody></table></div>
+<p>실제 성능 변경이 필요하면 같은 Release 빌드와 동일 입력에서 워밍업 후 여러 번 측정하고, 처리시간 중앙값/p95·할당량·픽셀 또는 결과를 함께 비교합니다. 캡처 시간, 명령 처리시간, GPU 시간, 모니터 표시 시간은 서로 다른 수치입니다. 60FPS의 프레임 간격은 약 16.67ms이지만 일부 구간만 그보다 짧다고 전체 60FPS를 증명할 수 없습니다.</p></section><section id="practice"><h2>12. 직접 실행하고, 설명해 보기</h2>
+<p>아래 명령은 <strong>저장소 루트의 PowerShell</strong>에서 실행합니다. Windows x64, 저장소가 요구하는 .NET SDK와 native 의존성이 필요합니다. 첫 실행의 restore에는 네트워크가 필요할 수 있습니다. HTML을 읽는 데에는 .NET·서버·인터넷이 필요하지 않습니다.</p>
+<pre tabindex="0" aria-label="실행과 테스트 명령"><code>dotnet run --project samples/VisionCanvas.VulkanSample -c Release
+dotnet test tests/VisionCanvas.Vulkan.Tests -c Release</code></pre>
+<p>실제 HWND/GPU 테스트는 Windows 데스크톱 세션과 해당 장치가 필요합니다. 저장소 테스트 중 대형 파일/성능 시험은 선택 실행 조건이 있으므로 <a href="../../docs/vulkan-validation.md">백엔드 검증 기록</a>과 <a href="../../samples/VisionCanvas.VulkanSample/README.md">샘플 README</a>에서 실행 범위를 확인하세요. </p>
+<div class="guide-answers"><h3>실습 A · 호출 경로 찾기</h3><p>ROI 하나를 그리고 오른쪽 방향키를 누릅니다. 키 처리, TranslateSelection, VM의 Scene 생성, 렌더러 제출에 중단점을 둡니다. UI와 렌더 스레드가 같은지 확인하고 입력에서 화면까지 경로를 종이에 적으세요.</p>
+<details class="deep-dive"><summary>풀이와 통과 조건</summary><p>원본 X가 1px 증가하고 선택 ID가 유지되며 Undo 한 번으로 되돌아오면 편집 경로가 맞습니다. Shift라면 10px이며 이미지/부모 벽에서는 허용 이동량으로 제한됩니다. 렌더 스레드에서 EditorSession을 직접 바꾸는 코드가 없어야 합니다.</p></details>
+<h3>실습 B · 두 종류의 선택 분리</h3><p>편집 선택은 A로 둔 채 위치 보기 목록에서 B를 고릅니다. B가 보이는지, A의 선택 ID와 Undo/Redo가 유지되는지 확인합니다. B를 이동한 후 다시 ROI 맞춤을 눌러 현재 경계를 사용하는지도 확인합니다.</p>
+<details class="deep-dive"><summary>풀이와 통과 조건</summary><p>목록의 Target과 EditorSession의 Selection은 다른 상태입니다. FocusRoi는 ID로 현재 기하를 다시 찾고 Viewport만 바꿉니다. 같은 ROI를 다시 보는 버튼은 캐시된 옛 경계를 그대로 쓰면 안 됩니다.</p></details>
+<h3>실습 C · 잠금 중 영상 갱신</h3><p>제공된 Navigation 관련 테스트를 찾아 잠금 전후 입력과 두 8K 프레임 검증을 읽습니다. 잠금 전에 시작한 preview가 취소되는 경우와 잠금 해제 후 이동이 다시 가능한 경우도 찾으세요. HTML의 새 영상 버튼은 실제 GPU 시험을 대신하지 않습니다.</p>
+<details class="deep-dive"><summary>풀이와 통과 조건</summary><p>키·포인터·휠과 외부 편집 UI는 차단되고, 원래 문서와 Undo는 보존되며, 프레임은 새 값으로 바뀌어야 합니다. 로딩 중 NavigationOnly와 완전 잠금의 Esc 동작을 혼동하지 않습니다.</p></details>
+<h3>실습 D · 실패 원인을 분류하기</h3><p>ROI는 움직였는데 그림이 그대로인 상황을 상상하세요. 문서, Scene, renderer, Present 가운데 어디의 정보를 먼저 확인할지 정합니다. 타일 파일이 늦게 도착한 경우와 GPU 오류가 난 경우를 각각 설명하세요.</p>
+<details class="deep-dive"><summary>풀이와 통과 조건</summary><p>먼저 문서 좌표가 바뀌었는지, 다음 Scene이 게시됐는지 확인합니다. 장면이 맞으면 generation·타일 준비/업로드·그리기·표시 경로를 좁혀 갑니다. GPU를 바꾸거나 대기 코드를 제거하기 전에 처음 어긋나는 지점을 재현해야 합니다.</p></details></div>
+<h3>검증 기록을 읽는 방법</h3><p><a href="../../docs/canvas-interaction-modes.md">공통 입력 검증</a>에는 실제 8K 잠금 중 프레임 교체와 관련 회귀 시험의 범위가 기록되어 있습니다. <a href="../../docs/vulkan-validation.md">Vulkan 검증</a>의 PASS/FAIL/NOT_RUN, 실행 조건과 제외 항목을 함께 읽습니다. HTML 실험 성공, 한 장의 화면 캡처, 합성 정답 일치는 각각 다른 증거입니다. 지속 60FPS·장시간 메모리·실제 카메라 수집·현장 전수 정확도는 이 교육서가 새로 보장하지 않습니다.</p></section><section id="terms"><h2>다시 만나는 용어와 다음 읽기</h2>
+<dl class="guide-glossary"><dt>ROI / ParentId</dt><dd>관심 영역 / 계층에서 실제 부모 ROI를 가리키는 ID. 화면에서 겹친다고 자동으로 부모가 되지는 않습니다.</dd><dt>Snapshot / with</dt><dd>특정 시점의 상태 / 일부 값을 바꾼 새 값 생성. 내부 자료의 전체 깊은 복사를 뜻하지 않습니다.</dd><dt>Preview / Commit</dt><dd>편집 중 보여 줄 후보 / 검증과 이력 처리를 거쳐 확정하는 단계.</dd><dt>HWND / DIP / DPI</dt><dd>Windows 창 핸들 / WPF 논리 화면 단위 / 논리 크기와 실제 픽셀의 변환 배율.</dd><dt>Tile / Pyramid / LOD</dt><dd>영상 조각 / 여러 해상도 단계 / 화면 크기에 맞는 상세 수준 선택.</dd><dt>Texture / Shader / Pipeline</dt><dd>그릴 픽셀 데이터 / GPU가 실행하는 프로그램 / 그 프로그램과 그리기 설정 묶음. Skia CPU 경로는 이 계약을 CPU 객체로 구현합니다.</dd><dt>Fence / Semaphore / Retire</dt><dd>완료 확인 / 작업 사이의 대기·신호 / 사용이 끝난 시점에 해제하도록 맡기기. 정확한 구현은 백엔드마다 다릅니다.</dd><dt>Retain / Dispose / Generation</dt><dd>공유 데이터의 소유 참조 확보 / 그 참조나 자원 반환 / 이전 영상 작업과 새 영상 작업을 구분하는 번호.</dd></dl>
+<p><a href="../01-image.html">픽셀 기초</a> · <a href="../02-coordinates.html">좌표와 수식</a> · <a href="../04-design.html">설계 원칙</a> · <a href="../05-editing.html">ROI·이력 심화</a> · <a href="../06-streaming.html">타일과 라이브 심화</a> · <a href="../09-build.html">실행 가능한 작은 호스트 실습</a></p>
+<p><a href="../../docs/renderer-code-guides.md">이 교육서의 검증·관리 기록</a> · <a href="../../docs/code-guide.md">저장소 전체 코드 읽기 안내</a></p>
+<div class="guide-step"><strong>마지막 자기 설명</strong>“왜 잠겨 있어도 영상은 계속 갱신되는가?”, “왜 B를 확대해도 A가 편집 선택인가?”, “왜 GPU 완료 전에 버퍼를 재사용하면 안 되는가?”를 코드 없이 설명한 뒤, 막힌 부분의 코드창만 다시 읽어 보세요.</div></section></main></div><footer class="footer">VisionCanvas · 실제 코드로 배우는 Vulkan · 2026-10-16</footer></body></html>

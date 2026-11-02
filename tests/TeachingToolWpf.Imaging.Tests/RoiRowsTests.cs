@@ -180,7 +180,7 @@ public class RoiRowsTests
     });
 
     [Fact]
-    public void RepeatedBatchRowAndCtrlSelectionKeepPartialCells() => OnSta(() =>
+    public void BatchOrdinaryRowsAndRegionSelectionKeepSelectedIds() => OnSta(() =>
     {
         var surface = new Surface();
         using var model = new MainWindowViewModel(surface, new(surface.ViewWidth, surface.ViewHeight, surface.Dpi), new UnusedLoader(), new LivePreview(surface, _ => throw new NotSupportedException()), new UnusedFilter(), EditorTestServices.Inspections());
@@ -188,19 +188,17 @@ public class RoiRowsTests
         using var binding = new RoiListSelectionLink(list, model);
         model.Session.InitializeImage(new("rows", "rows", 8192, 8192), ViewportTransform.Identity);
         var normal = model.Session.Add(new(new(100, 100), 20, 20, 0));
-        model.Session.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
-        var batch = Assert.Single(model.Session.State.RepeatedRois).Value;
-        Assert.Equal(2, model.Rows.Count);
-        Assert.Equal(batch.Id, RoiListBox.RowFromItem(Assert.Single(list.SelectedItems.Cast<object>()))!.Id);
+        var gridIds = model.Session.AddRange(MainWindowViewModel.CreateGridGeometries(10, 10, 40, new(4096, 4096)), selectAdded: true, isNameVisible: false);
+        Assert.Equal(101, model.Rows.Count);
+        Assert.Equal(100, list.SelectedItems.Count);
         model.Session.SelectRegion(new(2000, 2000, 4096, 6000));
-        var partial = model.Session.State.RepeatedSelection[batch.Id];
-        model.SelectRows([normal, batch.Id], preserveRepeatedRanges: true);
-        Assert.Same(partial, model.Session.State.RepeatedSelection[batch.Id]);
+        var partialCount = model.Session.State.SelectionCount;
+        Assert.InRange(partialCount, 1, 99);
+        model.SelectRows([normal, gridIds[0]]);
+        Assert.Equal(2, model.Session.State.SelectionCount);
         Assert.Contains(normal, model.Session.State.Selection);
-        model.SelectRows([batch.Id]);
-        Assert.Equal(100020001, model.Session.State.SelectionCount);
+        Assert.Contains(gridIds[0], model.Session.State.Selection);
         model.SelectRows([normal]);
-        Assert.Empty(model.Session.State.RepeatedSelection);
         Assert.Single(model.Session.State.Selection);
     });
 

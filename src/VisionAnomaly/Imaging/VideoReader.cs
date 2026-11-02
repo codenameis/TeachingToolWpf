@@ -43,14 +43,8 @@ public sealed class VideoReader : IDisposable
         }
     }
 
-    public double FramesPerSecond
-    {
-        get;
-    }
-    public double MediaSeconds
-    {
-        get; private set;
-    }
+    public double FramesPerSecond { get; }
+    public double MediaSeconds { get; private set; }
 
     public VideoFrame? Read(CancellationToken token)
     {

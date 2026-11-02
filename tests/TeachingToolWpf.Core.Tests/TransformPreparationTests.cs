@@ -122,31 +122,19 @@ public class TransformPreparationTests
         var editor = Create();
         var state = editor.State;
         Warm(state);
-        Assert.True((state with
-        {
-            Viewport = state.Viewport.Pan(new(10, 20))
-        }).IsTransformSelectionPrepared);
+        Assert.True(state.WithViewport(state.Viewport.Pan(new(10, 20))).IsTransformSelectionPrepared);
         var roi = state.Rois.Values.First();
         var geometryChanged = state.WithRois(state.Rois.SetItem(roi.Id, roi with
         {
             Geometry = roi.Geometry.RotateAround(roi.Geometry.Center, 10)
         }), [roi.Id]);
         Assert.False(geometryChanged.IsTransformSelectionPrepared);
-        Assert.False((state with
+        Assert.False(state.WithSelection([]).IsTransformSelectionPrepared);
+        Assert.False(state.WithImage(state.Image! with
         {
-            Selection = []
+            Version = "new"
         }).IsTransformSelectionPrepared);
-        Assert.False((state with
-        {
-            Image = state.Image! with
-            {
-                Version = "new"
-            }
-        }).IsTransformSelectionPrepared);
-        Assert.False((state with
-        {
-            Rois = state.Rois
-        }).IsTransformSelectionPrepared);
+        Assert.False(new DocumentState(state.Rois, state.Selection, state.Image, state.Viewport).IsTransformSelectionPrepared);
         Assert.True(state.IsTransformSelectionPrepared);
     }
 
@@ -179,13 +167,15 @@ public class TransformPreparationTests
         PointD? translation = null;
         PointD? rotationPivot = null;
         double? rotationDegrees = null;
-        var input = new InteractionController(editor,
+        var input = new InteractionController(
+            editor,
+            commitPreview: null,
             previewTranslation: (delta, _) => translation = delta,
             previewRotation: (pivot, degrees) =>
-        {
-            rotationPivot = pivot;
-            rotationDegrees = degrees;
-        });
+            {
+                rotationPivot = pivot;
+                rotationDegrees = degrees;
+            });
         var center = editor.State.Viewport.ImageToScreen(roi.Geometry.Center);
         input.Down(center);
         input.Move(center + new PointD(17, 9));

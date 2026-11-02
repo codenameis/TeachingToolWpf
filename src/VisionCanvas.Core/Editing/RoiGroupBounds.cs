@@ -87,41 +87,36 @@ internal static class RoiGroupBounds
             return requested;
         }
         var movement = requested - previous;
-        var fraction = boundaries.Min(pair => RoiMotionBounds.TranslationFraction(pair.Parent,
-            previous == default ? pair.Child : pair.Child.Translate(previous), movement));
+        var fraction = 1d;
+        for (var i = 0; i < boundaries.Length; i++)
+        {
+            var pair = boundaries[i];
+            var movedChild = previous == default ? pair.Child : pair.Child.Translate(previous);
+            var current = RoiMotionBounds.TranslationFraction(pair.Parent, movedChild, movement);
+            if (current < fraction)
+            {
+                fraction = current;
+            }
+        }
+
         var contact = previous + (movement * fraction);
         if (!allowSlide || fraction == 1)
         {
             return contact;
         }
+
         var remaining = requested - contact;
         var best = contact;
         var distance = remaining.Length;
+        var slides = new List<PointD>(8);
         foreach (var (parent, child) in boundaries)
         {
-            foreach (var slide in RoiMotionBounds.SlidingTranslations(parent, child.Translate(contact), remaining))
+            slides.Clear();
+            RoiMotionBounds.CollectSlidingTranslations(parent, child.Translate(contact), remaining, slides);
+            for (var i = 0; i < slides.Count; i++)
             {
-                var allowed = boundaries.Min(pair => RoiMotionBounds.TranslationFraction(pair.Parent, pair.Child.Translate(contact), slide));
-                if (translationBounds is { } image)
-                {
-                    if (slide.X > 0)
-                    {
-                        allowed = Math.Min(allowed, (image.Right - contact.X) / slide.X);
-                    }
-                    if (slide.X < 0)
-                    {
-                        allowed = Math.Min(allowed, (image.Left - contact.X) / slide.X);
-                    }
-                    if (slide.Y > 0)
-                    {
-                        allowed = Math.Min(allowed, (image.Bottom - contact.Y) / slide.Y);
-                    }
-                    if (slide.Y < 0)
-                    {
-                        allowed = Math.Min(allowed, (image.Top - contact.Y) / slide.Y);
-                    }
-                }
-                allowed = Math.Clamp(allowed, 0, 1);
+                var slide = slides[i];
+                var allowed = ClampSlideFraction(boundaries, contact, slide, translationBounds);
                 var candidate = contact + (slide * allowed);
                 var error = (requested - candidate).Length;
                 if (error < distance)
@@ -132,5 +127,45 @@ internal static class RoiGroupBounds
             }
         }
         return best;
+    }
+
+    private static double ClampSlideFraction((RoiGeometry Parent, RoiGeometry Child)[] boundaries, PointD contact, PointD slide, BoundsD? translationBounds)
+    {
+        var allowed = 1d;
+        for (var i = 0; i < boundaries.Length; i++)
+        {
+            var pair = boundaries[i];
+            var current = RoiMotionBounds.TranslationFraction(pair.Parent, pair.Child.Translate(contact), slide);
+            if (current < allowed)
+            {
+                allowed = current;
+            }
+        }
+        if (translationBounds is { } image)
+        {
+            allowed = ClampToImageBounds(contact, slide, image, allowed);
+        }
+        return Math.Clamp(allowed, 0, 1);
+    }
+
+    private static double ClampToImageBounds(PointD contact, PointD slide, BoundsD image, double allowed)
+    {
+        if (slide.X > 0)
+        {
+            allowed = Math.Min(allowed, (image.Right - contact.X) / slide.X);
+        }
+        if (slide.X < 0)
+        {
+            allowed = Math.Min(allowed, (image.Left - contact.X) / slide.X);
+        }
+        if (slide.Y > 0)
+        {
+            allowed = Math.Min(allowed, (image.Bottom - contact.Y) / slide.Y);
+        }
+        if (slide.Y < 0)
+        {
+            allowed = Math.Min(allowed, (image.Top - contact.Y) / slide.Y);
+        }
+        return allowed;
     }
 }

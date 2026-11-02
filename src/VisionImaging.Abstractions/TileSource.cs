@@ -41,25 +41,13 @@ public sealed class PixelBuffer : IDisposable
 {
     private byte[]? _buffer;
 
-    public int Width
-    {
-        get;
-    }
+    public int Width { get; }
 
-    public int Height
-    {
-        get;
-    }
+    public int Height { get; }
 
-    public int Stride
-    {
-        get;
-    }
+    public int Stride { get; }
 
-    public PixelKind Kind
-    {
-        get;
-    }
+    public PixelKind Kind { get; }
 
     public int Length => checked(Stride * Height);
 

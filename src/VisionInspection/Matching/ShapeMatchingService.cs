@@ -101,7 +101,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             ShapeMatcher.ValidateSearchOptions(model, options);
             if (region is not null)
             {
-                ValidateRegion(image, region);
+                ValidateSearchRegion(image, region);
             }
             var total = Stopwatch.StartNew();
             using var preprocessor = options.ComputeMode == InspectionComputeMode.GpuPreprocessing
@@ -203,6 +203,14 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
         if (bounds.Left < -1e-7 || bounds.Top < -1e-7 || bounds.Right > image.Width + 1e-7 || bounds.Bottom > image.Height + 1e-7)
         {
             throw new ArgumentException("ROI가 원본 이미지 경계를 벗어납니다. 영역을 수정한 뒤 다시 실행하세요.");
+        }
+    }
+
+    internal static void ValidateSearchRegion(ImageReference image, RoiGeometry region)
+    {
+        if (!region.Bounds.Intersects(new(0, 0, image.Width, image.Height)))
+        {
+            throw new ArgumentException("검색 범위가 원본 이미지와 겹치지 않습니다.");
         }
     }
 

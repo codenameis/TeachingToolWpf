@@ -22,7 +22,7 @@ dotnet run --project src/VisionInspection.Cli -c Release -- --recipe samples/ins
 | `searchRoi` | 생략하면 전체 원본 검색. 패턴은 기준점 위치, 도형 검출은 전체 윤곽 포함 기준 |
 | `trainingOptions` | `VisionAlgorithm.TrainingOptions`의 공개 설정. 회전 편차·배율·특징·gradient·피라미드 예산 |
 | `searchOptions` | `SearchOptions`의 공개 설정. 점수·추가 윤곽 감점·후보/출력 예산·병렬도·실행 장치. `region` 대신 `searchRoi` 사용 |
-| `primitiveOptions` | `PrimitiveDetectionOptions`의 공개 설정. 이진화·크기·종류·점수·출력 상한 |
+| `primitiveOptions` | `PrimitiveDetectionOptions`의 공개 설정. 이진화·크기·종류·점수·CPU/CUDA. `maximumResults=0`(기본값)은 개수 상한 없음 |
 | `timeoutSeconds` | `0`은 한도 없음, 최대 `600`. 파일 준비·학습·검색 전체에 적용 |
 
 프로퍼티 이름은 대소문자를 구별하지 않으며 예제는 camelCase다. 알려지지 않은 필드와 숫자 enum은 거부한다. `searchOptions`를 일부만 지정해도 생략한 필드는 CLI 기본 출력 256개/추가 윤곽 비중 1을 유지하며, 두 값도 명시적으로 지정하면 그 값을 사용한다. 다른 생략 필드는 해당 알고리즘 계약의 기본값을 사용한다. enum은 `cpu`, `gpuPreprocessing`, `preserve`, `ignoreLocal`, `auto`, `bright`, `dark`, `all` 같은 문자열이다. 양의 무한대 기본값인 `maximumFitErrorPixels`는 한도를 적용할 때만 유한한 양수를 지정한다. 공개 JSON 설정으로 레시피를 직렬화할 때 무제한 값은 생략하고, 읽을 때 같은 기본값으로 복원한다.
@@ -55,13 +55,19 @@ dotnet run --project src/VisionInspection.Cli -c Release -- --recipe samples/ins
 
 `diagnostics`에는 원본 읽기·학습·검색 시간, 후보 상한, 출력 상한, 창별 진단 및 실제 GPU 전처리 정보를 담는다. `incomplete`와 `status`를 확인한 뒤 결과를 소비해야 한다. 제품의 합격/불합격 정책은 이 CLI가 결정하지 않는다.
 
+도형의 `ring`은 도넛, `rectangleframe`은 사각 테두리다. `innerContours`는 빈 구멍의 닫힌 윤곽이며 별도 검출로 세지 않는다. 그 안의 독립 원·사각형은 각각 결과로 반환한다. 면적은 바깥 윤곽에서 구멍 면적을 뺀 값이고 중심·각도는 바깥 도형 기준이다.
+
+PCB 형상은 `diamond`, `crosshash`, `doublesquare`, `star`, `asterisk`를 추가로 반환한다. 떨어진 더블스퀘어의 두 번째 전경 윤곽은 `additionalContours`이며 빈 구멍이 아니다. `primitiveOptions.shapes`는 해당 enum 이름의 쉼표 조합 또는 `all`을 사용한다. [지원 형상·대칭 각도·검증 한계](../../docs/pcb-fiducial-detection.md)를 참고한다.
+
 원본 파일과 레시피를 결과 경로로 지정하면 실행 전에 거부한다. 심볼릭 링크를 통한 동일 경로도 확인한다. 완성된 JSON을 결과 디렉터리의 임시 파일에 기록·flush한 뒤 이동하므로 처리 도중 부분 JSON으로 기존 결과를 대체하지 않는다. 검사 오류·취소도 결과 JSON으로 남긴다. 레시피 자체가 읽히지 않거나 JSON 구문/필드가 잘못됐거나 결과 경로가 안전하지 않으면 stderr와 종료 코드만 반환하고 결과 파일은 변경하지 않는다. 장치/native 호출은 안전하게 종료된 뒤 취소를 보고하므로 시간 한도는 강제 프로세스 종료 시각이 아니다.
 
 ## 실행 장치와 배포
 
 기본 자체 파일 로더는 [코덱 빌드](../../experiments/VisionImaging.Codecs/README.md) 후 이 프로젝트를 빌드/게시한다. [NetVips 제거](../../docs/netvips-removal.md). native 파일 준비와 검사 CPU/CUDA 선택은 별개다. Windows의4개 예제는 두 로더의 검출 결과가 일치했다. Linux 실행은 환경 준비 후 검증한다.
 
-기본은 CPU다. `paper`의 `searchOptions.computeMode="gpuPreprocessing"` 문자열은 기존 레시피 호환성을 위해 유지한다. 현재 CLI는 `CudaInspectionSession`의 lease를 주입하며 CUDA가 방향 응답·템플릿 후보 점수를, CPU가 전처리·연속 검증·원본 최종 판정을 수행한다. `diagnostics.candidateScoring`에서 실제 adapter·호출 수·전송 포함 시간을 확인한다. CLI는 한 번의 실행이므로 최초 장치 준비도 전체 검사 시간에 포함한다. NVIDIA CUDA GPU/드라이버가 필요하고 사용 불가 시 자동 폴백하지 않는다. `template`/`primitives`의 GPU 선택은 현재 오류로 보고한다.
+기본은 CPU다. `paper`의 `searchOptions.computeMode="gpuPreprocessing"` 문자열은 기존 레시피 호환성을 위해 유지한다. 현재 CLI는 `CudaInspectionSession`의 lease를 주입하며 CUDA가 방향 응답·템플릿 후보 점수를, CPU가 전처리·연속 검증·원본 최종 판정을 수행한다. `diagnostics.candidateScoring`에서 실제 adapter·호출 수·전송 포함 시간을 확인한다. CLI는 한 번의 실행이므로 최초 장치 준비도 전체 검사 시간에 포함한다. NVIDIA CUDA GPU/드라이버가 필요하고 사용 불가 시 자동 폴백하지 않는다. `template`의 GPU 선택은 오류로 보고한다.
+
+`primitives`는 `primitiveOptions.useGpu=true`로 선택한다. CUDA는 CPU와 같은 3×3 median 전처리를 수행하고 이진화·윤곽·분류는 CPU가 담당한다. `diagnostics.primitivePreprocessing`에 장치·업로드·계산·다운로드를 기록한다. `RecipeRunner`를 직접 조립한다면 `createPrimitivePreprocessor`에 공급자를 주입한다. GPU 선택이 CPU보다 빠르다는 보장은 없으며 [32K 실측·제약](../../docs/primitive-detection-32k.md)을 참고한다.
 
 `build/InspectionNativeRuntime.props`가 호스트 또는 명시한 RID에 맞춰 OpenCV native 패키지를 선택한다. 지원 배포 RID는 현재 `win-x64`, `linux-x64`다.
 

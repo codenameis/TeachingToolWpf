@@ -4,6 +4,7 @@ using System.Windows.Media;
 using TeachingToolWpf.Services;
 using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
+using VisionCanvas.Core.Geometry;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
@@ -200,6 +201,21 @@ public class RoiStyleSettingsTests
             model.StyleSettings.HandleScale = 2;
             Assert.Equal(2, model.Input.HandleScale);
             Assert.Equal(2, model.Scene.Overlay.HandleScale);
+            Assert.Same(before, model.Session.State);
+            Assert.Equal(bytes, model.Session.HistoryBytes);
+            Assert.Equal(redo, model.Session.CanRedo);
+            foreach (var position in Enum.GetValues<MinimapPosition>())
+            {
+                model.MinimapPosition = position;
+                Assert.Equal(position, model.Scene.MinimapOptions.Position);
+                Assert.Equal(model.Input.MinimapOptions, model.Scene.MinimapOptions);
+            }
+            model.ShowMinimap = false;
+            Assert.Null(model.Input.Minimap);
+            Assert.False(model.Scene.MinimapOptions.IsVisible);
+            model.ShowMinimap = true;
+            Assert.NotNull(model.Input.Minimap);
+            Assert.Equal(MinimapPosition.MiddleLeft, model.MinimapPosition);
             Assert.Same(before, model.Session.State);
             Assert.Equal(bytes, model.Session.HistoryBytes);
             Assert.Equal(redo, model.Session.CanRedo);

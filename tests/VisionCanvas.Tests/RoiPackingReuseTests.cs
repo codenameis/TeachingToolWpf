@@ -128,7 +128,7 @@ public class RoiPackingReuseTests
         RoiInstance.PackInto(block, 0, state, instances, roles, unique);
         Assert.Equal(RoiCount * VertexCount, instances.Count);
         Assert.Equal(instances.Count, roles.Count);
-        Assert.All(instances, instance => Assert.Equal(2u, instance.Summary));
+        Assert.All(instances, instance => Assert.Equal(RoiInstanceKind.Edge, instance.Kind));
         Assert.True(instances.Capacity > RoiInstance.MaximumRetainedInstanceCount);
         var ownedRoles = roles.ToArray();
         RoiInstance.ReleasePackingBuffers(instances, roles, unique);
@@ -155,7 +155,7 @@ public class RoiPackingReuseTests
         var block = Block(state);
         var outline = shape.Outline;
         var expected = outline.Select((point, index) => new RoiInstance(Vector(point - block.Bounds.Center),
-            Vector(outline[(index + 1) % outline.Length] - point), default, 2u)).ToArray();
+            Vector(outline[(index + 1) % outline.Length] - point), default, RoiInstanceKind.Edge)).ToArray();
         var instances = new List<RoiInstance>();
         var roles = new List<uint>();
         var unique = new Dictionary<RoiGeometry, int>();

@@ -1,5 +1,15 @@
 # WPF · DX12 Vision Teaching Sample
 
+**대학생을 위한 코드 교육 HTML:** [WPF](manual/wpf/index.html) · [DX12](manual/dx12/index.html) · [Vulkan](manual/vulkan/index.html) · [wgpu](manual/wgpu/index.html) · [Skia](manual/skia/index.html). 각 폴더의 HTML에서 실제 코드·호출 흐름·계산 예제·실습과 풀이를 읽을 수 있습니다. [구성·검증](docs/renderer-code-guides.md).
+
+**공통 입력 기능:** 선택 ROI는 방향키1px / Shift+방향키10px로 이동합니다. `검사 화면 잠금`은 영상 갱신을 유지하며 캔버스 입력을 차단하고, `ROI 위치 보기`는 선택을 바꾸지 않고 ROI 맞춤/전체 보기를 제공합니다. [사용법·통합 API·검증](docs/canvas-interaction-modes.md).
+
+**별도 wgpu Canvas 앱:** `VisionCanvas.Wgpu.slnx`와 `samples/VisionCanvas.WgpuSample`에 wgpu-native GPU 렌더러·독립 WPF MVVM 앱을 추가했습니다. 현재 Windows DX12 backend이며 [실행·통합 매뉴얼](manual/wgpu/README.md), [8K·ken32·원본 픽셀·회귀 검증](docs/wgpu-validation.md)을 확인하세요. 지속60FPS와 장시간 안정성은 미검증입니다.
+
+**별도 Vulkan Canvas 앱:** `VisionCanvas.Vulkan.slnx`와 `samples/VisionCanvas.VulkanSample`에서 실행합니다. 실제 Vulkan 렌더러와 WPF MVVM 편집 앱이며, [Vulkan 전용 매뉴얼](manual/vulkan/README.md)에 실행·통합·소유권·배포를, [검증 기록](docs/vulkan-validation.md)에8K·ken32·회귀 결과와 미검증 범위를 정리했습니다.
+
+**별도 Skia Canvas 앱:** `VisionCanvas.Skia.slnx`와 `samples/VisionCanvas.SkiaSample`에 Skia CPU 렌더러·WPF MVVM 앱을 추가했습니다. [실행 안내](samples/VisionCanvas.SkiaSample/README.md), [검증과 제약](docs/skia-canvas-validation.md).
+
 **세 매칭의8K 전체 검색:** Line2D/Sub-NCC/Directional Chamfer에서 ‘선택 ROI 범위에서 찾기’를 끄면 최대8192×8192 전체를 검색합니다. 상세 설정에 방식별 특징/표본/거리 파라미터를 추가했고, 단계별 시간·실제 버튼→표시를 측정했습니다. [사용법·전체8K 테스트 데이터·속도와 미달 범위](docs/cpu-matching-performance.md)를 확인하세요. CPU125ms/CUDA80ms 목표는 아직 미달입니다.
 
 **독립 영상 이상 감지 앱:** 관제실형 UI의 실제 WPF 구현은 `AnomalyMonitor.slnx`와 `src/AnomalyMonitor`에 있습니다. 영상 입력 → 정상 학습 → 외관/움직임 이상 알람 → 증거·확인 저장을 제공합니다. [실행·샘플 영상 사용법](src/AnomalyMonitor/README.md), [검증과 한계](docs/anomaly-monitor-validation.md)를 확인하세요. 기존 티칭 앱과 별도로 실행합니다.

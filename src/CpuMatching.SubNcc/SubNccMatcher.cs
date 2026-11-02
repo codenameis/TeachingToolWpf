@@ -37,6 +37,15 @@ public sealed class SubNccMatcher : ITemplateMatcher
             acceptCenter: acceptCenter, accelerator: accelerator, refineCoarsePositions: true);
     }
 
+    public SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        return PyramidSearch.FindWindowed(_template, image, options ?? new SearchOptions(),
+            (template, scene, cx, cy, fine) => new CorrelationLevel(template, scene, cx, cy, fine, _parameters), cancellationToken,
+            acceptCenter: acceptCenter, accelerator: accelerator, refineCoarsePositions: true);
+    }
+
     private sealed class CorrelationLevel : IScoreLevel
     {
         public bool SupportsParallelEvaluation => true;
@@ -99,12 +108,31 @@ public sealed class SubNccMatcher : ITemplateMatcher
 
     private sealed class CorrelationPose(GrayImage image, CorrelationSample[] samples, double templateEnergy) : IPoseScore, IAcceleratedPoseScore
     {
+        private readonly (double Left, double Top, double Right, double Bottom) _bounds = GetBounds(samples);
+
+        private static (double Left, double Top, double Right, double Bottom) GetBounds(CorrelationSample[] points)
+        {
+            var left = double.PositiveInfinity;
+            var top = double.PositiveInfinity;
+            var right = double.NegativeInfinity;
+            var bottom = double.NegativeInfinity;
+            foreach (var point in points)
+            {
+                left = Math.Min(left, point.X);
+                top = Math.Min(top, point.Y);
+                right = Math.Max(right, point.X);
+                bottom = Math.Max(bottom, point.Y);
+            }
+            return (left, top, right, bottom);
+        }
+
         public void ScoreGrid(ICoarseScoreAccelerator accelerator, double[] output, CancellationToken token) =>
             accelerator.ScoreCorrelation(image, samples, templateEnergy, output, token);
 
         public double Score(double x, double y)
         {
-            if (templateEnergy < 1)
+            if (templateEnergy < 1 || x + _bounds.Left < 0 || y + _bounds.Top < 0 ||
+                x + _bounds.Right >= image.Width - 1 || y + _bounds.Bottom >= image.Height - 1)
             {
                 return 0;
             }
@@ -117,11 +145,7 @@ public sealed class SubNccMatcher : ITemplateMatcher
             {
                 var px = x + point.X;
                 var py = y + point.Y;
-                if (px < 0 || py < 0 || px >= image.Width - 1 || py >= image.Height - 1)
-                {
-                    return 0;
-                }
-                // 위에서 영상 경계를 확인했으므로 매 표본의 중복 검사/Clamp를 피한다.
+                // 회전된 전체 표본의 경계를 먼저 확인했다. 표본별 검사와 Clamp를 반복하지 않는다.
                 // Bilinear의 연산 순서는 GrayImage.Sample 및 CUDA와 동일하다.
                 var ix = (int)px;
                 var iy = (int)py;

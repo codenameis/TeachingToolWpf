@@ -4,27 +4,12 @@ namespace VisionAlgorithm;
 public sealed class GrayImage
 {
     /// <summary>원본 좌표에서 제외한 픽셀은 255. 빈 메모리는 제외 없음이며 stride 없이 width×height이다.</summary>
-    public ReadOnlyMemory<byte> ExcludedPixels
-    {
-        get;
-    }
+    public ReadOnlyMemory<byte> ExcludedPixels { get; }
 
-    public ReadOnlyMemory<byte> Pixels
-    {
-        get;
-    }
-    public int Width
-    {
-        get;
-    }
-    public int Height
-    {
-        get;
-    }
-    public int Stride
-    {
-        get;
-    }
+    public ReadOnlyMemory<byte> Pixels { get; }
+    public int Width { get; }
+    public int Height { get; }
+    public int Stride { get; }
 
     public GrayImage(ReadOnlyMemory<byte> pixels, int width, int height, int stride, ReadOnlyMemory<byte> excludedPixels = default)
     {

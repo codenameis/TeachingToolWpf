@@ -1,26 +1,78 @@
-using System.Collections.Immutable;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionGeometry;
-using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Core.Interaction;
 
-/// <summary>입력에 맞는 제스처를 선택하고 이동·확정·취소를 전달한다. 문서 변경과 이력은 EditorSession이 소유한다.</summary>
-public sealed class InteractionController(EditorSession editor, Action<string>? commitPreview = null, Action<IEnumerable<Guid>>? selectRois = null,
-    Action<PointD, bool>? previewTranslation = null, Action<PointD, double>? previewRotation = null, Action<BoundsD, bool>? selectRegion = null) : IViewportInput
+/// <summary>입력에 맞는 제스처를 선택하고 이동·확정·취소를 전달한다. 문서 변경과 이력은 EditorSession이 담당한다.</summary>
+public sealed class InteractionController : IViewportInput
 {
-    private const double RoiHitToleranceDip = 3;
-    private const double PolygonClosureDistanceDip = 8;
-
+    private readonly EditorSession _editor;
+    private readonly IEditorCommandSink _commandSink;
+    private readonly PolygonDraftState _polygonDraft = new();
     private IGesture? _activeGesture;
+    private bool _pointerDown;
     private EditorTool _tool;
     private RoiShapeKind _drawShape;
-    private readonly List<PointD> _polygonPoints = [];
-    private ImageReference? _polygonStartImage;
     private Guid? _drawParentId;
     private bool _drawAsGroup;
     private double _handleScale = HandleGeometry.DefaultScale;
+    private bool _isEnabled = true;
+
+    public InteractionController(EditorSession editor)
+        : this(editor, new EditorSessionCommandSink(editor))
+    {
+    }
+
+    public InteractionController(EditorSession editor, IEditorCommandSink commandSink)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(commandSink);
+        _editor = editor;
+        _commandSink = commandSink;
+    }
+
+    public InteractionController(
+        EditorSession editor,
+        Action<string>? commitPreview,
+        Action<IEnumerable<Guid>>? selectRois = null,
+        Action<PointD, bool>? previewTranslation = null,
+        Action<PointD, double>? previewRotation = null,
+        Action<BoundsD, bool>? selectRegion = null)
+        : this(
+            editor,
+            new DelegatingEditorCommandSink(editor, commitPreview, selectRois, previewTranslation, previewRotation, selectRegion))
+    {
+    }
+
+    /// <summary>검사 화면의 사용자 입력을 차단한다. 진행 중인 편집은 취소하고 영상/문서 갱신은 허용한다.</summary>
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set
+        {
+            if (_isEnabled == value)
+            {
+                return;
+            }
+
+            _isEnabled = value;
+            Cancel();
+        }
+    }
+
+    /// <summary>원본 픽셀 단위의 이동. 기존 부모/이미지 경계와 한 번의 Undo를 사용한다.</summary>
+    public bool NudgeSelection(PointD delta)
+    {
+        if (!IsEnabled || NavigationOnly || IsDragging || _editor.IsPreviewing ||
+            _polygonDraft.HasPoints || _editor.State.SelectionCount == 0)
+        {
+            return false;
+        }
+
+        _editor.TranslateSelection(delta);
+        return true;
+    }
 
     /// <summary>화면 DIP 기준 핸들 크기와 클릭 범위를 함께 조절한다. ROI 형상과 이력은 바꾸지 않는다.</summary>
     public double HandleScale
@@ -33,31 +85,29 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             {
                 return;
             }
+
             _handleScale = value;
             Show(Overlay);
         }
     }
 
-    public Guid? MaskTargetId
-    {
-        get; private set;
-    }
-    public MaskShape MaskShape
-    {
-        get; private set;
-    }
+    public Guid? MaskTargetId { get; private set; }
+
+    public MaskShape MaskShape { get; private set; }
 
     public void StartMask(MaskShape shape)
     {
-        if (NavigationOnly || editor.IsPreviewing || editor.State.SelectionCount != 1 || editor.State.Selection.Count != 1)
+        if (!IsEnabled || NavigationOnly || _editor.IsPreviewing || _editor.State.SelectionCount != 1)
         {
             return;
         }
-        var id = editor.State.Selection.Single();
-        if (editor.State.IsGroupRoi(id) || editor.State.Rois[id].Masks.Length >= EditorSession.MaximumMasksPerRoi)
+
+        var id = _editor.State.Selection.Single();
+        if (_editor.State.IsGroupRoi(id) || _editor.State.Rois[id].Masks.Length >= EditorSession.MaximumMasksPerRoi)
         {
             return;
         }
+
         MaskTargetId = id;
         MaskShape = shape;
         Tool = EditorTool.Mask;
@@ -86,6 +136,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
             {
                 _drawParentId = null;
             }
+
             Changed?.Invoke();
         }
     }
@@ -94,23 +145,25 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
     {
         if (DrawAsGroup)
         {
-            editor.AddParent(geometry);
+            _editor.AddParent(geometry);
         }
         else if (DrawParentId is { } parentId)
         {
-            if (!editor.State.Rois.TryGetValue(parentId, out var parent))
+            if (!_editor.State.Rois.TryGetValue(parentId, out var parent))
             {
                 throw new ArgumentException("자식 ROI를 추가할 부모가 없습니다.");
             }
+
             if (!parent.Geometry.Contains(geometry))
             {
                 throw new ArgumentException("자식 ROI는 부모 도형 안에 완전히 들어오도록 그리세요. 경계에 걸칠 수 없습니다.");
             }
-            editor.AddChild(parentId, geometry);
+
+            _editor.AddChild(parentId, geometry);
         }
         else
         {
-            editor.Add(geometry);
+            _editor.Add(geometry);
         }
     }
 
@@ -125,15 +178,40 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         }
     }
 
-    public int PolygonPointCount => _polygonPoints.Count;
+    public int PolygonPointCount => _polygonDraft.Count;
 
-    public bool CanCompletePolygon => _polygonPoints.Count >= 3;
+    public bool CanCompletePolygon => _polygonDraft.CanComplete;
 
     private double _viewportWidthDip;
-
     private double _viewportHeightDip;
+    private MinimapOptions _minimapOptions = MinimapOptions.Default;
 
-    public MinimapLayout? Minimap => editor.State.Image is { } image ? MinimapLayout.Create(image.Width, image.Height, _viewportWidthDip, _viewportHeightDip) : null;
+    public MinimapOptions MinimapOptions
+    {
+        get => _minimapOptions;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            value.Validate();
+            if (_minimapOptions == value)
+            {
+                return;
+            }
+
+            if (_activeGesture is MinimapGesture)
+            {
+                Cancel();
+            }
+
+            _minimapOptions = value;
+            Changed?.Invoke();
+        }
+    }
+
+    public MinimapLayout? Minimap
+        => _editor.State.Image is { } image
+            ? MinimapLayout.Create(image.Width, image.Height, _viewportWidthDip, _viewportHeightDip, MinimapOptions)
+            : null;
 
     public void SetViewportSize(double width, double height)
     {
@@ -144,7 +222,7 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
         _viewportWidthDip = width;
         _viewportHeightDip = height;
-        if (_activeGesture is MinimapGesture || _polygonPoints.Count > 0)
+        if (_activeGesture is MinimapGesture || _polygonDraft.HasPoints)
         {
             Cancel();
         }
@@ -167,7 +245,9 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         private set;
     } = new();
 
-    public bool IsDragging => _activeGesture is not null;
+    public bool IsDragging => _pointerDown && _activeGesture is not null;
+
+    public bool HasActiveState => IsDragging || _polygonDraft.HasPoints || Overlay.Hover is not null;
 
     public bool NavigationOnly
     {
@@ -177,127 +257,86 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     public event Action? Changed;
 
-    internal EditorSession Editor => editor;
+    internal EditorSession Editor => _editor;
 
     internal void PreviewTranslation(PointD delta, bool allowSlide)
-    {
-        if (previewTranslation is null)
-        {
-            editor.PreviewTranslation(delta, allowSlide);
-        }
-        else
-        {
-            previewTranslation(delta, allowSlide);
-        }
-    }
+        => _commandSink.PreviewTranslation(delta, allowSlide);
 
     internal void PreviewRotation(PointD pivot, double degrees)
-    {
-        if (previewRotation is null)
-        {
-            editor.PreviewRotation(pivot, degrees);
-        }
-        else
-        {
-            previewRotation(pivot, degrees);
-        }
-    }
+        => _commandSink.PreviewRotation(pivot, degrees);
 
     internal void CommitPreview(string name)
-    {
-        if (commitPreview is null)
-        {
-            editor.CommitPreview(name);
-        }
-        else
-        {
-            commitPreview(name);
-        }
-    }
+        => _commandSink.CommitPreview(name);
 
     internal void Select(IEnumerable<Guid> ids)
-    {
-        if (selectRois is null)
-        {
-            editor.Select(ids);
-        }
-        else
-        {
-            selectRois(ids);
-        }
-    }
+        => _commandSink.Select(ids);
 
     internal void Show(InteractionOverlay overlay)
     {
-        Overlay = overlay.HandleScale == HandleScale ? overlay : overlay with
+        if (overlay.HandleScale != HandleScale)
         {
-            HandleScale = HandleScale
-        };
+            overlay = overlay with
+            {
+                HandleScale = HandleScale
+            };
+        }
+
+        Overlay = overlay;
         Changed?.Invoke();
     }
 
     internal void SelectRegion(DocumentState baseline, BoundsD bounds, bool additive)
-    {
-        if (selectRegion is not null)
-        {
-            selectRegion(bounds, additive);
-        }
-        else if (!baseline.RepeatedRois.IsEmpty)
-        {
-            editor.SelectRegion(bounds, additive);
-        }
-        else
-        {
-            var ids = baseline.Snapshot.Spatial.Intersecting(bounds).Where(roi => roi.Geometry.Bounds is var box &&
-                bounds.Contains(new(box.Left, box.Top)) && bounds.Contains(new(box.Right, box.Bottom))).Select(roi => roi.Id);
-            Select(additive ? baseline.Selection.Union(ids) : ids);
-        }
-    }
+        => _commandSink.SelectRegion(baseline, bounds, additive);
 
-    public void Down(PointD screen, InputModifiers modifiers = InputModifiers.None, bool middle = false)
+    public void Down(PointD screen, InputModifiers modifiers, PointerButton button)
     {
-        ValidateDraftImage();
-        if (!middle && !NavigationOnly && Tool == EditorTool.Draw && DrawShape == RoiShapeKind.Polygon &&
-            !(Minimap is { } panel && panel.Panel.Contains(screen)))
+        if (!IsEnabled)
         {
-            ContinuePolygon(screen);
             return;
         }
-        Cancel();
-        _activeGesture = StartGesture(screen, modifiers, middle);
 
+        ValidateDraftImage();
+        var isMiddleButton = button == PointerButton.Middle;
+        if (IsPolygonDrawClick(screen, isMiddleButton))
+        {
+            StartOrContinuePolygon(screen);
+            return;
+        }
+
+        Cancel();
+        _pointerDown = true;
+        _activeGesture = StartGesture(screen, modifiers, isMiddleButton);
         Changed?.Invoke();
     }
 
-    // 폴리곤의 여러 클릭은 하나의 초안이다. 일반 Down의 Cancel로 기존 점을 지우지 않는다.
-    private void ContinuePolygon(PointD screen)
+    public void Down(PointD screen, InputModifiers modifiers = InputModifiers.None, bool middle = false)
+        => Down(screen, modifiers, middle ? PointerButton.Middle : PointerButton.Left);
+
+    private bool IsPolygonDrawClick(PointD screen, bool middle)
+        => !middle
+        && !NavigationOnly
+        && Tool == EditorTool.Draw
+        && DrawShape == RoiShapeKind.Polygon
+        && !OverMinimap(screen);
+
+    // 폴리곤의 여러 클릭은 하나의 PolygonDrawGesture가 이어받는다.
+    private void StartOrContinuePolygon(PointD screen)
     {
-        _activeGesture?.Cancel();
-        _activeGesture = new NoGesture();
-        var imagePoint = RoiImageBounds.Clamp(editor.State.Viewport.ScreenToImage(screen), editor.State.Image);
-        if (PolygonClosure.Find(_polygonPoints, imagePoint) is { } closedPolygon)
+        if (_activeGesture is not PolygonDrawGesture polygonGesture || polygonGesture.IsFinished)
         {
-            CompletePolygon(closedPolygon);
-            return;
+            _activeGesture?.Cancel();
+            polygonGesture = new PolygonDrawGesture(this, _polygonDraft);
+            _activeGesture = polygonGesture;
         }
 
-        if (CanCompletePolygon && (editor.State.Viewport.ImageToScreen(_polygonPoints[0]) - screen).Length < PolygonClosureDistanceDip)
+        _pointerDown = true;
+        polygonGesture.AddClick(screen);
+        if (polygonGesture.IsFinished)
         {
-            CompletePolygon();
-            return;
+            _activeGesture = null;
         }
 
-        if (_polygonPoints.Count == 0)
-        {
-            _polygonStartImage = editor.State.Image;
-        }
-
-        if (_polygonPoints.Count == 0 || (_polygonPoints[^1] - imagePoint).Length > .000001)
-        {
-            _polygonPoints.Add(imagePoint);
-        }
-
-        ShowPolygonDraft();
+        Changed?.Invoke();
     }
 
     private IGesture StartGesture(PointD screen, InputModifiers modifiers, bool middle)
@@ -305,34 +344,40 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         // 미니맵 → 화면 이동 → 탐색 전용 → 그리기/마스크 → 선택 순서를 유지한다.
         if (!middle && Minimap is { } map && map.Panel.Contains(screen))
         {
-            return map.ImageBounds.Contains(screen) ? new MinimapGesture(editor, map, screen) : new NoGesture();
+            return map.ImageBounds.Contains(screen) ? new MinimapGesture(_editor, map, screen) : new NoGesture();
         }
-        else if (middle || Tool == EditorTool.Pan)
+
+        if (middle || Tool == EditorTool.Pan)
         {
-            return new PanGesture(editor, screen);
+            return new PanGesture(_editor, screen);
         }
-        else if (NavigationOnly)
+
+        if (NavigationOnly)
         {
             return new NoGesture();
         }
-        else if (Tool == EditorTool.Draw)
+
+        if (Tool == EditorTool.Draw)
         {
             return new DrawGesture(this, screen);
         }
-        else if (Tool == EditorTool.Mask && MaskTargetId is { } maskTarget && editor.State.Rois.TryGetValue(maskTarget, out var owner))
+
+        if (Tool == EditorTool.Mask && MaskTargetId is { } maskTarget && _editor.State.Rois.TryGetValue(maskTarget, out var owner))
         {
             return new MaskDrawGesture(this, owner, screen);
         }
-        else
-        {
-            return StartSelectionGesture(screen, modifiers);
-        }
+
+        return StartSelectionGesture(screen, modifiers);
     }
 
     public void DoubleClick(PointD screen, InputModifiers modifiers = InputModifiers.None)
     {
-        if (Tool != EditorTool.Select || NavigationOnly ||
-            (Minimap is { } map && map.Panel.Contains(screen)))
+        if (!IsEnabled)
+        {
+            return;
+        }
+
+        if (Tool != EditorTool.Select || NavigationOnly || OverMinimap(screen))
         {
             Down(screen, modifiers);
             return;
@@ -340,128 +385,146 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
         Cancel();
         // 계층 안의 더블클릭은 겹친 리프 → 안쪽 그룹 → 바깥 그룹 순서로 선택한다.
-        var hit = HitSelectableRoi(screen, modifiers.HasFlag(InputModifiers.Alt));
-        if (!modifiers.HasFlag(InputModifiers.Alt) && hit.Ordinary is { } ordinary &&
-            (editor.State.Rois[ordinary].ParentId is not null || editor.State.IsGroupRoi(ordinary)))
+        var hit = HitOrdinaryRoi(screen, modifiers.HasFlag(InputModifiers.Alt));
+        if (!modifiers.HasFlag(InputModifiers.Alt) && hit is { } ordinary &&
+            (_editor.State.Rois[ordinary].ParentId is not null || _editor.State.IsGroupRoi(ordinary)))
         {
-            hit = HitSelectableRoi(screen, cycleSelection: true);
+            hit = HitOrdinaryRoi(screen, cycleSelection: true);
         }
-        if (hit.Repeated is { } repeated)
+
+        if (!modifiers.HasFlag(InputModifiers.Alt) &&
+            _editor.State.SelectionCount == 1 &&
+            _editor.State.Selection.TryGetOnly(out var selectedId) &&
+            (hit is null || hit == selectedId) &&
+            StartHandleGesture(_editor.State, screen) is { } handleGesture)
         {
-            editor.SelectRepeated(repeated);
+            _pointerDown = true;
+            _activeGesture = handleGesture;
+            Changed?.Invoke();
+            return;
         }
-        else if (hit.Ordinary is { } id)
+
+        if (hit is { } id)
         {
             Select([id]);
         }
+
+        _pointerDown = true;
         _activeGesture = new NoGesture();
         Changed?.Invoke();
     }
 
     private IGesture StartSelectionGesture(PointD screen, InputModifiers modifiers)
     {
-        var state = editor.State;
+        var state = _editor.State;
         var cycleSelection = modifiers.HasFlag(InputModifiers.Alt);
-        if (!cycleSelection)
+        if (!cycleSelection && TryStartActiveSelectionGesture(state, screen, modifiers) is { } activeGesture)
         {
-            var handleGesture = StartHandleGesture(state, screen);
-            if (handleGesture is not null)
-            {
-                return handleGesture;
-            }
-            // 화면에서 고른 그룹을 내부에서 잡아도 리프가 선택을 빼앗지 않는다.
-            if (modifiers == InputModifiers.None && state.SelectionCount == 1 && state.Selection.Count == 1 &&
-                state.Selection.Single() is var selected && state.IsGroupRoi(selected) &&
-                state.Rois[selected].Geometry.Contains(state.Viewport.ScreenToImage(screen)))
-            {
-                return new MoveGesture(this, screen);
-            }
+            return activeGesture;
         }
 
-        var hit = HitSelectableRoi(screen, cycleSelection);
-        if (hit.Repeated is { } repeatedHit)
+        if (HitOrdinaryRoi(screen, cycleSelection) is { } roiId)
         {
-            if (modifiers.HasFlag(InputModifiers.Control))
-            {
-                editor.SelectRepeated(repeatedHit, additive: true, toggle: true);
-                return new NoGesture();
-            }
-            if (!state.RepeatedSelection.TryGetValue(repeatedHit.BatchId, out var selectedCells) || !selectedCells.Contains(repeatedHit.Index))
-            {
-                editor.SelectRepeated(repeatedHit, additive: modifiers.HasFlag(InputModifiers.Shift));
-            }
-
-            return new MoveGesture(this, screen);
+            return StartOrdinarySelectionGesture(state, roiId, screen, modifiers);
         }
-        if (hit.Ordinary is { } roiId)
-        {
-            if (modifiers.HasFlag(InputModifiers.Control))
-            {
-                editor.Select(state.Selection.Contains(roiId) ? state.Selection.Remove(roiId) : state.Selection.Add(roiId), preserveRepeated: true);
-                return new NoGesture();
-            }
-            if (!state.Selection.Contains(roiId))
-            {
-                editor.Select(modifiers.HasFlag(InputModifiers.Shift) ? state.Selection.Add(roiId) : [roiId], preserveRepeated: modifiers.HasFlag(InputModifiers.Shift));
-            }
 
-            return new MoveGesture(this, screen);
-        }
         return new MarqueeGesture(this, screen, modifiers != InputModifiers.None);
+    }
+
+    private IGesture? TryStartActiveSelectionGesture(DocumentState state, PointD screen, InputModifiers modifiers)
+    {
+        var handleGesture = StartHandleGesture(state, screen);
+        if (handleGesture is not null)
+        {
+            return handleGesture;
+        }
+
+        // 화면에서 고른 그룹을 내부에서 잡아도 리프가 선택을 빼앗지 않는다.
+        if (modifiers == InputModifiers.None && state.SelectionCount == 1 && state.Selection.TryGetOnly(out var selectedId) &&
+            state.IsGroupRoi(selectedId) &&
+            state.Rois[selectedId].Geometry.Contains(state.Viewport.ScreenToImage(screen)))
+        {
+            return new MoveGesture(this, screen);
+        }
+
+        return null;
+    }
+
+    private IGesture StartOrdinarySelectionGesture(DocumentState state, Guid roiId, PointD screen, InputModifiers modifiers)
+    {
+        if (modifiers.HasFlag(InputModifiers.Control))
+        {
+            var nextSelection = state.Selection.Contains(roiId)
+                ? state.Selection.Remove(roiId)
+                : state.Selection.Add(roiId);
+            _editor.Select(nextSelection);
+            return new NoGesture();
+        }
+
+        if (!state.Selection.Contains(roiId))
+        {
+            var nextSelection = modifiers.HasFlag(InputModifiers.Shift)
+                ? state.Selection.Add(roiId)
+                : [roiId];
+            _editor.Select(nextSelection);
+        }
+
+        return new MoveGesture(this, screen);
     }
 
     private IGesture? StartHandleGesture(DocumentState state, PointD screen)
     {
-        // 회전/크기 핸들은 단일 ROI 또는 단일 그룹을 선택했을 때만 제공한다.
-        if (state.SingleRepeatedCell is { } cell)
+        if (state.SelectionCount != 1)
         {
-            var cellGeometry = state.RepeatedRois[cell.BatchId].Geometry(cell.Index);
-            if ((HandleGeometry.RotationHandle(cellGeometry, state.Viewport, HandleScale) - screen).Length < HandleGeometry.RotationHitRadiusDip * HandleScale)
-            {
-                return new RotateGesture(this, screen, cellGeometry.Center);
-            }
+            return null;
+        }
 
-            var handles = HandleGeometry.ResizeHandles(cellGeometry, state.Viewport);
-            for (var i = 0; i < handles.Count; i++)
+        var selectedRoi = state.Rois[state.Selection.Single()];
+        if (HitsRotationHandle(state.Viewport, selectedRoi.Geometry, screen))
+        {
+            return new RotateGesture(this, screen, selectedRoi.Geometry.Center);
+        }
+
+        var resizeHandle = HitResizeHandle(state.Viewport, selectedRoi.Geometry, screen);
+        return resizeHandle < 0 ? null : new ResizeGesture(this, selectedRoi, resizeHandle, screen);
+    }
+
+    /// <summary>화면 좌표가 회전 핸들 안인지 확인한다. 허용 반경은 <see cref="HandleScale"/>에 비례한다.</summary>
+    private bool HitsRotationHandle(ViewportTransform viewport, RoiGeometry geometry, PointD screen)
+        => (HandleGeometry.RotationHandle(geometry, viewport, HandleScale) - screen).Length
+            < HandleGeometry.RotationHitRadiusDip * HandleScale;
+
+    /// <summary>화면 좌표가 몇 번째 크기 핸들 안인지 반환한다. 어느 핸들도 아니면 -1.</summary>
+    private int HitResizeHandle(ViewportTransform viewport, RoiGeometry geometry, PointD screen)
+    {
+        Span<PointD> handles = stackalloc PointD[8];
+        HandleGeometry.CopyResizeHandlesTo(geometry, viewport, handles);
+        for (var i = 0; i < handles.Length; i++)
+        {
+            if ((handles[i] - screen).Length < HandleGeometry.ResizeHitRadiusDip * HandleScale)
             {
-                if ((handles[i] - screen).Length < HandleGeometry.ResizeHitRadiusDip * HandleScale)
-                {
-                    return new RepeatedResizeGesture(this, cell, cellGeometry, i, screen);
-                }
+                return i;
             }
         }
-        else if (state.SelectionCount == 1)
-        {
-            var selectedRoi = state.Rois[state.Selection.Single()];
-            if ((HandleGeometry.RotationHandle(selectedRoi.Geometry, state.Viewport, HandleScale) - screen).Length < HandleGeometry.RotationHitRadiusDip * HandleScale)
-            {
-                return new RotateGesture(this, screen, selectedRoi.Geometry.Center);
-            }
 
-            var handles = HandleGeometry.ResizeHandles(selectedRoi.Geometry, state.Viewport);
-            for (var i = 0; i < handles.Count; i++)
-            {
-                if ((handles[i] - screen).Length < HandleGeometry.ResizeHitRadiusDip * HandleScale)
-                {
-                    return new ResizeGesture(this, selectedRoi, i, screen);
-                }
-            }
-        }
-        return null;
+        return -1;
     }
 
     public void Move(PointD screen, InputModifiers modifiers = InputModifiers.None)
     {
+        if (!IsEnabled)
+        {
+            return;
+        }
+
         ValidateDraftImage();
         if (_activeGesture is { } active)
         {
             active.Move(screen, modifiers);
+            return;
         }
-        else if (_polygonPoints.Count > 0)
-        {
-            ShowPolygonDraft(RoiImageBounds.Clamp(editor.State.Viewport.ScreenToImage(screen), editor.State.Image));
-        }
-        else if (!NavigationOnly && Tool != EditorTool.Mask)
+
+        if (!NavigationOnly && Tool != EditorTool.Mask)
         {
             var hit = HitOrdinaryRoi(screen);
             if (Overlay.Hover != hit)
@@ -476,6 +539,27 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     public void Up(PointD screen, InputModifiers modifiers = InputModifiers.None)
     {
+        if (!IsEnabled)
+        {
+            return;
+        }
+
+        _pointerDown = false;
+        if (_activeGesture is PolygonDrawGesture polygonGesture)
+        {
+            if (polygonGesture.IsFinished)
+            {
+                _activeGesture = null;
+                Show(new());
+            }
+            else
+            {
+                polygonGesture.Complete();
+            }
+
+            return;
+        }
+
         var active = _activeGesture;
         // 확정 콜백에서 새 입력이 들어와도 방금 끝난 드래그를 다시 사용하지 않는다.
         _activeGesture = null;
@@ -491,36 +575,30 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
         }
         finally
         {
-            if (_polygonPoints.Count > 0)
-            {
-                ShowPolygonDraft();
-            }
-            else
-            {
-                Show(new());
-            }
+            Show(new());
         }
     }
 
     public void Cancel()
     {
+        _pointerDown = false;
         var active = _activeGesture;
         _activeGesture = null;
         active?.Cancel();
-        _polygonPoints.Clear();
-        _polygonStartImage = null;
+        _polygonDraft.Clear();
         Show(new());
     }
 
     public void ValidateDraftImage()
     {
-        if (Tool == EditorTool.Mask && (MaskTargetId is not { } id || !editor.State.Selection.Contains(id) ||
-            editor.State.SelectionCount != 1 || !editor.State.Rois.TryGetValue(id, out var owner) ||
-            editor.State.IsGroupRoi(id) || owner.Masks.Length >= EditorSession.MaximumMasksPerRoi))
+        if (Tool == EditorTool.Mask && (MaskTargetId is not { } id || !_editor.State.Selection.Contains(id) ||
+            _editor.State.SelectionCount != 1 || !_editor.State.Rois.TryGetValue(id, out var owner) ||
+            _editor.State.IsGroupRoi(id) || owner.Masks.Length >= EditorSession.MaximumMasksPerRoi))
         {
             Tool = EditorTool.Select;
         }
-        if (_polygonPoints.Count > 0 && _polygonStartImage != editor.State.Image)
+
+        if (_polygonDraft.IsImageChanged(_editor.State.Image))
         {
             Cancel();
         }
@@ -528,163 +606,56 @@ public sealed class InteractionController(EditorSession editor, Action<string>? 
 
     public void CompletePolygon()
     {
-        ValidateDraftImage();
-        if (!CanCompletePolygon)
+        if (!IsEnabled)
         {
             return;
         }
 
-        CompletePolygon(PolygonClosure.Find(_polygonPoints, _polygonPoints[0]) ?? _polygonPoints.ToArray());
-    }
-
-    private void CompletePolygon(IEnumerable<PointD> points)
-    {
-        var geometry = RoiGeometry.Polygon(points);
-        AddDrawnRoi(geometry);
-        Tool = EditorTool.Select;
+        ValidateDraftImage();
+        if (_activeGesture is PolygonDrawGesture polygonGesture)
+        {
+            polygonGesture.CompleteDraft();
+            if (polygonGesture.IsFinished)
+            {
+                _activeGesture = null;
+            }
+        }
     }
 
     public void RemovePolygonPoint()
     {
-        if (_polygonPoints.Count > 0)
+        if (!IsEnabled)
         {
-            _polygonPoints.RemoveAt(_polygonPoints.Count - 1);
-        }
-
-        ShowPolygonDraft();
-    }
-
-    private void ShowPolygonDraft(PointD? cursor = null)
-    {
-        if (cursor is { } point && PolygonClosure.Find(_polygonPoints, point) is { Length: >= 3 } closed)
-        {
-            Show(new(PolygonPoints: closed.Append(closed[0]).ToImmutableArray())
-            {
-                DraftIsGroup = DrawAsGroup
-            });
             return;
         }
 
-        Show(new(PolygonPoints: (cursor is { } end ? _polygonPoints.Append(end) : _polygonPoints).ToImmutableArray())
+        if (_activeGesture is PolygonDrawGesture polygonGesture)
         {
-            DraftIsGroup = DrawAsGroup
-        });
+            polygonGesture.RemoveLastPoint();
+            if (polygonGesture.IsFinished)
+            {
+                _activeGesture = null;
+            }
+        }
     }
 
     public void Wheel(PointD screen, double notches)
     {
-        if (_activeGesture is not null)
+        if (!IsEnabled || IsDragging)
         {
             return;
         }
 
-        var anchor = Minimap is { } map && map.Panel.Contains(screen) ? new PointD(_viewportWidthDip / 2, _viewportHeightDip / 2) : screen;
-        editor.SetViewport(editor.State.Viewport.ZoomAt(anchor, Math.Pow(1.2, notches)));
+        var anchor = OverMinimap(screen) ? new PointD(_viewportWidthDip / 2, _viewportHeightDip / 2) : screen;
+        _editor.SetViewport(_editor.State.Viewport.ZoomAt(anchor, Math.Pow(1.2, notches)));
     }
 
     private Guid? HitOrdinaryRoi(PointD screen, bool cycleSelection = false)
-    {
-        if (Minimap is { } map && map.Panel.Contains(screen))
-        {
-            return null;
-        }
-
-        var imagePoint = editor.State.Viewport.ScreenToImage(screen);
-        var hitToleranceInImage = RoiHitToleranceDip / editor.State.Viewport.Scale;
-        if (!cycleSelection)
-        {
-            return editor.State.Snapshot.Spatial.HitTest(imagePoint, hitToleranceInImage)?.Id;
-        }
-
-        var searchMarginInImage = hitToleranceInImage * Math.Sqrt(2);
-        var hitRoiIds = editor.State.Snapshot.Spatial.Intersecting(new(
-                imagePoint.X - searchMarginInImage, imagePoint.Y - searchMarginInImage,
-                imagePoint.X + searchMarginInImage, imagePoint.Y + searchMarginInImage))
-            .Where(r => r.Geometry.Contains(imagePoint, hitToleranceInImage))
-            .OrderBy(r => r.Geometry.Area).ThenByDescending(r => r.Order).Select(r => r.Id).ToArray();
-        if (hitRoiIds.Length == 0)
-        {
-            return null;
-        }
-
-        if (cycleSelection && editor.State.Selection.Count == 1)
-        {
-            var selectedIndex = Array.IndexOf(hitRoiIds, editor.State.Selection.Single());
-            return hitRoiIds[(selectedIndex + 1) % hitRoiIds.Length];
-        }
-        return hitRoiIds[0];
-    }
+        => new RoiHitTester(_editor.State, OverMinimap(screen)).HitOrdinary(screen, cycleSelection);
 
     internal static BoundsD SelectionBounds(DocumentState state)
-        => state.RepeatedSelection.IsEmpty ? state.SelectedSpatial.Bounds : state.TransformSelection.Bounds;
+        => state.SelectedSpatial.Bounds;
 
-    private (Guid? Ordinary, RepeatedRoiCell? Repeated) HitSelectableRoi(PointD screen, bool cycleSelection)
-    {
-        var state = editor.State;
-        if (state.RepeatedRois.IsEmpty)
-        {
-            return (HitOrdinaryRoi(screen, cycleSelection), null);
-        }
-
-        var imagePoint = state.Viewport.ScreenToImage(screen);
-        var hitToleranceInImage = RoiHitToleranceDip / state.Viewport.Scale;
-        var searchMarginInImage = hitToleranceInImage * Math.Sqrt(2);
-        var candidates = new List<(Guid? Ordinary, RepeatedRoiCell? Repeated, double Area, long Order)>();
-        if (cycleSelection)
-        {
-            foreach (var roi in state.Snapshot.Spatial.Intersecting(new(
-                imagePoint.X - searchMarginInImage, imagePoint.Y - searchMarginInImage,
-                imagePoint.X + searchMarginInImage, imagePoint.Y + searchMarginInImage)))
-            {
-                if (roi.Geometry.Contains(imagePoint, hitToleranceInImage))
-                {
-                    candidates.Add((roi.Id, null, roi.Geometry.Area, roi.Order));
-                }
-            }
-        }
-        else if (state.Snapshot.Spatial.HitTest(imagePoint, hitToleranceInImage) is { } ordinaryRoi)
-        {
-            candidates.Add((ordinaryRoi.Id, null, ordinaryRoi.Geometry.Area, ordinaryRoi.Order));
-        }
-        foreach (var batch in state.RepeatedRois.Values)
-        {
-            if (!cycleSelection)
-            {
-                if (batch.HitTest(imagePoint, hitToleranceInImage) is { } cellIndex)
-                {
-                    candidates.Add((null, new(batch.Id, cellIndex), batch.Geometry(cellIndex).Area, batch.Order));
-                }
-                continue;
-            }
-            foreach (var part in batch.Parts)
-            {
-                foreach (var index in part.HitCandidates(imagePoint, hitToleranceInImage))
-                {
-                    candidates.Add((null, new(batch.Id, index), part.Grid.Geometry(index).Area, batch.Order));
-                }
-            }
-        }
-        if (candidates.Count == 0)
-        {
-            return default;
-        }
-        candidates = candidates.Distinct().OrderBy(hit => hit.Area).ThenByDescending(hit => hit.Order)
-            .ThenByDescending(hit => hit.Repeated?.Index).ToList();
-        var selectedCandidateIndex = -1;
-        if (cycleSelection && state.SelectionCount == 1)
-        {
-            selectedCandidateIndex = candidates.FindIndex(hit =>
-            {
-                if (hit.Repeated is { } cell)
-                {
-                    return state.SingleRepeatedCell == cell;
-                }
-
-                return hit.Ordinary is { } id && state.Selection.Contains(id);
-            });
-        }
-
-        var selectedHit = candidates[(selectedCandidateIndex + 1) % candidates.Count];
-        return (selectedHit.Ordinary, selectedHit.Repeated);
-    }
+    /// <summary>포인터가 미니맵 패널 위인지 확인한다. 미니맵 드래그가 ROI 선택보다 우선한다.</summary>
+    private bool OverMinimap(PointD screen) => Minimap is { } map && map.Panel.Contains(screen);
 }

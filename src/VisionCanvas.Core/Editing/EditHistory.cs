@@ -8,6 +8,7 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
     // cursor 앞은 적용된 편집, cursor부터는 Redo로 다시 적용할 편집이다.
     private int _cursor;
     private long _revision;
+    private long _totalBytes;
     // 최근 시작/목표 상태 한 쌍만 미리보기 준비와 공유한다. 편집마다 캐시를 쌓지 않는다.
     // Bytes는 편집 차이의 추정 예산이며, 공유 색인을 포함한 프로세스 전체 메모리 상한이 아니다.
     private PreparedHistoryStep? _prepared;
@@ -20,7 +21,7 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
 
     public string? RedoName => CanRedo ? _edits[_cursor].Name : null;
 
-    public long Bytes => _edits.Sum(e => e.EstimatedBytes);
+    public long Bytes => _totalBytes;
 
     public void Push(DocumentEdit edit)
     {
@@ -33,16 +34,24 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
 
         if (_cursor < _edits.Count)
         {
+            for (var index = _cursor; index < _edits.Count; index++)
+            {
+                _totalBytes -= _edits[index].EstimatedBytes;
+            }
+
             _edits.RemoveRange(_cursor, _edits.Count - _cursor);
         }
 
         _edits.Add(edit);
+        _totalBytes += edit.EstimatedBytes;
         _cursor++;
-        while (_edits.Count > maxCount || Bytes > byteBudget)
+        while (_edits.Count > maxCount || _totalBytes > byteBudget)
         {
+            _totalBytes -= _edits[0].EstimatedBytes;
             _edits.RemoveAt(0);
             _cursor--;
         }
+
         _revision++;
         _prepared = null;
     }
@@ -53,6 +62,7 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
         {
             return;
         }
+
         Push(edit);
         if (CanUndo && ReferenceEquals(_edits[_cursor - 1], edit))
         {
@@ -81,6 +91,7 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
             return new(_identity, _revision, _cursor, edit, forward,
                 sameDirection ? cached.Source : cached.Target, sameDirection ? cached.Target : cached.Source);
         }
+
         return new(_identity, _revision, _cursor, edit, forward);
     }
 
@@ -98,11 +109,12 @@ public sealed class EditHistory(int maxCount = 200, long byteBudget = 1024L * 10
     {
         Validate(target, current);
         var step = target.Step;
-        var result = !step.Edit.ChangesImage && target.Target.Viewport != current.Viewport
-            ? target.Target with
-            {
-                Viewport = current.Viewport
-            } : target.Target;
+        var result = target.Target;
+        if (!step.Edit.ChangesImage && target.Target.Viewport != current.Viewport)
+        {
+            result = target.Target.WithViewport(current.Viewport);
+        }
+
         _cursor += step.Forward ? 1 : -1;
         _revision++;
         _prepared = target.CanReuseSnapshotPair ? target : null;

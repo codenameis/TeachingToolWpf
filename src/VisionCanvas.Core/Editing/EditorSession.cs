@@ -69,25 +69,35 @@ public sealed partial class EditorSession
         geometry = RoiImageBounds.ClipNew(geometry, State.Image);
         var order = _nextOrder + 1;
         var roi = new Roi(Guid.NewGuid(), $"ROI {order:000}", geometry, parentId, isGroup, order);
-        var name = isGroup ? "부모 ROI 추가" : parentId is null ? "ROI 추가" : "자식 ROI 추가";
-        var next = State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]) with
+        string name;
+        if (isGroup)
         {
-            Selection = [roi.Id],
-            RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
-        };
+            name = "부모 ROI 추가";
+        }
+        else if (parentId is null)
+        {
+            name = "ROI 추가";
+        }
+        else
+        {
+            name = "자식 ROI 추가";
+        }
+
+        var next = State.WithRois(State.Rois.Add(roi.Id, roi), [roi.Id]).WithSelection([roi.Id]);
         if (parentId is { } parent)
         {
             RoiGroupBounds.Validate(next, [parent], State);
         }
+
         Commit(name, next);
         _nextOrder = order;
         return roi.Id;
     }
 
-    public void AddRange(IEnumerable<RoiGeometry> geometries)
-        => AddRange(geometries.Select(geometry => new RoiCreation(geometry)));
+    public IReadOnlyList<Guid> AddRange(IEnumerable<RoiGeometry> geometries, bool selectAdded = false, bool isNameVisible = true)
+        => AddRange(geometries.Select(geometry => new RoiCreation(geometry)), selectAdded, isNameVisible);
 
-    public void AddRange(IEnumerable<RoiCreation> definitions)
+    public IReadOnlyList<Guid> AddRange(IEnumerable<RoiCreation> definitions, bool selectAdded = false, bool isNameVisible = true)
     {
         var rois = State.Rois.ToBuilder();
         var added = new List<Guid>();
@@ -109,28 +119,77 @@ public sealed partial class EditorSession
                 }
             }
 
-            var roi = new Roi(Guid.NewGuid(), $"ROI {++order:000}", RoiImageBounds.ClipNew(definition.Geometry, State.Image), parent, false, order);
+            var roi = new Roi(Guid.NewGuid(), $"ROI {++order:000}", RoiImageBounds.ClipNew(definition.Geometry, State.Image), parent, false, order)
+            {
+                IsNameVisible = isNameVisible
+            };
             rois.Add(roi.Id, roi);
             added.Add(roi.Id);
         }
+
         var next = State.WithRois(rois.ToImmutable(), added);
+        if (selectAdded)
+        {
+            next = next.WithSelection(RoiIdSet.CreateRange(added));
+        }
+
         RoiGroupBounds.Validate(next, added);
         Commit("ROI 일괄 추가", next);
         _nextOrder = order;
+        return added;
     }
 
-    public void Select(IEnumerable<Guid> ids, bool preserveRepeated = false)
+    public void SelectAll()
+        => Publish(SelectAllState(State, CancellationToken.None));
+
+    private static DocumentState SelectAllState(DocumentState before, CancellationToken token)
     {
-        var selected = RoiIdSet.CreateRange(ids.Where(State.Rois.ContainsKey));
-        if (!State.Selection.SetEquals(selected) || (!preserveRepeated && !State.RepeatedSelection.IsEmpty))
+        token.ThrowIfCancellationRequested();
+        if (before.Selection.Count == before.Rois.Count)
         {
-            Publish(State with
-            {
-                Selection = selected,
-                RepeatedSelection = preserveRepeated ? State.RepeatedSelection : ImmutableDictionary<Guid, RoiCellSet>.Empty
-            });
+            return before;
         }
+
+        return before.WithSelection(RoiIdSet.CreateRange(before.Rois.Keys));
     }
+
+    public void Select(IEnumerable<Guid> ids)
+        => Publish(SelectState(State, ids, CancellationToken.None));
+
+    private static DocumentState SelectState(DocumentState before, IEnumerable<Guid> ids, CancellationToken token)
+    {
+        var selection = RoiIdSet.CreateRange(ids.Where(id =>
+        {
+            token.ThrowIfCancellationRequested();
+            return before.Rois.ContainsKey(id);
+        }));
+        if (selection.SetEquals(before.Selection))
+        {
+            return before;
+        }
+
+        return before.WithSelection(selection);
+    }
+
+    public void SelectRegion(BoundsD bounds, bool additive = false)
+        => Publish(SelectRegionState(State, bounds, additive, CancellationToken.None));
+
+    private static DocumentState SelectRegionState(DocumentState before, BoundsD bounds, bool additive, CancellationToken token)
+    {
+        var ids = FindContainedOrdinaryIds(before, bounds, token);
+        var nextSelection = additive ? before.Selection.Union(ids) : RoiIdSet.CreateRange(ids);
+        return before.WithSelection(nextSelection);
+    }
+
+    internal static IEnumerable<Guid> FindContainedOrdinaryIds(DocumentState state, BoundsD bounds, CancellationToken token = default)
+        => state.Snapshot.Spatial.Intersecting(bounds).Where(roi =>
+        {
+            token.ThrowIfCancellationRequested();
+            return roi.Geometry.Bounds.Left >= bounds.Left
+                && roi.Geometry.Bounds.Top >= bounds.Top
+                && roi.Geometry.Bounds.Right <= bounds.Right
+                && roi.Geometry.Bounds.Bottom <= bounds.Bottom;
+        }).Select(roi => roi.Id);
 
     public void Paste(RoiClipboard clipboard)
     {
@@ -160,17 +219,10 @@ public sealed partial class EditorSession
         CommitPreparedPaste(prepared);
     }
 
-    public void SetViewport(ViewportTransform view) => Publish(State with { Viewport = view });
+    public void SetViewport(ViewportTransform view) => Publish(State.WithViewport(view));
 
-    public void SetImage(ImageReference image, ViewportTransform view) => Commit("이미지 교체", State with
-    {
-        Image = image,
-        Viewport = view,
-        Rois = ImmutableDictionary<Guid, Roi>.Empty,
-        Selection = [],
-        RepeatedRois = ImmutableDictionary<Guid, RepeatedRoiBatch>.Empty,
-        RepeatedSelection = ImmutableDictionary<Guid, RoiCellSet>.Empty
-    }, replacesImage: true);
+    public void SetImage(ImageReference image, ViewportTransform view)
+        => Commit("이미지 교체", new DocumentState(ImmutableDictionary<Guid, Roi>.Empty, [], image, view), replacesImage: true);
 
     public void InitializeImage(ImageReference image, ViewportTransform view)
     {
@@ -179,11 +231,7 @@ public sealed partial class EditorSession
             throw new InvalidOperationException("이미지 초기화는 빈 문서에서만 가능합니다.");
         }
 
-        Publish(State with
-        {
-            Image = image,
-            Viewport = view
-        });
+        Publish(State.WithImage(image, view));
     }
 
     public void SetProperties(Guid id, string name, RoiGeometry geometry)
@@ -200,16 +248,17 @@ public sealed partial class EditorSession
         {
             throw new ArgumentException("그룹 부모에는 검색 범위를 설정할 수 없습니다.", nameof(searchRange));
         }
+
         // 확장 크기의 오버플로도 형상/이름을 게시하기 전에 검증한다.
         _ = searchRange?.Expand(geometry);
         var next = RoiTransforms.Apply(State, [id], _ => geometry);
+        var changedIds = ReferenceEquals(next, State) ? [id] : next.Snapshot.ChangedIds.Append(id);
         Commit("ROI 속성 변경", next.WithRoisFrom(State, next.Rois.SetItem(id, next.Rois[id] with
         {
             Name = name.Trim(),
             SearchRange = searchRange,
             IsNameVisible = isNameVisible
-        }),
-            ReferenceEquals(next, State) ? [id] : next.Snapshot.ChangedIds.Append(id)));
+        }), changedIds));
     }
 
     public void Rename(Guid id, string name)
@@ -226,23 +275,28 @@ public sealed partial class EditorSession
     }
 
     public void DeleteSelection()
+        => Commit("선택 ROI 삭제", DeleteSelectionState(State, CancellationToken.None));
+
+    private static DocumentState DeleteSelectionState(DocumentState before, CancellationToken token)
     {
-        var ids = RoiHierarchy.Subtree(State, RoiHierarchy.EffectiveRoots(State));
         // 명시적으로 연결된 하위 트리만 삭제하며, 겹치는 독립 ROI는 보존한다.
-        Commit("선택 ROI 삭제", DeleteRepeatedSelection(State.WithRois(State.Rois.RemoveRange(ids), ids)) with
+        var ids = before.Selection.Count == before.Rois.Count
+            ? before.Selection
+            : RoiHierarchy.Subtree(before, RoiHierarchy.EffectiveRoots(before), token).ToImmutableHashSet();
+        var rois = before.Rois.ToBuilder();
+        foreach (var id in ids)
         {
-            Selection = State.Selection.Except(ids)
-        });
+            token.ThrowIfCancellationRequested();
+            rois.Remove(id);
+        }
+
+        return before.WithRois(rois.ToImmutable(), ids)
+            .WithSelection(before.Selection.Except(ids));
     }
 
     public void SetFilters(FilterSettings settings)
     {
         settings.Validate();
-        if (!State.RepeatedSelection.IsEmpty)
-        {
-            throw new InvalidOperationException("필터는 일반 ROI 선택에서 사용할 수 있습니다.");
-        }
-
         var rois = State.Rois.ToBuilder();
         foreach (var id in State.Selection)
         {
@@ -256,23 +310,23 @@ public sealed partial class EditorSession
     }
 
     public void TranslateSelection(PointD delta)
+        => Commit("ROI 이동", TranslateSelectionState(State, delta, CancellationToken.None).WithViewport(State.Viewport));
+
+    private static DocumentState TranslateSelectionState(DocumentState before, PointD delta, CancellationToken token)
     {
-        var selection = State.TransformSelection;
+        var selection = before.TransformSelection;
         var transform = new RigidTransform2D(default, 0, selection.Constrain(delta));
-        Commit("ROI 이동", selection.Apply(transform) with
-        {
-            Viewport = State.Viewport
-        });
+        return selection.Apply(transform, token);
     }
 
     public void RotateSelection(double delta, PointD pivot)
+        => Commit("ROI 회전", RotateSelectionState(State, delta, pivot, CancellationToken.None).WithViewport(State.Viewport));
+
+    private static DocumentState RotateSelectionState(DocumentState before, double delta, PointD pivot, CancellationToken token)
     {
-        var selection = State.TransformSelection;
+        var selection = before.TransformSelection;
         var transform = new RigidTransform2D(pivot, selection.ConstrainRotation(pivot, delta));
-        Commit("ROI 회전", selection.Apply(transform) with
-        {
-            Viewport = State.Viewport
-        });
+        return selection.Apply(transform, token);
     }
 
     public void ResetAngles() => Commit("0°로 초기화", RoiTransforms.ResetAngles(State));
@@ -289,6 +343,7 @@ public sealed partial class EditorSession
         {
             _nextOrder = order;
         }
+
         return next.Selection.Single();
     }
 
@@ -397,10 +452,7 @@ public sealed partial class EditorSession
         var next = State;
         if (preview is not null)
         {
-            next = preview.Selection.ApplyPreview(preview.Transform) with
-            {
-                Viewport = State.Viewport
-            };
+            next = preview.Selection.ApplyPreview(preview.Transform).WithViewport(State.Viewport);
         }
 
         ClearPreviewState();
@@ -452,10 +504,7 @@ public sealed partial class EditorSession
     }
 
     private DocumentState PreserveCurrentViewport(DocumentState before)
-        => before.Viewport == State.Viewport ? before : before with
-        {
-            Viewport = State.Viewport
-        };
+        => before.WithViewport(State.Viewport);
 
     private void Commit(string name, DocumentState next, bool replacesImage = false)
     {

@@ -71,7 +71,7 @@ public sealed class ViewportLayerTests
     });
 
     private static RenderScene Current(Dx12Viewport viewport)
-        => Assert.IsType<RenderScene>(typeof(Dx12Viewport).GetField("_scene", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(viewport));
+        => Assert.IsType<RenderScene>(typeof(ViewportControlBase).GetField("_scene", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(viewport));
 
     private static void OnSta(Action action)
     {

@@ -14,10 +14,7 @@ public class PreparedHistoryStepTests
         var target = await Task.Run(() => step.Prepare(source));
         Assert.True(history.CanUndo);
         Assert.False(history.CanRedo);
-        var current = source with
-        {
-            Viewport = source.Viewport.Pan(new(40, 70))
-        };
+        var current = source.WithViewport(source.Viewport.Pan(new(40, 70)));
         var result = history.Commit(target, current);
         Assert.Empty(result.Rois);
         Assert.Equal(current.Viewport, result.Viewport);
@@ -51,14 +48,8 @@ public class PreparedHistoryStepTests
         {
             Geometry = roi.Geometry.Translate(new(1, 0))
         }), [roi.Id]);
-        var changedSelection = source with
-        {
-            Selection = ImmutableHashSet<Guid>.Empty
-        };
-        var changedImage = source with
-        {
-            Image = new("different", "different", 100, 100)
-        };
+        var changedSelection = source.WithSelection(RoiIdSet.Empty);
+        var changedImage = source.WithImage(new("different", "different", 100, 100));
         foreach (var changed in new[] { changedGeometry, changedSelection, changedImage })
         {
             Assert.Throws<InvalidOperationException>(() => history.Commit(target, changed));
@@ -87,22 +78,11 @@ public class PreparedHistoryStepTests
     public void PreparedImageUndoRestoresRecordedViewDespitePanDuringPreparation()
     {
         var history = new EditHistory();
-        var before = DocumentState.Empty with
-        {
-            Image = new("before", "before", 100, 100),
-            Viewport = ViewportTransform.Identity.Pan(new(10, 20))
-        };
-        var after = before with
-        {
-            Image = new("after", "after", 500, 500),
-            Viewport = ViewportTransform.Identity
-        };
+        var before = DocumentState.Empty.WithImage(new("before", "before", 100, 100), ViewportTransform.Identity.Pan(new(10, 20)));
+        var after = before.WithImage(new("after", "after", 500, 500), ViewportTransform.Identity);
         history.Push(new("image", before, after, replacesImage: true));
         var target = history.CaptureUndo()!.Prepare(after);
-        var result = history.Commit(target, after with
-        {
-            Viewport = after.Viewport.Pan(new(80, 90))
-        });
+        var result = history.Commit(target, after.WithViewport(after.Viewport.Pan(new(80, 90))));
         Assert.Equal(before.Image, result.Image);
         Assert.Equal(before.Viewport, result.Viewport);
     }
@@ -111,10 +91,7 @@ public class PreparedHistoryStepTests
     public void IdenticalEmptyImageHistoryRejectsStaleTargetBeforeSourceTransfer()
     {
         var history = new EditHistory();
-        var state = DocumentState.Empty with
-        {
-            Image = new("same", "same", 100, 100)
-        };
+        var state = DocumentState.Empty.WithImage(new("same", "same", 100, 100));
         history.Push(new("reopen same image", state, state, replacesImage: true));
         var stale = history.CaptureUndo()!.Prepare(state);
         history.Validate(stale, state);
@@ -136,10 +113,8 @@ public class PreparedHistoryStepTests
         var history = new EditHistory();
         var empty = DocumentState.Empty;
         var roi = new Roi(Guid.NewGuid(), "roi", new(new(50, 50), 10, 10, 0), null, false, 1);
-        var source = empty.WithRois(empty.Rois.Add(roi.Id, roi), [roi.Id]) with
-        {
-            Selection = [roi.Id]
-        };
+        var source = empty.WithRois(empty.Rois.Add(roi.Id, roi), [roi.Id])
+            .WithSelection([roi.Id]);
         history.Push(new("add", empty, source));
         return (history, source);
     }

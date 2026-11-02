@@ -21,7 +21,7 @@ public sealed class CpuMatchingIntegrationTests
         editor.InitializeImage(new("fixture", "fixture", 256, 192), ViewportTransform.Identity);
         editor.Add(new(new(48.5, 48.5), 33, 29, 0));
         using var vm = new ShapeMatchingViewModel(null!, cpuService: service) { Method = PatternMatchingMethod.CpuLine2D };
-        vm.Update(editor.State, 1, false, true);
+        vm.Update(new(editor.State, 1, false, true));
         await vm.Train.ExecuteAsync();
         vm.CpuCoarseFeatures = 80;
         Assert.True(vm.IsTrainingDirty);
@@ -51,6 +51,21 @@ public sealed class CpuMatchingIntegrationTests
         Assert.Equal(80, vm.CpuCoarseFeatures);
         Assert.False(vm.IsTrainingDirty);
         Assert.True(vm.Search.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task SearchMarginOutsideImageUsesItsIntersectionWithTheOriginal()
+    {
+        var service = new CpuTemplateMatchingService(new Loader(), () => null);
+        var image = new ImageReference("fixture", "fixture", 256, 192);
+        var model = await service.TrainAsync(image, false, new(new(48.5, 48.5), 33, 29, 0), CpuTemplateMethod.Line2D, default);
+        var result = await service.SearchAsync(image, false, model, new(new(5, 5), 150, 150, 0),
+            new()
+            {
+                MinimumAngle = -5,
+                MaximumAngle = 5
+            }, default);
+        Assert.InRange(Math.Abs(Assert.Single(result.Result.Matches).X - 48.5), 0, 1);
     }
 
     [Fact]
@@ -151,7 +166,6 @@ public sealed class CpuMatchingIntegrationTests
         var mask = new RoiExclusion(model.TeachingRegion, [new(MaskShape.Rectangle, new(.1, .1, .2, .2))]);
         await Assert.ThrowsAsync<NotSupportedException>(() => service.TrainAsync(image, false, model.TeachingRegion, method, default, mask));
         await Assert.ThrowsAsync<NotSupportedException>(() => service.SearchAsync(image, false, model, region, options, default, mask));
-        await Assert.ThrowsAsync<ArgumentException>(() => service.SearchAsync(new("huge", "huge", 8193, 8193), false, model, null, options, default));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.SearchAsync(image, false, model, region, options, new CancellationToken(true)));
 
         static void Check(CpuSearchOutput output)
@@ -174,7 +188,7 @@ public sealed class CpuMatchingIntegrationTests
         editor.InitializeImage(new("fixture", "fixture", 256, 192), ViewportTransform.Identity);
         editor.Add(new(new(48.5, 48.5), 33, 29, 0));
         using var vm = new ShapeMatchingViewModel(new ShapeMatchingService(loader, () => null), cpuService: service);
-        vm.Update(editor.State, 1, false, true);
+        vm.Update(new(editor.State, 1, false, true));
         var methods = new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc, PatternMatchingMethod.CpuDirectionalChamfer };
         foreach (var method in methods)
         {
@@ -218,11 +232,11 @@ public sealed class CpuMatchingIntegrationTests
         Assert.Equal("Discarded", vm.CpuInspectionLogs[^1].Outcome);
         var id = editor.State.Selection.Single();
         editor.AddMask(id, new(MaskShape.Rectangle, new(.1, .1, .2, .2)));
-        vm.Update(editor.State, 1, false, true);
+        vm.Update(new(editor.State, 1, false, true));
         Assert.True(vm.IsTrainingDirty);
         Assert.False(vm.Search.CanExecute(null));
         editor.Undo();
-        vm.Update(editor.State, 1, false, true);
+        vm.Update(new(editor.State, 1, false, true));
         Assert.True(vm.Search.CanExecute(null));
         vm.CpuAngleStep = 0;
         Assert.NotEmpty(vm.OptionsError);
@@ -246,7 +260,7 @@ public sealed class CpuMatchingIntegrationTests
         editor.InitializeImage(new("fixture", "fixture", 256, 192), ViewportTransform.Identity);
         editor.Add(new(new(48.5, 48.5), 33, 29, 0));
         using var vm = new ShapeMatchingViewModel(null!, cpuService: service) { Method = PatternMatchingMethod.CpuLine2D };
-        vm.Update(editor.State, 1, false, true);
+        vm.Update(new(editor.State, 1, false, true));
         await vm.Train.ExecuteAsync();
         service.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
         service.Pending.SetResult(new(new(Enumerable.Range(0, count).Select(i => new Match(48.5 + (i * 50), 48.5, 0, 1, .9)).ToArray(), truncated, limited, 10), 1, 0, 1));

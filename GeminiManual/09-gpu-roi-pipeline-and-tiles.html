@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>09장 · 타일 피라미드 LOD, CPU SIMD 가속, GPU ROI 인스턴싱 파이프라인 — GeminiManual</title>
+  <link rel="stylesheet" href="assets/gemini-manual.css" />
+</head>
+<body>
+  <header class="top-header">
+    <div class="top-header-inner">
+      <a class="brand-link" href="index.html">
+        <span class="brand-badge">GEMINI MANUAL</span>
+        <span>VisionCanvas 핸즈온 구현 교과서</span>
+      </a>
+      <div class="top-right-controls">
+        <nav id="top-chapter-pills" class="top-chapter-pills"></nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-shell">
+    <aside class="sidebar">
+      <h2 class="sidebar-section-title">전체 챕터 커리큘럼</h2>
+      <ul id="sidebar-chapter-list" class="chapter-nav-list"></ul>
+      <h2 class="sidebar-section-title">이 페이지 목차</h2>
+      <ul id="page-toc-list" class="toc-list"></ul>
+    </aside>
+
+    <main class="main-article">
+      <section class="hero-card">
+        <div class="hero-eyebrow">CHAPTER 09 · 3단계: 32K 대용량 영상 타일링, CPU SIMD 가속, 그리고 GPU 인스턴싱</div>
+        <h1>09장 · 타일 피라미드 LOD(<code>TilePlanner</code>), CPU <code>SIMD</code> 축소, GPU 블록 캐시(<code>RoiPipeline</code>)</h1>
+        <p class="hero-lead">
+          08장에서 우리는 Win32 <code>HWND</code> 창과 백그라운드 <code>RenderWorker</code> 스레드를 만들었습니다.<br/>
+          그런데 실제 검사에 쓰이는 <code>ken32.png</code> 영상은 크기가 <strong>17,280 × 30,720(약 5.3억 픽셀)</strong>이라 그래픽카드 단일 텍스처 한도(16,384px)를 초과합니다.<br/>
+          또 10만 개의 ROI를 매 프레임 CPU에서 GPU로 복사하면 데이터 통로(PCIe 버스)가 꽉 막힙니다.<br/>
+          이 장에서는 <strong>① CPU <code>SIMD</code>(한 번에 8픽셀 동시 계산) 피라미드 축소</strong>, <strong>② 타일 피라미드 LOD 공식(<code>TilePlanner</code>)</strong>, <strong>③ GPU 인스턴싱과 펜스(Fence) 동기화(<code>RoiPipeline</code>)</strong>를 밑바닥부터 정복합니다!
+        </p>
+      </section>
+
+      <!-- =========================================================================
+           1단계 · 이전 장과의 연결 & 왜 배울까? (일상 비유 + 조감도)
+           ========================================================================= -->
+      <section class="topdown-box" id="sec-topdown">
+        <div class="topdown-header">
+          <h2 class="topdown-title">1단계 · 32K 거대 사진과 1억 개 도형을 순식간에 그리는 3대 핵심 부품</h2>
+          <span class="topdown-badge">Step 1 · 문제 이해와 일상 비유</span>
+        </div>
+        <div class="topdown-levels">
+          <div class="topdown-level-card">
+            <span class="topdown-level-tag">부품 1 · SIMD 피라미드 &amp; 타일</span>
+            <h4>5.3억 픽셀 사진을 512×512 조각(타일)과 축소판(LOD)으로 쪼갠다!</h4>
+            <p>CPU <code>SIMD</code> 명령어(<code>TrianglePyramid</code> · <code>BoxResampler</code>)로 원본과 라이브 영상을 초고속 축소하고, <code>TilePlanner</code>가 현재 화면에 보이는 512×512 타일 조각만 골라 GPU에 올립니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-1">
+            <span class="topdown-level-tag">부품 2 · 2,048개 BVH 블록 캐시</span>
+            <h4>BVH 공간 블록(2,048개 단위)을 4대 렌더러 공통 <code>RoiBlockCache</code>로 캐싱!</h4>
+            <p>내용이 안 바뀐 서브트리 블록은 그래픽카드 메모리(VRAM) 버퍼를 그대로 재사용하고, 프레임당 상세화 준비 예산(<code>4ms</code>)을 넘기면 직전 LOD 폴백 블록을 먼저 보여줘 마우스 끊김을 방지합니다.</p>
+          </div>
+          <div class="topdown-level-card lvl-2">
+            <span class="topdown-level-tag">부품 3 · 64B 형상 / 4B 역할 분리</span>
+            <h4>선택 상태만 바뀔 때는 64B 형상은 그대로 두고 4B 역할 버퍼만 갱신 (<code>UploadRoleChanges</code>)</h4>
+            <p>도형 좌표(<code>64바이트 RoiInstance</code>)와 선택/부모/자식 색상 역할(<code>4바이트 uint</code>)을 별도 GPU 버퍼로 분리해, 클릭 선택 시 업로드 데이터양을 1/16로 줄이고 <code>DrawInstanced</code> 1회 호출로 그립니다!</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="feynman-box" id="sec-feynman">
+        <div class="feynman-header">
+          <h2 class="feynman-title">일상 비유로 감 잡기 · 스마트폰 지도 앱 타일링(LOD)과 8차선 고속도로 계산기(<code>SIMD</code>)</h2>
+          <span class="feynman-badge">파인만 학습법 (Feynman Analogy)</span>
+        </div>
+        <div class="feynman-steps">
+          <div class="feynman-step">
+            <h4>🗺️ 비유 1 · 네이버/구글 지도로 대한민국 전체 보기 vs 강남역 확대 보기 (<code>TilePlanner</code> LOD)</h4>
+            <p>
+              스마트폰 지도 앱으로 대한민국 전체를 한눈에 볼 때, 전국의 모든 골목길 고화질 사진을 다 내려받으면 휴대폰이 멈추겠죠?<br/>
+              멀리서 축소해 볼 때는 <strong>저해상도 전국 지도 타일 몇 장(Level 4)</strong>만 불러오고, 강남역을 깊숙이 확대한 순간에만 <strong>강남역 주변 고해상도 타일 몇 장(Level 0)</strong>을 불러오는 것이 바로 <strong>타일 피라미드 LOD(Level of Detail)</strong>의 원리입니다!
+            </p>
+          </div>
+          <div class="feynman-step">
+            <h4>🛣️ 비유 2 · 1차선 톨게이트(일반 <code>for</code>문) vs 8차선 하이패스(CPU <code>SIMD</code>)</h4>
+            <p>
+              5.3억 픽셀 사진을 절반 크기로 줄이려면 이웃한 픽셀들을 더하고 2로 나누는 계산을 수억 번 해야 합니다.<br/>
+              일반 <code>for</code>문(SISD)이 자동차를 한 대씩 통과시키는 1차선 톨게이트라면, <strong><code>SIMD</code>(Single Instruction, Multiple Data · <code>Vector256&lt;int&gt;</code>)</strong>는 256비트 폭의 넓은 레지스터에 정수 8개를 나란히 태워 <strong>명령어 딱 한 번에 8픽셀을 동시에 계산하는 8차선 하이패스</strong>입니다!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           2단계 · 워밍업: 이 장을 시작하기 위한 기초 C# & GPU/SIMD 사전지식 (#sec-prereq FIRST!)
+           ========================================================================= -->
+      <section class="prereq-section" id="sec-prereq">
+        <div class="prereq-header">
+          <h2 class="prereq-title">2단계 · 워밍업: 처음 배우는 <code>SIMD</code> · 로그(log<sub>2</sub>) · GPU 인스턴싱 · <code>Fence</code> 4대 개념</h2>
+          <span class="prereq-badge">Step 2 · 필수 사전지식 먼저 다지기</span>
+        </div>
+        <div class="prereq-grid">
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 1&nbsp;·&nbsp;CPU SIMD</span> <code>Vector256&lt;int&gt;</code>가 어떻게 8배 빠를까?</h4>
+            <p>
+              최신 CPU 코어 안에는 32비트(4바이트) 정수 하나만 담는 일반 그릇 말고도, <strong>256비트(32바이트&nbsp;=&nbsp;32비트 정수 8개)를 한꺼번에 담는 거대한 와이드 레지스터</strong>가 들어 있습니다.<br/>
+              C#의 <code>System.Runtime.Intrinsics.Vector256</code>을 쓰면 덧셈 기호(<code>+</code>) 한 번에 픽셀 8개가 동시에 더해집니다!
+            </p>
+            <pre><code>// 32비트 정수 8개를 한 번에 더하고 오른쪽 시프트(>> 1, 즉 ÷2)를 동시에 수행!
+Vector256&lt;int&gt; avg8&nbsp;=&nbsp;(vecA&nbsp;+&nbsp;vecB&nbsp;+&nbsp;Vector256.Create(1)) &gt;&gt; 1;</code></pre>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 2&nbsp;·&nbsp;고1 로그(Logarithm)</span> 밑이 2인 로그 log<sub>2</sub>(<i>x</i>)</h4>
+            <p>
+              고등학교 1학년 수학에서 배우는 <strong>log<sub>2</sub>(<i>x</i>)</strong>는 <strong>"2를 몇 번 거듭제곱해야 <i>x</i>가 되는가?"</strong>를 묻는 함수입니다!
+            </p>
+            <ul>
+              <li>축소 배율이 <code>s&nbsp;=&nbsp;0.5</code> (1/2 크기)&nbsp;→&nbsp;<code>1 / s&nbsp;=&nbsp;2&nbsp;=&nbsp;2¹</code> 이므로 <code>log₂(2)&nbsp;=&nbsp;1층(Level 1)</code>!</li>
+              <li>축소 배율이 <code>s&nbsp;=&nbsp;0.25</code> (1/4 크기)&nbsp;→&nbsp;<code>1 / s&nbsp;=&nbsp;4&nbsp;=&nbsp;2²</code> 이므로 <code>log₂(4)&nbsp;=&nbsp;2층(Level 2)</code>!</li>
+              <li>축소 배율이 <code>s&nbsp;=&nbsp;0.125</code> (1/8 크기)&nbsp;→&nbsp;<code>1 / s&nbsp;=&nbsp;8&nbsp;=&nbsp;2³</code> 이므로 <code>log₂(8)&nbsp;=&nbsp;3층(Level 3)</code>!</li>
+            </ul>
+          </div>
+
+          <div class="prereq-card csharp-card">
+            <h4><span class="prereq-tag cs">개념 3&nbsp;·&nbsp;GPU Instancing</span> 도형 4,096개를 드로우콜 1번으로 찍어내기</h4>
+            <p>
+              그래픽카드(GPU)에게 "사각형 1개 그려라"를 4,096번 따로 시키면 CPU↔GPU 통신 비용 때문에 느려집니다.<br/>
+              대신 4,096개 도형의 <code>(중심 X, Y, 가로 W, 세로 H, 회전각 θ, 색상)</code> 배열을 GPU 메모리(VRAM) 버퍼 하나에 통째로 올려두고 <strong><code>DrawInstanced(4096)</code> 단 한 번만 호출</strong>하면 GPU 코어 수천 개가 동시에 달려들어 0.05ms 만에 다 그려냅니다!
+            </p>
+          </div>
+
+          <div class="prereq-card math-card">
+            <h4><span class="prereq-tag math">개념 4&nbsp;·&nbsp;GPU Fence</span> 왜 GPU 메모리를 지울 때 번호표(<code>Fence</code>)를 확인할까?</h4>
+            <p>
+              CPU가 GPU에게 "3번 블록 버퍼를 그려라"라고 명령을 내린 직후, GPU가 아직 그리는 중인데 CPU가 그 버퍼를 지워버리면(<code>Dispose</code>) 그래픽카드가 멈춥니다(Device Removed)!<br/>
+              그래서 매 프레임마다 <strong>번호표(<code>frameFenceValue&nbsp;=&nbsp;101, 102...</code>)</strong>를 붙이고, GPU가 "102번 프레임 다 그렸어!"라고 완료 신호를 보낸 뒤에만 안 쓰는 버퍼를 안전하게 치웁니다(<code>RetireBlock</code>).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           3단계 · 고1 수학으로 한 걸음씩 공식 유도하기 (#sec-tile-sim)
+           ========================================================================= -->
+      <section class="section-card" id="sec-tile-sim">
+        <h2>3단계 · 한 걸음씩 수식 유도하기: 타일 피라미드 LOD 공식과 SIMD 반올림 평균 수식</h2>
+
+        <!-- Formula 9.1 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 1 · 밑이 2인 로그와 가시 타일 구간</span>
+              <span>화면 배율 <i>s</i> 에 따른 최적 피라미드 레벨 <i>L</i> 과 가시 타일 행·열 범위</span>
+            </div>
+            <span class="math-eq-num">(식 9.1)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 피라미드의 <i>L</i>번째 층(Level <i>L</i>) 이미지는 원본(Level 0)보다 가로·세로가 <strong>2<sup><i>L</i></sup>배</strong> 축소되어 있습니다. 즉 Level <i>L</i>의 픽셀 1개는 원본 이미지의 2<sup><i>L</i></sup>&nbsp;×&nbsp;2<sup><i>L</i></sup> 영역을 대표합니다.<br/>
+            2) 현재 모니터 배율이 <i>s</i> (예: <i>s</i>&nbsp;=&nbsp;0.25)일 때, 화면 1픽셀에는 원본 이미지의 <strong>1 / <i>s</i> 픽셀</strong>(예: 1 / 0.25&nbsp;=&nbsp;4픽셀)이 들어갑니다.<br/>
+            3) 따라서 2<sup><i>L</i></sup>&nbsp;≈&nbsp;1 / <i>s</i> 가 되도록 양변에 밑이 2인 로그(log<sub>2</sub>)를 씌우면 <strong><i>L</i>&nbsp;=&nbsp;⌊log<sub>2</sub>(1 / <i>s</i>)⌋</strong> 가 됩니다!<br/>
+            4) 레벨 <i>L</i>에서 타일 1장(<i>T</i>&nbsp;=&nbsp;512px)이 덮는 원본 이미지 폭은 <i>T</i>&nbsp;·&nbsp;2<sup><i>L</i></sup> 이므로, 현재 화면 가시 구간 [<i>x</i><sub>min</sub>, <i>x</i><sub>max</sub>]를 <i>T</i>&nbsp;·&nbsp;2<sup><i>L</i></sup> 로 나누면 화면에 걸치는 타일 열 번호 구간이 바로 구해집니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">피라미드 레벨 선택</span>
+                <span class="math-expr"><i>L</i> = clamp<span class="delim-group">(⌊log<sub>2</sub><span class="delim-group">(<span class="frac"><span class="num">1</span><span class="den"><i>s</i></span></span>)</span>⌋, &nbsp;0, &nbsp;<i>L</i><sub>max</sub>)</span></span>
+                <span class="math-expr">(레벨 <i>L</i>의 축소 비율: 2<sup><i>L</i></sup>)</span>
+              </div>
+            </div>
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">레벨 <i>L</i> 가시 타일 범위 (<i>T</i> = 512 px)</span>
+                <span class="math-expr"><i>c</i> ∈ <span class="delim-group">[⌊<span class="frac"><span class="num"><i>x</i><sub>min</sub></span><span class="den"><i>T</i> · 2<sup><i>L</i></sup></span></span>⌋, &nbsp;⌊<span class="frac"><span class="num"><i>x</i><sub>max</sub></span><span class="den"><i>T</i> · 2<sup><i>L</i></sup></span></span>⌋]</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="math-legend">
+            <div class="math-legend-title">기호 및 변수 정의 (Symbol &amp; Domain Legend)</div>
+            <table class="math-legend-table">
+              <thead>
+                <tr>
+                  <th>수식 기호</th>
+                  <th>수학적 의미</th>
+                  <th>정의역 · 단위</th>
+                  <th>C# 코드 대응</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="sym-col"><i>s</i></td>
+                  <td>현재 뷰포트의 줌 배율 (예: 0.25 = 1/4 축소 보기)</td>
+                  <td>(0, ∞)</td>
+                  <td><code>viewport.Zoom</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>L</i></td>
+                  <td>선택된 피라미드 층 번호 (0: 원본 해상도, 1: 1/2, 2: 1/4 축소본)</td>
+                  <td>{0, 1, …, <i>L</i><sub>max</sub>}</td>
+                  <td><code>int level</code> (<code>TilePlanner.SelectLevel</code>)</td>
+                </tr>
+                <tr>
+                  <td class="sym-col"><i>T</i> = 512</td>
+                  <td>GPU 텍스처로 쪼개어 올리는 단일 정사각형 타일의 한 변 픽셀 수</td>
+                  <td>512 px</td>
+                  <td><code>TileSize = 512</code></td>
+                </tr>
+                <tr>
+                  <td class="sym-col">[<i>x</i><sub>min</sub>, <i>x</i><sub>max</sub>]</td>
+                  <td>현재 모니터 창에 실제로 보이는 원본 이미지의 가로 좌표 구간</td>
+                  <td>[0, <i>W</i>] (Image px)</td>
+                  <td><code>visibleBounds.Left, Right</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-example-box">
+            <span class="math-example-title">🔢 고1 학생도 3초 만에 이해하는 실제 숫자 대입 예제</span>
+            <div>
+              <strong>초간단 숫자 대입:</strong> 32K 초대형 사진을 화면에 <b>0.25배(1/4 크기)</b>로 축소해서 보고 있고, 현재 화면에 원본 좌표 <code>0 ~ 4096</code> 구간이 보인다면?<br/>
+              • <code>1&nbsp;÷&nbsp;0.25&nbsp;=&nbsp;4&nbsp;=&nbsp;2²</code> 이므로 피라미드 <b>Level 2(1/4 축소본)</b>를 선택합니다!<br/>
+              • Level 2에서 512px 타일 1장은 원본 사진의 <code>512&nbsp;×&nbsp;4&nbsp;=&nbsp;2048px</code> 폭을 덮으므로, <code>4096&nbsp;÷&nbsp;2048&nbsp;=&nbsp;딱 2장(0열, 1열)</code>의 타일만 GPU로 그리면 끝납니다!
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula 9.2 -->
+        <div class="math-box">
+          <div class="math-box-header">
+            <div class="math-box-title">
+              <span class="math-cat-badge">공식 2 · 비트 정확도(Bit-Exact) 정수 SIMD 축소</span>
+              <span>부동소수점 오차 없는 정수 반올림 평균과 <code>Vector256&lt;int&gt;</code> 8픽셀 병렬 처리</span>
+            </div>
+            <span class="math-eq-num">(식 9.2)</span>
+          </div>
+
+          <div class="math-explain" style="margin-bottom: 12px;">
+            <strong>✏️ 한 걸음씩 유도하기:</strong><br/>
+            1) 두 정수 밝기 값 <i>A</i>와 <i>B</i>의 평균을 낼 때 그냥 정수 나눗셈 <code>(A&nbsp;+&nbsp;B) / 2</code>를 하면 <code>0.5</code>가 무조건 버려져 이미지가 단계마다 어두워집니다.<br/>
+            2) 소수 첫째 자리 <code>0.5</code>에서 정확히 반올림하려면 나누기 전에 <code>1</code>을 먼저 더한 뒤 2로 나누면 됩니다(오른쪽 1비트 시프트 <code>&gt;&gt; 1</code>): <strong><code>(A&nbsp;+&nbsp;B&nbsp;+&nbsp;1) &gt;&gt; 1</code></strong>.<br/>
+            3) 이 수식을 <code>Vector256&lt;int&gt;</code>에 적용하면 CPU 코어 하나가 클럭 한 번에 픽셀 8개의 반올림 평균을 비트 단위까지 100% 동일하게(Bit-Exact) 계산해 피라미드 생성 시간을 크게 단축합니다!
+          </div>
+
+          <div class="math-formula">
+            <div class="math-eq-row">
+              <div class="math-eq-main">
+                <span class="math-label">정수 반올림 평균</span>
+                <span class="math-expr">Avg(<i>A</i>, <i>B</i>) = <span class="delim-group">⌊<span class="frac"><span class="num"><i>A</i> + <i>B</i> + 1</span><span class="den">2</span></span>⌋</span> = (<i>A</i> + <i>B</i> + 1) ≫ 1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           4단계 · 손으로 만져보는 인터랙티브 실험실 (#sec-lab)
+           ========================================================================= -->
+      <section class="section-card" id="sec-lab">
+        <h2>4단계 · 인터랙티브 실험실: <code>TilePlanner</code> LOD &amp; <code>RoiPipeline</code> GPU 블록 캐시 시뮬레이터</h2>
+        <p>
+          슬라이더를 움직여 화면 배율(Scale %)을 바꿔 보세요. 배율에 따라 선택되는 피라미드 층(Level <i>L</i>)과 화면 안의 가시 타일 개수, 그리고 4,096개 단위 GPU 블록 캐시 상태가 실시간으로 변합니다!
+        </p>
+        <div class="lab-panel">
+          <div class="lab-header">
+            <div class="lab-title">인터랙티브 실험실 · TilePlanner LOD &amp; RoiPipeline GPU 블록 캐시</div>
+            <div class="lab-subtitle">슬라이더를 움직여 배율 변화에 따른 타일 분할 수와 GPU 블록 상태를 관찰하세요</div>
+          </div>
+          <div class="lab-canvas-wrap">
+            <canvas id="gpu-tile-canvas"></canvas>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-control-group">
+              <label for="gpu-zoom-slider">화면 배율 (Scale %):</label>
+              <input id="gpu-zoom-slider" type="range" min="6" max="100" value="25" />
+            </div>
+          </div>
+          <div id="gpu-tile-readout" class="lab-readout"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           5단계 · 밑바닥부터 직접 C# 코드 작성하기 + 라인 바이 라인 해부 (#sec-roipipeline)
+           ========================================================================= -->
+      <section class="section-card" id="sec-roipipeline">
+        <h2>5단계 · 밑바닥부터 직접 구현하기: <code>TilePlanner</code>, <code>SIMD</code> 축소, <code>RoiBlockCache.GetOrUpload</code></h2>
+        <p>
+          이제 타일 LOD 플래너와 <code>Vector256&lt;int&gt;</code> SIMD 축소 루프(<code>BoxResampler</code> · <code>TrianglePyramid</code>), 그리고 4대 렌더러가 공유하는 <code>RoiBlockCache&lt;TBlock&gt;</code>와 <code>RoiPipeline</code> 코드를 직접 살펴봅시다.
+        </p>
+
+        <div class="kent-beck-box">
+          <div class="kent-beck-header">
+            <span class="kent-beck-title">켄트 백 Composed Method · <code>RoiBlockCache&lt;TBlock&gt;.GetOrUpload</code> 호출 트리</span>
+            <div class="complexity-badges">
+              <span class="cc-badge">GetOrUpload CC = 4</span>
+              <span class="cc-badge">EvictInactive CC = 7</span>
+            </div>
+          </div>
+          <div class="composed-tree">
+            <div class="composed-parent">
+              RoiBlockCache&lt;TBlock&gt;.GetOrUpload(RoiSpatialBlock region, int level, double aggregateSize, DocumentState document, ...)
+            </div>
+            <div class="composed-children">
+              <div class="composed-step">
+                <span class="composed-step-num">Step 1</span>
+                <span class="composed-step-name">TryGetCachedBlock()</span>
+                <span class="composed-step-desc">불변 BVH 블록 참조(<code>region.Identity</code>)와 LOD 단계가 일치하면 GPU 형상 버퍼를 즉시 재사용하고, 선택 상태가 바뀌었으면 4B 역할 버퍼(<code>uploadRoleChanges</code>)만 갱신합니다!</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 2</span>
+                <span class="composed-step-name">TryGetDeferredFallbackBlock()</span>
+                <span class="composed-step-desc">이번 프레임 상세화 준비 예산(<code>4ms</code>)을 넘겼다면, 버벅이는 대신 같은 불변 블록의 직전 LOD 버퍼(<code>_lastDetails</code>)를 임시 대체(Fallback)로 보여주고 다음 프레임에 상세화합니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 3</span>
+                <span class="composed-step-name">PackAndUploadBlock()</span>
+                <span class="composed-step-desc">예산이 남아 있으면 CPU에서 <code>RoiInstance</code>(64B 형상)와 <code>uint</code>(4B 역할) 배열을 채워 GPU VRAM 버퍼에 업로드합니다.</span>
+              </div>
+              <div class="composed-step">
+                <span class="composed-step-num">Step 4</span>
+                <span class="composed-step-name">EvictInactive → RetireEntry()</span>
+                <span class="composed-step-desc">128MiB 예산을 넘으면 비활성 GPU 아레나 페이지부터 LRU 순서로 비우고, GPU 펜스 완료 후 안전하게 해제(<code>surface.Retire</code>)합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="build-step">
+          <div class="build-step-header">
+            <span class="build-step-badge">코드 1 · TilePlanner, Vector256 SIMD 축소, RoiBlockCache &amp; RoiPipeline 핵심 구현</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Imaging/TilePlanner.cs">src/VisionCanvas.Host/Imaging/TilePlanner.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Imaging/BoxResampler.cs">src/VisionCanvas.Host/Imaging/BoxResampler.cs</a>
+              <a class="source-link-pill" href="../experiments/VisionImaging.Pyramid/TrianglePyramid.cs">experiments/VisionImaging.Pyramid/TrianglePyramid.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas.Host/Rendering/RoiBlockCache.cs">src/VisionCanvas.Host/Rendering/RoiBlockCache.cs</a>
+              <a class="source-link-pill" href="../src/VisionCanvas/Rendering/RoiPipeline.cs">src/VisionCanvas/Rendering/RoiPipeline.cs</a>
+            </div>
+          </div>
+          <pre><code>using System;
+using System.Collections.Generic;
+using System.Runtime.Intrinsics;
+using VisionGeometry;
+
+namespace VisionCanvas.Rendering;
+
+public static class TilePlanner
+{
+    public const int TileSize = 512;
+
+    // 1. (식 9.1) 현재 뷰포트 배율(Zoom)에 맞는 최적 피라미드 레벨 L을 선택합니다.
+    public static int SelectLevel(double zoom, int maxLevel)
+    {
+        if (zoom &gt;= 1.0) return 0;
+        int level = (int)Math.Floor(Math.Log2(1.0 / zoom));
+        return Math.Clamp(level, 0, maxLevel);
+    }
+
+    // 2. (식 9.2) Vector256<int> SIMD를 이용해 픽셀 8개씩 동시에 반올림 평균을 구합니다!
+    public static void AverageRowSimd(ReadOnlySpan&lt;int&gt; rowA, ReadOnlySpan&lt;int&gt; rowB, Span&lt;int&gt; dst)
+    {
+        int i = 0;
+        if (Vector256.IsHardwareAccelerated)
+        {
+            Vector256&lt;int&gt; ones = Vector256.Create(1);
+            for (; i &lt;= dst.Length - 8; i += 8)
+            {
+                Vector256&lt;int&gt; va = Vector256.LoadUnsafe(ref System.Runtime.InteropServices.MemoryMarshal.GetReference(rowA.Slice(i, 8)));
+                Vector256&lt;int&gt; vb = Vector256.LoadUnsafe(ref System.Runtime.InteropServices.MemoryMarshal.GetReference(rowB.Slice(i, 8)));
+                Vector256&lt;int&gt; avg = (va + vb + ones) &gt;&gt; 1; // 8개 픽셀 동시 반올림 평균!
+                avg.CopyTo(dst.Slice(i, 8));
+            }
+        }
+        // 8개 단위로 떨어지지 않는 나머지 꼬리 픽셀 처리
+        for (; i &lt; dst.Length; i++)
+        {
+            dst[i] = (rowA[i] + rowB[i] + 1) &gt;&gt; 1;
+        }
+    }
+}</code></pre>
+
+          <table class="line-by-line">
+            <thead>
+              <tr>
+                <th>행 / 핵심 코드</th>
+                <th>초보자 눈높이 한 줄 설명</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>int level = (int)Math.Floor(Math.Log2(1.0 / zoom));</code></td>
+                <td>(식 9.1)의 구현입니다. 배율이 <code>0.25</code>면 <code>1 / 0.25 = 4</code>이고 <code>Math.Log2(4) = 2</code>가 되어 Level 2 피라미드를 즉시 선택합니다.</td>
+              </tr>
+              <tr>
+                <td><code>Vector256&lt;int&gt; avg = (va + vb + ones) &gt;&gt; 1;</code></td>
+                <td>(식 9.2)의 SIMD 가속입니다. 32비트 정수 8개를 레지스터 하나에 담아 단 한 번의 CPU 명령으로 8픽셀의 반올림 평균을 동시에 계산합니다.</td>
+              </tr>
+              <tr>
+                <td><code>if (_entries.TryGetValue(key, out Entry? entry)) { ... uploadRoleChanges(...); }</code></td>
+                <td><strong>GPU 캐시 적중(Cache Hit) &amp; 4B 역할 분리:</strong> 불변 BVH 블록 참조(<code>region.Identity</code>)가 같으면 64바이트 형상 버퍼는 재사용하고, 선택 상태가 바뀌었을 때만 4바이트 역할 버퍼(<code>uploadRoleChanges</code>)만 가볍게 갱신합니다!</td>
+              </tr>
+              <tr>
+                <td><code>if (!canPrepareNewDetail) { _lastDetails.TryGetValue(region.Identity, out ...); }</code></td>
+                <td><strong>4ms 상세화 예산 방어:</strong> 이번 프레임 상세 준비 예산(<code>4ms</code>)을 넘겼다면 마우스가 멈추지 않도록 직전 LOD 버퍼(<code>_lastDetails</code>)를 임시로 보여주고 다음 프레임에 상세화합니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           6단계 · 방금 만든 코드의 설계 원리: SOLID · GRASP & 멀티 렌더러 & UML 다이어그램
+           ========================================================================= -->
+      <section class="solid-grasp-box" id="sec-solid-grasp">
+        <div class="solid-grasp-header">
+          <h2 class="solid-grasp-title">6단계 · 방금 만든 코드의 설계 원리: GPU 메모리 최적화와 멀티 렌더러(DX12/Vulkan/wgpu/Skia) 아키텍처</h2>
+          <div class="solid-grasp-badges">
+            <span class="sg-badge solid">SOLID 원칙</span>
+            <span class="sg-badge grasp">GRASP 패턴</span>
+          </div>
+        </div>
+        <div class="sg-grid">
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Pure Fabrication (순수 가공물)</span>
+            <h4>타일 계산기(<code>TilePlanner</code>)와 공통 VRAM 블록 캐시(<code>RoiBlockCache&lt;TBlock&gt;</code>) 분리</h4>
+            <p>도메인 모델(<code>Roi</code>, <code>GrayImage</code>)에 GPU 버퍼 코드를 섞지 않고, 오직 렌더링 최적화를 위한 전용 가공 클래스(<code>TilePlanner</code>, <code>RoiBlockCache</code>, <code>RoiPipeline</code>)를 두었습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · SRP (단일 책임 원칙)</span>
+            <h4>64B 형상 버퍼(<code>RoiInstance</code>)와 4B 역할 버퍼(<code>Role</code>)의 물리적 분리</h4>
+            <p>1억 개 ROI 중 일부를 클릭해 선택(Selected)할 때 64바이트 형상 데이터를 다시 업로드하지 않도록, 불변 형상(64B)과 선택·활성 역할(4B <code>uint</code>) 버퍼를 분리해 <code>UploadRoleChanges</code>만 호출합니다.</p>
+          </div>
+          <div class="sg-card grasp-card">
+            <span class="sg-principle-tag grasp">GRASP · Protected Variations (변화로부터의 보호)</span>
+            <h4>DX12 / Vulkan / wgpu / Skia 4대 렌더러가 동일한 <code>VisionCanvas.Host</code> 캐시 공유</h4>
+            <p>공통 <code>TilePlanner</code>, <code>BoxResampler</code>, <code>RoiBlockCache&lt;TBlock&gt;</code>를 <code>VisionCanvas.Host</code>에서 공유하고, 실제 그래픽 API 명령어(HLSL/SPIR-V/WGSL/Skia)만 각 백엔드 안에 캡슐화했습니다.</p>
+          </div>
+          <div class="sg-card solid-card">
+            <span class="sg-principle-tag solid">SOLID · OCP (개방-폐쇄 원칙)</span>
+            <h4>3단계 캐시 조회(Hit → 4ms Budget Fallback → Pack &amp; Upload)와 128MiB 아레나 퇴출</h4>
+            <p><code>RoiBlockCache.GetOrUpload</code> 내부에서 상세 준비 예산(<code>4ms</code>)과 128MiB 아레나 페이지 단위 LRU 퇴출(<code>EvictInactive</code>)을 처리해 렌더 루프를 단순하게 유지합니다.</p>
+          </div>
+        </div>
+
+        <table class="data-table" style="margin-top: 18px;">
+          <thead>
+            <tr>
+              <th>렌더러 프로젝트</th>
+              <th>기반 그래픽 API</th>
+              <th>핵심 특징 및 적합한 환경</th>
+              <th>참조 문서</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>VisionCanvas</code></td>
+              <td>Direct3D 12 + Direct2D/DirectWrite</td>
+              <td>Windows 기본 고성능 GPU 경로, HLSL 인스턴싱 셰이더 및 D2D 텍스트 오버레이</td>
+              <td>본 매뉴얼 08~09장</td>
+            </tr>
+            <tr>
+              <td><code>VisionCanvas.Vulkan</code></td>
+              <td>Vulkan 1.2+ (SPIR-V)</td>
+              <td>명시적 커맨드 버퍼·펜스 제어, 크로스플랫폼 규격 GPU 파이프라인</td>
+              <td><code>manual/vulkan/README.md</code></td>
+            </tr>
+            <tr>
+              <td><code>VisionCanvas.Wgpu</code></td>
+              <td>WebGPU Native (WGSL, DX12 백엔드)</td>
+              <td>모던 WebGPU API 및 WGSL 셰이더 기반, 깔끔한 바인드 그룹 아키텍처</td>
+              <td><code>manual/wgpu/README.md</code></td>
+            </tr>
+            <tr>
+              <td><code>VisionCanvas.Skia</code></td>
+              <td>SkiaSharp (전용 스레드 CPU Raster)</td>
+              <td>GPU 드라이버 문제나 원격 데스크톱/구형 PC에서도 동작하는 CPU 래스터 렌더러</td>
+              <td><code>docs/skia-canvas-performance.md</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="diagram-panel" id="sec-diagrams">
+        <div class="diagram-panel-header">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge">CLASS DIAGRAM</span>
+            <span>09장 GPU 타일 피라미드 캐시 · <code>RoiBlockCache&lt;TBlock&gt;</code> · <code>RoiPipeline</code> 클래스 다이어그램</span>
+          </h2>
+        </div>
+        <script type="application/json" class="structure-spec">{"nodes":[{"stereotype":"LOD Tile Calculator","title":"TilePlanner & BoxResampler","role":"화면 배율(Scale)에 맞는 피라미드 레벨(LOD)과 가시 타일 계산 및 Vector256 SIMD 축소","color":"#38bdf8","members":["+ PlanVisibleTiles(source, viewport): TilePlan","+ ChooseLevel(pixelsPerImagePixel): int","+ BoxResampler.DownsampleGray8(): AVX2 SIMD"]},{"stereotype":"256MiB LRU Texture Cache","title":"TileCache (DX12/Vulkan/Wgpu/Skia)","role":"512×512 이미지 타일 텍스처를 최대 256MiB 예산 안에서 GPU 메모리에 캐싱","color":"#34d399","members":["- _entries: Dictionary<TileKey, Entry>","- _lruList: LinkedList<TileKey>","+ GetOrUploadTile(TileKey): GpuTexture","- EvictIfOverBudget(256MiB)"]},{"stereotype":"Host Shared Block Cache","title":"RoiBlockCache<TBlock>","role":"2,048개 단위 불변 BVH 블록의 64B 형상과 4B 역할 버퍼를 128MiB 예산으로 캐싱","color":"#fbbf24","members":["+ GetOrUpload(region, level, doc, canPrepare)","- UploadRoleChanges(): 선택 시 4B 역할만 갱신","- Fallback to _lastDetails (4ms 예산 초과 시)","- EvictInactive(): 128MiB 아레나 페이지 LRU"]},{"stereotype":"Backend GPU Instancing","title":"RoiPipeline","role":"RoiBlockCache가 관리하는 GPU 아레나 버퍼를 바인딩해 하드웨어 인스턴싱 수행","color":"#f472b6","members":["+ DrawVisibleBlocks(surface, scene, viewport)","+ UploadBlock(instances64B, roles4B): GpuBlock","+ UploadRoleChanges(block, roles4B)","+ DrawInstanced(vertexCount: 6, instanceCount)"]},{"stereotype":"Multi-Renderer Device","title":"RenderSurface (DX12/Vulkan/Wgpu/Skia)","role":"그래픽카드 장치 초기화, 스왑체인 관리, 펜스(Fence) 기반 지연 해제","color":"#818cf8","members":["+ Device / CommandQueue / SwapChain","+ BeginFrame() / EndFrame()","+ Retire(gpuResource, fenceValue)"]}],"edges":[{"from":0,"to":1,"label":"가시 TileKey 및 SIMD 축소 전달"},{"from":1,"to":4,"label":"512×512 타일 텍스처 바인딩"},{"from":2,"to":3,"label":"UploadBlock / UploadRoleChanges 위임"},{"from":3,"to":4,"label":"64B 형상 + 4B 역할 인스턴싱 Draw"}],"tiers":[[0],[1,2],[3],[4]]}</script>
+        <div class="diagram-caption">8K~32K 대용량 영상 타일링과 1억 개 ROI 하드웨어 가속을 담당하는 <code>VisionCanvas.Host</code> 및 백엔드 GPU 파이프라인 클래스 구조입니다.</div>
+
+        <div class="diagram-panel-header" style="margin-top: 28px;">
+          <h2 class="diagram-panel-title">
+            <span class="diagram-kind-badge seq">SEQUENCE DIAGRAM</span>
+            <span>09장 시퀀스 다이어그램 · <code>RoiBlockCache.GetOrUpload</code> 3단계 GPU 캐시 &amp; 4B 역할 갱신 흐름</span>
+          </h2>
+        </div>
+        <script type="application/json" class="sequence-spec">{"participants":["ScenePainter","RoiBlockCache<TBlock>","RoiPipeline (VRAM Arena)","RenderSurface (GPU Fence)"],"messages":[{"from":0,"to":1,"text":"GetOrUpload(region, level, document, canPrepareNewDetail)"},{"from":1,"to":2,"text":"1단계 [HIT]: region.Identity & level 일치 → 형상(64B) 재사용, 선택 변경 시 UploadRoleChanges(4B)만 호출"},{"from":2,"to":0,"text":"형상 재업로드 없이 GPU 블록 즉시 반환","ret":true},{"from":1,"to":1,"text":"2단계 [MISS & 4ms 예산 초과]: _lastDetails[region.Identity] 직전 LOD 버퍼 임시 반환"},{"from":1,"to":2,"text":"3단계 [MISS & 예산 여유]: Pack(64B + 4B) → uploadBlock() 실행"},{"from":1,"to":3,"text":"4단계 [128MiB 초과 시]: EvictInactive() → Retire(block, fenceValue)"},{"from":2,"to":0,"text":"프레임 드랍 없이 GPU 인스턴싱 버퍼 반환 완료","ret":true}]}</script>
+        <div class="diagram-caption">불변 BVH 블록 참조(<code>region.Identity</code>)를 비교해 캐시 적중 시 64B 형상은 재사용하고 4B 역할만 갱신하며, 4ms 예산 초과 시 직전 LOD 버퍼로 폴백하는 순서입니다.</div>
+      </section>
+
+      <!-- =========================================================================
+           7단계 · 마무리 셀프 체크 퀴즈 & 다음 장으로 가는 징검다리
+           ========================================================================= -->
+      <section class="section-card" id="sec-summary-check">
+        <h2>7단계 · 09장 마무리 셀프 체크 &amp; 마지막 10장으로 가는 징검다리</h2>
+        <details class="feynman-check" open>
+          <summary>셀프 체크 Q1 · 화면을 0.25배(1/4 크기)로 축소해서 볼 때 원본(Level 0) 대신 몇 단계 축소된 피라미드 이미지(Level L)를 쓰면 딱 맞을까요?</summary>
+          <p><strong>정답:</strong> <code>1 / 0.25 = 4 = 2²</code> 이므로, 가로·세로를 1/4로 줄여둔 <strong>Level 2</strong> 이미지를 가져오면 픽셀 낭비 없이 딱 맞게 그릴 수 있습니다!</p>
+        </details>
+        <details class="feynman-check" style="margin-top: 12px;">
+          <summary>셀프 체크 Q2 · 대망의 마지막 장(10장)에서는 무엇을 완성하나요?</summary>
+          <p><strong>징검다리:</strong> 이제 01장부터 09장까지 기하학, BVH/1억 격자, 제스처, 불변 문서, HWND, GPU 타일링까지 모든 퍼즐 조각이 모였습니다! 마지막 <strong>10장</strong>에서는 이 엔진을 실제 WPF MVVM 화면(ViewModel, 단축키, 입력 잠금 모드, 실시간 필터 프리뷰)과 연결하는 방법을 배우고, <strong>빈 폴더에서 <code>dotnet new wpf</code>를 쳐서 복사·붙여넣기만으로 오류 0개, 경고 0개로 즉시 빌드·실행되는 7단계 완전판 구현 코드(Step 0 ~ Step 7)</strong>를 완성합니다!</p>
+        </details>
+      </section>
+
+      <nav class="chapter-pager">
+        <a class="pager-link" href="08-hwnd-viewport-and-render-loop.html">
+          <span class="pager-label">← 이전 챕터</span>
+          <span class="pager-title">08장 · Win32 HWND 뷰포트와 전용 렌더 스레드</span>
+        </a>
+        <a class="pager-link" href="10-mvvm-integration-and-build-guide.html" style="text-align: right;">
+          <span class="pager-label">다음 챕터 →</span>
+          <span class="pager-title">10장 · WPF MVVM 조립과 밑바닥부터 직접 코딩하기</span>
+        </a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="assets/gemini-manual.js"></script>
+</body>
+</html>

@@ -8,14 +8,8 @@ internal sealed class DirectionalDistanceMap
     internal static readonly (int X, int Y)[] s_directions = [(1, 0), (2, 1), (1, 1), (1, 2), (0, 1), (-1, 2), (-1, 1), (-2, 1)];
     private readonly double[][] _distance;
     private readonly double[][] _integrals;
-    public int Width
-    {
-        get;
-    }
-    public int Height
-    {
-        get;
-    }
+    public int Width { get; }
+    public int Height { get; }
 
     public DirectionalDistanceMap(int width, int height, IEnumerable<LineSegment> lines, double directionWeight, CancellationToken token)
     {

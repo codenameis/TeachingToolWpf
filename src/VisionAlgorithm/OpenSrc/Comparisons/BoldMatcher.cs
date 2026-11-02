@@ -40,14 +40,8 @@ public sealed record BoldSearchOptions
 public sealed class BoldModel
 {
     public int FormatVersion => 1;
-    public ImagePoint TrainingReferencePoint
-    {
-        get;
-    }
-    public double TrainingReferenceAngle
-    {
-        get;
-    }
+    public ImagePoint TrainingReferencePoint { get; }
+    public double TrainingReferenceAngle { get; }
     public int SegmentCount => Features.Length;
     public long EstimatedBytes => (Bounds.Length * 16L) +
         Features.Sum(feature => 64L + (feature.Descriptor.Length * sizeof(float)));

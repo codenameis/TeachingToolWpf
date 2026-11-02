@@ -1,5 +1,7 @@
 # VisionCanvas 독립 WPF 호스트
 
+[DX12 코드 교육 HTML](../../manual/dx12/index.html): 공통 ROI·영상부터 HLSL·GPU 명령·fence·업로드 수명까지 실제 코드와 실습으로 배운다.
+
 `VisionCanvas`로 표시·ROI 편집·외부 overlay를 조립하고, 파일 열기를 위해 `VisionImaging`을 명시적으로 참조하는 실행 예제다. 공통 기하·영상 계약과 편집 코어는 전이 참조로 사용한다. `TeachingToolWpf`, 검사 서비스, 알고리즘, CUDA, friend/internal API는 사용하지 않는다.
 
 Windows x64와 .NET 10이 필요하다. 화면은 DX12 하드웨어를 우선 사용하고, 사용할 수 없으면 Windows WARP를 통해 CPU로 표시한다. 파일 열기는 기존 `VisionImaging.ImageLoader`를 사용하며 실행 호스트에 `VisionImageCodecs.dll`을 배포한다. 코덱의 고지는 저장소 `THIRD-PARTY-NOTICES.md`를 따른다. 필터를 실행하지 않으므로 OpenCV native runtime은 추가하지 않는다.

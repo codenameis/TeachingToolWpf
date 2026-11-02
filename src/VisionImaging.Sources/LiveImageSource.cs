@@ -5,10 +5,7 @@ namespace VisionImaging;
 /// <summary>Image identity/bounds for a live source. Black tiles are a waiting surface before the first frame.</summary>
 public sealed class LiveImageSource : ITileSource
 {
-    public ImageInfo Info
-    {
-        get;
-    }
+    public ImageInfo Info { get; }
 
     public LiveImageSource(ImageReference reference)
     {

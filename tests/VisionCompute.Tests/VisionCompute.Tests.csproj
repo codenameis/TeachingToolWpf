@@ -17,6 +17,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <Using Include="Xunit" />
     <Compile Include="../VisionAlgorithm.Tests/SyntheticScene.cs" Link="Fixtures/SyntheticScene.cs" />
+    <Compile Include="../Shared/PcbMarkFixture.cs" Link="Fixtures/PcbMarkFixture.cs" />
     <None Include="../CpuMatching.Tests/Data/*.gray" Link="Data/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <Import Project="../../build/InspectionNativeRuntime.props" />
 </Project>

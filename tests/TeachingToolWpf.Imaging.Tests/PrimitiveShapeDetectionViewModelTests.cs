@@ -10,6 +10,91 @@ namespace TeachingToolWpf.Imaging.Tests;
 public sealed class PrimitiveShapeDetectionViewModelTests
 {
     [Fact]
+    public async Task PcbFiltersPublishDoubleSquareComponentsWithoutBridge()
+    {
+        var (service, _, model) = Create();
+        using var lifetime = model;
+        Assert.True(model.FindDiamonds && model.FindCrossHashes && model.FindDoubleSquares && model.FindStars && model.FindAsterisks);
+        service.Output = service.Output with
+        {
+            Shapes = [service.Output.Shapes[0] with
+        {
+            Kind = PrimitiveShapeKind.DoubleSquare,
+            AdditionalContours = [[new(145, 145), new(185, 145), new(185, 185), new(145, 185)]]
+        }]
+        };
+        await model.Detect.ExecuteAsync();
+        Assert.Equal(PrimitiveShapeKind.All, service.Options!.Shapes);
+        var marker = Assert.Single(model.Overlay!.Matches);
+        Assert.Single(marker.AdditionalContours);
+        Assert.Empty(marker.InnerContours);
+        Assert.Contains("더블스퀘어", model.Results);
+        model.FindDoubleSquares = false;
+        Assert.Null(model.LastOutput);
+        await model.Detect.ExecuteAsync();
+        Assert.False(service.Options!.Shapes.HasFlag(PrimitiveShapeKind.DoubleSquare));
+    }
+
+    [Fact]
+    public async Task HollowShapesHaveIndependentFiltersAndPublishBothBoundariesAsOneMarker()
+    {
+        var (service, _, model) = Create();
+        using var lifetime = model;
+        Assert.True(model.FindRings);
+        Assert.True(model.FindRectangleFrames);
+        service.Output = service.Output with
+        {
+            Shapes = [service.Output.Shapes[0] with
+            {
+                Kind = PrimitiveShapeKind.RectangleFrame,
+                InnerContours = [[new(110, 110), new(130, 110), new(130, 130), new(110, 130)]]
+            }]
+        };
+        model.FindRings = false;
+        await model.Detect.ExecuteAsync();
+        Assert.False(service.Options!.Shapes.HasFlag(PrimitiveShapeKind.Ring));
+        Assert.True(service.Options.Shapes.HasFlag(PrimitiveShapeKind.RectangleFrame));
+        var marker = Assert.Single(model.Overlay!.Matches);
+        Assert.Equal(4, Assert.Single(marker.InnerContours).Length);
+        Assert.Contains("사각 테두리", marker.Label);
+        Assert.Contains("사각 테두리", model.Results);
+        model.FindRectangleFrames = false;
+        Assert.Null(model.LastOutput);
+    }
+
+    [Fact]
+    public async Task UnlimitedDefaultAndGpuSelectionKeepEveryResultWithPagedText()
+    {
+        var (service, _, model) = Create();
+        using var lifetime = model;
+        Assert.Equal(0, model.MaximumResults);
+        Assert.False(model.UseGpu);
+        model.UseGpu = true;
+        service.Output = service.Output with
+        {
+            Shapes = System.Collections.Immutable.ImmutableArray.CreateRange(Enumerable.Repeat(service.Output.Shapes[0], 1100))
+        };
+        await model.Detect.ExecuteAsync();
+        Assert.True(service.Options!.UseGpu);
+        Assert.Equal(0, service.Options.MaximumResults);
+        Assert.Equal(1100, model.LastOutput!.Shapes.Length);
+        Assert.Equal(1100, model.Overlay!.Matches.Length);
+        Assert.Equal(256, model.Results.Split('\n').Length);
+        Assert.False(model.PreviousResults.CanExecute(null));
+        for (var page = 0; page < 4; page++)
+        {
+            Assert.True(model.NextResults.CanExecute(null));
+            model.NextResults.Execute(null);
+        }
+        Assert.Equal(76, model.Results.Split('\n').Length);
+        Assert.Contains("#1100", model.Results);
+        Assert.False(model.NextResults.CanExecute(null));
+        model.UseGpu = false;
+        Assert.Null(model.LastOutput);
+        Assert.False(model.PreviousResults.CanExecute(null));
+    }
+
+    [Fact]
     public async Task SelectionUsesSearchRangeAndRejectsGroupingParent()
     {
         var (service, editor, model) = Create();
@@ -17,13 +102,13 @@ public sealed class PrimitiveShapeDetectionViewModelTests
         var id = editor.State.Selection.Single();
         var geometry = editor.State.Rois[id].Geometry;
         editor.SetProperties(id, "search", geometry, new(10, 15), true);
-        model.Update(editor.State, 1, false, true);
+        model.Update(new(editor.State, 1, false, true));
         model.UseSelection = true;
         await model.Detect.ExecuteAsync();
         Assert.Equal(new RoiSearchRange(10, 15).Expand(geometry), service.Region);
         editor.AddChild(id, new(new(128, 128), 20, 20, 0));
         editor.Select([id]);
-        model.Update(editor.State, 1, false, true);
+        model.Update(new(editor.State, 1, false, true));
         Assert.False(model.Detect.CanExecute(null));
         model.UseSelection = false;
         Assert.True(model.Detect.CanExecute(null));
@@ -66,14 +151,14 @@ public sealed class PrimitiveShapeDetectionViewModelTests
         switch (change)
         {
             case "generation":
-                model.Update(editor.State, 2, false, true);
+                model.Update(new(editor.State, 2, false, true));
                 break;
             case "options":
                 model.MinimumScore = .9;
                 break;
             case "selection":
                 editor.Select([]);
-                model.Update(editor.State, 1, false, true);
+                model.Update(new(editor.State, 1, false, true));
                 break;
         }
         Assert.True(service.Token.IsCancellationRequested);
@@ -113,7 +198,7 @@ public sealed class PrimitiveShapeDetectionViewModelTests
         model.Changed += () =>
         {
             Assert.True(++changes < 10, "host Update must not recursively republish unchanged input");
-            model.Update(editor.State, 1, false, true);
+            model.Update(new(editor.State, 1, false, true));
         };
         model.MaximumSize = 513;
         Assert.False(model.Detect.CanExecute(null));
@@ -123,7 +208,7 @@ public sealed class PrimitiveShapeDetectionViewModelTests
         model.HasInputErrors = true;
         Assert.False(model.Detect.CanExecute(null));
         model.HasInputErrors = false;
-        model.Update(editor.State, 1, false, false);
+        model.Update(new(editor.State, 1, false, false));
         Assert.False(model.Detect.CanExecute(null));
     }
 
@@ -164,7 +249,7 @@ public sealed class PrimitiveShapeDetectionViewModelTests
         editor.InitializeImage(new("fixture", "fixture", 256, 256), ViewportTransform.Identity);
         editor.Add(new(new(128, 128), 128, 128, 0));
         var model = new PrimitiveShapeDetectionViewModel(service);
-        model.Update(editor.State, 1, false, true);
+        model.Update(new(editor.State, 1, false, true));
         return (service, editor, model);
     }
 
@@ -192,7 +277,7 @@ public sealed class PrimitiveShapeDetectionViewModelTests
         }
         public PrimitiveDetectionOutput Output
         {
-            get;
+            get; set;
         } = new([new(PrimitiveShapeKind.Rectangle, new(120, 120), 0, .99, 1600,
             [new(100, 100), new(140, 100), new(140, 140), new(100, 140)])], 1, false, 0, 1);
 

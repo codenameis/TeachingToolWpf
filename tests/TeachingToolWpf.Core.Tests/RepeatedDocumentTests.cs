@@ -1,6 +1,5 @@
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
-using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Core.Tests;
 
@@ -12,129 +11,137 @@ public class RepeatedDocumentTests
     public void MixedScaledPastePreservesOrderAndValidatesOnlyCopiedCells(bool onlyOverride)
     {
         var editor = Create();
-        var id = editor.AddRepeatedGrid(new(2, 1, onlyOverride ? .025 : 1, new(4000, 4000)));
-        editor.SetRepeatedGeometry(new(id, 0), new(new(4000, 4000), .01, .01, 0));
+        var pitch = onlyOverride ? .025 : 1;
+        var geometries = CreateGridGeometries(2, 1, pitch, new(4000, 4000));
+        var ids = editor.AddRange(geometries, selectAdded: true, isNameVisible: false).ToArray();
+        editor.SetGeometry(ids[0], new(new(4000, 4000), .01, .01, 0));
         if (onlyOverride)
         {
-            editor.SetRepeatedGeometry(new(id, 1), new(new(4001, 4000), 1, 1, 0));
+            editor.SetGeometry(ids[1], new(new(4001, 4000), 1, 1, 0));
         }
 
-        editor.Add(new(new(4096, 4096), 8192, 8192, 0));
-        editor.SelectRepeated(new(id, 1), additive: true);
+        var fullImageRoi = editor.Add(new(new(4096, 4096), 8192, 8192, 0));
+        editor.Select([ids[1], fullImageRoi]);
         var clipboard = new RoiClipboard();
         Assert.Equal(2, clipboard.Copy(editor.State));
         editor.SetImage(new("small", "small", 2048, 2048), ViewportTransform.Identity);
         editor.Paste(clipboard);
         Assert.Equal(2, editor.State.RoiCount);
-        var batch = Assert.Single(editor.State.RepeatedRois).Value;
-        Assert.True(batch.Order < Assert.Single(editor.State.Rois).Value.Order);
-        Assert.Single(batch.Cells.Ranges);
-        Assert.Equal(onlyOverride ? .25 : .1, batch.Geometry(1).Height, 8);
-        Assert.False(batch.Cells.Contains(0));
-        var geometry = batch.Geometry(1);
+        var pastedRois = editor.State.Rois.Values.OrderBy(r => r.Order).ToArray();
+        Assert.True(pastedRois[0].Order < pastedRois[1].Order);
+        var geometry = pastedRois[0].Geometry;
         var resized = geometry.WithFrame(geometry.Center, 1, 1, 17);
-        editor.SetRepeatedGeometry(new(batch.Id, 1), resized);
-        Assert.Equal(resized, editor.State.RepeatedRois[batch.Id].Geometry(1));
+        editor.SetGeometry(pastedRois[0].Id, resized);
+        Assert.Equal(resized, editor.State.Rois[pastedRois[0].Id].Geometry);
         editor.Undo();
-        Assert.Equal(geometry, editor.State.RepeatedRois[batch.Id].Geometry(1));
+        Assert.Equal(geometry, editor.State.Rois[pastedRois[0].Id].Geometry);
     }
 
     [Fact]
-    public void FragmentedHistoryAccountsForRetainedGeometryAndIndexCaches()
+    public void BatchGridSupportsGroupAndUngroupWithUndoRedo()
     {
-        var batch = new RepeatedRoiBatch(Guid.NewGuid(), "fragmented", 1, new(10001, 10001, .25, new(4096, 4096)));
-        var cells = RoiCellSet.Create(Enumerable.Range(0, 5000).Select(index => new RoiCellSet.Range(index * 2, (index * 2) + 1)));
-        var partial = batch.Slice(cells)!;
-        var before = DocumentState.Empty;
-        var after = before with
-        {
-            RepeatedRois = before.RepeatedRois.Add(partial.Id, partial)
-        };
-        var edit = new DocumentEdit("fragmented", before, after);
-        Assert.True(edit.EstimatedBytes > 1024 * 1024);
-        var history = new EditHistory(byteBudget: 1024 * 1024);
-        Assert.Throws<InvalidOperationException>(() => history.Push(edit));
+        var editor = Create();
+        var geometries = CreateGridGeometries(11, 11, 20, new(4096, 4096));
+        var added = editor.AddRange(geometries, selectAdded: true, isNameVisible: false).ToArray();
+        Assert.Equal(121, editor.State.RoiCount);
+        Assert.Equal(121, editor.State.SelectionCount);
+        Assert.True(editor.State.SelectionFacts.CanGroup);
+
+        var groupId = editor.GroupSelection();
+        Assert.Equal(122, editor.State.RoiCount);
+        Assert.Equal(groupId, Assert.Single(editor.State.Selection));
+        Assert.True(editor.State.IsGroupRoi(groupId));
+        Assert.All(added, id => Assert.Equal(groupId, editor.State.Rois[id].ParentId));
+
+        editor.UngroupSelection();
+        Assert.Equal(121, editor.State.RoiCount);
+        Assert.All(added, id => Assert.Null(editor.State.Rois[id].ParentId));
+
+        editor.Undo();
+        Assert.Equal(122, editor.State.RoiCount);
+        Assert.True(editor.State.IsGroupRoi(groupId));
+
+        editor.Redo();
+        Assert.Equal(121, editor.State.RoiCount);
     }
 
     [Fact]
-    public async Task HundredMillionPartialEditCopyPasteAndUndoUseOneDocumentHistory()
+    public async Task BatchGridPartialEditCopyPasteAndUndoUseOneDocumentHistory()
     {
         var editor = Create();
         var ordinary = editor.Add(new(new(100, 100), 20, 20, 0));
-        var id = editor.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
-        var original = editor.State.RepeatedRois[id];
-        Assert.Equal(100020002, editor.State.RoiCount);
+        const int sideCount = 31;
+        var geometries = CreateGridGeometries(sideCount, sideCount, 10, new(4096, 4096));
+        var added = editor.AddRange(geometries, selectAdded: true, isNameVisible: false).ToArray();
+        var originalRois = editor.State.Rois;
+        var totalBatch = sideCount * sideCount;
+        var halfBatch = (sideCount / 2) * sideCount;
+        Assert.Equal(totalBatch + 1, editor.State.RoiCount);
         editor.Select([]);
         editor.CommitPrepared(await editor.PrepareRegionSelectionAsync(new(0, 0, 4096, 8192)));
-        Assert.Equal(50005001, editor.State.SelectionCount);
+        Assert.Equal(halfBatch + 1, editor.State.SelectionCount);
         Assert.Contains(ordinary, editor.State.Selection);
-        Assert.Equal(10001, editor.State.RepeatedSelection[id].Ranges.Length);
-        var selectedIndex = 10001 * 5000;
-        var unselectedIndex = selectedIndex + 9000;
+        var selectedId = added[0];
+        var unselectedId = added[^1];
         editor.TranslateSelection(new(10, 20));
-        var moved = editor.State.RepeatedRois[id];
-        Assert.Equal(original.Geometry(selectedIndex).Center + new PointD(10, 20), moved.Geometry(selectedIndex).Center);
-        Assert.Equal(original.Geometry(unselectedIndex), moved.Geometry(unselectedIndex));
-        Assert.Equal(2, moved.Parts.Length);
+        var movedRois = editor.State.Rois;
+        Assert.Equal(originalRois[selectedId].Geometry.Center + new PointD(10, 20), movedRois[selectedId].Geometry.Center);
+        Assert.Equal(originalRois[unselectedId].Geometry, movedRois[unselectedId].Geometry);
         Assert.Equal(new PointD(110, 120), editor.State.Rois[ordinary].Geometry.Center);
-        Assert.True(editor.HistoryBytes < 1024 * 1024);
 
         var clipboard = new RoiClipboard();
-        Assert.Equal(50005001, clipboard.Copy(editor.State));
+        Assert.Equal(halfBatch + 1, clipboard.Copy(editor.State));
         var beforePaste = editor.State;
         var paste = await editor.PreparePasteAsync(clipboard);
         editor.CommitPreparedPaste(paste);
-        Assert.Equal(150025003, editor.State.RoiCount);
-        Assert.Equal(50005001, editor.State.SelectionCount);
-        var copiedId = Assert.Single(editor.State.RepeatedSelection).Key;
-        Assert.NotEqual(id, copiedId);
-        Assert.Equal(50005000, editor.State.RepeatedRois[copiedId].Count);
-        Assert.Single(editor.State.RepeatedRois[copiedId].Parts);
+        Assert.Equal(totalBatch + 1 + halfBatch + 1, editor.State.RoiCount);
+        Assert.Equal(halfBatch + 1, editor.State.SelectionCount);
         editor.Undo();
         Assert.Equal(beforePaste.RoiCount, editor.State.RoiCount);
-        Assert.Same(moved, editor.State.RepeatedRois[id]);
+        Assert.Same(movedRois, editor.State.Rois);
         editor.Undo();
-        Assert.Same(original, editor.State.RepeatedRois[id]);
+        Assert.Equal(originalRois, editor.State.Rois);
         Assert.Equal(new PointD(100, 100), editor.State.Rois[ordinary].Geometry.Center);
         editor.Redo();
         editor.Redo();
-        Assert.Equal(150025003, editor.State.RoiCount);
-        Assert.Equal(copiedId, Assert.Single(editor.State.RepeatedSelection).Key);
+        Assert.Equal(totalBatch + 1 + halfBatch + 1, editor.State.RoiCount);
     }
 
     [Fact]
     public void IndividualEditDeleteAndImageReplacementRestoreIdentityAndSelection()
     {
         var editor = Create();
-        var id = editor.AddRepeatedGrid(new(10001, 10001, .25, new(4096, 4096)));
-        var cell = new RepeatedRoiCell(id, 60000000);
-        editor.SelectRepeated(cell);
-        var old = editor.State.RepeatedRois[id].Geometry(cell.Index);
+        var geometries = CreateGridGeometries(21, 21, 10, new(4096, 4096));
+        var added = editor.AddRange(geometries, selectAdded: true, isNameVisible: false).ToArray();
+        var cellId = added[added.Length / 2];
+        editor.Select([cellId]);
+        var old = editor.State.Rois[cellId].Geometry;
         var next = new RoiGeometry(new(200, 200), 30, 40, 27);
-        editor.SetRepeatedGeometry(cell, next);
-        Assert.Equal(next, editor.State.RepeatedRois[id].Geometry(cell.Index));
+        editor.SetGeometry(cellId, next);
+        Assert.Equal(next, editor.State.Rois[cellId].Geometry);
         editor.DeleteSelection();
-        Assert.Equal(100020000, editor.State.RoiCount);
+        Assert.Equal(added.Length - 1, editor.State.RoiCount);
         Assert.Equal(0, editor.State.SelectionCount);
-        Assert.Throws<ArgumentOutOfRangeException>(() => editor.State.RepeatedRois[id].Geometry(cell.Index));
+        Assert.False(editor.State.Rois.ContainsKey(cellId));
         editor.Undo();
-        Assert.Equal(cell, editor.State.SingleRepeatedCell);
+        Assert.Equal(cellId, Assert.Single(editor.State.Selection));
         editor.Undo();
-        Assert.Equal(old, editor.State.RepeatedRois[id].Geometry(cell.Index));
+        Assert.Equal(old, editor.State.Rois[cellId].Geometry);
         editor.SetImage(new("next", "next", 2048, 2048), ViewportTransform.Identity);
         Assert.Equal(0, editor.State.RoiCount);
         editor.Undo();
-        Assert.Equal(100020001, editor.State.RoiCount);
-        Assert.Equal(cell, editor.State.SingleRepeatedCell);
+        Assert.Equal(added.Length, editor.State.RoiCount);
+        Assert.Equal(cellId, Assert.Single(editor.State.Selection));
     }
 
     [Fact]
-    public async Task PreparedChangesRejectNewRepeatedEditsAndClipboardChanges()
+    public async Task PreparedChangesRejectNewEditsAndClipboardChanges()
     {
         var editor = Create();
-        var id = editor.AddRepeatedGrid(new(11, 11, 5, new(400, 400)));
+        var geometries = CreateGridGeometries(11, 11, 5, new(400, 400));
+        var added = editor.AddRange(geometries, selectAdded: true, isNameVisible: false).ToArray();
         var prepared = await editor.PrepareRegionSelectionAsync(new(0, 0, 400, 8192));
-        editor.SetRepeatedGeometry(new(id, 12), new(new(150, 150), 5, 5, 0));
+        editor.SetGeometry(added[12], new(new(150, 150), 5, 5, 0));
         Assert.Throws<InvalidOperationException>(() => editor.CommitPrepared(prepared));
         editor.SelectAll();
         var clipboard = new RoiClipboard();
@@ -152,26 +159,46 @@ public class RepeatedDocumentTests
     public void PartialRotationPreviewCancelAndCommitPreserveUnselectedGeometry()
     {
         var editor = Create();
-        var id = editor.AddRepeatedGrid(new(31, 29, 5, new(400, 400)));
+        var geometries = CreateGridGeometries(31, 29, 5, new(400, 400));
+        var added = editor.AddRange(geometries, selectAdded: true, isNameVisible: false).ToArray();
         editor.SelectRegion(new(0, 0, 400, 8192));
         var before = editor.State;
         var pivot = before.TransformSelection.Bounds.Center;
         editor.BeginPreview();
         editor.PreviewRotation(pivot, 43);
         editor.CancelPreview();
-        Assert.Same(before.RepeatedRois, editor.State.RepeatedRois);
+        Assert.Same(before.Rois, editor.State.Rois);
         editor.BeginPreview();
         editor.PreviewRotation(pivot, 43);
         editor.CommitPreview("부분 회전");
         var transform = new RigidTransform2D(pivot, 43);
-        for (var index = 0; index < 31 * 29; index++)
+        foreach (var id in added)
         {
-            var old = before.RepeatedRois[id].Geometry(index);
-            var actual = editor.State.RepeatedRois[id].Geometry(index);
-            var expected = before.RepeatedSelection[id].Contains(index) ? transform.Apply(old.Center) : old.Center;
+            var old = before.Rois[id].Geometry;
+            var actual = editor.State.Rois[id].Geometry;
+            var expected = before.Selection.Contains(id) ? transform.Apply(old.Center) : old.Center;
             Assert.Equal(expected.X, actual.Center.X, 8);
             Assert.Equal(expected.Y, actual.Center.Y, 8);
         }
+    }
+
+    private static RoiGeometry[] CreateGridGeometries(int columns, int rows, double pitch, PointD center)
+    {
+        var width = Math.Max(pitch * .65, 1e-4);
+        var halfColumns = (columns - 1) / 2d;
+        var halfRows = (rows - 1) / 2d;
+        var geometries = new RoiGeometry[columns * rows];
+        var index = 0;
+        for (var row = 0; row < rows; row++)
+        {
+            var y = center.Y + ((row - halfRows) * pitch);
+            for (var column = 0; column < columns; column++)
+            {
+                var x = center.X + ((column - halfColumns) * pitch);
+                geometries[index++] = new RoiGeometry(new(x, y), width, width, 0);
+            }
+        }
+        return geometries;
     }
 
     private static EditorSession Create()
