@@ -24,6 +24,15 @@ internal static class ContinuousVerifier
         // 큰 모델은 ±1px, 작은 세부 모델은 기존 ±1.5px 범위에서 특징별 국소 이동을 허용한다.
         var elasticSpan = model.FineDetail?.HasElasticPatches == true ? 3 : 2;
         Span<double> featureScores = elasticFeatures && count <= 512 ? stackalloc double[count] : default;
+        // 동심 윤곽(바깥 0 / 안쪽 1)이 있는 모델은 그룹별 평균을 따로 모아 안쪽 윤곽 결손을 검사한다. ClutterWeight와 무관하다.
+        var groups = level == 0 && !model.FeatureGroups.IsDefault && model.FeatureGroups.Length == count ? model.FeatureGroups : default;
+        var hasGroups = !groups.IsDefault;
+        var outerSum = 0d;
+        var innerSum = 0d;
+        var outerCount = 0;
+        var innerCount = 0;
+        var outerSigned = 0d;
+        var innerSigned = 0d;
         for (var index = 0; index < count; index++)
         {
             var feature = features[index];
@@ -35,6 +44,11 @@ internal static class ContinuousVerifier
             // 벡터 보간 길이를 다시 1로 만들지 않는다. 약한/누락 에지와 경계 밖은 지지를 얻지 못한다.
             var dot = (nx * gx) + (ny * gy);
             var score = model.Options.Polarity == ContrastPolarity.IgnoreLocal ? Math.Abs(dot) : Math.Max(0, dot);
+            if (hasGroups && model.Options.Polarity == ContrastPolarity.Preserve && dot < 0)
+            {
+                // 극성 역전(밝은 링에 어두운 구멍)은 0점이 아니라 음수로 반영한다.
+                score = Math.Max(-0.5, 0.5 * dot);
+            }
             if (elasticFeatures && score < 0.92)
             {
                 for (var iy = -3; iy <= 3; iy++)
@@ -56,6 +70,21 @@ internal static class ContinuousVerifier
                             score = shifted;
                         }
                     }
+                }
+            }
+            if (hasGroups)
+            {
+                if (groups[index] == 0)
+                {
+                    outerSigned += dot;
+                    outerSum += score;
+                    outerCount++;
+                }
+                else
+                {
+                    innerSigned += dot;
+                    innerSum += score;
+                    innerCount++;
                 }
             }
             if (!featureScores.IsEmpty)
@@ -103,6 +132,25 @@ internal static class ContinuousVerifier
             if (keptMean >= 0.85)
             {
                 meanScore = (0.80 * keptMean) + (0.20 * meanScore);
+            }
+        }
+        if (hasGroups && outerCount > 0 && innerCount > 0 && (outerSum / outerCount) >= 0.85 && (innerSum / innerCount) <= 0.35)
+        {
+            // 바깥 윤곽은 선명한데 안쪽 윤곽이 전 방향에서 사라진 민짜 구멍: 가림이 아니라 필수 형상 결손이다.
+            meanScore *= 0.4;
+        }
+        else if (hasGroups && outerCount > 0 && innerCount > 0)
+        {
+            // 단면 구조 검사: 도넛은 바깥·안쪽 윤곽이 같은 부호(밝은 링)로 맞는다. 한쪽만 뒤집히면(회색 판 위의 검은 구멍 등)
+            // 극성 무시 모드에서도 전체 반전과 구별해 구조 불일치로 감점한다.
+            var outerMean = outerSigned / outerCount;
+            var innerMean = innerSigned / innerCount;
+            var weaker = Math.Min(Math.Abs(outerMean), Math.Abs(innerMean));
+            var stronger = Math.Max(Math.Abs(outerMean), Math.Abs(innerMean));
+            // 부호가 엇갈리거나, 한 윤곽의 부호 정합이 다른 윤곽의 절반에도 못 미치면 같은 단면 구조가 아니다.
+            if ((outerMean * innerMean < 0 && weaker >= 0.15) || weaker < 0.5)
+            {
+                meanScore *= 0.4;
             }
         }
         return new(meanScore, supported / (double)count, System.Numerics.BitOperations.PopCount((uint)quadrants));

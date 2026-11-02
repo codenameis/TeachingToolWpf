@@ -274,6 +274,11 @@ public sealed class ShapeModel
     {
         get; init;
     }
+    /// <summary>레벨 0 특징별 동심 윤곽 그룹(0=바깥, 1=안쪽). 동심 윤곽이 없으면 기본값(IsDefault)이다.</summary>
+    internal ImmutableArray<byte> FeatureGroups
+    {
+        get; init;
+    }
     public Guid Id { get; } = Guid.NewGuid();
     public int FormatVersion => 1;
     public ImagePoint TrainingReferencePoint { get; }
@@ -331,7 +336,8 @@ public sealed class ShapeModel
             Templates.Select(template => template with { Levels = template.Levels.Skip(level).ToImmutableArray() }).ToImmutableArray(),
             level == 0 ? ContourModel : null, level == 0 ? FineDetail : null)
         {
-            PixelMask = level == 0 ? PixelMask : null
+            PixelMask = level == 0 ? PixelMask : null,
+            FeatureGroups = level == 0 ? FeatureGroups : default
         };
     }
 }

@@ -30,6 +30,7 @@ public static class ShapeTrainer
             };
         }
         var levels = ImmutableArray.CreateBuilder<ModelLevel>();
+        ImmutableArray<byte> featureGroups = default;
         ClutterModel? contourModel = null;
         var current = image;
         var cos = Math.Cos(region.ReferenceAngle);
@@ -89,7 +90,12 @@ public static class ShapeTrainer
                 featuresBuilder.Add(new ModelFeature((cos * x) + (sin * y), (-sin * x) + (cos * y),
                     (cos * edge.NormalX) + (sin * edge.NormalY), (-sin * edge.NormalX) + (cos * edge.NormalY)));
             }
-            levels.Add(new(factor, featuresBuilder.MoveToImmutable()));
+            var levelFeatures = featuresBuilder.MoveToImmutable();
+            if (level == 0 && options.BuildClutterModel)
+            {
+                featureGroups = AssignConcentricGroups(levelFeatures);
+            }
+            levels.Add(new(factor, levelFeatures));
             if (level + 1 < options.PyramidLevels)
             {
                 current = GradientImage.Reduce(current);
@@ -147,10 +153,55 @@ public static class ShapeTrainer
             ? FineDetailModel.Create(image, region, cancellationToken) : null;
         return new(region, options, levels.ToImmutable(), CreateBounds(image, region), templates.ToImmutable(), contourModel, detail)
         {
-            PixelMask = new(image.Width, image.Height, contourModel?.OwnedMask ?? region.Mask.ToArray(), region.ReferencePoint, region.ReferenceAngle)
+            PixelMask = new(image.Width, image.Height, contourModel?.OwnedMask ?? region.Mask.ToArray(), region.ReferencePoint, region.ReferenceAngle),
+            FeatureGroups = featureGroups
         };
     }
 
+
+    /// <summary>
+    /// 특징의 중심 거리가 뚜렷한 두 묶음(예: 금색 링의 바깥 원과 안쪽 구멍)으로 갈리면 0=바깥, 1=안쪽 그룹을 매긴다.
+    /// 거리가 연속으로 퍼진 일반 도형은 그룹을 만들지 않아 기존 점수 계산을 그대로 쓴다.
+    /// </summary>
+    internal static ImmutableArray<byte> AssignConcentricGroups(ImmutableArray<ModelFeature> features)
+    {
+        if (features.Length < 16)
+        {
+            return default;
+        }
+        var meanX = features.Average(feature => feature.X);
+        var meanY = features.Average(feature => feature.Y);
+        var radii = features.Select(feature => Math.Sqrt(((feature.X - meanX) * (feature.X - meanX)) + ((feature.Y - meanY) * (feature.Y - meanY)))).ToArray();
+        var sorted = radii.Order().ToArray();
+        var largestGap = 0d;
+        var split = -1;
+        for (var i = 1; i < sorted.Length; i++)
+        {
+            if (sorted[i] - sorted[i - 1] > largestGap)
+            {
+                largestGap = sorted[i] - sorted[i - 1];
+                split = i;
+            }
+        }
+        var maximumRadius = sorted[^1];
+        if (split < 0 || largestGap < 0.08 * maximumRadius || split < 8 || sorted.Length - split < 8)
+        {
+            return default;
+        }
+        double Spread(IEnumerable<double> values)
+        {
+            var list = values.ToArray();
+            var mean = list.Average();
+            return Math.Sqrt(list.Sum(value => (value - mean) * (value - mean)) / list.Length) / Math.Max(mean, 1e-6);
+        }
+        var boundary = (sorted[split] + sorted[split - 1]) / 2;
+        // 각 묶음이 원형(거리 편차 작음)일 때만 동심 윤곽으로 본다.
+        if (Spread(radii.Where(radius => radius < boundary)) > 0.2 || Spread(radii.Where(radius => radius >= boundary)) > 0.2)
+        {
+            return default;
+        }
+        return [.. radii.Select(radius => radius >= boundary ? (byte)0 : (byte)1)];
+    }
     private static bool ShouldTrimLooseMaskBoundary(ReadOnlySpan<byte> mask, int width, int height)
     {
         var (minX, maxX, minY, maxY) = MeasureMaskBounds(mask, width, height);

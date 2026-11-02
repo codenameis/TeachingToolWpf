@@ -249,6 +249,72 @@ public sealed class PyramidMatchingIntegrationTests
     }
 
     [Fact]
+    public async Task KensaConcentricDonutRejectsTrayHolesInEveryPolarityAndClutterSetting()
+    {
+        var kensaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/CpuMatching.Modules/kensa.png"));
+        if (!File.Exists(kensaPath))
+        {
+            return;
+        }
+        var service = new ShapeMatchingService(new ImageLoader(Path.GetTempPath()), () => null, pipeline: ShapeSearchPipeline.Paper);
+        var image = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
+        var roi = new RoiGeometry(new(144, 145), 22, 21, 0);
+        foreach (var (ignorePolarity, clutterWeight, maximumCount) in new[] { (false, 1d, 48), (true, 1d, 48), (true, 0d, 50), (false, 0d, 50) })
+        {
+            var trained = await service.TrainAsync(image, false, roi, new()
+            {
+                MinimumAngleDegrees = -180,
+                MaximumAngleDegrees = 180,
+                AngleStepDegrees = 10,
+                Polarity = ignorePolarity ? ContrastPolarity.IgnoreLocal : ContrastPolarity.Preserve,
+                UseFineDetailValidation = true,
+                BuildClutterModel = true
+            }, default);
+            var result = await service.SearchAsync(image, false, trained.Model, null, new()
+            {
+                MinimumScore = 0.72,
+                MaximumMatches = 256,
+                MaximumParallelism = 8,
+                ClutterWeight = clutterWeight
+            }, default);
+            Assert.False(result.Truncated);
+            // 트레이의 검은 구멍은 외곽/안쪽 윤곽의 단면 구조가 달라 제외된다. 클러터 감점을 끄면 인접 부품의 약한 일치 2건까지만 허용한다.
+            Assert.InRange(result.Matches.Length, 48, maximumCount);
+            Assert.True(result.Matches.OrderByDescending(m => m.Score).Take(48).All(m => m.Score >= 0.98));
+            Assert.DoesNotContain(result.Matches, m => Math.Abs(m.Pose.X - 92) < 6 || Math.Abs(m.Pose.X - 937) < 6);
+        }
+    }
+
+    [Fact]
+    public async Task KensaConnectorsDetectAllTwelveWithoutTruncation()
+    {
+        var kensaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/CpuMatching.Modules/kensa.png"));
+        if (!File.Exists(kensaPath))
+        {
+            return;
+        }
+        var service = new ShapeMatchingService(new ImageLoader(Path.GetTempPath()), () => null, pipeline: ShapeSearchPipeline.Paper);
+        var image = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
+        var trained = await service.TrainAsync(image, false, new RoiGeometry(new(244, 414), 179, 31, 0), new()
+        {
+            MinimumAngleDegrees = -180,
+            MaximumAngleDegrees = 180,
+            AngleStepDegrees = 10,
+            UseFineDetailValidation = true,
+            BuildClutterModel = true
+        }, default);
+        var result = await service.SearchAsync(image, false, trained.Model, null, new()
+        {
+            MinimumScore = 0.72,
+            MaximumMatches = 256,
+            MaximumParallelism = 12,
+            ClutterWeight = 1
+        }, default);
+        Assert.False(result.Truncated);
+        Assert.Equal(12, result.Matches.Length);
+        Assert.All(result.Matches, m => Assert.True(m.Score >= 0.985, m.ToString()));
+    }
+    [Fact]
     public async Task OpenCvAppliesSuppressionOnceAcrossSearchWindowSeam()
     {
         var pattern = new byte[100 * 20];
