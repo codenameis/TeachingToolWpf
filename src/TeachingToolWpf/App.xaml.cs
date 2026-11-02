@@ -57,15 +57,11 @@ public partial class App : Application
         IndustrialVision.Filters.Gpu.CudaBackend? filterGpu = null;
         var filterPreview = new RoiFilterPreview(loader, window.Viewport.RetainFrame,
             () => filterGpu ??= new IndustrialVision.Filters.Gpu.CudaBackend());
-        var tdcm = new Imaging.Matching.TdcmMatchingService(loader, window.Viewport.RetainFrame,
-            options => options.Backend == PoseMatch.Tdcm.TdcmBackend.TorchSharp
-                ? new PoseMatch.Tdcm.TorchSharp.TorchTdcmMatcher(options.Threads, options.Device, options.WeightsPath)
-                : new PoseMatch.Tdcm.TdcmMatcher(options.Threads, options.Device));
         var pattern = new ShapeMatchingViewModel(
             new Imaging.Matching.ShapeMatchingService(loader, window.Viewport.RetainFrame, inspectionCompute.Rent, inspectionCompute.PrepareAsync,
                 Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, window.Viewport.RetainFrame),
-            tdcm, new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent));
+            new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent));
         var shapes = new PrimitiveShapeDetectionViewModel(new Imaging.Matching.PrimitiveShapeDetectionService(loader,
             window.Viewport.RetainFrame, () => new CudaPrimitivePreprocessor()));
         var inspections = new InspectionToolsViewModel(pattern, shapes);
@@ -97,7 +93,7 @@ public partial class App : Application
             filtersDrained = true;
             window.Close();
         };
-        window.Closed += (_, _) => ResourceCleanup.DisposeAll(model, tdcm, inspectionCompute, templateCompute);
+        window.Closed += (_, _) => ResourceCleanup.DisposeAll(model, inspectionCompute, templateCompute);
         if (!DiagnosticStartup.TryAttach(window, window.Viewport, model, args, () => inspectionCompute.InitializationMilliseconds))
         {
             window.Loaded += (_, _) => model.Initialize.Execute(null);

@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using CpuMatching.Core;
 using CpuMatching.Cuda;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Evaluation;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
@@ -90,7 +89,7 @@ try
     {
         var image = Dataset.Read(Path.Combine(folder, item.Image));
         var template = Dataset.Read(Path.Combine(folder, item.Template));
-        foreach (var method in new[] { "Line2D", "SubNcc", "DirectionalChamfer", "OpenCvFixed", "OpenCvRotated" })
+        foreach (var method in new[] { "Line2D", "SubNcc", "OpenCvFixed", "OpenCvRotated" })
         {
             SearchResult? cpuReference = null;
             foreach (var useCuda in method.StartsWith("OpenCv", StringComparison.Ordinal) ? new[] { false } :
@@ -101,7 +100,6 @@ try
                 {
                     "Line2D" => new Line2DMatcher(template),
                     "SubNcc" => new SubNccMatcher(template),
-                    "DirectionalChamfer" => new DirectionalChamferMatcher(template),
                     "OpenCvFixed" => new OpenCvBaseline(template, false),
                     _ => new OpenCvBaseline(template, true)
                 };
@@ -161,7 +159,7 @@ try
                 }
                 var passed = positions.Count == item.Expected.Length && unused.Count == 0 && positions.All(value => value <= 1) &&
                     angles.All(value => value <= 1) && scales.All(value => value <= 0.03) && !result.CandidatesTruncated && !result.MatchLimitExceeded;
-                accuracyFailed |= item.GroundTruthComplete && !passed && method is "Line2D" or "SubNcc" or "DirectionalChamfer";
+                accuracyFailed |= item.GroundTruthComplete && !passed && method is "Line2D" or "SubNcc";
                 var sorted = times.Skip(1).Order().ToArray();
                 var median = (sorted[(repeats - 1) / 2] + sorted[repeats / 2]) / 2;
                 rows.Add(new

@@ -44,7 +44,7 @@ internal static class CpuKensaComparisonRun
                 {
                     throw new ArgumentOutOfRangeException(nameof(repeats));
                 }
-                var methods = new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc, PatternMatchingMethod.CpuDirectionalChamfer };
+                var methods = new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc };
                 if (methodArgument is not null)
                 {
                     methods = methods.Where(method => method.ToString() == methodArgument.Split('=', 2)[1]).ToArray();
@@ -324,8 +324,12 @@ internal static class CpuKensaComparisonRun
         yield return new("kensa-full-modules", "kensa.png", 1024, 1536, part, "kensa.png", 1024, 1536,
             1024, 1536, part.Center, 0, true, ExpectedCount: 48, ExpectedMatches: kensaReference);
         var pin = new RoiGeometry(new(759.518, 546.178), 105.827, 129.459, 0);
-        var expected = TdcmAccuracy.SamplePins().Select(pose => new CpuMatching.Core.Match(
-            pose.Center.X, pose.Center.Y, pose.AngleDegrees, 1, 1)).ToArray();
+        var expected = (from cy in Enumerable.Range(0, 4)
+                        from cx in Enumerable.Range(0, 4)
+                        from row in Enumerable.Range(0, 2)
+                        from column in Enumerable.Range(0, 8)
+                        select new CpuMatching.Core.Match(cx * 2048 + (column + 2) * 180 + 39.518,
+                            cy * 2048 + (row == 0 ? 546.178 : 1456.178), 0, 1, 1)).ToArray();
         yield return new("8k-full-modules", "sample:8192:8192", 8192, 8192, pin, "sample:8192:8192", 8192, 8192,
             8192, 8192, pin.Center, 0, true, ExpectedCount: 256, ExpectedMatches: expected);
     }

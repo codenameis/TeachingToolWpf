@@ -3,6 +3,7 @@ using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.Tests;
 using VisionGeometry;
+using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Tests;
@@ -114,6 +115,136 @@ public sealed class PyramidMatchingIntegrationTests
             var match = Assert.Single(output.Matches.Where(match => Math.Abs(match.Pose.X - target.X) < 1 && Math.Abs(match.Pose.Y - target.Y) < 1));
             Assert.InRange(Math.Abs(match.Pose.Angle - target.Angle), 0, .03);
             Assert.InRange(Math.Abs(match.Pose.Scale - target.Scale), 0, .025);
+        }
+    }
+
+    [Fact]
+    public async Task KensaGndAndPatternSampleCircleMatchAccuratelyWithoutTruncation()
+    {
+        var loader = new ImageLoader(Path.GetTempPath());
+        var service = new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper);
+
+        var patternPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/TeachingToolWpf/Assets/pattern-matching.png"));
+        if (File.Exists(patternPath))
+        {
+            var patternImage = new ImageReference(patternPath, "pattern-matching.png", 640, 400);
+            var circleRoi = new RoiGeometry(new(173.5, 156.5), 24, 24, 0);
+            var trainedCircle = await service.TrainAsync(patternImage, false, circleRoi, new()
+            {
+                MinimumAngleDegrees = -30,
+                MaximumAngleDegrees = 30,
+                AngleStepDegrees = 10,
+                MinimumScale = 1,
+                MaximumScale = 1,
+                UseFineDetailValidation = true,
+                BuildClutterModel = true
+            }, default);
+            var circleResult = await service.SearchAsync(patternImage, false, trainedCircle.Model, null, new()
+            {
+                MaximumMatches = 256,
+                MaximumParallelism = 4,
+                ClutterWeight = 1
+            }, default);
+            Assert.False(circleResult.Truncated);
+            Assert.Equal(2, circleResult.Matches.Length);
+            Assert.Contains(circleResult.Matches, m => Math.Abs(m.Pose.X - 173.5) < 1.5 && Math.Abs(m.Pose.Y - 156.5) < 1.5);
+            Assert.Contains(circleResult.Matches, m => Math.Abs(m.Pose.X - 436.8) < 1.5 && Math.Abs(m.Pose.Y - 231.9) < 1.5);
+        }
+
+        var kensaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/CpuMatching.Modules/kensa.png"));
+        if (File.Exists(kensaPath))
+        {
+            var kensaImage = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
+            foreach (var (cx, cy, width, height) in new[] { (144.0, 145.5, 26d, 27d), (144.0, 144.5, 26d, 27d), (144.0, 145.5, 24d, 24d) })
+            {
+                var circleFiducialRoi = new RoiGeometry(new(cx, cy), width, height, 0);
+                var trainedFiducial = await service.TrainAsync(kensaImage, false, circleFiducialRoi, new()
+                {
+                    MinimumAngleDegrees = -30,
+                    MaximumAngleDegrees = 30,
+                    AngleStepDegrees = 10,
+                    MinimumScale = 1,
+                    MaximumScale = 1,
+                    UseFineDetailValidation = true,
+                    BuildClutterModel = true
+                }, default);
+                var fiducialResult = await service.SearchAsync(kensaImage, false, trainedFiducial.Model, null, new()
+                {
+                    MinimumScore = 0.72,
+                    MaximumMatches = 256,
+                    MaximumParallelism = 8,
+                    ClutterWeight = 1
+                }, default);
+                Assert.False(fiducialResult.Truncated);
+                Assert.Equal(48, fiducialResult.Matches.Length);
+                Assert.All(fiducialResult.Matches, m => Assert.Equal(RefinementStatus.Converged, m.Refinement.Status));
+                Assert.Contains(fiducialResult.Matches, m => Math.Abs(m.Pose.X - 144.0) < 2.5 && Math.Abs(m.Pose.Y - 145.5) < 2.5);
+                Assert.Contains(fiducialResult.Matches, m => Math.Abs(m.Pose.X - 144.0) < 2.5 && Math.Abs(m.Pose.Y - 375.5) < 2.5);
+            }
+
+            double[] smdExpectedX = [172.0, 437.0, 700.0];
+            double[] smdExpectedY = [145.0, 459.5, 773.5, 1088.0];
+            foreach (var (minAngle, maxAngle) in new[] { (-180d, 180d), (-30d, 30d) })
+            {
+                var smdRoi = new RoiGeometry(new(172.0, 145.0), 17, 17, 0);
+                var trainedSmd = await service.TrainAsync(kensaImage, false, smdRoi, new()
+                {
+                    MinimumAngleDegrees = minAngle,
+                    MaximumAngleDegrees = maxAngle,
+                    AngleStepDegrees = 10,
+                    MinimumScale = 1,
+                    MaximumScale = 1,
+                    UseFineDetailValidation = true,
+                    BuildClutterModel = true
+                }, default);
+                var smdResult = await service.SearchAsync(kensaImage, false, trainedSmd.Model, null, new()
+                {
+                    MinimumScore = 0.72,
+                    MaximumMatches = 256,
+                    MaximumParallelism = 8,
+                    ClutterWeight = 1
+                }, default);
+                Assert.False(smdResult.Truncated);
+                Assert.Equal(12, smdResult.Matches.Length);
+                Assert.All(smdResult.Matches, m =>
+                {
+                    Assert.Equal(RefinementStatus.Converged, m.Refinement.Status);
+                    Assert.Contains(smdExpectedX, x => Math.Abs(m.Pose.X - x) < 3.5);
+                    Assert.Contains(smdExpectedY, y => Math.Abs(m.Pose.Y - y) < 3.5);
+                });
+            }
+
+            double[] expectedX = [174.0, 439.1, 702.2, 172.9, 437.8, 700.9];
+            double[] expectedY = [371.0, 685.9, 1000.0, 1314.2, 386.0, 700.9, 1014.9, 1329.2];
+            foreach (var (cx, cy, width, height) in new[] { (174.0, 371.0, 24d, 14d), (174.0, 371.0, 28d, 16d), (173.0, 370.0, 22d, 12d), (173.0, 370.0, 26d, 15d) })
+            {
+                var gndRoi = new RoiGeometry(new(cx, cy), width, height, 0);
+                var trainedGnd = await service.TrainAsync(kensaImage, false, gndRoi, new()
+                {
+                    MinimumAngleDegrees = -30,
+                    MaximumAngleDegrees = 30,
+                    AngleStepDegrees = 10,
+                    MinimumScale = 1,
+                    MaximumScale = 1,
+                    UseFineDetailValidation = true,
+                    BuildClutterModel = true
+                }, default);
+                var gndResult = await service.SearchAsync(kensaImage, false, trainedGnd.Model, null, new()
+                {
+                    MaximumMatches = 256,
+                    MaximumParallelism = 8,
+                    ClutterWeight = 1
+                }, default);
+                Assert.False(gndResult.Truncated);
+                Assert.Equal(24, gndResult.Matches.Length);
+                Assert.Contains(gndResult.Matches, m => Math.Abs(m.Pose.X - 174.0) < 4.5 && Math.Abs(m.Pose.Y - 1000.0) < 4.5);
+                Assert.Contains(gndResult.Matches, m => Math.Abs(m.Pose.X - 172.9) < 4.5 && Math.Abs(m.Pose.Y - 1014.9) < 4.5);
+                Assert.All(gndResult.Matches, m =>
+                {
+                    Assert.Contains(expectedX, x => Math.Abs(m.Pose.X - x) < 4.5);
+                    Assert.Contains(expectedY, y => Math.Abs(m.Pose.Y - y) < 4.5);
+                });
+            }
         }
     }
 

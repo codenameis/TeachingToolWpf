@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 using VisionGeometry;
@@ -11,8 +10,7 @@ namespace TeachingToolWpf.Imaging.Matching;
 public enum CpuTemplateMethod
 {
     Line2D,
-    SubNcc,
-    DirectionalChamfer
+    SubNcc
 }
 
 public sealed record CpuTemplate(CpuTemplateMethod Method, ITemplateMatcher Matcher, RoiGeometry TeachingRegion)
@@ -49,7 +47,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
         ShapeMatchingService.ValidateRegion(image, roi);
         if (roi.Shape.Kind != RoiShapeKind.Rectangle || exclusion is not null)
         {
-            throw new NotSupportedException("세 CPU 방식의 학습은 마스크 없는 사각형 ROI를 지원합니다.");
+            throw new NotSupportedException("CPU 방식의 학습은 마스크 없는 사각형 ROI를 지원합니다.");
         }
         if (roi.Width is < 4 or > 512 || roi.Height is < 4 or > 512)
         {
@@ -86,7 +84,6 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
         {
             CpuTemplateMethod.Line2D => new Line2DMatcher(gray, parameters.Line2D),
             CpuTemplateMethod.SubNcc => new SubNccMatcher(gray, parameters.SubNcc),
-            CpuTemplateMethod.DirectionalChamfer => new DirectionalChamferMatcher(gray, parameters.Chamfer),
             _ => throw new ArgumentOutOfRangeException(nameof(method))
         };
         return new CpuTemplate(method, matcher, teaching) { Parameters = parameters };
@@ -105,7 +102,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
             }
             if (exclusion is not null)
             {
-                throw new NotSupportedException("세 CPU 방식의 검색 마스크는 지원하지 않습니다.");
+                throw new NotSupportedException("CPU 방식의 검색 마스크는 지원하지 않습니다.");
             }
             if (region is not null)
             {

@@ -34,7 +34,6 @@ internal static class DiagnosticStartup
         (["--sidebar-layout-check"], c => SidebarLayoutRun.Attach(c.Window, c.Viewport, c.Model)),
         (["--cpu-kensa-comparison", "--cpu-cuda-comparison", "--cpu-full8k-comparison", "--cpu-modules-comparison"],
             AttachCpuComparison),
-        (["--tdcm-latency"], c => TdcmLatencyRun.Attach(c.Window, c.Model)),
         (["--rotation-inspection-smoke"], c => RotationInspectionSmoke.Attach(c.Window, c.Model)),
         (["--shape-target-smoke", "--paper-latency-smoke"],
             c => ShapeTargetSmoke.Attach(c.Window, c.Viewport, c.Model, c.InitializationMilliseconds)),

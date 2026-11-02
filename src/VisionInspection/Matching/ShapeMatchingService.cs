@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using VisionAlgorithm;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionGeometry;
 using VisionImaging.Abstractions;
@@ -67,7 +68,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             options = options with
             {
                 PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels),
-                UseFineDetailValidation = pipeline == ShapeSearchPipeline.Paper
+                UseFineDetailValidation = options.UseFineDetailValidation
             };
             var timer = Stopwatch.StartNew();
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
@@ -138,35 +139,75 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             var truncated = false;
             var sourceOpenTime = readTime;
             var phaseTimer = Stopwatch.StartNew();
+            var windowSpecs = new List<(int X, int Y, int Left, int Top, int Right, int Bottom)>();
             for (var y = Math.Max(0, (int)bounds.Top / interior * interior); y < Math.Min(image.Height, bounds.Bottom); y += interior)
             {
                 for (var x = Math.Max(0, (int)bounds.Left / interior * interior); x < Math.Min(image.Width, bounds.Right); x += interior)
                 {
-                    token.ThrowIfCancellationRequested();
                     var left = Math.Max(0, x - halo);
                     var top = Math.Max(0, y - halo);
                     var right = Math.Min(image.Width, x + interior + halo);
                     var bottom = Math.Min(image.Height, y + interior + halo);
+                    windowSpecs.Add((x, y, left, top, right, bottom));
+                }
+            }
+            var maxWindowBatch = preprocessor is null && options.MaximumParallelism > 1 ? Math.Min(12, options.MaximumParallelism) : 1;
+            for (var batchStart = 0; batchStart < windowSpecs.Count; batchStart += maxWindowBatch)
+            {
+                var batchCount = Math.Min(maxWindowBatch, windowSpecs.Count - batchStart);
+                var batchPixels = new GrayImage[batchCount];
+                for (var i = 0; i < batchCount; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var spec = windowSpecs[batchStart + i];
                     readTimer.Restart();
-                    var pixels = reader.Read(left, top, right - left, bottom - top, token);
+                    batchPixels[i] = reader.Read(spec.Left, spec.Top, spec.Right - spec.Left, spec.Bottom - spec.Top, token);
                     readTime += readTimer.Elapsed.TotalMilliseconds;
-                    // 최종 포함 판정은 실제 ROI(원은 해석적 원)로 한다. 창 겹침의 복제 결과는 전역 NMS로 제거한다.
-                    var localRegion = ToSearchRegion(region, left, top);
-                    var result = matcher.Search(pixels, model, options with
+                }
+                var batchResults = new MatchResult[batchCount];
+                if (batchCount == 1)
+                {
+                    var spec = windowSpecs[batchStart];
+                    var localRegion = ToSearchRegion(region, spec.Left, spec.Top);
+                    batchResults[0] = matcher.Search(batchPixels[0], model, options with
                     {
                         Region = localRegion,
                         MaximumMatches = options.MaximumCandidates > 1000 ? 1000 : options.MaximumCandidates
                     }, token);
+                }
+                else
+                {
+                    Parallel.For(0, batchCount, new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = batchCount,
+                        CancellationToken = token
+                    }, i =>
+                    {
+                        var spec = windowSpecs[batchStart + i];
+                        var localRegion = ToSearchRegion(region, spec.Left, spec.Top);
+                        batchResults[i] = matcher.Search(batchPixels[i], model, options with
+                        {
+                            // 바깥 창 병렬과 안쪽 후보 병렬이 스레드 풀을 두고 경합하지 않게 안쪽은 코어를 나눠 쓴다.
+                            MaximumParallelism = Math.Max(1, options.MaximumParallelism / batchCount),
+                            Region = localRegion,
+                            MaximumMatches = options.MaximumCandidates > 1000 ? 1000 : options.MaximumCandidates
+                        }, token);
+                    });
+                }
+                for (var i = 0; i < batchCount; i++)
+                {
+                    var spec = windowSpecs[batchStart + i];
+                    var result = batchResults[i];
                     diagnostics.Add(result.Diagnostics);
                     truncated |= result.Diagnostics.CandidateBudgetExceeded || result.Diagnostics.VerificationBudgetExceeded || result.Diagnostics.MatchLimitExceeded;
                     foreach (var match in result.Matches)
                     {
                         var pose = match.Pose with
                         {
-                            X = match.Pose.X + left,
-                            Y = match.Pose.Y + top
+                            X = match.Pose.X + spec.Left,
+                            Y = match.Pose.Y + spec.Top
                         };
-                        if (pose.X >= x && pose.X < x + interior && pose.Y >= y && pose.Y < y + interior &&
+                        if (pose.X >= spec.X && pose.X < spec.X + interior && pose.Y >= spec.Y && pose.Y < spec.Y + interior &&
                             (region?.Contains(new PointD(pose.X, pose.Y)) ?? true))
                         {
                             all.Add(match with
@@ -176,8 +217,8 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                                 {
                                     InitialPose = match.Refinement.InitialPose with
                                     {
-                                        X = match.Refinement.InitialPose.X + left,
-                                        Y = match.Refinement.InitialPose.Y + top
+                                        X = match.Refinement.InitialPose.X + spec.Left,
+                                        Y = match.Refinement.InitialPose.Y + spec.Top
                                     }
                                 }
                             });

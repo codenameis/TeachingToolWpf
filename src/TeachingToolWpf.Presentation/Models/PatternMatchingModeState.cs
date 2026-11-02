@@ -15,13 +15,17 @@ internal sealed record ShapeTrainingSettings
     {
         get; init;
     }
-    public double MinimumScale { get; init; } = .9;
-    public double MaximumScale { get; init; } = 1.1;
+    public double MinimumScale { get; init; } = .75;
+    public double MaximumScale { get; init; } = 1.3;
     public double ScaleStep { get; init; } = .1;
     public bool IgnorePolarity
     {
         get; init;
     }
+    public bool UseFineDetailValidation
+    {
+        get; init;
+    } = true;
     public int MaximumFeatures { get; init; } = 160;
     public float MinimumGradient { get; init; } = 8;
     public double MinimumFeatureContrastRatio { get; init; } = .2;
@@ -44,6 +48,7 @@ internal sealed record ShapeTrainingSettings
         MinimumGradient = MinimumGradient,
         MinimumFeatureContrastRatio = MinimumFeatureContrastRatio,
         MaximumTemplates = MaximumTemplates,
+        UseFineDetailValidation = UseFineDetailValidation,
         BuildClutterModel = true
     };
 }

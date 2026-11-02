@@ -677,10 +677,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private Task LoadSampleAsync(int width, int height) => Images.ReplaceAsync(new($"sample:{width}:{height}", "", width, height));
 
-    private Task LoadPatternSampleAsync()
+    private async Task LoadPatternSampleAsync()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Assets", "pattern-matching.png");
-        return Images.ReplaceAsync(new(path, "", 0, 0, ImageFileVersion.Read(path)));
+        await Images.ReplaceAsync(new(path, "", 0, 0, ImageFileVersion.Read(path)));
+        Matching.Method = PatternMatchingMethod.Shape;
+        Matching.EnableScale = true;
+        Matching.UseSelection = false;
     }
 
     private void ApplyRoiSettings()

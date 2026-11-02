@@ -21,10 +21,8 @@ public enum PatternMatchingMethod
 {
     Shape,
     OpenCvTemplate,
-    PoseMatchTdcm = 3,
     CpuLine2D = 4,
-    CpuSubNcc = 5,
-    CpuDirectionalChamfer = 6
+    CpuSubNcc = 5
 }
 
 public sealed record PatternMethodOption(PatternMatchingMethod Method, string Name);
@@ -36,4 +34,3 @@ public enum InspectionToolKind
 }
 
 public sealed record InspectionToolOption(InspectionToolKind Kind, string Name);
-

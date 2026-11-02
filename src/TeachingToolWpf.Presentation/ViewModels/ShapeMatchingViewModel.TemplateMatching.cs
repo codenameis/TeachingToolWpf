@@ -16,11 +16,9 @@ public sealed partial class ShapeMatchingViewModel
     public IReadOnlyList<PatternMethodOption> Methods { get; } =
     [
         new(PatternMatchingMethod.OpenCvTemplate, "OpenCV · 템플릿 매칭"),
-        new(PatternMatchingMethod.Shape, "논문 기반 · 형상 매칭"),
-        new(PatternMatchingMethod.PoseMatchTdcm, "PoseMatch-TDCM · ONNX"),
+        new(PatternMatchingMethod.Shape, "하이브리드 초고속 기하 매칭 · 광역/정밀"),
         new(PatternMatchingMethod.CpuLine2D, "Line2D 방향 응답 · CPU/CUDA"),
         new(PatternMatchingMethod.CpuSubNcc, "Sub-NCC 선택 픽셀 · CPU/CUDA"),
-        new(PatternMatchingMethod.CpuDirectionalChamfer, "Directional Chamfer · CPU/CUDA"),
     ];
     public PatternMatchingMethod Method
     {
@@ -44,33 +42,27 @@ public sealed partial class ShapeMatchingViewModel
     public bool IsShapeMethod => Method is PatternMatchingMethod.Shape;
     public bool IsTemplateMethod => Method == PatternMatchingMethod.OpenCvTemplate;
     public CorrelationTemplate? TemplateModel => _templateState.Model;
-    public bool HasModel => IsCpuMethod ? ActiveCpuState.Template is not null : IsTdcmMethod ? _tdcmTemplate is not null : IsShapeMethod ? Model is not null : TemplateModel is not null;
+    public bool HasModel => IsCpuMethod ? ActiveCpuState.Template is not null : IsShapeMethod ? Model is not null : TemplateModel is not null;
     public bool IsTrainingDirty => IsCpuMethod ? ActiveCpuState.IsMaskDirty ||
-        (ActiveCpuState.Template is { } cpu && cpu.Parameters != ActiveCpuState.Parameters) : IsTdcmMethod ? _tdcmMaskDirty : IsShapeMethod
+        (ActiveCpuState.Template is { } cpu && cpu.Parameters != ActiveCpuState.Parameters) : IsShapeMethod
         ? Model is not null && (ActiveShapeState.Training != ActiveShapeState.TrainedSettings || ActiveShapeState.IsMaskDirty)
         : TemplateModel is not null && _templateState.IsMaskDirty;
     public string MethodDescription => Method switch
     {
         PatternMatchingMethod.CpuLine2D => "희소 윤곽·방향 응답 맵 → 원본 자세 정밀화. CPU 또는 CPU+CUDA 선택. 마스크 없는 사각형 학습.",
         PatternMatchingMethod.CpuSubNcc => "선택 픽셀 ZNCC 후보 → 전체 템플릿 명암 정밀화. CPU 회전·균일 배율 검색. 마스크 없는 사각형 학습.",
-        PatternMatchingMethod.CpuDirectionalChamfer => "방향별 거리 변환 → 원본 자세 정밀화·양방향 윤곽 검증. FDCM 참고 구현이며 선분 적분 가속은 미포함. 마스크 없는 사각형 학습.",
-        PatternMatchingMethod.Shape => "방향 후보 검색 → 원본 윤곽 검증·자세 정밀화. 학습 영역에 추가된 윤곽을 최종 점수에서 감점합니다. 회전/배율을 지원합니다.",
-        PatternMatchingMethod.PoseMatchTdcm => "공식 사전 학습 모델 · CPU/CUDA ONNX · 360° 방향과 독립 X/Y 배율 추정. 신경망 신뢰도는 불량 품질 점수가 아닙니다. 사각형 학습, 마스크 미지원.",
+        PatternMatchingMethod.Shape => "심층 다중 피라미드 + Greediness 조기 가지치기(Halcon식) + Point-to-Tangent 연속 서브픽셀 정밀화(PatMax식) 하이브리드 기하 매칭. 광역 검색/회전/배율/마스크 및 추가 윤곽 감점을 지원합니다.",
         _ => "CCOEFF_NORMED · 원본 명암 비교 · 평행이동만 검색 (각도/배율 고정, 특징점 없음)"
     };
     private ShapeMatchingModeState ActiveShapeState => _paperState;
     private MatchingSearchSettings ActiveSearchSettings
     {
-        get => IsCpuMethod ? ActiveCpuState.Search : IsTdcmMethod ? _tdcmSearch : IsShapeMethod ? ActiveShapeState.Search : _templateState.Search;
+        get => IsCpuMethod ? ActiveCpuState.Search : IsShapeMethod ? ActiveShapeState.Search : _templateState.Search;
         set
         {
             if (IsCpuMethod)
             {
                 ActiveCpuState.Search = value;
-            }
-            else if (IsTdcmMethod)
-            {
-                _tdcmSearch = value;
             }
             else if (IsShapeMethod)
             {
@@ -93,11 +85,6 @@ public sealed partial class ShapeMatchingViewModel
             ActiveCpuState.Template = null;
             ActiveCpuState.TeachingRoiId = null;
             ActiveCpuState.IsMaskDirty = false;
-        }
-        else if (IsTdcmMethod)
-        {
-            _tdcmTemplate = null;
-            _tdcmMaskDirty = false;
         }
         else if (IsShapeMethod)
         {

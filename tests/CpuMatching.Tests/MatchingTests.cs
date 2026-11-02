@@ -1,5 +1,4 @@
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 
@@ -129,7 +128,6 @@ public sealed class MatchingTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(2)]
     public void FindsDistinctRightAngleInstancesAndReportsOutputLimit(int algorithm)
     {
         var pixels = new byte[33 * 29];
@@ -147,8 +145,7 @@ public sealed class MatchingTests
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
-            1 => new SubNccMatcher(template),
-            _ => new DirectionalChamferMatcher(template)
+            _ => new SubNccMatcher(template)
         };
         var buffer = new byte[128 * 100];
         for (var y = 0; y < 29; y++)
@@ -187,13 +184,11 @@ public sealed class MatchingTests
         Assert.Throws<ArgumentException>(() => new GrayImage(4, 4, new byte[15]));
         Assert.Throws<ArgumentException>(() => new Line2DMatcher(image));
         Assert.Throws<ArgumentException>(() => new SubNccMatcher(image));
-        Assert.Throws<ArgumentException>(() => new DirectionalChamferMatcher(image));
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(2)]
     public void FindsTranslationAndHonorsRegion(int algorithm)
     {
         var pixels = new byte[32 * 32];
@@ -216,8 +211,7 @@ public sealed class MatchingTests
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
-            1 => new SubNccMatcher(template),
-            _ => new DirectionalChamferMatcher(template)
+            _ => new SubNccMatcher(template)
         };
         var result = matcher.Find(new GrayImage(96, 80, scene), new SearchOptions
         {

@@ -11,6 +11,11 @@ internal sealed partial class OrientationMaps
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal void AccumulateLocal(ImmutableArray<QuantizedFeature> features, int left, int top, int width, int height,
         Span<ushort> scores, bool simd = true)
+        => AccumulateLocal(features.AsSpan(), left, top, width, height, scores, simd);
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    internal void AccumulateLocal(ReadOnlySpan<QuantizedFeature> features, int left, int top, int width, int height,
+        Span<ushort> scores, bool simd = true)
     {
         scores.Clear();
         foreach (var feature in features)

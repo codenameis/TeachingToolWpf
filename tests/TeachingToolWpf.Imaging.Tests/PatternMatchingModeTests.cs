@@ -14,10 +14,8 @@ public sealed class PatternMatchingModeTests
     [Theory]
     [InlineData(PatternMatchingMethod.Shape)]
     [InlineData(PatternMatchingMethod.OpenCvTemplate)]
-    [InlineData(PatternMatchingMethod.PoseMatchTdcm)]
     [InlineData(PatternMatchingMethod.CpuLine2D)]
     [InlineData(PatternMatchingMethod.CpuSubNcc)]
-    [InlineData(PatternMatchingMethod.CpuDirectionalChamfer)]
     public void EveryPatternModeDefaultsToRoiAndRetainsExplicitFullImageChoice(PatternMatchingMethod method)
     {
         var (_, editor, model) = Create();
@@ -30,13 +28,15 @@ public sealed class PatternMatchingModeTests
     }
 
     [Fact]
-    public void PaperOpenCvAndTdcmAreSelectableAndRemovedValueIsRejected()
+    public void OpenCvShapeLine2DAndSubNccAreSelectableAndRemovedValueIsRejected()
     {
         var (_, _, model) = Create();
         using var lifetime = model;
-        Assert.Equal(new[] { PatternMatchingMethod.OpenCvTemplate, PatternMatchingMethod.Shape, PatternMatchingMethod.PoseMatchTdcm,
-            PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc, PatternMatchingMethod.CpuDirectionalChamfer }, model.Methods.Select(option => option.Method));
+        Assert.Equal(new[] { PatternMatchingMethod.OpenCvTemplate, PatternMatchingMethod.Shape,
+            PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc }, model.Methods.Select(option => option.Method));
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)2);
+        Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)3);
+        Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)6);
         Assert.Equal(PatternMatchingMethod.Shape, model.Method);
     }
 
@@ -247,6 +247,7 @@ public sealed class PatternMatchingModeTests
     [InlineData(nameof(ShapeMatchingViewModel.MaximumScale), 1.2)]
     [InlineData(nameof(ShapeMatchingViewModel.ScaleStep), .05)]
     [InlineData(nameof(ShapeMatchingViewModel.IgnorePolarity), 1)]
+    [InlineData(nameof(ShapeMatchingViewModel.UseFineDetailValidation), 0)]
     [InlineData(nameof(ShapeMatchingViewModel.MaximumFeatures), 200)]
     [InlineData(nameof(ShapeMatchingViewModel.MinimumGradient), 10)]
     [InlineData(nameof(ShapeMatchingViewModel.MinimumFeatureContrastRatio), .35)]
@@ -290,6 +291,7 @@ public sealed class PatternMatchingModeTests
         viewModel.MinimumFeatureContrastRatio = .35;
         viewModel.MaximumTemplates = 4096;
         viewModel.IgnorePolarity = true;
+        viewModel.UseFineDetailValidation = true;
         await viewModel.Train.ExecuteAsync();
         var training = Assert.IsType<TrainingOptions>(service.TrainingOptions);
         Assert.Equal(-20, training.MinimumAngleDegrees);
@@ -303,11 +305,13 @@ public sealed class PatternMatchingModeTests
         Assert.Equal(.35, training.MinimumFeatureContrastRatio);
         Assert.Equal(4096, training.MaximumTemplates);
         Assert.Equal(ContrastPolarity.IgnoreLocal, training.Polarity);
+        Assert.True(training.UseFineDetailValidation);
         // 서비스가 피라미드 단계를 조정하더라도 UI 학습 조건은 변경되지 않았다.
         Assert.NotEqual(training.PyramidLevels, viewModel.Model!.Options.PyramidLevels);
         Assert.False(viewModel.IsTrainingDirty);
 
         viewModel.CandidateThreshold = .5;
+        viewModel.Greediness = .75;
         viewModel.MaximumCandidates = 5000;
         viewModel.MaximumVerifiedCandidates = 300;
         viewModel.MaximumCoarseVerifiedCandidates = 400;
@@ -320,6 +324,7 @@ public sealed class PatternMatchingModeTests
         await viewModel.Search.ExecuteAsync();
         var search = Assert.IsType<SearchOptions>(service.SearchOptions);
         Assert.Equal(.5, search.CandidateThreshold);
+        Assert.Equal(.75, search.Greediness);
         Assert.Equal(5000, search.MaximumCandidates);
         Assert.Equal(300, search.MaximumVerifiedCandidates);
         Assert.Equal(400, search.MaximumCoarseVerifiedCandidates);
@@ -477,65 +482,6 @@ public sealed class PatternMatchingModeTests
         var viewModel = new ShapeMatchingViewModel(service, new TemplateService());
         viewModel.Update(new(editor.State, 1, false, true));
         return (service, editor, viewModel);
-    }
-
-    [Fact]
-    public async Task TdcmHasIndependentParametersPreservesPoseAndInvalidatesChangedMasks()
-    {
-        var (_, editor, _) = Create();
-        var tdcm = new TdcmService();
-        using var model = new ShapeMatchingViewModel(new ShapeService(), new TemplateService(), tdcm);
-        model.Update(new(editor.State, 1, false, true));
-        model.Method = PatternMatchingMethod.PoseMatchTdcm;
-        model.TdcmWindowSize = 256;
-        model.TdcmRefinePose = true;
-        model.TdcmDevice = PoseMatch.Tdcm.TdcmDevice.Cuda;
-        model.MinimumScore = .7;
-        await model.Train.ExecuteAsync();
-        await model.Search.ExecuteAsync();
-        Assert.Equal(InspectionVerdict.Review, model.Verdict);
-        Assert.Equal(256, tdcm.Options!.WindowSize);
-        Assert.True(tdcm.Options.Matching.RefinePose);
-        Assert.Equal(PoseMatch.Tdcm.TdcmDevice.Cuda, tdcm.Options.Device);
-        var log = Assert.Single(model.TdcmInspectionLogs);
-        Assert.NotNull(log.CommandMilliseconds);
-        Assert.Null(log.PresentedMilliseconds);
-        var completed = System.Diagnostics.Stopwatch.GetTimestamp();
-        model.RecordOverlayPresentation(new(model.Overlay!.PresentationId, completed));
-        Assert.NotNull(model.TdcmInspectionLogs[0].PresentedMilliseconds);
-        Assert.True(model.TdcmInspectionLogs[0].PresentedMilliseconds >= model.TdcmInspectionLogs[0].CommandMilliseconds);
-        Assert.Equal(.7f, tdcm.Options.Matching.MinimumScore);
-        var marker = Assert.Single(model.Markers);
-        Assert.Equal(180 * Math.PI / 180, marker.AngleRadians);
-        model.Method = PatternMatchingMethod.OpenCvTemplate;
-        Assert.False(model.HasModel);
-        model.MinimumScore = .9;
-        model.Method = PatternMatchingMethod.PoseMatchTdcm;
-        Assert.True(model.HasModel);
-        Assert.Equal(.7, model.MinimumScore);
-        var id = editor.State.Selection.Single();
-        editor.AddMask(id, new(MaskShape.Rectangle, new(.1, .1, .2, .2)));
-        model.Update(new(editor.State, 1, false, true));
-        Assert.True(model.IsTrainingDirty);
-        Assert.False(model.Search.CanExecute(null));
-        model.TdcmWindowSize = 225;
-        Assert.NotEmpty(model.OptionsError);
-        Assert.False(model.Train.CanExecute(null));
-        model.TdcmWindowSize = 256;
-        model.MaximumMatches = 1001;
-        Assert.NotEmpty(model.OptionsError);
-    }
-
-    private sealed class TdcmService : ITdcmMatchingService
-    {
-        public TdcmSearchOptions? Options;
-        public Task<TdcmTemplate> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null)
-            => Task.FromResult(new TdcmTemplate(new(new byte[36 * 36], 36, 36, 36), 1, roi));
-        public Task<TdcmSearchOutput> SearchAsync(ImageReference image, bool live, TdcmTemplate template, RoiGeometry? region, TdcmSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
-        {
-            Options = options;
-            return Task.FromResult(new TdcmSearchOutput(new([new(120, 130, 42, 28, 180, .9f)], false, false), 1, 5, 1, 1, 3));
-        }
     }
 
     private sealed class ShapeService : IShapeMatchingService

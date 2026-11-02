@@ -30,18 +30,10 @@ public sealed class CpuMatchingIntegrationTests
         Assert.False(vm.IsTrainingDirty);
         await vm.Search.ExecuteAsync();
         Assert.Equal(80, vm.CpuInspectionLogs[^1].Parameters.Line2D.CoarseFeatures);
-        vm.Method = PatternMatchingMethod.CpuDirectionalChamfer;
-        Assert.Equal(64, vm.CpuCoarseFeatures);
-        vm.CpuChamferFineTolerance = 1.2;
-        await vm.Train.ExecuteAsync();
-        await vm.Search.ExecuteAsync();
-        Assert.Equal(1.2, vm.CpuInspectionLogs[^1].Parameters.Chamfer.FineTolerance);
-        vm.CpuChamferDirectionPenalty = double.NaN;
-        Assert.NotEmpty(vm.OptionsError);
-        Assert.False(vm.Train.CanExecute(null));
         vm.Method = PatternMatchingMethod.CpuSubNcc;
         vm.CpuNccCoarseSamples = 97;
         Assert.NotEmpty(vm.OptionsError);
+        Assert.False(vm.Train.CanExecute(null));
         vm.CpuNccCoarseSamples = 128;
         Assert.Empty(vm.OptionsError);
         await vm.Train.ExecuteAsync();
@@ -140,10 +132,8 @@ public sealed class CpuMatchingIntegrationTests
     [Theory]
     [InlineData(CpuTemplateMethod.Line2D, false)]
     [InlineData(CpuTemplateMethod.SubNcc, false)]
-    [InlineData(CpuTemplateMethod.DirectionalChamfer, false)]
     [InlineData(CpuTemplateMethod.Line2D, true)]
     [InlineData(CpuTemplateMethod.SubNcc, true)]
-    [InlineData(CpuTemplateMethod.DirectionalChamfer, true)]
     public async Task OriginalPixelsRotatedTrainingAndTinySearchRegionKeepWorldPose(CpuTemplateMethod method, bool useCuda)
     {
         var loader = new Loader();
@@ -189,7 +179,7 @@ public sealed class CpuMatchingIntegrationTests
         editor.Add(new(new(48.5, 48.5), 33, 29, 0));
         using var vm = new ShapeMatchingViewModel(new ShapeMatchingService(loader, () => null), cpuService: service);
         vm.Update(new(editor.State, 1, false, true));
-        var methods = new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc, PatternMatchingMethod.CpuDirectionalChamfer };
+        var methods = new[] { PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc };
         foreach (var method in methods)
         {
             vm.Method = method;
@@ -203,7 +193,7 @@ public sealed class CpuMatchingIntegrationTests
             await vm.Search.ExecuteAsync();
             Assert.Single(vm.Markers);
             Assert.Equal(InspectionVerdict.Review, vm.Verdict);
-            Assert.Contains(method == PatternMatchingMethod.CpuSubNcc ? "SubNcc" : method == PatternMatchingMethod.CpuLine2D ? "Line2D" : "DirectionalChamfer", vm.InspectionLogText);
+            Assert.Contains(method == PatternMatchingMethod.CpuSubNcc ? "SubNcc" : "Line2D", vm.InspectionLogText);
             vm.RecordOverlayPresentation(new(vm.Overlay!.PresentationId, System.Diagnostics.Stopwatch.GetTimestamp()));
             Assert.NotNull(vm.CpuInspectionLogs[^1].PresentedMilliseconds);
         }
@@ -225,11 +215,12 @@ public sealed class CpuMatchingIntegrationTests
         Assert.False(vm.IsTrainingDirty);
         service.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var pending = vm.Search.ExecuteAsync();
-        vm.Method = methods[2];
+        vm.Method = methods[1];
         service.Pending.SetResult(new(new([], false, false, 0), 0, 0, 0));
         await pending;
         Assert.Empty(vm.Markers);
         Assert.Equal("Discarded", vm.CpuInspectionLogs[^1].Outcome);
+        vm.Method = methods[0];
         var id = editor.State.Selection.Single();
         editor.AddMask(id, new(MaskShape.Rectangle, new(.1, .1, .2, .2)));
         vm.Update(new(editor.State, 1, false, true));
@@ -244,7 +235,7 @@ public sealed class CpuMatchingIntegrationTests
         vm.CpuAngleStep = 10;
         vm.Clear.Execute(null);
         Assert.False(vm.HasModel);
-        vm.Method = methods[0];
+        vm.Method = methods[1];
         Assert.True(vm.HasModel);
     }
 

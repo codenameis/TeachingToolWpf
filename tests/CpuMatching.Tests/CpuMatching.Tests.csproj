@@ -12,7 +12,6 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <ProjectReference Include="../../src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
     <ProjectReference Include="../../src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
-    <ProjectReference Include="../../src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
     <Using Include="Xunit" />
     <None Update="Data/*.gray" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -4,7 +4,6 @@
     <Project Path="src/CpuMatching.Cuda/CpuMatching.Cuda.csproj" />
     <Project Path="src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
     <Project Path="src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
-    <Project Path="src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/CpuMatching.Tests/CpuMatching.Tests.csproj" />

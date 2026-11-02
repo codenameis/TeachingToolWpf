@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 
@@ -21,7 +20,7 @@ internal static class SplitBenchmark
         var cases = JsonSerializer.Deserialize<Case[]>(File.ReadAllText(Path.Combine(folder, "cases.json")))!;
         var selected = cases.Where(item => args.Length < 4 || args[3] == "all" || item.Name == args[3]).ToArray();
         var repeats = args.Length > 4 ? int.Parse(args[4]) : 3;
-        var methods = new[] { "Line2D", "SubNcc", "DirectionalChamfer" }
+        var methods = new[] { "Line2D", "SubNcc" }
             .Where(method => args.Length < 6 || args[5] == "all" || method == args[5]).ToArray();
         var workers = args.Length > 6 ? int.Parse(args[6]) : 4;
         var padding = args.Length > 7 ? args[7] : "overlap";
@@ -60,8 +59,7 @@ internal static class SplitBenchmark
                     ITemplateMatcher Create() => method switch
                     {
                         "Line2D" => new Line2DMatcher(template),
-                        "SubNcc" => new SubNccMatcher(template),
-                        _ => new DirectionalChamferMatcher(template)
+                        _ => new SubNccMatcher(template)
                     };
                     var matchers = Enumerable.Range(0, 16).Select(_ => Create()).ToArray();
                     Match[]? reference = null;

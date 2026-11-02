@@ -54,6 +54,12 @@ public sealed partial class ShapeMatchingViewModel
         set => ChangeTrainingSettings(ActiveShapeState.Training with { IgnorePolarity = value });
     }
 
+    public bool UseFineDetailValidation
+    {
+        get => ActiveShapeState.Training.UseFineDetailValidation;
+        set => ChangeTrainingSettings(ActiveShapeState.Training with { UseFineDetailValidation = value });
+    }
+
     public int MaximumFeatures
     {
         get => ActiveShapeState.Training.MaximumFeatures;
@@ -94,6 +100,12 @@ public sealed partial class ShapeMatchingViewModel
     {
         get => ActiveSearchSettings.Options.CandidateThreshold;
         set => ChangeSearchOptions(ActiveSearchSettings.Options with { CandidateThreshold = value });
+    }
+
+    public double Greediness
+    {
+        get => ActiveSearchSettings.Options.Greediness;
+        set => ChangeSearchOptions(ActiveSearchSettings.Options with { Greediness = value });
     }
 
     public int MaximumCandidates

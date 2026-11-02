@@ -66,7 +66,7 @@ internal static class SidebarLayoutRun
                 }
                 window.Width = 1440;
                 window.Height = 880;
-                matching.Method = PatternMatchingMethod.CpuDirectionalChamfer;
+                matching.Method = PatternMatchingMethod.CpuLine2D;
                 matching.CpuMinimumAngle = -30;
                 matching.CpuMaximumAngle = 30;
                 matching.CpuSuppressionRadius = 31.2;

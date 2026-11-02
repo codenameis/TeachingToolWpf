@@ -10,6 +10,22 @@ public sealed partial class ShapeMatchingViewModel
         ? $"선택: {roi.ShapeName} · {roi.Width:F0} × {roi.Height:F0} px · {roi.Angle:F1}°"
         : "이미지에서 학습할 ROI 한 개를 선택하세요.";
 
+    /// <summary>검사에 쓰일 학습 모델이 어떤 ROI에서 왔는지, 지금 선택한 ROI와 같은지 보여 준다.</summary>
+    public string TrainedModelText
+    {
+        get
+        {
+            if (!IsShapeMethod || ActiveShapeState.TeachingRegion is not { } taught || Model is null)
+            {
+                return "";
+            }
+            var summary = $"검사에 쓰는 학습 모델: {taught.ShapeName} {taught.Width:F0} × {taught.Height:F0} px";
+            return _selection is { } current && (current != taught || _selectedRoiId != ActiveShapeState.TeachingRoiId)
+                ? summary + " · 현재 선택 ROI와 다릅니다. ‘선택 ROI 학습’을 눌러야 새 ROI로 검사합니다."
+                : summary;
+        }
+    }
+
     public string SearchScopeText => UseSelection
         ? _searchSelection is { } roi ? $"검색: {roi.Width:F0} × {roi.Height:F0} px · 선택 영역" : "검색할 ROI가 선택되지 않았습니다."
         : _image is { } image ? $"검색: {image.Width:N0} × {image.Height:N0} px · 전체 이미지" : "검색할 이미지를 열어 주세요.";
@@ -68,14 +84,12 @@ public sealed partial class ShapeMatchingViewModel
         }
     }
 
-    private static string DetectionNotice(bool candidatesTruncated, bool matchLimitExceeded, int count, bool tdcm = false)
+    private static string DetectionNotice(bool candidatesTruncated, bool matchLimitExceeded, int count)
     {
         var messages = new List<string>();
         if (candidatesTruncated)
         {
-            messages.Add(tdcm
-                ? "일부 영역을 검색하지 못했습니다. ‘상세 설정’에서 최대 검색 창을 늘리거나 검색 ROI를 줄이세요."
-                : "일부 후보를 확인하지 못했습니다. ‘상세 설정 → 공통 검색 고급’의 최대 후보 수를 늘리거나 검색 ROI를 줄이세요.");
+            messages.Add("일부 후보를 확인하지 못했습니다. ‘상세 설정 → 공통 검색 고급’의 최대 후보 수를 늘리거나 검색 ROI를 줄이세요.");
         }
         if (matchLimitExceeded)
         {
@@ -91,6 +105,7 @@ public sealed partial class ShapeMatchingViewModel
         Notify(nameof(PanelTitle));
         Notify(nameof(PanelHint));
         Notify(nameof(TeachingSelectionText));
+        Notify(nameof(TrainedModelText));
         Notify(nameof(SearchScopeText));
     }
 }

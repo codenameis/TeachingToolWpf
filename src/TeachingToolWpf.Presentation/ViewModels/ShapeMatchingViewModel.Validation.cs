@@ -61,10 +61,6 @@ public sealed partial class ShapeMatchingViewModel
                         return "앱의 최대 결과 수는 1~1000입니다.";
                     }
                 }
-                else if (IsTdcmMethod)
-                {
-                    CreateTdcmOptions().Validate();
-                }
                 else
                 {
                     (IsShapeMethod ? CreateShapeSearchOptions() : CreateTemplateSearchOptions()).Validate();

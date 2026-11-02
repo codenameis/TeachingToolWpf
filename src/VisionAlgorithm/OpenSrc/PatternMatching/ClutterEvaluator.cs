@@ -16,31 +16,52 @@ internal static class ClutterEvaluator
         var unexplainedEnergy = 0d;
         // 정답 윤곽 대응의 중앙값으로 조명 gain을 보정한다. 추가 결함의 최대 강도를 조명 변화로 흡수하지 않는다.
         var energyStrengthScale = .5 / EstimateContrastGain(image, model, contour, pose, tolerance, token);
-        foreach (var edge in image.EdgePoints)
+        var maxRadius = 0d;
+        foreach (var corner in model.Bounds)
+        {
+            var r = Math.Sqrt((corner.X * corner.X) + (corner.Y * corner.Y));
+            if (r > maxRadius)
+            {
+                maxRadius = r;
+            }
+        }
+        var searchRadius = (maxRadius * pose.Scale) + 2;
+        var minRow = Math.Max(0, (int)Math.Floor(pose.Y - searchRadius));
+        var maxRow = Math.Min(image.Height - 1, (int)Math.Ceiling(pose.Y + searchRadius));
+        var minCol = Math.Max(0, (int)Math.Floor(pose.X - searchRadius));
+        var maxCol = Math.Min(image.Width - 1, (int)Math.Ceiling(pose.X + searchRadius));
+        for (var row = minRow; row <= maxRow; row++)
         {
             token.ThrowIfCancellationRequested();
-            var dx = (edge.X - pose.X) / pose.Scale;
-            var dy = (edge.Y - pose.Y) / pose.Scale;
-            var x = model.TrainingReferencePoint.X + (inverseCosine * dx) + (inverseSine * dy);
-            var y = model.TrainingReferencePoint.Y - (inverseSine * dx) + (inverseCosine * dy);
-            if (!contour.Contains(x, y))
+            for (var column = minCol; column <= maxCol; column++)
             {
-                continue;
-            }
-            sceneEdges++;
-            var energy = (double)edge.Strength * edge.Strength;
-            totalEnergy += energy;
-            var normalX = (inverseCosine * edge.NormalX) + (inverseSine * edge.NormalY);
-            var normalY = (-inverseSine * edge.NormalX) + (inverseCosine * edge.NormalY);
-            var explanation = contour.Explain(x, y, normalX, normalY, tolerance / pose.Scale,
-                model.Options.Polarity, edge.Strength * energyStrengthScale, token);
-            if (!explanation.AnyContour)
-            {
-                unexplained++;
-            }
-            if (!explanation.EnergyContour)
-            {
-                unexplainedEnergy += energy;
+                if (image.EdgeAt(column, row) is not { } edge)
+                {
+                    continue;
+                }
+                var dx = (edge.X - pose.X) / pose.Scale;
+                var dy = (edge.Y - pose.Y) / pose.Scale;
+                var x = model.TrainingReferencePoint.X + (inverseCosine * dx) + (inverseSine * dy);
+                var y = model.TrainingReferencePoint.Y - (inverseSine * dx) + (inverseCosine * dy);
+                if (!contour.Contains(x, y))
+                {
+                    continue;
+                }
+                sceneEdges++;
+                var energy = (double)edge.Strength * edge.Strength;
+                totalEnergy += energy;
+                var normalX = (inverseCosine * edge.NormalX) + (inverseSine * edge.NormalY);
+                var normalY = (-inverseSine * edge.NormalX) + (inverseCosine * edge.NormalY);
+                var explanation = contour.Explain(x, y, normalX, normalY, tolerance / pose.Scale,
+                    model.Options.Polarity, edge.Strength * energyStrengthScale, token);
+                if (!explanation.AnyContour)
+                {
+                    unexplained++;
+                }
+                if (!explanation.EnergyContour)
+                {
+                    unexplainedEnergy += energy;
+                }
             }
         }
         return new(sceneEdges == 0 ? 0 : unexplained / (double)sceneEdges, sceneEdges,

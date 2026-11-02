@@ -59,6 +59,43 @@ public sealed class VerifierBoundTests
         }
     }
 
+    [Fact]
+    public void GreedinessAndQuadrantBalancedFeaturesPreserveSubpixelAccuracyAcrossWideRotation()
+    {
+        var trainingImage = SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0));
+        var model = ShapeTrainer.Train(trainingImage, new(ReadOnlyMemory<byte>.Empty, new(48, 48)), new()
+        {
+            MinimumAngleDegrees = -90,
+            MaximumAngleDegrees = 90,
+            AngleStepDegrees = 5,
+            PyramidLevels = 3
+        });
+
+        var firstFourQuadrants = 0;
+        for (var i = 0; i < Math.Min(8, model.Levels[0].Features.Length); i++)
+        {
+            var feature = model.Levels[0].Features[i];
+            firstFourQuadrants |= 1 << ((feature.X >= 0 ? 1 : 0) + (feature.Y >= 0 ? 2 : 0));
+        }
+        Assert.True(System.Numerics.BitOperations.PopCount((uint)firstFourQuadrants) >= 3);
+
+        var expectedPose = new MatchPose(162.35, 138.65, -42.7 * Math.PI / 180, 1);
+        var searchScene = SyntheticScene.Create(320, 280, expectedPose);
+        var matcher = new ShapeMatcher(optimizedLocalSearch: false);
+
+        var result = matcher.Search(searchScene, model, new()
+        {
+            Greediness = 0.75,
+            Refine = true,
+            Verify = true
+        });
+
+        var match = Assert.Single(result.Matches);
+        Assert.InRange(Math.Abs(match.Pose.X - expectedPose.X), 0, 0.35);
+        Assert.InRange(Math.Abs(match.Pose.Y - expectedPose.Y), 0, 0.35);
+        Assert.InRange(Math.Abs(match.Pose.Angle - expectedPose.Angle), 0, 0.5 * Math.PI / 180);
+    }
+
     private static (MatchPose Pose, VerifiedScore Score) OptimizeWithoutPruning(GradientImage image, ShapeModel model, MatchPose initial)
     {
         var options = new SearchOptions();

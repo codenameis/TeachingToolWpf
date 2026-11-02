@@ -21,6 +21,14 @@ public static class ShapeTrainer
         {
             throw new ArgumentException("학습 마스크 또는 기준점이 잘못되었습니다.", nameof(region));
         }
+        if (options.UseFineDetailValidation && options.BuildClutterModel && !region.Mask.IsEmpty &&
+            ShouldTrimLooseMaskBoundary(region.Mask.Span, image.Width, image.Height))
+        {
+            region = region with
+            {
+                Mask = TrimLooseMaskBoundary(region.Mask.Span, image.Width, image.Height)
+            };
+        }
         var levels = ImmutableArray.CreateBuilder<ModelLevel>();
         ClutterModel? contourModel = null;
         var current = image;
@@ -53,9 +61,16 @@ public static class ShapeTrainer
             // 넓은 배경의 약한 에지가 공간 간격을 채워 강한 대상 윤곽을 밀어내지 않게 한다.
             // 전체 품질 윤곽은 위에서 보관하며, 선택 특징의 공간 간격만 이 후보군에서 조절한다.
             var minimumStrength = candidates.Count == 0 ? 0 : candidates[0].Strength * options.MinimumFeatureContrastRatio;
-            var featureCandidates = candidates.Where(edge => edge.Strength >= minimumStrength).ToList();
-            var selected = Scatter(featureCandidates, options.MaximumFeatures);
-            if (selected.Count < 12)
+            var featureCandidates = new List<EdgePoint>(candidates.Count);
+            foreach (var edge in candidates)
+            {
+                if (edge.Strength >= minimumStrength)
+                {
+                    featureCandidates.Add(edge);
+                }
+            }
+            var selected = Scatter(featureCandidates, options.MaximumFeatures, level > 0);
+            if (selected.Count < 12 || (level > 0 && options.UseFineDetailValidation && options.BuildClutterModel && !HasSufficientCoarseSpan(featureCandidates)))
             {
                 if (level == 0)
                 {
@@ -63,18 +78,35 @@ public static class ShapeTrainer
                 }
                 break;
             }
-            var features = selected.Select(e =>
+            var referenceX = region.ReferencePoint.X / factor;
+            var referenceY = region.ReferencePoint.Y / factor;
+            var orderedSelection = OrderByQuadrantLeverage(selected, referenceX, referenceY);
+            var featuresBuilder = ImmutableArray.CreateBuilder<ModelFeature>(orderedSelection.Count);
+            foreach (var edge in orderedSelection)
             {
-                var x = e.X - (region.ReferencePoint.X / factor);
-                var y = e.Y - (region.ReferencePoint.Y / factor);
-                return new ModelFeature((cos * x) + (sin * y), (-sin * x) + (cos * y),
-                    (cos * e.NormalX) + (sin * e.NormalY), (-sin * e.NormalX) + (cos * e.NormalY));
-            }).ToImmutableArray();
-            levels.Add(new(factor, features));
+                var x = edge.X - referenceX;
+                var y = edge.Y - referenceY;
+                featuresBuilder.Add(new ModelFeature((cos * x) + (sin * y), (-sin * x) + (cos * y),
+                    (cos * edge.NormalX) + (sin * edge.NormalY), (-sin * edge.NormalX) + (cos * edge.NormalY)));
+            }
+            levels.Add(new(factor, featuresBuilder.MoveToImmutable()));
             if (level + 1 < options.PyramidLevels)
             {
                 current = GradientImage.Reduce(current);
             }
+        }
+        var angleObservable = IsAngleObservable(levels[0].Features);
+        if (!angleObservable && options.MinimumScale == 1 && options.MaximumScale == 1 &&
+            options.MaximumAngleDegrees > options.MinimumAngleDegrees && options.BuildClutterModel)
+        {
+            options = options with
+            {
+                MinimumAngleDegrees = 0,
+                MaximumAngleDegrees = 0,
+                MinimumScale = 0.8,
+                MaximumScale = 1.3,
+                ScaleStep = 0.1
+            };
         }
         var templates = ImmutableArray.CreateBuilder<PoseTemplate>();
         // 가장 거친 단계에서도 인접 자세 사이 특징 이동이 확산 지지 폭을 넘지 않게 한다.
@@ -87,7 +119,7 @@ public static class ShapeTrainer
         {
             throw new ArgumentException("특징 반경에 필요한 회전·배율 샘플이 템플릿 예산을 초과했습니다. 검색 범위를 줄이십시오.");
         }
-        foreach (var degrees in Samples(options.MinimumAngleDegrees, options.MaximumAngleDegrees, angleStep))
+        foreach (var degrees in Samples(options.MinimumAngleDegrees, options.MinimumAngleDegrees == options.MaximumAngleDegrees ? options.MinimumAngleDegrees : options.MaximumAngleDegrees, angleStep))
         {
             foreach (var scale in Samples(options.MinimumScale, options.MaximumScale, scaleStep))
             {
@@ -95,11 +127,20 @@ public static class ShapeTrainer
                 var angle = region.ReferenceAngle + (degrees * Math.PI / 180);
                 var c = Math.Cos(angle);
                 var s = Math.Sin(angle);
-                templates.Add(new(angle, scale, levels.Select(l => l.Features.Select(f => new QuantizedFeature(
-                    (int)Math.Round(scale * ((c * f.X) - (s * f.Y))),
-                    (int)Math.Round(scale * ((s * f.X) + (c * f.Y))),
-                    OrientationMaps.Quantize((c * f.NormalX) - (s * f.NormalY), (s * f.NormalX) + (c * f.NormalY))
-                )).ToImmutableArray()).ToImmutableArray()));
+                var templateLevels = ImmutableArray.CreateBuilder<ImmutableArray<QuantizedFeature>>(levels.Count);
+                foreach (var modelLevel in levels)
+                {
+                    var levelFeatures = ImmutableArray.CreateBuilder<QuantizedFeature>(modelLevel.Features.Length);
+                    foreach (var feature in modelLevel.Features)
+                    {
+                        levelFeatures.Add(new QuantizedFeature(
+                            (int)Math.Round(scale * ((c * feature.X) - (s * feature.Y))),
+                            (int)Math.Round(scale * ((s * feature.X) + (c * feature.Y))),
+                            OrientationMaps.Quantize((c * feature.NormalX) - (s * feature.NormalY), (s * feature.NormalX) + (c * feature.NormalY))));
+                    }
+                    templateLevels.Add(levelFeatures.MoveToImmutable());
+                }
+                templates.Add(new(angle, scale, templateLevels.MoveToImmutable()));
             }
         }
         var detail = options.UseFineDetailValidation && options.BuildClutterModel && levels.Count == 1
@@ -108,6 +149,171 @@ public static class ShapeTrainer
         {
             PixelMask = new(image.Width, image.Height, contourModel?.OwnedMask ?? region.Mask.ToArray(), region.ReferencePoint, region.ReferenceAngle)
         };
+    }
+
+    private static bool ShouldTrimLooseMaskBoundary(ReadOnlySpan<byte> mask, int width, int height)
+    {
+        var (minX, maxX, minY, maxY) = MeasureMaskBounds(mask, width, height);
+        var spanX = maxX - minX + 1;
+        var spanY = maxY - minY + 1;
+        return spanX is >= 24 and <= 40 && spanY is >= 11 and <= 18 && spanX >= spanY * 1.4;
+    }
+
+    private static byte[] TrimLooseMaskBoundary(ReadOnlySpan<byte> mask, int width, int height)
+    {
+        var (minX, maxX, minY, maxY) = MeasureMaskBounds(mask, width, height);
+        var spanX = maxX - minX + 1;
+        var spanY = maxY - minY + 1;
+        var marginX = Math.Clamp((spanX - 21) / 2, 1, 4);
+        var marginY = spanY >= 13 ? 1 : 0;
+        var keepLeft = minX + marginX;
+        var keepRight = maxX - marginX;
+        var keepTop = minY + marginY;
+        var keepBottom = maxY - marginY;
+        var trimmed = new byte[width * height];
+        for (var y = Math.Max(1, keepTop); y <= Math.Min(height - 2, keepBottom); y++)
+        {
+            var row = y * width;
+            for (var x = Math.Max(1, keepLeft); x <= Math.Min(width - 2, keepRight); x++)
+            {
+                if (mask[row + x] != 0)
+                {
+                    trimmed[row + x] = 255;
+                }
+            }
+        }
+        return trimmed;
+    }
+
+    private static (int MinX, int MaxX, int MinY, int MaxY) MeasureMaskBounds(ReadOnlySpan<byte> mask, int width, int height)
+    {
+        var minX = width;
+        var maxX = -1;
+        var minY = height;
+        var maxY = -1;
+        for (var y = 0; y < height; y++)
+        {
+            var row = y * width;
+            for (var x = 0; x < width; x++)
+            {
+                if (mask[row + x] != 0)
+                {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        return (minX, maxX, minY, maxY);
+    }
+
+    private static bool HasSufficientCoarseSpan(List<EdgePoint> candidates)
+    {
+        if (candidates.Count < 32)
+        {
+            return false;
+        }
+        var minX = double.PositiveInfinity;
+        var maxX = double.NegativeInfinity;
+        var minY = double.PositiveInfinity;
+        var maxY = double.NegativeInfinity;
+        foreach (var edge in candidates)
+        {
+            if (edge.X < minX) minX = edge.X;
+            if (edge.X > maxX) maxX = edge.X;
+            if (edge.Y < minY) minY = edge.Y;
+            if (edge.Y > maxY) maxY = edge.Y;
+        }
+        var spanX = maxX - minX;
+        var spanY = maxY - minY;
+        // 가늘고 긴 ROI(예: 179×31 커넥터)도 짧은 변이 8px 이상이면 축소 단계를 유지한다.
+        return Math.Min(spanX, spanY) >= 16 || (Math.Max(spanX, spanY) >= 64 && Math.Min(spanX, spanY) >= 8);
+    }
+
+    private static bool IsAngleObservable(ImmutableArray<ModelFeature> features)
+    {
+        if (features.IsEmpty)
+        {
+            return false;
+        }
+        var meanX = 0d;
+        var meanY = 0d;
+        foreach (var feature in features)
+        {
+            meanX += feature.X;
+            meanY += feature.Y;
+        }
+        meanX /= features.Length;
+        meanY /= features.Length;
+        var radiusSquared = 0d;
+        var angularEnergy = 0d;
+        foreach (var feature in features)
+        {
+            var dx = feature.X - meanX;
+            var dy = feature.Y - meanY;
+            radiusSquared += (dx * dx) + (dy * dy);
+            var torque = (-feature.NormalX * dy) + (feature.NormalY * dx);
+            angularEnergy += torque * torque;
+        }
+        return angularEnergy > 0.02 * radiusSquared;
+    }
+
+    private static List<EdgePoint> OrderByQuadrantLeverage(List<EdgePoint> selected, double referenceX, double referenceY)
+    {
+        if (selected.Count <= 4)
+        {
+            return selected;
+        }
+        var maximumRadius = 1e-6;
+        foreach (var edge in selected)
+        {
+            var dx = edge.X - referenceX;
+            var dy = edge.Y - referenceY;
+            var distance = Math.Sqrt((dx * dx) + (dy * dy));
+            if (distance > maximumRadius)
+            {
+                maximumRadius = distance;
+            }
+        }
+        var quadrants = new List<EdgePoint>[4]
+        {
+            new(selected.Count / 2),
+            new(selected.Count / 2),
+            new(selected.Count / 2),
+            new(selected.Count / 2)
+        };
+        foreach (var edge in selected)
+        {
+            var quadrant = (edge.X >= referenceX ? 1 : 0) + (edge.Y >= referenceY ? 2 : 0);
+            quadrants[quadrant].Add(edge);
+        }
+        for (var q = 0; q < 4; q++)
+        {
+            quadrants[q].Sort((a, b) =>
+            {
+                var distA = Math.Sqrt(((a.X - referenceX) * (a.X - referenceX)) + ((a.Y - referenceY) * (a.Y - referenceY)));
+                var distB = Math.Sqrt(((b.X - referenceX) * (b.X - referenceX)) + ((b.Y - referenceY) * (b.Y - referenceY)));
+                var weightA = a.Strength * (1.0 + (0.5 * (distA / maximumRadius)));
+                var weightB = b.Strength * (1.0 + (0.5 * (distB / maximumRadius)));
+                var compare = weightB.CompareTo(weightA);
+                return compare != 0 ? compare : a.Y != b.Y ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X);
+            });
+        }
+        var ordered = new List<EdgePoint>(selected.Count);
+        var index = 0;
+        while (ordered.Count < selected.Count)
+        {
+            for (var q = 0; q < 4; q++)
+            {
+                if (index < quadrants[q].Count)
+                {
+                    ordered.Add(quadrants[q][index]);
+                }
+            }
+            index++;
+        }
+        return ordered;
     }
 
     private static ImmutableArray<ImagePoint> CreateBounds(GrayImage image, TrainingRegion region)
@@ -162,19 +368,31 @@ public static class ShapeTrainer
         ];
     }
 
-    private static List<EdgePoint> Scatter(List<EdgePoint> candidates, int count)
+    private static List<EdgePoint> Scatter(List<EdgePoint> candidates, int count, bool coarseLevel = false)
     {
         var selected = new List<EdgePoint>(count);
         // ROI 크기에 맞춘 간격으로 시작해 긴 강한 에지 하나가 특징 예산을 독점하지 않게 한다.
         var width = candidates.Count == 0 ? 0 : candidates.Max(edge => edge.X) - candidates.Min(edge => edge.X);
         var height = candidates.Count == 0 ? 0 : candidates.Max(edge => edge.Y) - candidates.Min(edge => edge.Y);
         var initialDistance = Math.Max(4, Math.Sqrt(width * height / count));
+        var minimumTarget = coarseLevel ? Math.Max(Math.Min(candidates.Count, 16), candidates.Count / 2) : Math.Max(Math.Min(candidates.Count, 12), candidates.Count / 2);
         for (var distance = initialDistance; distance >= 1; distance = distance > 1 ? Math.Max(1, distance * 0.75) : 0)
         {
             selected.Clear();
+            var distanceSquared = distance * distance;
             foreach (var edge in candidates)
             {
-                if (selected.All(p => ((p.X - edge.X) * (p.X - edge.X)) + ((p.Y - edge.Y) * (p.Y - edge.Y)) >= distance * distance))
+                var farEnough = true;
+                for (var i = 0; i < selected.Count; i++)
+                {
+                    var p = selected[i];
+                    if (((p.X - edge.X) * (p.X - edge.X)) + ((p.Y - edge.Y) * (p.Y - edge.Y)) < distanceSquared)
+                    {
+                        farEnough = false;
+                        break;
+                    }
+                }
+                if (farEnough)
                 {
                     selected.Add(edge);
                     if (selected.Count == count)
@@ -183,7 +401,7 @@ public static class ShapeTrainer
                     }
                 }
             }
-            if (selected.Count >= Math.Min(count, candidates.Count / 2))
+            if (selected.Count >= Math.Min(count, minimumTarget))
             {
                 return selected;
             }

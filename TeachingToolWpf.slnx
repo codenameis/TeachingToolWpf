@@ -10,9 +10,6 @@
     <Project Path="src/CpuMatching.Cuda/CpuMatching.Cuda.csproj" />
     <Project Path="src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
     <Project Path="src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
-    <Project Path="src/CpuMatching.DirectionalChamfer/CpuMatching.DirectionalChamfer.csproj" />
-    <Project Path="src/PoseMatch.Tdcm/PoseMatch.Tdcm.csproj" />
-    <Project Path="src/PoseMatch.Tdcm.TorchSharp/PoseMatch.Tdcm.TorchSharp.csproj" />
     <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
@@ -35,8 +32,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/CpuMatching.Tests/CpuMatching.Tests.csproj" />
     <Project Path="tests/VisionCanvas.MvvmSample.Tests/VisionCanvas.MvvmSample.Tests.csproj" />
-    <Project Path="tests/PoseMatch.Tdcm.Tests/PoseMatch.Tdcm.Tests.csproj" />
-    <Project Path="tests/PoseMatch.Tdcm.TorchSharp.Tests/PoseMatch.Tdcm.TorchSharp.Tests.csproj" />
     <Project Path="tests/VisionCanvas.Tests/VisionCanvas.Tests.csproj" />
     <Project Path="tests/VisionCanvas.Vulkan.Tests/VisionCanvas.Vulkan.Tests.csproj" />
     <Project Path="tests/VisionCanvas.Skia.Tests/VisionCanvas.Skia.Tests.csproj" />
@@ -48,7 +43,6 @@
     <Project Path="tests/VisionCompute.Tests/VisionCompute.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
-    <Project Path="benchmarks/PoseMatch.Tdcm.Benchmarks/PoseMatch.Tdcm.Benchmarks.csproj" />
     <Project Path="benchmarks/TeachingToolWpf.Matching.Benchmarks/TeachingToolWpf.Matching.Benchmarks.csproj" />
     <Project Path="benchmarks/TeachingToolWpf.Benchmarks/TeachingToolWpf.Benchmarks.csproj" />
     <Project Path="benchmarks/VisionAlgorithm.Benchmarks/VisionAlgorithm.Benchmarks.csproj" />
@@ -66,6 +60,5 @@
     <Project Path="experiments/VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
     <Project Path="experiments/VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
     <Project Path="tools/VisionImaging.Fixtures/VisionImaging.Fixtures.csproj" />
-    <Project Path="tools/PoseMatch.Tdcm.Training/PoseMatch.Tdcm.Training.csproj" />
   </Folder>
 </Solution>

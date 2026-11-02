@@ -48,7 +48,7 @@ internal sealed class GradientImage
         const int Interior = 128;
         const int Halo = 4;
         var output = new GradientImage(image.Width, image.Height, extractEdges: extractEdges);
-        var edges = new List<EdgePoint>();
+        var edges = new List<EdgePoint>(Math.Max(64, image.Width * image.Height / 8));
         for (var top = 0; top < image.Height; top += Interior)
         {
             for (var left = 0; left < image.Width; left += Interior)
@@ -115,7 +115,7 @@ internal sealed class GradientImage
         {
             return result;
         }
-        var edges = new List<EdgePoint>();
+        var edges = new List<EdgePoint>(Math.Max(64, image.Width * image.Height / 8));
         for (var y = 2; y < image.Height - 2; y++)
         {
             token.ThrowIfCancellationRequested();
@@ -353,6 +353,7 @@ internal sealed class GradientImage
         (Vector.ConvertToSingle(high) / 16).CopyTo(output.Slice(Vector<float>.Count));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static float Sample(float[] values, int width, int height, double x, double y)
     {
         if (x < 0 || y < 0 || x > width - 1 || y > height - 1)

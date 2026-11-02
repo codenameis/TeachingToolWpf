@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CpuMatching.Cuda\CpuMatching.Cuda.csproj" />
-    <ProjectReference Include="..\PoseMatch.Tdcm.TorchSharp\PoseMatch.Tdcm.TorchSharp.csproj" />
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
     <ProjectReference Include="..\VisionCanvas.Host\VisionCanvas.Host.csproj" />
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />

@@ -1,5 +1,4 @@
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 
@@ -12,8 +11,6 @@ public sealed class SmallRoiTests
     [InlineData(0, 132)]
     [InlineData(1, 125)]
     [InlineData(1, 132)]
-    [InlineData(2, 125)]
-    [InlineData(2, 132)]
     public void FindsTargetsAtAllImageCornersWithOddAndEvenRowLengths(int algorithm, int width)
     {
         const int TemplateWidth = 33;
@@ -34,8 +31,7 @@ public sealed class SmallRoiTests
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
-            1 => new SubNccMatcher(template),
-            _ => new DirectionalChamferMatcher(template)
+            _ => new SubNccMatcher(template)
         };
         var scene = new byte[width * Height];
         (int X, int Y)[] corners = [(0, 0), (width - TemplateWidth, 0), (0, Height - TemplateHeight), (width - TemplateWidth, Height - TemplateHeight)];

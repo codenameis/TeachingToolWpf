@@ -1,6 +1,5 @@
 using CpuMatching.Core;
 using CpuMatching.Cuda;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 
@@ -13,8 +12,6 @@ public sealed class CudaTemplateMatchingTests
     [InlineData(0, 3)]
     [InlineData(1, 1)]
     [InlineData(1, 3)]
-    [InlineData(2, 1)]
-    [InlineData(2, 3)]
     public void WindowedCpuAndCudaKeepBoundaryMatchesAndCandidateCounts(int algorithm, int levels)
     {
         var (template, small) = Scene();
@@ -27,8 +24,7 @@ public sealed class CudaTemplateMatchingTests
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
-            1 => new SubNccMatcher(template),
-            _ => new DirectionalChamferMatcher(template)
+            _ => new SubNccMatcher(template)
         };
         var options = new SearchOptions { MinimumAngle = 0, MaximumAngle = 90, PyramidLevels = levels, SuppressionRadius = 16 };
         var cpu = matcher.FindWindowed(source, options);
@@ -85,15 +81,13 @@ public sealed class CudaTemplateMatchingTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(2)]
     public void CustomAlgorithmParametersRemainEqualOnCpuAndCuda(int algorithm)
     {
         var (template, image) = Scene();
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template, new() { CoarseFeatures = 80, FineFeatures = 256 }),
-            1 => new SubNccMatcher(template, new() { CoarseSamples = 128, MinimumContrast = 16 }),
-            _ => new DirectionalChamferMatcher(template, new() { CoarseFeatures = 80, FineFeatures = 256, CoarseTolerance = 4, FineTolerance = 1.2, DirectionPenalty = 2 })
+            _ => new SubNccMatcher(template, new() { CoarseSamples = 128, MinimumContrast = 16 })
         };
         var options = new SearchOptions { MinimumAngle = -180, MaximumAngle = 180, SuppressionRadius = 16 };
         var cpu = matcher.Find(image, options);
@@ -111,16 +105,13 @@ public sealed class CudaTemplateMatchingTests
     [InlineData(0, 3)]
     [InlineData(1, 1)]
     [InlineData(1, 3)]
-    [InlineData(2, 1)]
-    [InlineData(2, 3)]
     public void SameCandidatesPoseScoreAndLimitsAtFullAndReducedResolution(int algorithm, int levels)
     {
         var (template, image) = Scene();
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
-            1 => new SubNccMatcher(template),
-            _ => new DirectionalChamferMatcher(template)
+            _ => new SubNccMatcher(template)
         };
         using var session = new CudaTemplateScoreSession();
         var options = new SearchOptions { MinimumAngle = -180, MaximumAngle = 180, PyramidLevels = levels, SuppressionRadius = 16 };

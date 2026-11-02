@@ -1,5 +1,4 @@
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 
@@ -7,13 +6,11 @@ namespace CpuMatching.Tests;
 
 public sealed class FullSearchAccuracyTests
 {
-    [Theory]
-    [InlineData("Line2D")]
-    [InlineData("Chamfer")]
-    public void SerialMapPreparationKeepsParallelResults(string method)
+    [Fact]
+    public void SerialMapPreparationKeepsParallelResults()
     {
         var template = Read("pin-template-106x129.gray", 106, 129);
-        ITemplateMatcher matcher = method == "Line2D" ? new Line2DMatcher(template) : new DirectionalChamferMatcher(template);
+        ITemplateMatcher matcher = new Line2DMatcher(template);
         var image = Read("pin-crossing-256x256.gray", 256, 256);
         var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6 };
         var parallel = matcher.Find(image, options);

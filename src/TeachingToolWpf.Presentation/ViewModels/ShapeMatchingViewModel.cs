@@ -51,7 +51,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
     public string VerdictText => Verdict is { } verdict ? InspectionResultPresentation.Name(verdict) : IsIdle ? "검사 대기" : "처리 중";
     public string VerdictColor => Verdict is { } verdict ? InspectionResultPresentation.Hex(verdict) : "#94A3B8";
     public RelayCommand Locate { get; }
-    public string ModelSummary => IsCpuMethod ? CpuSummary : IsTdcmMethod ? TdcmSummary : !IsShapeMethod ? TemplateSummary : Model is not { } model ? "학습된 모델 없음" :
+    public string ModelSummary => IsCpuMethod ? CpuSummary : !IsShapeMethod ? TemplateSummary : Model is not { } model ? "학습된 모델 없음" :
         $"특징 {model.Levels[0].Features.Length}개 · {model.Levels.Length}단계(자동) · 템플릿 {model.TemplateCount}개" +
         (model.HasFineDetailModel ? " · 원본 세부 획 검증" : "") +
         (InspectRotation ? " · 회전 검사: 전체 방향 탐색" : "") +
@@ -98,14 +98,13 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         set => ChangeSearchSettings(ActiveSearchSettings with { UseSelection = value });
     }
 
-    public ShapeMatchingViewModel(IShapeMatchingService service, ITemplateMatchingService? templateService = null, ITdcmMatchingService? tdcmService = null,
+    public ShapeMatchingViewModel(IShapeMatchingService service, ITemplateMatchingService? templateService = null,
         ICpuTemplateMatchingService? cpuService = null)
     {
         _service = service;
         _templateService = templateService;
-        _tdcmService = tdcmService;
         _cpuService = cpuService;
-        Train = new(TrainAsync, Failed, () => IsIdle && _canExecute && _image is not null && _selection is not null && OptionsError.Length == 0 && (IsCpuMethod ? _cpuService is not null : IsShapeMethod || (IsTdcmMethod ? _tdcmService is not null : _templateService is not null)));
+        Train = new(TrainAsync, Failed, () => IsIdle && _canExecute && _image is not null && _selection is not null && OptionsError.Length == 0 && (IsCpuMethod ? _cpuService is not null : IsShapeMethod || _templateService is not null));
         Search = new(SearchAsync, Failed, () => IsIdle && _canExecute && _image is not null && HasModel && !IsTrainingDirty && OptionsError.Length == 0 && (!UseSelection || _selection is not null));
         Cancel = new(() => _cancellation?.Cancel(), () => _cancellation is not null);
         Clear = new(ClearModel, () => IsIdle && HasModel);
@@ -129,10 +128,6 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
             {
                 mode.IsMaskDirty = !cpuRoi.Masks.IsEmpty;
             }
-        }
-        if (_tdcmTeachingId is { } tdcmId && state.Rois.TryGetValue(tdcmId, out var tdcmRoi))
-        {
-            _tdcmMaskDirty = !tdcmRoi.Masks.IsEmpty;
         }
         // 종이 템플릿은 학습 시점 마스크와 지금 마스크를 비교해야 오염 여부를 알 수 있다.
         if (_paperState.TeachingRoiId is { } paperId && state.Rois.TryGetValue(paperId, out var paperRoi))
@@ -170,11 +165,6 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         if (IsCpuMethod)
         {
             await TrainCpuAsync();
-            return;
-        }
-        if (IsTdcmMethod)
-        {
-            await TrainTdcmAsync();
             return;
         }
         if (!IsShapeMethod)
@@ -223,11 +213,6 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IDisposab
         if (IsCpuMethod)
         {
             await SearchCpuAsync(startedTimestamp);
-            return;
-        }
-        if (IsTdcmMethod)
-        {
-            await SearchTdcmAsync(startedTimestamp);
             return;
         }
         if (!IsShapeMethod)

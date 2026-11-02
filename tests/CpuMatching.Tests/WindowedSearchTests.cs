@@ -1,5 +1,4 @@
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 
@@ -43,13 +42,10 @@ public sealed class WindowedSearchTests
     [Theory]
     [InlineData(0, 1109, 2)]
     [InlineData(1, 1109, 2)]
-    [InlineData(2, 1109, 2)]
     [InlineData(0, 1109, 3)]
     [InlineData(1, 1109, 3)]
-    [InlineData(2, 1109, 3)]
     [InlineData(0, 2117, 3)]
     [InlineData(1, 2117, 3)]
-    [InlineData(2, 2117, 3)]
     public void GlobalPyramidPhaseBoundaryPeaksAndSuppressionMatchContiguousSearch(int algorithm, int width, int levels)
     {
         const int Height = 1083;
@@ -68,8 +64,7 @@ public sealed class WindowedSearchTests
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
-            1 => new SubNccMatcher(template),
-            _ => new DirectionalChamferMatcher(template)
+            _ => new SubNccMatcher(template)
         };
         var scene = new byte[width * Height];
         (int X, int Y)[] locations = [(1012, 1005), (480, 480), (12, 13), (1040, 17)];

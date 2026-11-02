@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using CpuMatching.Core;
-using CpuMatching.DirectionalChamfer;
 using CpuMatching.Line2D;
 using CpuMatching.SubNcc;
 using OpenCvSharp;
@@ -32,8 +31,8 @@ internal static class NarrowRoiBenchmark
         var inputs = cases.Select(item => (Case: item, Image: Dataset.Read(Path.Combine(folder, item.Image)),
             Template: Dataset.Read(Path.Combine(folder, item.Template)))).ToArray();
         var rows = new List<object>();
-        string[] methods = ["Line2D", "SubNcc", "DirectionalChamfer"];
-        // 첫 순회 및 세 번의 워밍업도 기록한다. 측정 중 디코딩/강제 GC/모델 결과 캐시는 없다.
+        string[] methods = ["Line2D", "SubNcc"];
+        // 첫 순회 및 워밍업도 기록한다. 측정 중 디코딩/강제 GC/모델 결과 캐시는 없다.
         for (var round = -warmups; round < repeats; round++)
         {
             for (var index = 0; index < inputs.Length; index++)
@@ -47,8 +46,7 @@ internal static class NarrowRoiBenchmark
                     ITemplateMatcher matcher = method switch
                     {
                         "Line2D" => new Line2DMatcher(input.Template),
-                        "SubNcc" => new SubNccMatcher(input.Template),
-                        _ => new DirectionalChamferMatcher(input.Template)
+                        _ => new SubNccMatcher(input.Template)
                     };
                     var trainMs = watch.Elapsed.TotalMilliseconds;
                     var result = matcher.Find(input.Image, input.Case.Options, acceptCenter: input.Case.Centers is not { } centers ? null :
@@ -84,7 +82,7 @@ internal static class NarrowRoiBenchmark
             Scope = "CPU model creation + Find; decoding/UI excluded; fresh matcher every call; no previous-frame result reuse",
             WarmupRounds = warmups,
             MeasuredRounds = repeats,
-            Assemblies = new[] { typeof(PyramidSearch), typeof(Line2DMatcher), typeof(SubNccMatcher), typeof(DirectionalChamferMatcher) }
+            Assemblies = new[] { typeof(PyramidSearch), typeof(Line2DMatcher), typeof(SubNccMatcher) }
                 .Select(type => new { Name = type.Assembly.GetName().Name, Sha256 = Hash(type.Assembly.Location) }),
             Inputs = cases.Select(item => new { item.Name, ImageSha256 = Hash(Path.Combine(folder, item.Image)), TemplateSha256 = Hash(Path.Combine(folder, item.Template)) }),
             Rows = rows

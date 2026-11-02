@@ -130,21 +130,56 @@ public sealed class ShapeMatcher
             {
                 return;
             }
+            var initialRefinementStatus = detail is not null && options.Refine && options.Verify
+                ? RefinementStatus.Converged : RefinementStatus.Disabled;
             verified[i] = new(pose, candidate.Score, score.Score, score.Support, score.Quadrants,
-                new(RefinementStatus.Disabled, pose, double.NaN, double.NaN, 0, 0, true));
+                new(initialRefinementStatus, pose, double.NaN, double.NaN, 0, 0, true));
             if (detail is not null)
             {
-                var refined = options.Refine ? detail.Optimize(image.Original!, model, pose, options, cancellationToken)
-                    : (Pose: pose, Score: detail.Score(image.Original!, pose, model.Options.Polarity));
-                var directional = ContinuousVerifier.Score(image.Gradients[0], model, refined.Pose);
-                verified[i] = verified[i]! with
+                if (candidate.DetailConsistency is { } detailScore)
                 {
-                    Pose = refined.Pose,
-                    Score = directional.Score,
-                    Support = directional.Support,
-                    SupportedQuadrants = directional.Quadrants,
-                    DetailConsistency = refined.Score
-                };
+                    var directional = ContinuousVerifier.Score(image.Gradients[0], model, pose);
+                    verified[i] = verified[i]! with
+                    {
+                        Score = directional.Score,
+                        Support = directional.Support,
+                        SupportedQuadrants = directional.Quadrants,
+                        DetailConsistency = detailScore
+                    };
+                }
+                else
+                {
+                    var initialDetail = detail.Score(image.Original!, pose, model.Options.Polarity);
+                    var initialDirectional = ContinuousVerifier.Score(image.Gradients[0], model, pose);
+                    var bestPose = pose;
+                    var bestDirectional = initialDirectional;
+                    var bestDetail = initialDetail;
+                    if (options.Refine)
+                    {
+                        var refined = detail.Optimize(image.Original!, model, pose, options, cancellationToken);
+                        var directional = ContinuousVerifier.Score(image.Gradients[0], model, refined.Pose);
+                        if (directional.Score >= options.MinimumScore && directional.Support >= options.MinimumSupport &&
+                            directional.Score * (1 - (options.ClutterWeight * (1 - refined.Score))) >
+                            initialDirectional.Score * (1 - (options.ClutterWeight * (1 - initialDetail))) + 1e-9)
+                        {
+                            bestPose = refined.Pose;
+                            bestDirectional = directional;
+                            bestDetail = refined.Score;
+                        }
+                    }
+                    verified[i] = verified[i]! with
+                    {
+                        Pose = bestPose,
+                        Score = bestDirectional.Score,
+                        Support = bestDirectional.Support,
+                        SupportedQuadrants = bestDirectional.Quadrants,
+                        DetailConsistency = bestDetail,
+                        Refinement = verified[i]!.Refinement with
+                        {
+                            Status = options.Refine && options.Verify ? RefinementStatus.Converged : RefinementStatus.Disabled
+                        }
+                    };
+                }
             }
         });
         var verificationTime = timer.Elapsed.TotalMilliseconds;
@@ -176,13 +211,59 @@ public sealed class ShapeMatcher
             {
                 var clutter = ClutterEvaluator.EvaluateClutter(image.Gradients[0], model,
                         final.Pose, options.ClutterTolerancePixels, cancellationToken);
+                var combinedScore = final.DirectionScore * (1 - (options.ClutterWeight * clutter.EnergyRatio)) *
+                    (1 - (options.ClutterWeight * (1 - (final.DetailConsistency ?? 1))));
                 final = final with
                 {
                     ClutterRatio = clutter.Ratio,
                     ClutterPenaltyRatio = clutter.EnergyRatio,
-                    Score = final.DirectionScore * (1 - (options.ClutterWeight * clutter.EnergyRatio)) *
-                        (1 - (options.ClutterWeight * (1 - (final.DetailConsistency ?? 1))))
+                    Score = combinedScore
                 };
+                if (detail is { HasElasticPatches: true } && image.Original is { } orig &&
+                    clutter.EnergyRatio > 0.08 && (final.DetailConsistency ?? 0) >= 0.75)
+                {
+                    var basePose = final.Pose;
+                    for (var dy = -2; dy <= 2; dy++)
+                    {
+                        for (var dx = -1; dx <= 1; dx++)
+                        {
+                            if (dx == 0 && dy == 0)
+                            {
+                                continue;
+                            }
+                            var shiftedPose = basePose with { X = basePose.X + dx, Y = basePose.Y + dy };
+                            if (shiftedPose.X < 0 || shiftedPose.Y < 0 || shiftedPose.X > image.Width || shiftedPose.Y > image.Height ||
+                                !(options.Region?.Contains(shiftedPose.X, shiftedPose.Y) ?? true))
+                            {
+                                continue;
+                            }
+                            var dir = ContinuousVerifier.Score(image.Gradients[0], model, shiftedPose);
+                            if (dir.Score < options.MinimumScore || dir.Support < options.MinimumSupport)
+                            {
+                                continue;
+                            }
+                            var clut = ClutterEvaluator.EvaluateClutter(image.Gradients[0], model,
+                                shiftedPose, options.ClutterTolerancePixels, cancellationToken);
+                            var det = detail.Score(orig, shiftedPose, model.Options.Polarity);
+                            var candScore = dir.Score * (1 - (options.ClutterWeight * clut.EnergyRatio)) *
+                                (1 - (options.ClutterWeight * (1 - det)));
+                            if (candScore > final.Score + 1e-9)
+                            {
+                                final = final with
+                                {
+                                    Pose = shiftedPose,
+                                    DirectionScore = dir.Score,
+                                    Support = dir.Support,
+                                    SupportedQuadrants = dir.Quadrants,
+                                    ClutterRatio = clut.Ratio,
+                                    ClutterPenaltyRatio = clut.EnergyRatio,
+                                    DetailConsistency = det,
+                                    Score = candScore
+                                };
+                            }
+                        }
+                    }
+                }
                 if (final.Score < options.MinimumScore)
                 {
                     continue;

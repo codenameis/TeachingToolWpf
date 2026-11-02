@@ -70,8 +70,9 @@ internal static partial class InspectionSmoke
                 checkbox.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
                 Require(matching.ShowFeatures && matching.Overlay!.ShowFeatures, "feature checkbox binding");
                 await Capture("inspection-features-on");
-                var off = PixelCounts("artifacts/inspection-features-off.png", result.Color);
+                var off = PixelCounts("artifacts/inspection-features-on.png", result.Color);
                 var on = PixelCounts("artifacts/inspection-features-on.png", result.Color);
+                off = PixelCounts("artifacts/inspection-features-off.png", result.Color);
                 Require(on > off + 50, $"visible feature pixels: off={off} on={on}");
                 Require(ReferenceEquals(originalState, model.Session.State) && historyBytes == model.Session.HistoryBytes, "display options preserve document/history");
                 model.Session.Select([]);
@@ -108,7 +109,7 @@ internal static partial class InspectionSmoke
                 model.Session.Select([model.Session.State.Rois.Keys.Single()]);
                 var methodSelector = Descendants(panel).OfType<ComboBox>().Single(box =>
                     System.Windows.Automation.AutomationProperties.GetName(box) == "매칭 방식");
-                Require(methodSelector.Items.Count == 3, "paper, OpenCV and PoseMatch-TDCM pattern modes");
+                Require(methodSelector.Items.Count == 4, "OpenCV, Hybrid Shape, CpuLine2D, and CpuSubNcc pattern modes");
                 Require(!Descendants(panel).OfType<Expander>().Any(item => item.Header?.ToString()?.Contains("기하 검증") == true), "removed geometric quality controls are absent");
                 methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.OpenCvTemplate);
                 Require(matching.Method == PatternMatchingMethod.OpenCvTemplate && !checkbox.IsEnabled, "OpenCV method selector disables unsupported features");
@@ -120,14 +121,6 @@ internal static partial class InspectionSmoke
                 Log(matching.Status);
                 await Capture("inspection-opencv");
                 WindowCapture.Save(window, viewport, "artifacts/inspection-opencv.png", "artifacts/inspection-opencv-app.png");
-                methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.PoseMatchTdcm);
-                await Invoke(matching.Train);
-                Require(matching.HasModel && matching.ModelSummary.Contains("PoseMatch-TDCM"), "TDCM original ROI training");
-                await Invoke(matching.Search);
-                Require(matching.Verdict is InspectionVerdict.Review or InspectionVerdict.Warning, "TDCM real ONNX inference completes without pretending quality OK");
-                Require(matching.Status.Contains("추론/후처리"), "TDCM measured inference timing");
-                Log(matching.Status);
-                await Capture("inspection-tdcm");
                 methodSelector.SetCurrentValue(Selector.SelectedValueProperty, PatternMatchingMethod.Shape);
                 matching.MinimumScore = .72;
                 Require(matching.Model is not null, "switching methods preserves shape model");

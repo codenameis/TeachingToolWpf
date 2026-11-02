@@ -79,6 +79,11 @@ public sealed record SearchOptions
 {
     public double CandidateThreshold { get; init; } = 0.65;
     public double MinimumScore { get; init; } = 0.72;
+    /// <summary>Halcon식 조기 종료 강도(0~1). 0은 수학적 상한(무손실 Branch-and-Bound), 1은 선형 기대 점수 기반 고속 가지치기다.</summary>
+    public double Greediness
+    {
+        get; init;
+    }
     /// <summary>방향 점수 × (1 - 가중치 × 추가 윤곽 에너지 비율).
     /// 작은 논문 모델은 원본 세부 설명 에너지 D의 (1 - 가중치 × (1-D))를 추가 적용한다. 0은 방향 점수를 유지한다.</summary>
     public double ClutterWeight
@@ -113,7 +118,7 @@ public sealed record SearchOptions
 
     public void Validate()
     {
-        foreach (var value in new[] { CandidateThreshold, MinimumScore, MinimumSupport, MaximumOverlap, ClutterWeight })
+        foreach (var value in new[] { CandidateThreshold, MinimumScore, MinimumSupport, MaximumOverlap, ClutterWeight, Greediness })
         {
             if (!double.IsFinite(value) || value is < 0 or > 1)
             {

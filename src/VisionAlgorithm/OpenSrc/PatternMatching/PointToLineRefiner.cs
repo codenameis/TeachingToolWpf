@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace VisionAlgorithm.OpenSrc.PatternMatching;
 
 public static class PointToLineRefiner
@@ -8,6 +10,7 @@ public static class PointToLineRefiner
         public double this[int index] => index switch { 0 => X, 1 => Y, 2 => Angle, 3 => LogScale, _ => throw new ArgumentOutOfRangeException(nameof(index)) };
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static ShapeMatch Refine(PreparedSearchImage image, ShapeModel model, ShapeMatch match,
         SearchOptions options, CancellationToken cancellationToken = default)
     {
@@ -19,41 +22,64 @@ public static class PointToLineRefiner
         var count = 0;
         var iterations = 0;
         var observable = true;
-        var active = new List<int> { 0, 1 };
-        if (model.Options.MaximumAngleDegrees > model.Options.MinimumAngleDegrees)
+        Span<int> active = stackalloc int[4];
+        active[0] = 0;
+        active[1] = 1;
+        var dimensions = 2;
+        var hasAngleDimension = model.Options.MaximumAngleDegrees > model.Options.MinimumAngleDegrees;
+        if (hasAngleDimension)
         {
-            active.Add(2);
+            active[dimensions++] = 2;
         }
         if (model.Options.MaximumScale > model.Options.MinimumScale)
         {
-            active.Add(3);
+            active[dimensions++] = 3;
         }
-        var dimensions = active.Count;
+        var features = model.Levels[0].Features;
+        var meanFeatureRadiusSquared = 0d;
+        for (var i = 0; i < features.Length; i++)
+        {
+            var f = features[i];
+            meanFeatureRadiusSquared += (f.X * f.X) + (f.Y * f.Y);
+        }
+        meanFeatureRadiusSquared /= features.Length;
+
+        Span<Correspondence> pairBuffer = stackalloc Correspondence[features.Length];
+        Span<double> normal = stackalloc double[16];
+        Span<double> right = stackalloc double[4];
+        Span<double> solved = stackalloc double[4];
+        Span<double> delta = stackalloc double[4];
+
         for (var iteration = 0; iteration < 20; iteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             iterations = iteration + 1;
-            var pairs = Correspond(image.Gradients[0], model, pose);
-            count = pairs.Count;
-            if (count < Math.Max(12, model.Levels[0].Features.Length / 4))
+            count = Correspond(image.Gradients[0], model, pose, pairBuffer);
+            var pairs = pairBuffer.Slice(0, count);
+            if (count < Math.Max(12, features.Length / 4))
             {
                 status = RefinementStatus.InsufficientSupport;
                 break;
             }
-            var normal = new double[dimensions, dimensions];
-            var right = new double[dimensions];
+            normal.Clear();
+            right.Clear();
             var residual = 0d;
-            foreach (var pair in pairs)
+            var angularEnergy = 0d;
+            for (var index = 0; index < pairs.Length; index++)
             {
+                var pair = pairs[index];
                 var (r, jacobian) = ResidualAndJacobian(pair.Feature, pair.Edge, pose);
                 var weight = Math.Abs(r) <= 1 ? 1 : 1 / Math.Abs(r);
                 residual += r * r;
+                angularEnergy += jacobian.Angle * jacobian.Angle;
                 for (var row = 0; row < dimensions; row++)
                 {
-                    right[row] -= weight * jacobian[active[row]] * r;
+                    var activeRow = active[row];
+                    var weightedRowJacobian = weight * jacobian[activeRow];
+                    right[row] -= weightedRowJacobian * r;
                     for (var column = 0; column < dimensions; column++)
                     {
-                        normal[row, column] += weight * jacobian[active[row]] * jacobian[active[column]];
+                        normal[(row * dimensions) + column] += weightedRowJacobian * jacobian[active[column]];
                     }
                 }
             }
@@ -63,19 +89,14 @@ public static class PointToLineRefiner
                 initialResidual = rms;
             }
             finalResidual = rms;
-            var radiusSquared = model.Levels[0].Features.Average(f => (f.X * f.X) + (f.Y * f.Y)) * pose.Scale * pose.Scale;
-            var angularEnergy = pairs.Sum(p =>
-            {
-                var (_, j) = ResidualAndJacobian(p.Feature, p.Edge, pose);
-                return j.Angle * j.Angle;
-            });
+            var radiusSquared = meanFeatureRadiusSquared * pose.Scale * pose.Scale;
             observable = angularEnergy > 0.002 * radiusSquared * count;
-            if ((!observable && active.Contains(2)) || !TrySolve(normal, right, out var solved))
+            if ((!observable && hasAngleDimension) || !TrySolve(normal, right, dimensions, solved))
             {
                 status = RefinementStatus.IllConditioned;
                 break;
             }
-            var delta = new double[4];
+            delta.Clear();
             for (var i = 0; i < dimensions; i++)
             {
                 delta[active[i]] = solved[i];
@@ -87,6 +108,7 @@ public static class PointToLineRefiner
                 break;
             }
             var accepted = false;
+            var currentRobustCost = RobustCost(pairs, pose);
             for (var trial = 0; trial < 8; trial++)
             {
                 var fraction = 1d / (1 << trial);
@@ -96,7 +118,7 @@ public static class PointToLineRefiner
                 {
                     continue;
                 }
-                if (RobustCost(pairs, proposal) <= RobustCost(pairs, pose) + 1e-10)
+                if (RobustCost(pairs, proposal) <= currentRobustCost + 1e-10)
                 {
                     pose = proposal;
                     accepted = true;
@@ -116,11 +138,11 @@ public static class PointToLineRefiner
             }
         }
         var score = ContinuousVerifier.Score(image.Gradients[0], model, pose);
-        var finalPairs = Correspond(image.Gradients[0], model, pose);
-        finalResidual = ResidualRms(finalPairs, pose);
+        var finalCount = Correspond(image.Gradients[0], model, pose, pairBuffer);
+        finalResidual = ResidualRms(pairBuffer.Slice(0, finalCount), pose);
         if (status is RefinementStatus.Converged or RefinementStatus.IterationLimit &&
             (score.Score < options.MinimumScore || score.Support < options.MinimumSupport ||
-            finalResidual > initialResidual + 0.01 || Math.Abs(pose.X - initial.X) > 6 || Math.Abs(pose.Y - initial.Y) > 6))
+            finalResidual > initialResidual + 0.01 || (model.Options.BuildClutterModel && model.Options.UseFineDetailValidation && score.Score < match.Score - 0.01) || Math.Abs(pose.X - initial.X) > 6 || Math.Abs(pose.Y - initial.Y) > 6))
         {
             status = RefinementStatus.Rejected;
         }
@@ -128,8 +150,8 @@ public static class PointToLineRefiner
         {
             pose = initial;
             score = new(match.DirectionScore, match.Support, match.SupportedQuadrants);
-            finalPairs = Correspond(image.Gradients[0], model, pose);
-            finalResidual = ResidualRms(finalPairs, pose);
+            finalCount = Correspond(image.Gradients[0], model, pose, pairBuffer);
+            finalResidual = ResidualRms(pairBuffer.Slice(0, finalCount), pose);
         }
         return match with
         {
@@ -141,7 +163,7 @@ public static class PointToLineRefiner
             DirectionScore = score.Score,
             Support = score.Support,
             SupportedQuadrants = score.Quadrants,
-            Refinement = new(status, initial, initialResidual, finalResidual, iterations, finalPairs.Count, observable)
+            Refinement = new(status, initial, initialResidual, finalResidual, iterations, finalCount, observable)
         };
     }
 
@@ -156,13 +178,15 @@ public static class PointToLineRefiner
             (edge.NormalX * x) + (edge.NormalY * y)));
     }
 
-    private static List<Correspondence> Correspond(GradientImage image, ShapeModel model, MatchPose pose)
+    private static int Correspond(GradientImage image, ShapeModel model, MatchPose pose, Span<Correspondence> destination)
     {
-        var pairs = new List<Correspondence>(model.Levels[0].Features.Length);
+        var count = 0;
         var cos = Math.Cos(pose.Angle);
         var sin = Math.Sin(pose.Angle);
-        foreach (var feature in model.Levels[0].Features)
+        var features = model.Levels[0].Features;
+        for (var index = 0; index < features.Length; index++)
         {
+            var feature = features[index];
             var x = pose.X + (pose.Scale * ((cos * feature.X) - (sin * feature.Y)));
             var y = pose.Y + (pose.Scale * ((sin * feature.X) + (cos * feature.Y)));
             var nx = (cos * feature.NormalX) - (sin * feature.NormalY);
@@ -192,38 +216,46 @@ public static class PointToLineRefiner
             }
             if (best is { } found)
             {
-                pairs.Add(new(feature, found));
+                destination[count++] = new(feature, found);
             }
         }
-        return pairs;
+        return count;
     }
 
-    private static double RobustCost(List<Correspondence> pairs, MatchPose pose)
+    private static double RobustCost(ReadOnlySpan<Correspondence> pairs, MatchPose pose)
     {
         var sum = 0d;
-        foreach (var pair in pairs)
+        for (var index = 0; index < pairs.Length; index++)
         {
+            var pair = pairs[index];
             var (r, _) = ResidualAndJacobian(pair.Feature, pair.Edge, pose);
             sum += Math.Abs(r) <= 1 ? r * r / 2 : Math.Abs(r) - 0.5;
         }
         return sum;
     }
 
-    private static double ResidualRms(List<Correspondence> pairs, MatchPose pose)
-        => pairs.Count > 0 ? Math.Sqrt(pairs.Average(pair =>
-        {
-            var (residual, _) = ResidualAndJacobian(pair.Feature, pair.Edge, pose);
-            return residual * residual;
-        })) : double.NaN;
-
-    private static bool TrySolve(double[,] matrix, double[] right, out double[] solution)
+    private static double ResidualRms(ReadOnlySpan<Correspondence> pairs, MatchPose pose)
     {
-        var n = right.Length;
-        solution = new double[n];
-        var scales = new double[n];
+        if (pairs.IsEmpty)
+        {
+            return double.NaN;
+        }
+        var sumSquared = 0d;
+        for (var index = 0; index < pairs.Length; index++)
+        {
+            var pair = pairs[index];
+            var (residual, _) = ResidualAndJacobian(pair.Feature, pair.Edge, pose);
+            sumSquared += residual * residual;
+        }
+        return Math.Sqrt(sumSquared / pairs.Length);
+    }
+
+    private static bool TrySolve(Span<double> matrix, Span<double> right, int n, Span<double> solution)
+    {
+        Span<double> scales = stackalloc double[4];
         for (var i = 0; i < n; i++)
         {
-            scales[i] = Math.Sqrt(matrix[i, i]);
+            scales[i] = Math.Sqrt(matrix[(i * n) + i]);
             if (scales[i] < 1e-8)
             {
                 return false;
@@ -234,7 +266,7 @@ public static class PointToLineRefiner
             right[i] /= scales[i];
             for (var j = 0; j < n; j++)
             {
-                matrix[i, j] /= scales[i] * scales[j];
+                matrix[(i * n) + j] /= scales[i] * scales[j];
             }
         }
         for (var k = 0; k < n; k++)
@@ -242,26 +274,28 @@ public static class PointToLineRefiner
             var pivot = k;
             for (var i = k + 1; i < n; i++)
             {
-                if (Math.Abs(matrix[i, k]) > Math.Abs(matrix[pivot, k]))
+                if (Math.Abs(matrix[(i * n) + k]) > Math.Abs(matrix[(pivot * n) + k]))
                 {
                     pivot = i;
                 }
             }
-            if (Math.Abs(matrix[pivot, k]) < 1e-5)
+            if (Math.Abs(matrix[(pivot * n) + k]) < 1e-5)
             {
                 return false;
             }
             for (var j = k; j < n; j++)
             {
-                (matrix[k, j], matrix[pivot, j]) = (matrix[pivot, j], matrix[k, j]);
+                var rowK = (k * n) + j;
+                var rowPivot = (pivot * n) + j;
+                (matrix[rowK], matrix[rowPivot]) = (matrix[rowPivot], matrix[rowK]);
             }
             (right[k], right[pivot]) = (right[pivot], right[k]);
             for (var i = k + 1; i < n; i++)
             {
-                var ratio = matrix[i, k] / matrix[k, k];
+                var ratio = matrix[(i * n) + k] / matrix[(k * n) + k];
                 for (var j = k; j < n; j++)
                 {
-                    matrix[i, j] -= ratio * matrix[k, j];
+                    matrix[(i * n) + j] -= ratio * matrix[(k * n) + j];
                 }
                 right[i] -= ratio * right[k];
             }
@@ -271,14 +305,18 @@ public static class PointToLineRefiner
             var sum = right[i];
             for (var j = i + 1; j < n; j++)
             {
-                sum -= matrix[i, j] * solution[j];
+                sum -= matrix[(i * n) + j] * solution[j];
             }
-            solution[i] = sum / matrix[i, i];
+            solution[i] = sum / matrix[(i * n) + i];
         }
         for (var i = 0; i < n; i++)
         {
             solution[i] /= scales[i];
+            if (!double.IsFinite(solution[i]))
+            {
+                return false;
+            }
         }
-        return solution.All(double.IsFinite);
+        return true;
     }
 }

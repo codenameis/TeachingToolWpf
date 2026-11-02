@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using TeachingToolWpf.Models;
@@ -16,21 +16,18 @@ public sealed partial class ShapeMatchingViewModel
     private readonly Dictionary<PatternMatchingMethod, CpuMatchingModeState> _cpuStates = new()
     {
         [PatternMatchingMethod.CpuLine2D] = new(),
-        [PatternMatchingMethod.CpuSubNcc] = new(),
-        [PatternMatchingMethod.CpuDirectionalChamfer] = new()
+        [PatternMatchingMethod.CpuSubNcc] = new()
     };
     private readonly List<CpuInspectionRun> _cpuLogs = [];
     public IReadOnlyList<CpuInspectionRun> CpuInspectionLogs => _cpuLogs.AsReadOnly();
     public bool IsCpuMethod => _cpuStates.ContainsKey(Method);
     public bool IsCpuSubNcc => Method == PatternMatchingMethod.CpuSubNcc;
-    public bool IsCpuChamfer => Method == PatternMatchingMethod.CpuDirectionalChamfer;
-    public bool IsCpuEdgeMethod => Method is PatternMatchingMethod.CpuLine2D or PatternMatchingMethod.CpuDirectionalChamfer;
+    public bool IsCpuEdgeMethod => Method == PatternMatchingMethod.CpuLine2D;
     private CpuMatchingModeState ActiveCpuState => _cpuStates[IsCpuMethod ? Method : PatternMatchingMethod.CpuLine2D];
     private CpuTemplateMethod CpuMethod => Method switch
     {
         PatternMatchingMethod.CpuLine2D => CpuTemplateMethod.Line2D,
         PatternMatchingMethod.CpuSubNcc => CpuTemplateMethod.SubNcc,
-        PatternMatchingMethod.CpuDirectionalChamfer => CpuTemplateMethod.DirectionalChamfer,
         _ => throw new InvalidOperationException("CPU 방식을 선택하세요.")
     };
     public double CpuMinimumAngle
@@ -75,41 +72,25 @@ public sealed partial class ShapeMatchingViewModel
     }
     public int CpuCoarseFeatures
     {
-        get => IsCpuChamfer ? ActiveCpuState.Parameters.Chamfer.CoarseFeatures : ActiveCpuState.Parameters.Line2D.CoarseFeatures;
-        set => ChangeCpuParameters(IsCpuChamfer
-            ? ActiveCpuState.Parameters with
+        get => ActiveCpuState.Parameters.Line2D.CoarseFeatures;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with
+        {
+            Line2D = ActiveCpuState.Parameters.Line2D with
             {
-                Chamfer = ActiveCpuState.Parameters.Chamfer with
-                {
-                    CoarseFeatures = value
-                }
+                CoarseFeatures = value
             }
-            : ActiveCpuState.Parameters with
-            {
-                Line2D = ActiveCpuState.Parameters.Line2D with
-                {
-                    CoarseFeatures = value
-                }
-            });
+        });
     }
     public int CpuFineFeatures
     {
-        get => IsCpuChamfer ? ActiveCpuState.Parameters.Chamfer.FineFeatures : ActiveCpuState.Parameters.Line2D.FineFeatures;
-        set => ChangeCpuParameters(IsCpuChamfer
-            ? ActiveCpuState.Parameters with
+        get => ActiveCpuState.Parameters.Line2D.FineFeatures;
+        set => ChangeCpuParameters(ActiveCpuState.Parameters with
+        {
+            Line2D = ActiveCpuState.Parameters.Line2D with
             {
-                Chamfer = ActiveCpuState.Parameters.Chamfer with
-                {
-                    FineFeatures = value
-                }
+                FineFeatures = value
             }
-            : ActiveCpuState.Parameters with
-            {
-                Line2D = ActiveCpuState.Parameters.Line2D with
-                {
-                    FineFeatures = value
-                }
-            });
+        });
     }
     public int CpuNccCoarseSamples
     {
@@ -120,21 +101,6 @@ public sealed partial class ShapeMatchingViewModel
     {
         get => ActiveCpuState.Parameters.SubNcc.MinimumContrast;
         set => ChangeCpuParameters(ActiveCpuState.Parameters with { SubNcc = ActiveCpuState.Parameters.SubNcc with { MinimumContrast = value } });
-    }
-    public double CpuChamferCoarseTolerance
-    {
-        get => ActiveCpuState.Parameters.Chamfer.CoarseTolerance;
-        set => ChangeCpuParameters(ActiveCpuState.Parameters with { Chamfer = ActiveCpuState.Parameters.Chamfer with { CoarseTolerance = value } });
-    }
-    public double CpuChamferFineTolerance
-    {
-        get => ActiveCpuState.Parameters.Chamfer.FineTolerance;
-        set => ChangeCpuParameters(ActiveCpuState.Parameters with { Chamfer = ActiveCpuState.Parameters.Chamfer with { FineTolerance = value } });
-    }
-    public double CpuChamferDirectionPenalty
-    {
-        get => ActiveCpuState.Parameters.Chamfer.DirectionPenalty;
-        set => ChangeCpuParameters(ActiveCpuState.Parameters with { Chamfer = ActiveCpuState.Parameters.Chamfer with { DirectionPenalty = value } });
     }
 
     private void ChangeCpuParameters(CpuTemplateParameters parameters, [CallerMemberName] string? property = null)

@@ -13,7 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="..\TeachingToolWpf.Presentation\TeachingToolWpf.Presentation.csproj" />
     <ProjectReference Include="..\CpuMatching.Cuda\CpuMatching.Cuda.csproj" />
-    <ProjectReference Include="..\PoseMatch.Tdcm.TorchSharp\PoseMatch.Tdcm.TorchSharp.csproj" />
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
     <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
