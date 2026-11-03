@@ -30,6 +30,76 @@ internal static class ClutterEvaluator
         var maxRow = Math.Min(image.Height - 1, (int)Math.Ceiling(pose.Y + searchRadius));
         var minCol = Math.Max(0, (int)Math.Floor(pose.X - searchRadius));
         var maxCol = Math.Min(image.Width - 1, (int)Math.Ceiling(pose.X + searchRadius));
+        var features = model.Levels[0].Features;
+        var partitions = !model.FeaturePartitions.IsDefault && model.FeaturePartitions.Length == features.Length ? model.FeaturePartitions : default;
+        byte occludedPartitionMask = 0;
+        Span<double> pMinX = stackalloc double[8];
+        Span<double> pMaxX = stackalloc double[8];
+        Span<double> pMinY = stackalloc double[8];
+        Span<double> pMaxY = stackalloc double[8];
+        if (!partitions.IsEmpty && model.FineDetail is null && model.Options.BuildClutterModel && model.Options.UseFineDetailValidation)
+        {
+            for (var p = 0; p < 8; p++)
+            {
+                pMinX[p] = double.PositiveInfinity;
+                pMaxX[p] = double.NegativeInfinity;
+                pMinY[p] = double.PositiveInfinity;
+                pMaxY[p] = double.NegativeInfinity;
+            }
+            var cos = Math.Cos(pose.Angle);
+            var sin = Math.Sin(pose.Angle);
+            Span<double> pSum = stackalloc double[8];
+            Span<int> pTotal = stackalloc int[8];
+            for (var i = 0; i < features.Length; i++)
+            {
+                var f = features[i];
+                var p = partitions[i];
+                if (f.X < pMinX[p]) pMinX[p] = f.X;
+                if (f.X > pMaxX[p]) pMaxX[p] = f.X;
+                if (f.Y < pMinY[p]) pMinY[p] = f.Y;
+                if (f.Y > pMaxY[p]) pMaxY[p] = f.Y;
+                var sx = pose.X + (pose.Scale * ((cos * f.X) - (sin * f.Y))) - 0.5;
+                var sy = pose.Y + (pose.Scale * ((sin * f.X) + (cos * f.Y))) - 0.5;
+                var snx = (cos * f.NormalX) - (sin * f.NormalY);
+                var sny = (sin * f.NormalX) + (cos * f.NormalY);
+                image.SampleDirection(sx, sy, out var gx, out var gy);
+                var dot = (snx * gx) + (sny * gy);
+                var sc = model.Options.Polarity == ContrastPolarity.IgnoreLocal ? Math.Abs(dot) : Math.Max(0, dot);
+                pSum[p] += sc;
+                pTotal[p]++;
+            }
+            byte occMask = 0;
+            var occBlocks = 0;
+            var inlierBlocks = 0;
+            var inlierSum = 0d;
+            var inlierCount = 0;
+            for (var p = 0; p < 8; p++)
+            {
+                if (pTotal[p] == 0)
+                {
+                    continue;
+                }
+                if (pSum[p] / pTotal[p] < 0.48)
+                {
+                    occMask |= (byte)(1 << p);
+                    occBlocks++;
+                }
+                else
+                {
+                    inlierBlocks++;
+                    inlierSum += pSum[p];
+                    inlierCount += pTotal[p];
+                }
+            }
+            if (occBlocks is >= 1 and <= 3 && inlierBlocks >= 5 && inlierCount >= features.Length * 0.60 &&
+                (inlierSum / inlierCount) >= 0.84 &&
+                ContinuousVerifier.IsContiguousPartitionMask(occMask, model.PartitionAdjacency))
+            {
+                occludedPartitionMask = occMask;
+            }
+        }
+        var refCos = Math.Cos(model.TrainingReferenceAngle);
+        var refSin = Math.Sin(model.TrainingReferenceAngle);
         for (var row = minRow; row <= maxRow; row++)
         {
             token.ThrowIfCancellationRequested();
@@ -46,6 +116,28 @@ internal static class ClutterEvaluator
                 if (!contour.Contains(x, y))
                 {
                     continue;
+                }
+                if (occludedPartitionMask != 0)
+                {
+                    var rx = x - model.TrainingReferencePoint.X;
+                    var ry = y - model.TrainingReferencePoint.Y;
+                    var mx = (refCos * rx) + (refSin * ry);
+                    var my = (-refSin * rx) + (refCos * ry);
+                    var inOccludedPartition = false;
+                    for (var p = 0; p < 8; p++)
+                    {
+                        if ((occludedPartitionMask & (1 << p)) != 0 &&
+                            mx >= pMinX[p] - 6.0 && mx <= pMaxX[p] + 6.0 &&
+                            my >= pMinY[p] - 6.0 && my <= pMaxY[p] + 6.0)
+                        {
+                            inOccludedPartition = true;
+                            break;
+                        }
+                    }
+                    if (inOccludedPartition)
+                    {
+                        continue;
+                    }
                 }
                 sceneEdges++;
                 var energy = (double)edge.Strength * edge.Strength;

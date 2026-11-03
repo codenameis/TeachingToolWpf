@@ -312,7 +312,104 @@ public sealed class PyramidMatchingIntegrationTests
         }, default);
         Assert.False(result.Truncated);
         Assert.Equal(12, result.Matches.Length);
-        Assert.All(result.Matches, m => Assert.True(m.Score >= 0.985, m.ToString()));
+        Assert.All(result.Matches, m => Assert.True(m.Score >= 0.990, m.ToString()));
+    }
+
+    [Fact]
+    public async Task KensaAsymmetricContextRoiDetectsOnlyBottomLeftTwelve()
+    {
+        var kensaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/CpuMatching.Modules/kensa.png"));
+        if (!File.Exists(kensaPath))
+        {
+            return;
+        }
+        var service = new ShapeMatchingService(new ImageLoader(Path.GetTempPath()), () => null, pipeline: ShapeSearchPipeline.Paper);
+        var image = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
+        foreach (var (w, h, minAngle, maxAngle, minScore) in new[]
+        {
+            (38d, 44d, -180d, 180d, 0.72),
+            (33d, 38d, -30d, 30d, 0.60),
+            (33d, 38d, -180d, 180d, 0.72)
+        })
+        {
+            var trained = await service.TrainAsync(image, false, new RoiGeometry(new(144, 375), w, h, 0), new()
+            {
+                MinimumAngleDegrees = minAngle,
+                MaximumAngleDegrees = maxAngle,
+                AngleStepDegrees = 10,
+                UseFineDetailValidation = true,
+                BuildClutterModel = true
+            }, default);
+            var result = await service.SearchAsync(image, false, trained.Model, null, new()
+            {
+                MinimumScore = minScore,
+                MaximumMatches = 256,
+                MaximumParallelism = 12,
+                ClutterWeight = 1
+            }, default);
+            Assert.False(result.Truncated);
+            Assert.Equal(12, result.Matches.Length);
+            Assert.All(result.Matches, m => Assert.True(m.Score >= 0.930, m.ToString()));
+        }
+    }
+
+    [Fact]
+    public async Task KensaOccludedConnectorsDetectAllTwelveUnderThreeOcclusionVariants()
+    {
+        var kensaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/CpuMatching.Modules/kensa.png"));
+        if (!File.Exists(kensaPath))
+        {
+            return;
+        }
+        var service = new ShapeMatchingService(new ImageLoader(Path.GetTempPath()), () => null, pipeline: ShapeSearchPipeline.Paper);
+        var reference = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
+        var trained = await service.TrainAsync(reference, false, new RoiGeometry(new(244, 414), 179, 31, 0), new()
+        {
+            MinimumAngleDegrees = -180,
+            MaximumAngleDegrees = 180,
+            AngleStepDegrees = 10,
+            UseFineDetailValidation = true,
+            BuildClutterModel = true
+        }, default);
+
+        byte[] basePixels;
+        using (var reader = await MatchingImageReader.OpenAsync(reference, false, new ImageLoader(Path.GetTempPath()), () => null, default))
+        {
+            reader.PreferDirectGray = true;
+            var full = reader.Read(0, 0, 1024, 1536, default);
+            basePixels = full.Pixels.ToArray();
+        }
+        foreach (var mode in new[] { "bg", "white", "noise" })
+        {
+            var pixels = (byte[])basePixels.Clone();
+            var rng = new Random(7);
+            for (var y = 396; y <= 432; y++)
+            {
+                for (var x = 417; x <= 484; x++)
+                {
+                    pixels[(y * 1024) + x] = mode switch
+                    {
+                        "bg" => (byte)22,
+                        "white" => (byte)255,
+                        _ => (byte)rng.Next(0, 256)
+                    };
+                }
+            }
+            var occLoader = new Loader(new GrayImage(pixels, 1024, 1536, 1024));
+            var occService = new ShapeMatchingService(occLoader, () => null, pipeline: ShapeSearchPipeline.Paper);
+            var result = await occService.SearchAsync(new("fixture", "fixture", 1024, 1536), false, trained.Model, null, new()
+            {
+                MinimumScore = 0.72,
+                MaximumMatches = 256,
+                MaximumParallelism = 12,
+                ClutterWeight = 1
+            }, default);
+            Assert.False(result.Truncated);
+            Assert.Equal(12, result.Matches.Length);
+            var occluded = Assert.Single(result.Matches, m => Math.Abs(m.Pose.X - 508.2) <= 2.0 && Math.Abs(m.Pose.Y - 414.0) <= 2.0);
+            var posError = Math.Sqrt(((occluded.Pose.X - 508.2) * (occluded.Pose.X - 508.2)) + ((occluded.Pose.Y - 414.0) * (occluded.Pose.Y - 414.0)));
+            Assert.True(posError <= 0.5, $"mode={mode}, pose=({occluded.Pose.X:F2},{occluded.Pose.Y:F2}), err={posError:F3}");
+        }
     }
     [Fact]
     public async Task OpenCvAppliesSuppressionOnceAcrossSearchWindowSeam()

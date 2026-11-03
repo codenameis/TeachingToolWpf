@@ -41,20 +41,37 @@ internal static class CandidateSearch
         var gridLength = checked(gridWidth * gridHeight);
         var scores = scorer is null ? ArrayPool<ushort>.Shared.Rent(gridLength) : [];
         var filterAngleSidelobes = (model.FineDetail is not null || (model.Options.BuildClutterModel && model.Options.UseFineDetailValidation)) && groups.Count > 1;
-        // 세부 모델이 없는 큰 클러터 모델은 패턴 크기에 비례한 이방성 반경으로 능선 중복 후보를 억제한다.
+        // 세부 모델이 없는 큰 클러터 모델은 3D 자세 공간(X, Y, Theta 8방위 버킷)에서 이방성 반경으로 능선 중복 후보를 억제한다.
         var anisotropic = filterAngleSidelobes && model.FineDetail is null;
-        var cellBestNear = filterAngleSidelobes ? new (double Score, int Group)[gridLength] : [];
-        // 180° 대칭에 가까운 패턴에서 반대 방향 가설이 진짜 방향을 덮지 않도록 반구별로 최고 후보를 따로 유지한다.
-        var cellBestFar = anisotropic ? new (double Score, int Group)[gridLength] : [];
-        if (filterAngleSidelobes)
+        var angleBucketCount = anisotropic ? 8 : (filterAngleSidelobes ? 1 : 0);
+        var cellBuckets = new (double Score, int Group)[angleBucketCount][];
+        for (var b = 0; b < angleBucketCount; b++)
         {
-            Array.Fill(cellBestNear, (double.NegativeInfinity, -1));
-            Array.Fill(cellBestFar, (double.NegativeInfinity, -1));
+            cellBuckets[b] = new (double Score, int Group)[gridLength];
+            Array.Fill(cellBuckets[b], (double.NegativeInfinity, -1));
         }
         var groupsPerBatch = Math.Max(1, ShapeCandidateScoreRequest.MaximumScoreCount / gridLength);
-        // 1차 스캔은 짝수 각도 템플릿만 계산하고, 후보 위치에서만 홀수 이웃 각도를 점 단위로 복원한다.
+        // 1차 스캔은 짝수 각도 템플릿(및 기준 각도 템플릿)만 계산하고, 후보 위치에서만 홀수 이웃 각도를 점 단위로 복원한다.
         var stride2 = scorer is null && anisotropic && groups.Count >= 8 && model.Options.MinimumScale == model.Options.MaximumScale;
-        var order = Enumerable.Range(0, groups.Count).Where(index => !stride2 || index % 2 == 0).ToArray();
+        var referenceGroup = 0;
+        var bestAngleDist = double.PositiveInfinity;
+        for (var g = 0; g < groups.Count; g++)
+        {
+            var dist = Math.Abs(model.Templates[groups[g][0]].Angle - model.TrainingReferenceAngle);
+            if (dist < bestAngleDist)
+            {
+                bestAngleDist = dist;
+                referenceGroup = g;
+            }
+        }
+        var referenceCells = anisotropic ? new (double Score, int Group)[gridLength] : null;
+        if (referenceCells is not null)
+        {
+            Array.Fill(referenceCells, (double.NegativeInfinity, -1));
+        }
+        var order = Enumerable.Range(0, groups.Count)
+            .Where(index => !stride2 || index % 2 == 0 || Math.Abs(index - referenceGroup) <= 1)
+            .ToArray();
         ShapeCandidateScoreBatch? batch = null;
         // 템플릿 그룹 점수는 서로 독립이므로 묶음 단위로 병렬 계산하고, 병합은 그룹 순서대로 해 결과를 동일하게 유지한다.
         var chunkBuffers = scorer is null && options.MaximumParallelism > 1 && order.Length > 1
@@ -126,6 +143,7 @@ internal static class CandidateSearch
                     : options.CandidateThreshold - (stride2 ? 0.05 : 0);
                 var threshold = effectiveCandidateThreshold * 100 * features.Length;
                 var maximumSum = features.Length * 100;
+                var bucketIndex = anisotropic ? GetAngleBucket(model, group[0]) : 0;
                 for (var y = 0; y < gridHeight; y++)
                 {
                     for (var x = 0; x < gridWidth; x++)
@@ -142,7 +160,7 @@ internal static class CandidateSearch
                         var normalizedScore = currentScores[i] / (100d * features.Length);
                         if (filterAngleSidelobes)
                         {
-                            var cellBest = anisotropic && IsFarHemisphere(model, group[0]) ? cellBestFar : cellBestNear;
+                            var cellBest = cellBuckets[bucketIndex];
                             var betterPose = cellBest[i].Group >= 0 &&
                                 (Math.Abs(model.Templates[group[0]].Angle - model.TrainingReferenceAngle) +
                                  Math.Abs(model.Templates[group[0]].Scale - 1) <
@@ -152,6 +170,11 @@ internal static class CandidateSearch
                                 (Math.Abs(normalizedScore - cellBest[i].Score) <= 1e-9 && betterPose))
                             {
                                 cellBest[i] = (normalizedScore, groupIndex);
+                            }
+                            if (referenceCells is not null && Math.Abs(groupIndex - referenceGroup) <= 1 &&
+                                normalizedScore > referenceCells[i].Score + 1e-9)
+                            {
+                                referenceCells[i] = (normalizedScore, groupIndex);
                             }
                             continue;
                         }
@@ -163,12 +186,9 @@ internal static class CandidateSearch
                     }
                 }
             }
-            foreach (var cellBest in anisotropic ? new[] { cellBestNear, cellBestFar } : [cellBestNear])
+            for (var bucketIndex = 0; bucketIndex < angleBucketCount; bucketIndex++)
             {
-                if (!filterAngleSidelobes)
-                {
-                    break;
-                }
+                var cellBest = cellBuckets[bucketIndex];
                 for (var y = 0; y < gridHeight; y++)
                 {
                     for (var x = 0; x < gridWidth; x++)
@@ -181,13 +201,85 @@ internal static class CandidateSearch
                         }
                         if (stride2)
                         {
-                            cell = RestoreOddAngles(map, model, groups, top, x, y, cell, ReferenceEquals(cellBest, cellBestFar));
-                            if (cell.Score < options.CandidateThreshold)
+                            cell = RestoreOddAngles(map, model, groups, top, x, y, cell, bucketIndex);
+                            if (cell.Score < options.CandidateThreshold - 0.03)
                             {
                                 continue;
                             }
                         }
                         EnqueueGroup(groups[cell.Group], model, x, y, map.Step, factor, cell.Score, options, candidates, ref exceeded);
+                    }
+                }
+            }
+            if (referenceCells is not null)
+            {
+                for (var y = 0; y < gridHeight; y++)
+                {
+                    for (var x = 0; x < gridWidth; x++)
+                    {
+                        var i = (y * gridWidth) + x;
+                        var refCell = referenceCells[i];
+                        if (refCell.Group < 0 || refCell.Score < options.CandidateThreshold - 0.03)
+                        {
+                            continue;
+                        }
+                        if (!IsAnisotropicMaximum(referenceCells, gridWidth, gridHeight, x, y, refCell.Group, model, groups, map.Step * factor))
+                        {
+                            // 수직 방향으로 1~2칸(8~16px) 떨어진 셀이 가림 경계선/클러터 때문에 점수가 더 높더라도,
+                            // 상위 피라미드 연속 방향 검증 점수가 현 셀에서 더 높다면 실제 객체 중심 후보로 보존한다.
+                            if (refCell.Score > 0.90 ||
+                                ((y < 1 || referenceCells[i - gridWidth].Score <= refCell.Score) &&
+                                 (y + 1 >= gridHeight || referenceCells[i + gridWidth].Score <= refCell.Score)))
+                            {
+                                continue;
+                            }
+                            if (x >= 2 && x + 2 < gridWidth &&
+                                refCell.Score < referenceCells[i - 1].Score &&
+                                refCell.Score < referenceCells[i + 1].Score)
+                            {
+                                continue;
+                            }
+                            var herePose = new MatchPose((x * map.Step) + 0.5, (y * map.Step) + 0.5,
+                                model.TrainingReferenceAngle, model.Templates[groups[refCell.Group][0]].Scale);
+                            var hereVer = ContinuousVerifier.Score(image.Gradients[top], model, herePose, top, allowElastic: false);
+                            if (hereVer.Score < 0.42)
+                            {
+                                hereVer = ProbeTemplateScore(image.Gradients[top], model, herePose, top, out _);
+                            }
+                            if (hereVer.Score < 0.45)
+                            {
+                                continue;
+                            }
+                            var suppressedByBetter = false;
+                            for (var dy = -2; dy <= 2; dy++)
+                            {
+                                var ny = y + dy;
+                                if (dy == 0 || ny < 0 || ny >= gridHeight)
+                                {
+                                    continue;
+                                }
+                                if (referenceCells[(ny * gridWidth) + x].Score > refCell.Score)
+                                {
+                                    var dyVer = ContinuousVerifier.Score(image.Gradients[top], model,
+                                        herePose with { Y = herePose.Y + (dy * map.Step) }, top, allowElastic: false);
+                                    if (dyVer.Score > hereVer.Score + 0.04)
+                                    {
+                                        suppressedByBetter = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (suppressedByBetter)
+                            {
+                                continue;
+                            }
+                            var effectiveScore = Math.Max(refCell.Score, hereVer.Score + 0.38);
+                            EnqueueGroup(groups[refCell.Group], model, x, y, map.Step, factor, effectiveScore, options, candidates, ref exceeded);
+                        }
+                        else
+                        {
+                            EnqueueGroup(groups[refCell.Group], model, x, y, map.Step, factor, refCell.Score, options, candidates, ref exceeded);
+                        }
                     }
                 }
             }
@@ -371,14 +463,42 @@ internal static class CandidateSearch
             }
             if (plateauCount > 0)
             {
-                pose = pose with
+                var mapPose = pose with
                 {
                     X = plateauSumX / plateauCount,
                     Y = plateauSumY / plateauCount
                 };
+                if (options.Verify && !model.FeaturePartitions.IsDefault && model.Options.UseFineDetailValidation &&
+                    (Math.Abs(mapPose.X - pose.X) > 1.5 || Math.Abs(mapPose.Y - pose.Y) > 1.5))
+                {
+                    var currentScore = ContinuousVerifier.Score(image.Gradients[level], model, pose, level, allowElastic: false);
+                    var mapScore = ContinuousVerifier.Score(image.Gradients[level], model, mapPose, level, allowElastic: false);
+                    if (mapScore.Score >= currentScore.Score - 0.01)
+                    {
+                        pose = mapPose;
+                    }
+                }
+                else
+                {
+                    pose = mapPose;
+                }
             }
             if (options.Verify)
             {
+                if (level == model.Levels.Length - 1 && model.FineDetail is null && !model.FeaturePartitions.IsDefault &&
+                    model.Options.UseFineDetailValidation && Math.Abs(pose.Angle - model.TrainingReferenceAngle) > 1e-4)
+                {
+                    var currentInitial = ProbeTemplateScore(image.Gradients[level], model, pose, level, out _);
+                    if (currentInitial.Score < 0.72)
+                    {
+                        var refInitial = ProbeTemplateScore(image.Gradients[level], model,
+                            pose with { Angle = model.TrainingReferenceAngle }, level, out var refBestPose);
+                        if (refInitial.Score > currentInitial.Score + 0.01)
+                        {
+                            pose = refBestPose;
+                        }
+                    }
+                }
                 if (level == model.Levels.Length - 1 && model.Templates.Length > 1 && candidate.Score >= 0.88 &&
                     model.FineDetail is not null)
                 {
@@ -637,8 +757,8 @@ internal static class CandidateSearch
         var boundsHeight = (maxY - minY) * template.Scale;
         var rotatedWidth = (Math.Abs(Math.Cos(theta)) * boundsWidth) + (Math.Abs(Math.Sin(theta)) * boundsHeight);
         var rotatedHeight = (Math.Abs(Math.Sin(theta)) * boundsWidth) + (Math.Abs(Math.Cos(theta)) * boundsHeight);
-        var rx = Math.Max(1, (int)Math.Ceiling(rotatedWidth / 2.5 / cellSize));
-        var ry = Math.Max(1, (int)Math.Ceiling(rotatedHeight / 2.5 / cellSize));
+        var rx = Math.Max(1, (int)Math.Ceiling(rotatedWidth / 3.2 / cellSize));
+        var ry = Math.Max(1, (int)Math.Floor(rotatedHeight / 3.5 / cellSize));
         var angleLimit = (model.Options.AngleStepDegrees * Math.PI / 180 * 4.01) + 1e-9;
         var i = (y * width) + x;
         var score = cells[i].Score;
@@ -687,8 +807,8 @@ internal static class CandidateSearch
             var theta = candidate.Pose.Angle - model.TrainingReferenceAngle;
             var width = ((Math.Abs(Math.Cos(theta)) * (maxX - minX)) + (Math.Abs(Math.Sin(theta)) * (maxY - minY))) * candidate.Pose.Scale;
             var height = ((Math.Abs(Math.Sin(theta)) * (maxX - minX)) + (Math.Abs(Math.Cos(theta)) * (maxY - minY))) * candidate.Pose.Scale;
-            var rx = Math.Max(2, width / 2.5);
-            var ry = Math.Max(2, height / 2.5);
+            var rx = Math.Min(Math.Max(2, width / 3.2), 18.0);
+            var ry = Math.Min(Math.Max(2, height / 4.0), 10.0);
             var duplicate = false;
             foreach (var other in kept)
             {
@@ -709,14 +829,14 @@ internal static class CandidateSearch
         return [.. kept];
     }
 
-    /// <summary>NMS를 통과한 피크 셀에서만 양옆 홀수 각도 점수를 계산해 최고 각도를 복원한다. 반구가 다른 이웃은 제외한다.</summary>
+    /// <summary>NMS를 통과한 피크 셀에서만 양옆 홀수 각도 점수를 계산해 최고 각도를 복원한다. 8방위 버킷이 다른 이웃은 제외한다.</summary>
     private static (double Score, int Group) RestoreOddAngles(OrientationMaps map, ShapeModel model, List<List<int>> groups, int top,
-        int x, int y, (double Score, int Group) current, bool farClass)
+        int x, int y, (double Score, int Group) current, int bucketIndex)
     {
         var best = current;
         foreach (var neighbor in new[] { current.Group - 1, current.Group + 1 })
         {
-            if (neighbor < 0 || neighbor >= groups.Count || IsFarHemisphere(model, groups[neighbor][0]) != farClass)
+            if (neighbor < 0 || neighbor >= groups.Count || GetAngleBucket(model, groups[neighbor][0]) != bucketIndex)
             {
                 continue;
             }
@@ -731,11 +851,15 @@ internal static class CandidateSearch
         }
         return best;
     }
-    private static bool IsFarHemisphere(ShapeModel model, int template)
+
+    private static int GetAngleBucket(ShapeModel model, int template)
     {
-        var difference = (model.Templates[template].Angle - model.TrainingReferenceAngle) % (2 * Math.PI);
-        difference = Math.Abs(difference > Math.PI ? difference - (2 * Math.PI) : difference < -Math.PI ? difference + (2 * Math.PI) : difference);
-        return difference > Math.PI / 2;
+        var diff = (model.Templates[template].Angle - model.TrainingReferenceAngle) % (2 * Math.PI);
+        if (diff < 0)
+        {
+            diff += 2 * Math.PI;
+        }
+        return ((int)Math.Floor((diff + (Math.PI / 8)) / (Math.PI / 4))) & 7;
     }
 
     private static bool IsCellBestMaximum(ReadOnlySpan<(double Score, int Group)> cells, int width, int height, int x, int y, int fineRadius)

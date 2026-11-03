@@ -13,6 +13,7 @@ internal sealed class FineDetailModel
     private readonly double referenceAngle;
     private readonly double _radius;
     private readonly bool _enableElasticPatches;
+    private readonly bool _enableUniformGridElasticity;
     private readonly int[] _patchIndex;
     private readonly double[] _patchEnergy;
 
@@ -40,7 +41,8 @@ internal sealed class FineDetailModel
             var spanX = Math.Max(1.0, maxX - minX + 1e-6);
             var spanY = Math.Max(1.0, maxY - minY + 1e-6);
             _enableElasticPatches = Math.Max(spanX, spanY) <= 22.0 && spanX <= spanY * 1.35 && spanY <= spanX * 1.35;
-            if (_enableElasticPatches)
+            _enableUniformGridElasticity = !_enableElasticPatches && Math.Max(spanX, spanY) <= 96.0 && Math.Min(spanX, spanY) >= 20.0;
+            if (_enableElasticPatches || _enableUniformGridElasticity)
             {
                 for (var i = 0; i < samples.Length; i++)
                 {
@@ -103,6 +105,8 @@ internal sealed class FineDetailModel
     }
 
     public bool HasElasticPatches => _enableElasticPatches;
+    public bool HasUniformGridElasticity => _enableUniformGridElasticity;
+    public double Radius => _radius;
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public double Score(GrayImage image, MatchPose pose, ContrastPolarity polarity)
@@ -130,11 +134,108 @@ internal sealed class FineDetailModel
         }
         // 최소제곱으로 설명 가능한 장면 gradient 에너지 비율. 음의 gain은 Preserve에서 허용하지 않는다.
         var rigidScore = sceneEnergy < 1e-12 || dot <= 0 ? 0 : Math.Clamp(dot * dot / (energy * sceneEnergy), 0, 1);
-        if (!allowElastic || !_enableElasticPatches || rigidScore >= 0.999 || rigidScore <= 0)
+        if (!allowElastic || (!_enableElasticPatches && !_enableUniformGridElasticity) || rigidScore >= 0.999 || rigidScore <= 0)
         {
             return rigidScore;
         }
-        return ScoreElasticPatches(pixels, width, height, stride, pose, cos, sin, polarity, rigidScore);
+        return _enableUniformGridElasticity
+            ? ScoreUniformGridElasticity(pixels, width, height, stride, pose, cos, sin, polarity, rigidScore)
+            : ScoreElasticPatches(pixels, width, height, stride, pose, cos, sin, polarity, rigidScore);
+    }
+
+    /// <summary>중심 코어 특별 취급 없이 균일 3×3 격자 패치별로 에지 존재 게이트와 Zero-Mean 변위 제약을 만족할 때만 ±1px 국소 정렬을 반영한다.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    private double ScoreUniformGridElasticity(ReadOnlySpan<byte> pixels, int width, int height, int stride,
+        MatchPose pose, double cos, double sin, ContrastPolarity polarity, double rigidScore)
+    {
+        var weightedSum = 0d;
+        var energySum = 0d;
+        var significantCells = 0;
+        var matchedCells = 0;
+        var meanShiftX = 0d;
+        var meanShiftY = 0d;
+        for (var patch = 0; patch < 9; patch++)
+        {
+            var patchModelEnergy = _patchEnergy[patch];
+            if (patchModelEnergy < 1e-12)
+            {
+                continue;
+            }
+            var isSignificantCell = patchModelEnergy >= energy * 0.045;
+            if (isSignificantCell)
+            {
+                significantCells++;
+            }
+            var bestScore = -1d;
+            var bestDx = 0d;
+            var bestDy = 0d;
+            for (var iy = -2; iy <= 2; iy++)
+            {
+                var dy = iy * 0.5;
+                for (var ix = -2; ix <= 2; ix++)
+                {
+                    var dx = ix * 0.5;
+                    var dot = 0d;
+                    var sceneEnergy = 0d;
+                    for (var i = 0; i < samples.Length; i++)
+                    {
+                        if (_patchIndex[i] != patch)
+                        {
+                            continue;
+                        }
+                        var sample = samples[i];
+                        var x = pose.X + dx + (cos * sample.X) - (sin * sample.Y);
+                        var y = pose.Y + dy + (sin * sample.X) + (cos * sample.Y);
+                        var gradient = Gradient(pixels, width, height, stride, x, y, cos, sin);
+                        var product = (sample.Gx * gradient.X) + (sample.Gy * gradient.Y);
+                        dot += polarity == ContrastPolarity.IgnoreLocal ? Math.Abs(product) : product;
+                        sceneEnergy += (gradient.X * gradient.X) + (gradient.Y * gradient.Y);
+                    }
+                    // 에지 존재 게이트: 격자 셀의 에지 에너지가 모델 셀 대비 부족하거나 과도하면 탄성 이동을 거부한다.
+                    if (sceneEnergy < patchModelEnergy * 0.45 || sceneEnergy > patchModelEnergy * 2.2)
+                    {
+                        continue;
+                    }
+                    if (sceneEnergy > 1e-12 && dot > 0)
+                    {
+                        var r = (dot / Math.Sqrt(patchModelEnergy * sceneEnergy)) *
+                            (1.0 - (0.015 * Math.Sqrt((dx * dx) + (dy * dy))));
+                        if (r > bestScore)
+                        {
+                            bestScore = r;
+                            bestDx = dx;
+                            bestDy = dy;
+                        }
+                    }
+                }
+            }
+            if (bestScore >= 0.68)
+            {
+                if (isSignificantCell)
+                {
+                    matchedCells++;
+                }
+                weightedSum += patchModelEnergy * bestScore;
+                energySum += patchModelEnergy;
+                meanShiftX += patchModelEnergy * bestDx;
+                meanShiftY += patchModelEnergy * bestDy;
+            }
+            else if (isSignificantCell)
+            {
+                // 필수 문맥 셀(예: SMD 패드나 기판 테두리)이 하나라도 비어 있으면 강체 점수에서 감점한다.
+                return rigidScore * 0.90;
+            }
+        }
+        if (energySum < 1e-12 || (significantCells > 0 && matchedCells < significantCells))
+        {
+            return rigidScore;
+        }
+        // Zero-Mean 변위 제약: 에너지 가중 평균 이동량이 0.75px를 넘으면 전체 자세 드리프트이므로 탄성 보정을 제한한다.
+        meanShiftX /= energySum;
+        meanShiftY /= energySum;
+        var netDrift = Math.Sqrt((meanShiftX * meanShiftX) + (meanShiftY * meanShiftY));
+        var driftPenalty = netDrift <= 0.60 ? 1.0 : Math.Max(0.92, 1.0 - (0.08 * (netDrift - 0.60)));
+        return Math.Max(rigidScore, Math.Clamp((weightedSum / energySum) * driftPenalty, 0, 1));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -320,7 +421,7 @@ internal sealed class FineDetailModel
                 break;
             }
         }
-        if (_enableElasticPatches)
+        if (_enableElasticPatches || _enableUniformGridElasticity)
         {
             best = ScoreCore(image, pose, model.Options.Polarity, allowElastic: true);
         }

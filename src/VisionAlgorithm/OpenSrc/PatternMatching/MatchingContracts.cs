@@ -274,8 +274,23 @@ public sealed class ShapeModel
     {
         get; init;
     }
-    /// <summary>레벨 0 특징별 동심 윤곽 그룹(0=바깥, 1=안쪽). 동심 윤곽이 없으면 기본값(IsDefault)이다.</summary>
-    internal ImmutableArray<byte> FeatureGroups
+    /// <summary>레벨 0 특징별 연결 윤곽 체인 ID(0=최외곽, 1..K-1=내부/분리 윤곽). 단일 윤곽이면 기본값(IsDefault)이다.</summary>
+    internal ImmutableArray<byte> FeatureChains
+    {
+        get; init;
+    }
+    /// <summary>레벨 0 특징별 2D 공간 분할 블록 ID(0..7). 연속 부분 가림(Occlusion) 판정에 사용한다.</summary>
+    internal ImmutableArray<byte> FeaturePartitions
+    {
+        get; init;
+    }
+    /// <summary>8개 공간 분할 블록 간 2D 인접 비트마스크(블록 k의 이웃 집합 = PartitionAdjacency[k]).</summary>
+    internal ImmutableArray<byte> PartitionAdjacency
+    {
+        get; init;
+    }
+    /// <summary>레벨 0 특징별 자기 대칭성 분해 플래그(비트 1=IsAsymX 좌우 플립 구분 키, 비트 2=IsAsymY 상하 플립 구분 키).</summary>
+    internal ImmutableArray<byte> FeatureAsymmetryFlags
     {
         get; init;
     }
@@ -337,7 +352,10 @@ public sealed class ShapeModel
             level == 0 ? ContourModel : null, level == 0 ? FineDetail : null)
         {
             PixelMask = level == 0 ? PixelMask : null,
-            FeatureGroups = level == 0 ? FeatureGroups : default
+            FeatureChains = level == 0 ? FeatureChains : default,
+            FeaturePartitions = level == 0 ? FeaturePartitions : default,
+            PartitionAdjacency = level == 0 ? PartitionAdjacency : default,
+            FeatureAsymmetryFlags = level == 0 ? FeatureAsymmetryFlags : default
         };
     }
 }

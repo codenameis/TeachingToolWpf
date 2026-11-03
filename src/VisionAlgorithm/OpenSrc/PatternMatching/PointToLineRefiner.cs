@@ -69,7 +69,12 @@ public static class PointToLineRefiner
             {
                 var pair = pairs[index];
                 var (r, jacobian) = ResidualAndJacobian(pair.Feature, pair.Edge, pose);
-                var weight = Math.Abs(r) <= 1 ? 1 : 1 / Math.Abs(r);
+                var absR = Math.Abs(r);
+                var weight = model.Options.UseFineDetailValidation && iteration > 0 && absR > 2.0 ? 0d : (absR <= 1 ? 1 : 1 / absR);
+                if (weight <= 0)
+                {
+                    continue;
+                }
                 residual += r * r;
                 angularEnergy += jacobian.Angle * jacobian.Angle;
                 for (var row = 0; row < dimensions; row++)
@@ -184,8 +189,62 @@ public static class PointToLineRefiner
         var cos = Math.Cos(pose.Angle);
         var sin = Math.Sin(pose.Angle);
         var features = model.Levels[0].Features;
+        var partitions = !model.FeaturePartitions.IsDefault && model.FeaturePartitions.Length == features.Length ? model.FeaturePartitions : default;
+        byte excludedPartitionMask = 0;
+        if (!partitions.IsEmpty && model.FineDetail is null && model.Options.BuildClutterModel && model.Options.UseFineDetailValidation)
+        {
+            Span<double> pSum = stackalloc double[8];
+            Span<int> pTotal = stackalloc int[8];
+            for (var i = 0; i < features.Length; i++)
+            {
+                var f = features[i];
+                var sx = pose.X + (pose.Scale * ((cos * f.X) - (sin * f.Y))) - 0.5;
+                var sy = pose.Y + (pose.Scale * ((sin * f.X) + (cos * f.Y))) - 0.5;
+                var snx = (cos * f.NormalX) - (sin * f.NormalY);
+                var sny = (sin * f.NormalX) + (cos * f.NormalY);
+                image.SampleDirection(sx, sy, out var gx, out var gy);
+                var dot = (snx * gx) + (sny * gy);
+                var sc = model.Options.Polarity == ContrastPolarity.IgnoreLocal ? Math.Abs(dot) : Math.Max(0, dot);
+                var p = partitions[i];
+                pSum[p] += sc;
+                pTotal[p]++;
+            }
+            byte occMask = 0;
+            var occBlocks = 0;
+            var inlierBlocks = 0;
+            var inlierSum = 0d;
+            var inlierCount = 0;
+            for (var p = 0; p < 8; p++)
+            {
+                if (pTotal[p] == 0)
+                {
+                    continue;
+                }
+                if (pSum[p] / pTotal[p] < 0.48)
+                {
+                    occMask |= (byte)(1 << p);
+                    occBlocks++;
+                }
+                else
+                {
+                    inlierBlocks++;
+                    inlierSum += pSum[p];
+                    inlierCount += pTotal[p];
+                }
+            }
+            if (occBlocks is >= 1 and <= 3 && inlierBlocks >= 5 && inlierCount >= features.Length * 0.60 &&
+                (inlierSum / inlierCount) >= 0.84 &&
+                ContinuousVerifier.IsContiguousPartitionMask(occMask, model.PartitionAdjacency))
+            {
+                excludedPartitionMask = occMask;
+            }
+        }
         for (var index = 0; index < features.Length; index++)
         {
+            if (excludedPartitionMask != 0 && (excludedPartitionMask & (1 << partitions[index])) != 0)
+            {
+                continue;
+            }
             var feature = features[index];
             var x = pose.X + (pose.Scale * ((cos * feature.X) - (sin * feature.Y)));
             var y = pose.Y + (pose.Scale * ((sin * feature.X) + (cos * feature.Y)));
