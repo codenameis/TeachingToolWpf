@@ -17,7 +17,7 @@ public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
 
     public double Sine => _sine;
 
-    public bool IsIdentity => AngleDegrees % 360 == 0 && Translation == default;
+    public bool IsIdentity => AngleDegrees % GeometryConstants.FullCircleDegrees == 0 && Translation == default;
 
     public static RigidTransform2D Identity => default;
 
@@ -31,8 +31,8 @@ public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
         Pivot = pivot;
         Translation = translation;
         AngleDegrees = angleDegrees;
-        var reduced = Math.IEEERemainder(angleDegrees, 360);
-        (_sine, _cosine) = reduced == 0 ? (0, 1) : Math.SinCos(reduced * Math.PI / 180);
+        var reduced = Math.IEEERemainder(angleDegrees, GeometryConstants.FullCircleDegrees);
+        (_sine, _cosine) = reduced == 0 ? (0, 1) : Math.SinCos(reduced * GeometryConstants.DegreesToRadians);
     }
 
     public bool Equals(RigidTransform2D other)
@@ -42,8 +42,8 @@ public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
             return true;
         }
 
-        var angleA = Math.IEEERemainder(AngleDegrees, 360);
-        var angleB = Math.IEEERemainder(other.AngleDegrees, 360);
+        var angleA = Math.IEEERemainder(AngleDegrees, GeometryConstants.FullCircleDegrees);
+        var angleB = Math.IEEERemainder(other.AngleDegrees, GeometryConstants.FullCircleDegrees);
         if (angleA == 0 && angleB == 0)
         {
             return Translation == other.Translation;
@@ -59,7 +59,7 @@ public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
             return 0;
         }
 
-        var angle = Math.IEEERemainder(AngleDegrees, 360);
+        var angle = Math.IEEERemainder(AngleDegrees, GeometryConstants.FullCircleDegrees);
         if (angle == 0)
         {
             return HashCode.Combine(default(PointD), 0.0, Translation);
@@ -69,7 +69,7 @@ public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
     }
 
     // 회전 중심을 원점으로 옮겨 회전한 다음 중심과 이동량을 더한다. p' = c + R(p - c) + t.
-    public PointD Apply(PointD point) => AngleDegrees % 360 == 0
+    public PointD Apply(PointD point) => AngleDegrees % GeometryConstants.FullCircleDegrees == 0
         ? point + Translation
         : Pivot + ApplyVector(point - Pivot) + Translation;
 

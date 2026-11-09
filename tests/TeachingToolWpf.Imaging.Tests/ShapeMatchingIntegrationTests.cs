@@ -122,6 +122,119 @@ public sealed class ShapeMatchingIntegrationTests
         Assert.Equal(0, loader.Opened);
     }
 
+    [Fact]
+    public async Task LiveParameterPreviewUpdatesSummaryAndCanvasMarkersBeforeTrainingAndSearching()
+    {
+        var loader = new Loader();
+        var service = new ShapeMatchingService(loader, () => null);
+        var editor = new EditorSession();
+        editor.InitializeImage(new("fixture", "fixture", 1536, 256), ViewportTransform.Identity);
+        editor.Add(new(new(80, 90), 65, 65, 0));
+        using var vm = new ShapeMatchingViewModel(service);
+        vm.Update(new(editor.State, 1, false, true));
+
+        Assert.Contains("실시간 설정 미리보기", vm.ParameterPreviewSummary);
+        Assert.Contains("최대 특징 160개", vm.ParameterPreviewSummary);
+
+        vm.EnableScale = true;
+        vm.MinimumScale = 0.85;
+        vm.MaximumScale = 1.15;
+        vm.MaximumFeatures = 64;
+        await Task.Delay(140);
+
+        // "특징점 시각화" 체크 전에는 파라미터 요약 텍스트만 즉시 갱신되고 백그라운드 특징 추출 미리보기는 실행되지 않는다.
+        Assert.Null(vm.Overlay);
+        Assert.Equal(0, loader.Opened);
+        Assert.Contains("최대 특징 64개", vm.ParameterPreviewSummary);
+        Assert.Contains("배율 0.85~1.15x", vm.ParameterPreviewSummary);
+
+        // "특징점 시각화"를 체크하면 ROI 드래그/리사이즈 중(CanExecute: false)에도 UI 블로킹 없이 실시간으로 특징 추출 미리보기가 갱신된다.
+        vm.ShowFeatures = true;
+        vm.Update(new(editor.State, 1, false, CanExecute: false));
+        for (var i = 0; i < 40 && vm.Overlay is null; i++)
+        {
+            await Task.Delay(25);
+        }
+
+        Assert.NotNull(vm.Overlay);
+        Assert.Equal(1, loader.Opened);
+        Assert.Equal(1, loader.Disposed);
+        var previewMarker = Assert.Single(vm.Overlay!.Matches);
+        Assert.NotEmpty(previewMarker.Features);
+        Assert.True(previewMarker.Features.Length <= 64);
+        Assert.Equal(3, previewMarker.InnerContours.Length);
+        Assert.Contains("추출 특징", vm.ParameterPreviewSummary);
+        Assert.Contains("배율 0.85~1.15x", vm.ParameterPreviewSummary);
+
+        // 연속 드래그/파라미터 변경 시에는 인메모리 미리보기 타일 캐시에서 즉시 읽으므로 타일 소스를 다시 열지 않는다.
+        vm.MinimumGradient = 18;
+        for (var i = 0; i < 40 && !vm.ParameterPreviewSummary.Contains("추출 특징"); i++)
+        {
+            await Task.Delay(10);
+        }
+        await Task.Delay(30);
+        Assert.Equal(1, loader.Opened);
+        Assert.Equal(1, loader.Disposed);
+        vm.Update(new(editor.State, 1, false, CanExecute: true));
+
+        await vm.Train.ExecuteAsync();
+        Assert.NotNull(vm.Overlay);
+        var trainedMarker = Assert.Single(vm.Overlay!.Matches);
+        Assert.NotEmpty(trainedMarker.DiagnosticGroups);
+
+        vm.ClutterTolerancePixels = 5.0;
+        Assert.NotNull(vm.Overlay);
+        Assert.Contains("±5.0px", vm.ParameterPreviewSummary);
+
+        vm.StrictContext = false;
+        Assert.NotNull(vm.Overlay);
+        Assert.Empty(Assert.Single(vm.Overlay!.Matches).KeyFeatures);
+        Assert.Contains("완화", vm.ParameterPreviewSummary);
+    }
+
+    [Fact]
+    public async Task PatMaxModeLinksParametersToLiveInspectionFilterPreviewAndTrainsAndSearches()
+    {
+        var loader = new Loader();
+        var shapeService = new ShapeMatchingService(loader, () => null);
+        var patMaxService = new PatMaxMatchingService(loader, () => null);
+        var editor = new EditorSession();
+        editor.InitializeImage(new("fixture", "fixture", 1536, 256), ViewportTransform.Identity);
+        editor.Add(new(new(80, 90), 65, 65, 0));
+        using var vm = new ShapeMatchingViewModel(shapeService, patMaxService: patMaxService);
+        vm.Method = PatternMatchingMethod.PatMax;
+        vm.ShowFeatures = true;
+        vm.Update(new(editor.State, 1, false, true));
+
+        for (var i = 0; i < 40 && vm.FilterPreview is null; i++)
+        {
+            await Task.Delay(25);
+        }
+
+        Assert.NotNull(vm.FilterPreview);
+        var roiFilter = Assert.Single(vm.FilterPreview!.Regions);
+        Assert.True(roiFilter.Width > 0 && roiFilter.Height > 0);
+        Assert.NotNull(vm.Overlay);
+
+        // Fine/Coarse Granularity 변경 시 FilterSigma가 자동 연동되고 실시간 필터 영상이 즉시 재계산된다.
+        vm.PatMaxPreprocessingFilter = VisionAlgorithm.OpenSrc.PatMax.PatMaxPreprocessingFilterKind.EdgeContrastEnhance;
+        vm.PatMaxFineGranularity = 2;
+        vm.PatMaxCoarseGranularity = 4;
+        Assert.InRange(vm.PatMaxFilterSigma, 1.25f, 1.35f);
+
+        await Task.Delay(80);
+        Assert.NotNull(vm.FilterPreview);
+
+        await vm.Train.ExecuteAsync();
+        Assert.True(vm.HasModel);
+        Assert.NotNull(vm.FilterPreview);
+
+        vm.UseSelection = false;
+        await vm.Search.ExecuteAsync();
+        Assert.NotEmpty(vm.Markers);
+        Assert.Equal(InspectionVerdict.Pass, vm.Verdict);
+    }
+
     private sealed class DelayedService : IShapeMatchingService
     {
         public TaskCompletionSource<ShapeTrainingOutput> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

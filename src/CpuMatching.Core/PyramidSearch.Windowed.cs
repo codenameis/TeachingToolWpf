@@ -28,16 +28,13 @@ public static partial class PyramidSearch
         {
             templates.Add(templates[^1].Half());
         }
-        var images = new SearchImage[templates.Count];
-        var levels = new IScoreLevel[templates.Count];
-        var preparations = new Func<GrayImage, IScoreLevel>[templates.Count];
-        var margins = new int[templates.Count];
+        var stages = new WindowedPyramidStage[templates.Count];
         var localLevels = new List<LocalScoreLevel>();
-        for (var level = 0; level < levels.Length; level++)
+        for (var level = 0; level < stages.Length; level++)
         {
             var factor = 1 << level;
             var levelTemplate = templates[level];
-            var fine = level == 0 || (refineCoarsePositions && level < levels.Length - 1);
+            var fine = level == 0 || (refineCoarsePositions && level < stages.Length - 1);
             var capacity = Math.Clamp(65_536 / (levelTemplate.Width * levelTemplate.Height), 1, 128);
             var image = new SearchImage(region.Width / factor, region.Height / factor, area => source.Read(new(
                 region.X + (area.X * factor), region.Y + (area.Y * factor), area.Width * factor, area.Height * factor), factor, token));
@@ -46,34 +43,34 @@ public static partial class PyramidSearch
             // 템플릿 반경, 32px 거리 전파, 미분과 봉우리의 이웃까지 포함한다.
             var margin = (int)Math.Ceiling(Math.Sqrt((levelTemplate.Width * levelTemplate.Width) +
                 (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + 36;
-            images[level] = image;
-            preparations[level] = Prepare;
-            margins[level] = margin;
+            IScoreLevel scoreLevel;
             if ((long)image.Width * image.Height <= 2_097_152)
             {
-                levels[level] = Prepare(image.ReadAll());
+                scoreLevel = Prepare(image.ReadAll());
             }
             else
             {
                 var local = new LocalScoreLevel(image, margin, Prepare, token, reuseIdenticalTiles);
                 localLevels.Add(local);
-                levels[level] = new CachedLevel(local, capacity);
+                scoreLevel = new CachedLevel(local, capacity);
             }
+            stages[level] = new(image, scoreLevel, Prepare, margin);
         }
         var preparationMs = timer.Elapsed.TotalMilliseconds;
         long evaluations = 0;
         var refinementMs = 0d;
         var verificationMs = 0d;
         var refined = new List<Match>();
-        var coarse = VisitWindowedCoarse(images[^1], preparations[^1], margins[^1], options, accelerator, token, candidates =>
+        var coarse = VisitWindowedCoarse(stages[^1].Image, stages[^1].Prepare, stages[^1].Margin, options, accelerator, token, candidates =>
         {
             SearchDiagnostics.Write("Candidates", candidates);
             timer.Restart();
+            var levels = stages.Select(s => s.Level).ToArray();
             var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations, skipOriginal: true);
             refinementMs += timer.Elapsed.TotalMilliseconds;
             timer.Restart();
-            refined.AddRange(RefineAndVerifyOriginal(template, images[0], levels[0], current, region, options,
-                angleRadius, levels.Length > 1, refineCoarsePositions && levels.Length == 2,
+            refined.AddRange(RefineAndVerifyOriginal(template, stages[0].Image, stages[0].Level, current, region, options,
+                angleRadius, stages.Length > 1, refineCoarsePositions && stages.Length == 2,
                 refineEdges, acceptCenter, token, ref evaluations));
             verificationMs += timer.Elapsed.TotalMilliseconds;
             foreach (var local in localLevels)
@@ -213,4 +210,10 @@ public static partial class PyramidSearch
             timer.Start();
         }
     }
+
+    private readonly record struct WindowedPyramidStage(
+        SearchImage Image,
+        IScoreLevel Level,
+        Func<GrayImage, IScoreLevel> Prepare,
+        int Margin);
 }

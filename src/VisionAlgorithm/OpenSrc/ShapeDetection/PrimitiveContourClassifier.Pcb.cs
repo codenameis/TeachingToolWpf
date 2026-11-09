@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/ShapeDetection/PrimitiveContourClassifier.Pcb.cs
 using System.Collections.Immutable;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.PatternMatching.Imaging;
@@ -62,9 +63,10 @@ internal static partial class PrimitiveContourClassifier
             return result;
         }
         // 짧은 픽셀 계단에서 얻은 초기 직선 각도만 보정한다. 매 자세에서 전체 윤곽/구멍 검증은 유지한다.
+        Span<int> directions = [-1, 1];
         for (var step = 1; step <= 6; step++)
         {
-            foreach (var direction in new[] { -1, 1 })
+            foreach (var direction in directions)
             {
                 var candidate = ClassifyHashAtAngle(contour, hole, angle + (direction * step * Math.PI / 360));
                 if (candidate is not null && (result is null || candidate.Score > result.Score))
@@ -135,7 +137,8 @@ internal static partial class PrimitiveContourClassifier
         {
             return null;
         }
-        foreach (var approximation in new[] { contour.Approximation, contour.FineApproximation })
+        ReadOnlySpan<ImmutableArray<ImagePoint>> approximations = [contour.Approximation, contour.FineApproximation];
+        foreach (var approximation in approximations)
         {
             if (approximation.Length != 10 || (options.Shapes & PrimitiveShapeKind.Star) == 0)
             {

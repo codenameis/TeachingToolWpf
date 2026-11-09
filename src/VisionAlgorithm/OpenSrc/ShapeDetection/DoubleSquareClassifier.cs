@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/ShapeDetection/DoubleSquareClassifier.cs
 using VisionAlgorithm.OpenSrc.PatternMatching;
 
 namespace VisionAlgorithm.OpenSrc.ShapeDetection;

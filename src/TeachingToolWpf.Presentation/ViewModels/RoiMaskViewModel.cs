@@ -34,15 +34,18 @@ public sealed class RoiMaskViewModel : ObservableObject
         Remove = new(() => Edit(() => _session.RemoveMask(_owner!.Id, SelectedIndex)), () => CanChange && HasSelectedMask);
         Clear = new(() => Edit(() => _session.ClearMasks(_owner!.Id)), () => CanChange && Rows.Count > 0);
         Apply = new(ApplyValues, () => CanChange && HasSelectedMask);
+        OpenPatternMaskEditor = new(() => PatternMaskEditorRequested?.Invoke(), () => CanChange);
     }
 
     public event Action? Changed;
+    public event Action? PatternMaskEditorRequested;
     public RelayCommand DrawRectangle { get; }
     public RelayCommand DrawEllipse { get; }
     public RelayCommand Finish { get; }
     public RelayCommand Remove { get; }
     public RelayCommand Clear { get; }
     public RelayCommand Apply { get; }
+    public RelayCommand OpenPatternMaskEditor { get; }
     public IReadOnlyList<MaskRow> Rows { get; private set; } = [];
     public bool HasOwner => _owner is not null;
     public bool HasMasks => Rows.Count > 0;
@@ -133,7 +136,7 @@ public sealed class RoiMaskViewModel : ObservableObject
 
     private void RefreshCommands()
     {
-        foreach (var command in new[] { DrawRectangle, DrawEllipse, Finish, Remove, Clear, Apply })
+        foreach (var command in new[] { DrawRectangle, DrawEllipse, Finish, Remove, Clear, Apply, OpenPatternMaskEditor })
         {
             command.Refresh();
         }

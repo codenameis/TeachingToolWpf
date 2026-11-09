@@ -42,6 +42,7 @@ public sealed partial class RoiSnapshot
         _children = new(() => rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
             .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
         _search = new(BuildSearchIndex);
+        _alignmentPartitions = new(BuildAlignmentPartitions);
     }
 
     internal RoiSnapshot(RoiSnapshot previous, ImmutableDictionary<Guid, Roi> rois, ImmutableArray<Guid> changedIds, RoiSnapshot? spatialSeed = null, bool refitSpatial = false, CancellationToken token = default)
@@ -98,6 +99,7 @@ public sealed partial class RoiSnapshot
         _spatial = BuildOrUpdateSpatialIndex(seed, rois, geometryChanges, rebuildSpatial, refitSpatial, token);
         _children = BuildOrUpdateChildrenIndex(previous, rois, parentChanges, topologyChanged, bulk);
         _search = CreateSearchIndex(previous);
+        _alignmentPartitions = CreateAlignmentPartitions(previous, topologyChanged, groupKindChanged, rebuildSpatial, refitSpatial, geometryChanges);
     }
 
     private static bool HasRowMetadataChanged(Roi? oldRoi, Roi? nextRoi)

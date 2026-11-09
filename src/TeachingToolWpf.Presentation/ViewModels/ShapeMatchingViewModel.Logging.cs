@@ -10,6 +10,7 @@ public sealed partial class ShapeMatchingViewModel
     private readonly List<InspectionRunLog> _inspectionLogs = [];
     public IReadOnlyList<InspectionRunLog> InspectionLogs => _inspectionLogs.AsReadOnly();
     public string InspectionLogText => IsTemplateMethod ? "OpenCV의 검사 시간은 ‘결과’ 요약에서 확인하세요. 이 방식은 단계별 JSON 로그를 제공하지 않습니다." :
+        IsPatMaxMethod ? _patMaxState.LastRunLogText :
         IsCpuMethod ? CpuLogText : _inspectionLogs.Count == 0
         ? "하이브리드 형상 검사 후 단계별 시간이 표시됩니다. 최근 20회 보관 · JSON 저장 가능"
         : $"최근 검사 · {_inspectionLogs.Count}회 기록 보관 (JSON에 전체 저장)\n" + _inspectionLogs[^1].Describe();

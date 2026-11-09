@@ -25,7 +25,19 @@ public static class Edges
         var selected = new List<EdgePoint>();
         foreach (var point in candidates.OrderByDescending(point => point.Strength))
         {
-            if (!selected.Any(other => ((other.X - point.X) * (other.X - point.X)) + ((other.Y - point.Y) * (other.Y - point.Y)) < 4))
+            var conflict = false;
+            for (var i = 0; i < selected.Count; i++)
+            {
+                var other = selected[i];
+                var dx = other.X - point.X;
+                var dy = other.Y - point.Y;
+                if ((dx * dx) + (dy * dy) < 4)
+                {
+                    conflict = true;
+                    break;
+                }
+            }
+            if (!conflict)
             {
                 selected.Add(point);
                 if (selected.Count == maximum)

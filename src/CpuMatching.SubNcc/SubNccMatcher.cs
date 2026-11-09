@@ -26,6 +26,22 @@ public sealed class SubNccMatcher : ITemplateMatcher
             throw new ArgumentException("Template has insufficient contrast.", nameof(template));
         }
         _template = template;
+        PreviewPoints = ExtractPreviewPoints(template, _parameters);
+    }
+
+    public IReadOnlyList<(double X, double Y)> PreviewPoints { get; }
+
+    private static (double X, double Y)[] ExtractPreviewPoints(GrayImage template, SubNccOptions parameters)
+    {
+        var cx = (template.Width - 1) / 2.0;
+        var cy = (template.Height - 1) / 2.0;
+        var samples = CorrelationLevel.SelectPixels(template, cx, cy, false, parameters.CoarseSamples);
+        var points = new (double X, double Y)[samples.Count];
+        for (var i = 0; i < samples.Count; i++)
+        {
+            points[i] = (samples[i].X, samples[i].Y);
+        }
+        return points;
     }
 
     public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
@@ -64,7 +80,7 @@ public sealed class SubNccMatcher : ITemplateMatcher
         }
 
         // 축소 영상에서는 밝기와 경계 표본을 섞고, 원본에서는 내부 픽셀을 모두 쓴다.
-        private static List<CorrelationSample> SelectPixels(GrayImage template, double cx, double cy, bool fine, int coarseSamples)
+        internal static List<CorrelationSample> SelectPixels(GrayImage template, double cx, double cy, bool fine, int coarseSamples)
         {
             var radius = (Math.Min(template.Width, template.Height) - 3) / 2.0;
             var points = new List<CorrelationSample>();
@@ -99,10 +115,17 @@ public sealed class SubNccMatcher : ITemplateMatcher
         public IPoseScore AtPose(double angleDegrees, double scale)
         {
             var angle = angleDegrees * Math.PI / 180;
-            var cos = Math.Cos(angle) * scale;
-            var sin = Math.Sin(angle) * scale;
-            return new CorrelationPose(_scene, _samples.Select(point => new CorrelationSample(
-                (point.X * cos) - (point.Y * sin), (point.X * sin) + (point.Y * cos), point.Value)).ToArray(), _energy);
+            var (sinVal, cosVal) = Math.SinCos(angle);
+            var cos = cosVal * scale;
+            var sin = sinVal * scale;
+            var rotated = new CorrelationSample[_samples.Length];
+            for (var i = 0; i < _samples.Length; i++)
+            {
+                var point = _samples[i];
+                rotated[i] = new CorrelationSample(
+                    (point.X * cos) - (point.Y * sin), (point.X * sin) + (point.Y * cos), point.Value);
+            }
+            return new CorrelationPose(_scene, rotated, _energy);
         }
     }
 

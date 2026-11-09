@@ -134,8 +134,9 @@ public sealed class PyramidMatchingIntegrationTests
                 MinimumAngleDegrees = -30,
                 MaximumAngleDegrees = 30,
                 AngleStepDegrees = 10,
-                MinimumScale = 1,
-                MaximumScale = 1,
+                MinimumScale = 0.8,
+                MaximumScale = 1.3,
+                ScaleStep = 0.1,
                 UseFineDetailValidation = true,
                 BuildClutterModel = true
             }, default);
@@ -325,14 +326,16 @@ public sealed class PyramidMatchingIntegrationTests
         }
         var service = new ShapeMatchingService(new ImageLoader(Path.GetTempPath()), () => null, pipeline: ShapeSearchPipeline.Paper);
         var image = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
-        foreach (var (w, h, minAngle, maxAngle, minScore) in new[]
+        foreach (var (cx, cy, w, h, minAngle, maxAngle, minScore) in new[]
         {
-            (38d, 44d, -180d, 180d, 0.72),
-            (33d, 38d, -30d, 30d, 0.60),
-            (33d, 38d, -180d, 180d, 0.72)
+            (144d, 375d, 38d, 44d, -180d, 180d, 0.72),
+            (144d, 375d, 33d, 38d, -30d, 30d, 0.60),
+            (144d, 375d, 33d, 38d, -180d, 180d, 0.72),
+            (144d, 375d, 31d, 34d, -40d, 40d, 0.72),
+            (144d, 376d, 29d, 32d, -40d, 40d, 0.72)
         })
         {
-            var trained = await service.TrainAsync(image, false, new RoiGeometry(new(144, 375), w, h, 0), new()
+            var trained = await service.TrainAsync(image, false, new RoiGeometry(new(cx, cy), w, h, 0), new()
             {
                 MinimumAngleDegrees = minAngle,
                 MaximumAngleDegrees = maxAngle,
@@ -348,9 +351,56 @@ public sealed class PyramidMatchingIntegrationTests
                 ClutterWeight = 1
             }, default);
             Assert.False(result.Truncated);
-            Assert.Equal(12, result.Matches.Length);
+            var lowResult = await service.SearchAsync(image, false, trained.Model, null, new()
+            {
+                MinimumScore = 0.40,
+                CandidateThreshold = 0.55,
+                MaximumMatches = 256,
+                MaximumParallelism = 12,
+                ClutterWeight = 1
+            }, default);
+            Assert.True(result.Matches.Length == 12, $"ROI ({cx},{cy}) {w}x{h} [{minAngle}..{maxAngle}] feats={trained.Model.Levels[0].Features.Length} symC=({trained.Model.SymmetryCenter.X:F2},{trained.Model.SymmetryCenter.Y:F2}) coreD={trained.Model.SymmetryCoreDiameter:F1} radii=({trained.Model.ContextSectorRadii.X:F1},{trained.Model.ContextSectorRadii.Y:F1}) occ={trained.Model.OccupiedContextSectorMask} emp={trained.Model.EmptyContextSectorMask}: count={result.Matches.Length}, topScores={string.Join(",", result.Matches.Select(m => $"({m.Pose.X:F1},{m.Pose.Y:F1}@{m.Pose.Angle * 180 / Math.PI:F0}d,dir={m.DirectionScore:F3},det={m.DetailConsistency ?? -1:F3},clut={m.ClutterPenaltyRatio ?? -1:F3},um={m.UnmatchedFeatures.Length},km={m.KeyMatchedFeatures.Length}):{m.Score:F3}"))}");
             Assert.All(result.Matches, m => Assert.True(m.Score >= 0.930, m.ToString()));
+            var maxTopLeftScore = lowResult.Matches
+                .Where(m => Math.Abs(m.Pose.Y - 145) < 15 || Math.Abs(m.Pose.Y - 460) < 15 || Math.Abs(m.Pose.Y - 774) < 15 || Math.Abs(m.Pose.Y - 1088) < 15)
+                .Select(m => m.Score)
+                .DefaultIfEmpty(0.0)
+                .Max();
+            Assert.True(maxTopLeftScore <= 0.55, $"ROI ({cx},{cy}) {w}x{h} [{minAngle}..{maxAngle}]: maxTopLeftScore={maxTopLeftScore:F3}");
         }
+
+        // 위치 고정 하드코딩 제거 검증: 좌상단 모서리(144, 145)를 정답으로 티칭했을 때도 자기 자신을 죽이지 않고 좌상단 12개만 정확히 검출하며, 좌하단(Y=375, 690, 1004, 1318)은 <= 0.55로 배제한다.
+        var topLeftTrained = await service.TrainAsync(image, false, new RoiGeometry(new(144, 145), 33, 38, 0), new()
+        {
+            MinimumAngleDegrees = -30,
+            MaximumAngleDegrees = 30,
+            AngleStepDegrees = 10,
+            UseFineDetailValidation = true,
+            BuildClutterModel = true
+        }, default);
+        var topLeftResult = await service.SearchAsync(image, false, topLeftTrained.Model, null, new()
+        {
+            MinimumScore = 0.72,
+            MaximumMatches = 256,
+            MaximumParallelism = 12,
+            ClutterWeight = 1
+        }, default);
+        Assert.Equal(12, topLeftResult.Matches.Length);
+        Assert.All(topLeftResult.Matches, m => Assert.True(m.Score >= 0.930, m.ToString()));
+        var topLeftLowResult = await service.SearchAsync(image, false, topLeftTrained.Model, null, new()
+        {
+            MinimumScore = 0.40,
+            CandidateThreshold = 0.55,
+            MaximumMatches = 256,
+            MaximumParallelism = 12,
+            ClutterWeight = 1
+        }, default);
+        var maxBottomLeftScore = topLeftLowResult.Matches
+            .Where(m => Math.Abs(m.Pose.Y - 375) < 15 || Math.Abs(m.Pose.Y - 690) < 15 || Math.Abs(m.Pose.Y - 1004) < 15 || Math.Abs(m.Pose.Y - 1318) < 15)
+            .Select(m => m.Score)
+            .DefaultIfEmpty(0.0)
+            .Max();
+        Assert.True(maxBottomLeftScore <= 0.55, $"TopLeft ROI (144,145) 33x38: maxBottomLeftScore={maxBottomLeftScore:F3}");
     }
 
     [Fact]
@@ -400,6 +450,7 @@ public sealed class PyramidMatchingIntegrationTests
             var result = await occService.SearchAsync(new("fixture", "fixture", 1024, 1536), false, trained.Model, null, new()
             {
                 MinimumScore = 0.72,
+                MaxOcclusionRatio = 0.40,
                 MaximumMatches = 256,
                 MaximumParallelism = 12,
                 ClutterWeight = 1
@@ -409,6 +460,109 @@ public sealed class PyramidMatchingIntegrationTests
             var occluded = Assert.Single(result.Matches, m => Math.Abs(m.Pose.X - 508.2) <= 2.0 && Math.Abs(m.Pose.Y - 414.0) <= 2.0);
             var posError = Math.Sqrt(((occluded.Pose.X - 508.2) * (occluded.Pose.X - 508.2)) + ((occluded.Pose.Y - 414.0) * (occluded.Pose.Y - 414.0)));
             Assert.True(posError <= 0.5, $"mode={mode}, pose=({occluded.Pose.X:F2},{occluded.Pose.Y:F2}), err={posError:F3}");
+        }
+    }
+
+    [Fact]
+    public async Task KensaOccludedConnectorsUnderArbitraryRotationsDetectAccuratelyWithZeroFalsePositives()
+    {
+        var kensaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../samples/CpuMatching.Modules/kensa.png"));
+        if (!File.Exists(kensaPath))
+        {
+            return;
+        }
+        var service = new ShapeMatchingService(new ImageLoader(Path.GetTempPath()), () => null, pipeline: ShapeSearchPipeline.Paper);
+        var reference = new ImageReference(kensaPath, "kensa.png", 1024, 1536);
+        var trained = await service.TrainAsync(reference, false, new RoiGeometry(new(244, 414), 179, 31, 0), new()
+        {
+            MinimumAngleDegrees = -180,
+            MaximumAngleDegrees = 180,
+            AngleStepDegrees = 10,
+            UseFineDetailValidation = true,
+            BuildClutterModel = true
+        }, default);
+
+        byte[] basePixels;
+        using (var reader = await MatchingImageReader.OpenAsync(reference, false, new ImageLoader(Path.GetTempPath()), () => null, default))
+        {
+            reader.PreferDirectGray = true;
+            var full = reader.Read(0, 0, 1024, 1536, default);
+            basePixels = full.Pixels.ToArray();
+        }
+        const double srcCenterX = 508.2;
+        const double srcCenterY = 414.0;
+        const int canvasSize = 512;
+        const double dstCenterX = 256.0;
+        const double dstCenterY = 256.0;
+        foreach (var angleDegrees in new[] { 65.0, 135.0 })
+        {
+            foreach (var mode in new[] { "bg", "white", "noise" })
+            {
+                var occludedSrc = (byte[])basePixels.Clone();
+                var rng = new Random(7);
+                for (var y = 396; y <= 432; y++)
+                {
+                    for (var x = 417; x <= 484; x++)
+                    {
+                        occludedSrc[(y * 1024) + x] = mode switch
+                        {
+                            "bg" => (byte)22,
+                            "white" => (byte)255,
+                            _ => (byte)rng.Next(0, 256)
+                        };
+                    }
+                }
+                var rad = angleDegrees * Math.PI / 180.0;
+                var cos = Math.Cos(rad);
+                var sin = Math.Sin(rad);
+                var rotated = new byte[canvasSize * canvasSize];
+                Array.Fill(rotated, (byte)22);
+                for (var dy = 0; dy < canvasSize; dy++)
+                {
+                    for (var dx = 0; dx < canvasSize; dx++)
+                    {
+                        var rx = dx + 0.5 - dstCenterX;
+                        var ry = dy + 0.5 - dstCenterY;
+                        // 회전된 장면 중심 주변 모듈(가로 ±130px, 세로 ±190px: 실제 기판 배선·도넛·외곽선 및 35% 가림 커넥터 포함)을 쌍선형 보간으로 투영한다.
+                        var u = (cos * rx) + (sin * ry);
+                        var v = (-sin * rx) + (cos * ry);
+                        if (Math.Abs(u) > 130.0 || Math.Abs(v) > 190.0)
+                        {
+                            continue;
+                        }
+                        var sx = srcCenterX + u - 0.5;
+                        var sy = srcCenterY + v - 0.5;
+                        var x0 = (int)Math.Floor(sx);
+                        var y0 = (int)Math.Floor(sy);
+                        if (x0 < 0 || y0 < 0 || x0 + 1 >= 1024 || y0 + 1 >= 1536)
+                        {
+                            continue;
+                        }
+                        var fx = sx - x0;
+                        var fy = sy - y0;
+                        var p00 = occludedSrc[(y0 * 1024) + x0];
+                        var p10 = occludedSrc[(y0 * 1024) + x0 + 1];
+                        var p01 = occludedSrc[((y0 + 1) * 1024) + x0];
+                        var p11 = occludedSrc[((y0 + 1) * 1024) + x0 + 1];
+                        var val = ((1 - fx) * (1 - fy) * p00) + (fx * (1 - fy) * p10) + ((1 - fx) * fy * p01) + (fx * fy * p11);
+                        rotated[(dy * canvasSize) + dx] = (byte)Math.Clamp((int)Math.Round(val), 0, 255);
+                    }
+                }
+                var rotLoader = new Loader(new GrayImage(rotated, canvasSize, canvasSize, canvasSize));
+                var rotService = new ShapeMatchingService(rotLoader, () => null, pipeline: ShapeSearchPipeline.Paper);
+                var result = await rotService.SearchAsync(new("fixture", "fixture", canvasSize, canvasSize), false, trained.Model, null, new()
+                {
+                    MinimumScore = 0.72,
+                    MaxOcclusionRatio = 0.40,
+                    MaximumMatches = 256,
+                    MaximumParallelism = 12,
+                    ClutterWeight = 1
+                }, default);
+                Assert.False(result.Truncated);
+                var match = Assert.Single(result.Matches);
+                var posError = Math.Sqrt(((match.Pose.X - dstCenterX) * (match.Pose.X - dstCenterX)) + ((match.Pose.Y - dstCenterY) * (match.Pose.Y - dstCenterY)));
+                Assert.True(posError <= 0.5, $"angle={angleDegrees}, mode={mode}, pose=({match.Pose.X:F2},{match.Pose.Y:F2}), err={posError:F3}");
+            }
         }
     }
     [Fact]

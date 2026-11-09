@@ -9,6 +9,12 @@ public static class HandleGeometry
     public const double ResizeHitRadiusDip = 9;
     public const double RotationHitRadiusDip = 10;
 
+    /// <summary>ROI 상단 경계로부터 회전 핸들 중심까지의 기본 오프셋 (28 DIP).</summary>
+    public const double RotationHandleOffsetDip = 28.0;
+
+    /// <summary>리사이즈 시 ROI 최소 폭/높이를 보장하기 위한 최소 여유 한계 (0.01px).</summary>
+    public const double MinimumDimensionMarginPixels = 0.01;
+
     public static void ValidateScale(double scale)
     {
         if (!double.IsFinite(scale) || scale < MinimumScale || scale > MaximumScale)
@@ -43,7 +49,7 @@ public static class HandleGeometry
     }
 
     public static PointD RotationHandle(RoiGeometry rect, ViewportTransform view, double scale = DefaultScale)
-        => view.ImageToScreen(rect.ToWorld(new(0, -rect.Height / 2))) + new PointD(0, -28 * scale).Rotate(rect.Angle);
+        => view.ImageToScreen(rect.ToWorld(new(0, -rect.Height / 2))) + new PointD(0, -RotationHandleOffsetDip * scale).Rotate(rect.Angle);
 
     public static RoiGeometry Resize(RoiGeometry original, int handle, PointD imagePoint)
     {
@@ -54,22 +60,22 @@ public static class HandleGeometry
         var bottom = original.Height / 2;
         if (handle is 0 or 6 or 7)
         {
-            left = Math.Min(point.X, right - .01);
+            left = Math.Min(point.X, right - MinimumDimensionMarginPixels);
         }
 
         if (handle is 2 or 3 or 4)
         {
-            right = Math.Max(point.X, left + .01);
+            right = Math.Max(point.X, left + MinimumDimensionMarginPixels);
         }
 
         if (handle is 0 or 1 or 2)
         {
-            top = Math.Min(point.Y, bottom - .01);
+            top = Math.Min(point.Y, bottom - MinimumDimensionMarginPixels);
         }
 
         if (handle is 4 or 5 or 6)
         {
-            bottom = Math.Max(point.Y, top + .01);
+            bottom = Math.Max(point.Y, top + MinimumDimensionMarginPixels);
         }
 
         if (original.Shape.Kind == RoiShapeKind.Circle)
@@ -104,7 +110,7 @@ public static class HandleGeometry
             }
             return original.WithFrame(original.ToWorld(new((left + right) / 2, (top + bottom) / 2)), size, size, original.Angle);
         }
-        return original.WithFrame(original.ToWorld(new((left + right) / 2, (top + bottom) / 2)), Math.Max(.01, right - left), Math.Max(.01, bottom - top), original.Angle);
+        return original.WithFrame(original.ToWorld(new((left + right) / 2, (top + bottom) / 2)), Math.Max(MinimumDimensionMarginPixels, right - left), Math.Max(MinimumDimensionMarginPixels, bottom - top), original.Angle);
     }
 
     private static double ComputeCircleDiameter(int handle, double left, double right, double top, double bottom)
@@ -123,6 +129,6 @@ public static class HandleGeometry
             rawSize = Math.Min(right - left, bottom - top);
         }
 
-        return Math.Max(.01, rawSize);
+        return Math.Max(MinimumDimensionMarginPixels, rawSize);
     }
 }

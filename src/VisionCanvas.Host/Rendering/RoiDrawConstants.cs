@@ -38,11 +38,14 @@ internal readonly struct RoiDrawConstants
         // 큰 이미지 원점은 double에서 변환하고, GPU에는 화면 원점과 블록 상대 float만 전달한다.
         var screenOrigin = scene.Document.Viewport.ImageToScreen(transform.Apply(blockOrigin));
         var palette = scene.RoiStyles;
+        // [Domain Why]: 그림자 패스 시 강조 외곽선 확장량 (선택 시 1.5px, 비선택 시 1.0px).
+        const float selectedShadowExpansion = 1.5f;
+        const float defaultShadowExpansion = 1.0f;
         var isShadow = pass == RoiDrawPass.Shadow;
         var shadowExpansion = 0f;
         if (isShadow)
         {
-            shadowExpansion = selected ? 1.5f : 1f;
+            shadowExpansion = selected ? selectedShadowExpansion : defaultShadowExpansion;
         }
 
         ClipScale = new((float)(2 / scene.Width), (float)(-2 / scene.Height));
@@ -50,8 +53,8 @@ internal readonly struct RoiDrawConstants
         SearchRangePass = pass == RoiDrawPass.SearchRange ? 1 : 0;
         ScreenOrigin = new((float)screenOrigin.X, (float)screenOrigin.Y);
         ShadowPass = isShadow ? 1 : 0;
-        SummaryOpacity = selected ? 1 : .5f;
-        ShadowColor = new(0, 0, 0, .22f);
+        SummaryOpacity = selected ? 1 : RenderingConstants.UnselectedSummaryOpacity;
+        ShadowColor = new(0, 0, 0, RenderingConstants.ShadowAlpha);
         Rotation = new((float)transform.Cosine, (float)transform.Sine);
         ReservedRotation = default;
         var multiple = scene.Document.SelectionCount > 1;

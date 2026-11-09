@@ -33,7 +33,7 @@ internal sealed class CudaCandidateScorer : IDisposable
             _accumulate = accelerator.LoadAutoGroupedKernel<Index1D, ArrayView<byte>, ArrayView<CandidateScoreFeature>, ArrayView<int>,
                 ArrayView<ushort>, int, int, int, int, int, int>(CudaCandidateKernels.Accumulate);
             _lookup = accelerator.Allocate1D<byte>(8 * 256);
-            _lookup.View.CopyFromCPU(stream, BuildLookup().AsSpan());
+            _lookup.View.CopyFromCPU(stream, OrientationMaps.BuildLookup().AsSpan());
             stream.Synchronize();
             _diagnostics = new("ILGPU CUDA: orientation spread + batched template scores", accelerator.Name, 0, 0, 0, 0);
         }
@@ -88,26 +88,5 @@ internal sealed class CudaCandidateScorer : IDisposable
         var lookup = _lookup;
         _lookup = null;
         ResourceCleanup.Complete(null, () => buffers?.Dispose(), () => lookup?.Dispose());
-    }
-
-    private static byte[] BuildLookup()
-    {
-        var result = new byte[8 * 256];
-        for (var bin = 0; bin < 8; bin++)
-        {
-            for (var bits = 1; bits < 256; bits++)
-            {
-                var response = 0d;
-                for (var other = 0; other < 8; other++)
-                {
-                    if ((bits & (1 << other)) != 0)
-                    {
-                        response = Math.Max(response, Math.Abs(Math.Cos((bin - other) * Math.PI / 8)));
-                    }
-                }
-                result[(bin * 256) + bits] = (byte)Math.Round(response * 100);
-            }
-        }
-        return result;
     }
 }

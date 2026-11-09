@@ -272,6 +272,56 @@ public sealed class CpuMatchingIntegrationTests
         Assert.True(vm.Search.CanExecute(null));
     }
 
+    [Fact]
+    public async Task PatMaxLivePreviewTrainingAndSearch_EndToEndInViewModel_SucceedsWithDipolesCoarseProbesAndElasticityBand()
+    {
+        using var patMaxService = new PatMaxMatchingService(new Loader(), () => null);
+        var editor = new EditorSession();
+        editor.InitializeImage(new("fixture", "fixture", 256, 192), ViewportTransform.Identity);
+        editor.Add(new(new(48.5, 48.5), 34, 30, 0));
+
+        using var vm = new ShapeMatchingViewModel(null!, patMaxService: patMaxService)
+        {
+            Method = PatternMatchingMethod.PatMax
+        };
+        vm.Update(new(editor.State, 1, false, true));
+
+        // Wait briefly for the async live preview pump to populate Fine dipoles, Coarse probes, and ±Elasticity band
+        for (var i = 0; i < 40 && vm.Overlay is null; i++)
+        {
+            await Task.Delay(15);
+        }
+
+        Assert.NotNull(vm.Overlay);
+        var previewMarker = Assert.Single(vm.Overlay!.Matches);
+        Assert.NotEmpty(previewMarker.Features);
+        Assert.NotEmpty(previewMarker.KeyFeatures);
+        Assert.NotEmpty(previewMarker.DiagnosticGroups);
+
+        // Changing ElasticityPixels or search angles updates the live preview synchronously (0 ms)
+        vm.PatMaxElasticityPixels = 4.0f;
+        Assert.NotNull(vm.Overlay);
+        Assert.Contains("±4px", Assert.Single(vm.Overlay!.Matches).Label);
+
+        vm.PatMaxAutoGranularityCommand.Execute(null);
+        Assert.Empty(vm.OptionsError);
+
+        await vm.Train.ExecuteAsync();
+        Assert.True(vm.HasModel);
+        Assert.False(vm.IsTrainingDirty);
+        Assert.NotEmpty(vm.Markers);
+
+        vm.UseSelection = false;
+        vm.PatMaxMinAngleDegrees = -95;
+        vm.PatMaxMaxAngleDegrees = 95;
+        vm.MinimumScore = 0.55;
+        await vm.Search.ExecuteAsync();
+
+        Assert.True(vm.Markers.Length > 0, $"Status='{vm.Status}', Results='{vm.Results}', Error='{vm.OptionsError}', Dirty={vm.IsTrainingDirty}, CanSearch={vm.Search.CanExecute(null)}");
+        Assert.NotEmpty(vm.ResultRows);
+        Assert.Contains("PatMax", vm.InspectionLogText);
+    }
+
     private sealed class PendingService(ICpuTemplateMatchingService inner) : ICpuTemplateMatchingService
     {
         public TaskCompletionSource<CpuSearchOutput>? Pending

@@ -12,6 +12,10 @@ public sealed class SourceImageLoader(IImageLoader fileLoader) : IImageLoader
         {
             return Task.FromResult<ITileSource>(new LiveImageSource(reference));
         }
+        if (InspectionSuiteSampleTileSource.TryCreate(reference, out var suiteSample))
+        {
+            return Task.FromResult(suiteSample);
+        }
         if (reference.Key.StartsWith("sample:", StringComparison.Ordinal))
         {
             return Task.FromResult<ITileSource>(new ProceduralTileSource(reference.Width, reference.Height));

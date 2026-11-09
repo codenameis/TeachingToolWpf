@@ -39,6 +39,19 @@ public sealed record ResultGraphic(ResultOverlay Result) : CanvasGraphic
             {
                 CheckPoint(point);
             }
+            if (!marker.DiagnosticGroups.IsDefaultOrEmpty)
+            {
+                foreach (var group in marker.DiagnosticGroups)
+                {
+                    if (!group.Points.IsDefaultOrEmpty)
+                    {
+                        foreach (var point in group.Points)
+                        {
+                            CheckPoint(point);
+                        }
+                    }
+                }
+            }
         }
     }
 }

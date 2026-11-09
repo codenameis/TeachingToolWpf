@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../VisionCanvas.Host/VisionCanvas.Host.csproj" />
+    <ProjectReference Include="../VisionAlgorithm/VisionAlgorithm.csproj" />
     <ProjectReference Include="../../IndustrialVision.Filters/src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
     <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />

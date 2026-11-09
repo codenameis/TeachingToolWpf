@@ -50,7 +50,7 @@ internal struct MaskDrawConstants
             return false;
         }
 
-        geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
+        geometry = scene.EffectiveGeometry(roi);
         vertexCount = geometry.Shape.Vertices.Length;
         return true;
     }
@@ -80,7 +80,7 @@ internal struct MaskDrawConstants
 
         var center = scene.Document.Viewport.ImageToScreen(geometry.Center);
         var scale = scene.Document.Viewport.Scale;
-        var (sin, cos) = Math.SinCos(geometry.Angle * Math.PI / 180);
+        var (sin, cos) = Math.SinCos(geometry.Angle * GeometryConstants.DegreesToRadians);
         constants = new MaskDrawConstants
         {
             Center = new((float)((center.X * 2 / scene.Width) - 1), (float)(1 - (center.Y * 2 / scene.Height))),

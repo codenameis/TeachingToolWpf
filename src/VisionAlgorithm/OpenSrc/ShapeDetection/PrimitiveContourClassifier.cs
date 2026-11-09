@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/ShapeDetection/PrimitiveContourClassifier.cs
 using System.Collections.Immutable;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.PatternMatching.Imaging;
@@ -378,21 +379,41 @@ internal static partial class PrimitiveContourClassifier
 
     private static bool Convex(ImmutableArray<ImagePoint> points)
     {
-        var signs = new HashSet<int>();
+        var hasPositive = false;
+        var hasNegative = false;
         for (var i = 0; i < points.Length; i++)
         {
             var a = points[i];
             var b = points[(i + 1) % points.Length];
             var c = points[(i + 2) % points.Length];
-            signs.Add(Math.Sign(((b.X - a.X) * (c.Y - b.Y)) - ((b.Y - a.Y) * (c.X - b.X))));
+            var cross = ((b.X - a.X) * (c.Y - b.Y)) - ((b.Y - a.Y) * (c.X - b.X));
+            if (cross > 0)
+            {
+                hasPositive = true;
+            }
+            else if (cross < 0)
+            {
+                hasNegative = true;
+            }
+            if (hasPositive && hasNegative)
+            {
+                return false;
+            }
         }
-        signs.Remove(0);
-        return signs.Count == 1;
+        return hasPositive ^ hasNegative;
     }
 
     private static double Area(ImmutableArray<ImagePoint> points)
-        => Math.Abs(points.Select((point, index) => (point.X * points[(index + 1) % points.Length].Y) -
-            (point.Y * points[(index + 1) % points.Length].X)).Sum()) / 2;
+    {
+        var sum = 0d;
+        for (var i = 0; i < points.Length; i++)
+        {
+            var p1 = points[i];
+            var p2 = points[(i + 1) % points.Length];
+            sum += (p1.X * p2.Y) - (p1.Y * p2.X);
+        }
+        return Math.Abs(sum) / 2;
+    }
 
     private static double Distance(ImagePoint a, ImagePoint b) => Math.Sqrt(((a.X - b.X) * (a.X - b.X)) + ((a.Y - b.Y) * (a.Y - b.Y)));
 }

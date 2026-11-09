@@ -61,10 +61,13 @@ public partial class App : Application
             new Imaging.Matching.ShapeMatchingService(loader, window.Viewport.RetainFrame, inspectionCompute.Rent, inspectionCompute.PrepareAsync,
                 Imaging.Matching.ShapeSearchPipeline.Paper),
             new Imaging.Matching.TemplateMatchingService(loader, window.Viewport.RetainFrame),
-            new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent));
+            new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent),
+            new Imaging.Matching.PatMaxMatchingService(loader, window.Viewport.RetainFrame));
         var shapes = new PrimitiveShapeDetectionViewModel(new Imaging.Matching.PrimitiveShapeDetectionService(loader,
             window.Viewport.RetainFrame, () => new CudaPrimitivePreprocessor()));
-        var inspections = new InspectionToolsViewModel(pattern, shapes);
+        var fewShot = new EdgeFewShotViewModel(new Imaging.Matching.EdgeFewShotService(loader, window.Viewport.RetainFrame));
+        var suite = new InspectionSuiteViewModel(new Imaging.Matching.InspectionSuiteService(loader, window.Viewport.RetainFrame));
+        var inspections = new InspectionToolsViewModel(pattern, shapes, fewShot, suite);
         var model = new MainWindowViewModel(window.Viewport, new(), loader, live, filterPreview, inspections,
             selectImage: () => ImageFilePicker.Select(window));
         window.Bind(model);

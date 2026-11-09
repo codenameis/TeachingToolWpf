@@ -1,0 +1,340 @@
+<UserControl x:Class="TeachingToolWpf.Views.InspectionSuitePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:TeachingToolWpf.Controls"
+             Validation.Error="OnValidationError">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 상단 고정 영역: 서브 알고리즘 선택 + 원클릭 샘플 로더 -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,6" IsEnabled="{Binding IsIdle}">
+            <TextBlock Text="정밀 검사 알고리즘 선택" Style="{StaticResource Caption}" Margin="0,0,0,4"/>
+            <ComboBox ItemsSource="{Binding Algorithms}"
+                      DisplayMemberPath="Name"
+                      SelectedValuePath="Kind"
+                      SelectedValue="{Binding SelectedAlgorithm}"
+                      AutomationProperties.Name="검사 스위트 서브 알고리즘"
+                      Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="현재 알고리즘 샘플 열기 (1200×800)"
+                        Command="{Binding LoadSelectedAlgorithmSample}"
+                        Style="{StaticResource SecondaryButton}"
+                        Margin="0,0,6,0"
+                        ToolTip="현재 선택된 알고리즘의 전용 합성 샘플 이미지와 ROI를 즉시 생성하고 계측합니다."/>
+                <Button Grid.Column="1"
+                        Content="결과 위치 맞춤"
+                        Command="{Binding Locate}"
+                        Style="{StaticResource SecondaryButton}"
+                        Padding="10,0"
+                        ToolTip="검출된 ROI/캘리퍼 위치로 캔버스 화면을 맞춥니다."/>
+            </Grid>
+            <Expander Header="7종 알고리즘별 샘플 빠른 전환" IsExpanded="False" Margin="0,2,0,2">
+                <UniformGrid Columns="2" Margin="0,6,0,2">
+                    <Button Content="1. 캘리퍼·기하계측" Command="{Binding LoadMetrologySample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,4" FontSize="10.5"/>
+                    <Button Content="2. 골든 배리에이션" Command="{Binding LoadGoldenVariationSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,4" FontSize="10.5"/>
+                    <Button Content="3. 고속 RLE 블롭" Command="{Binding LoadBlobRleSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,4" FontSize="10.5"/>
+                    <Button Content="4. 곡선 비드·실링" Command="{Binding LoadCurvilinearSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,4" FontSize="10.5"/>
+                    <Button Content="5. 소량 분류·OOD" Command="{Binding LoadFewShotSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,4" FontSize="10.5"/>
+                    <Button Content="6. PaDiM 이상탐지" Command="{Binding LoadPatchAnomalySample}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,4" FontSize="10.5"/>
+                    <Button Content="7. 9점 캘리브레이션" Command="{Binding LoadCalibrationSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0" FontSize="10.5"/>
+                </UniformGrid>
+            </Expander>
+        </StackPanel>
+
+        <!-- 중단 스크롤 탭 영역: 설정·가이드 / 상세 결과 -->
+        <TabControl Grid.Row="1" Style="{StaticResource InspectorTabs}" ItemContainerStyle="{StaticResource InspectorTab}">
+            <TabItem Header="설정 · 가이드">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,8,4,10" IsEnabled="{Binding IsIdle}">
+                        <!-- 사용법 가이드 박스 -->
+                        <Border BorderBrush="#0284C7" BorderThickness="3,0,0,0" Background="#F0F9FF" CornerRadius="4" Padding="9,7" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="사용 방법 안내" FontSize="11" FontWeight="SemiBold" Foreground="#0369A1" Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding AlgorithmUsageGuide}" TextWrapping="Wrap" FontSize="10.5" Foreground="#0F172A" LineHeight="15"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 실시간 파라미터 요약 배너 -->
+                        <Border BorderBrush="#38BDF8" BorderThickness="2,0,0,0" Background="{StaticResource Shell}" Padding="8,5" Margin="0,0,0,10">
+                            <TextBlock Text="{Binding ParameterPreviewSummary}" TextWrapping="Wrap" FontSize="10.5" Foreground="{StaticResource TextSecondary}" AutomationProperties.Name="검사 스위트 파라미터 미리보기 요약"/>
+                        </Border>
+
+                        <!-- 기준 ROI 등록 섹션 (GoldenVariation / FewShot / PatchAnomaly 선택 시에만 표시) -->
+                        <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="9,8" Margin="0,0,0,10"
+                                Visibility="{Binding UsesReferenceRois, Converter={StaticResource BoolVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="기준(학습) ROI 샘플 등록" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,6"/>
+                                <UniformGrid Columns="2" Margin="0,0,0,6">
+                                    <Button Content="선택 ROI → 정상 등록" Command="{Binding RegisterNormalReference}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0" FontSize="10.5"
+                                            ToolTip="현재 선택한 ROI를 정상(Golden/Good) 기준으로 등록합니다."/>
+                                    <Button Content="선택 ROI → 불량 등록" Command="{Binding RegisterDefectReference}" Style="{StaticResource SecondaryButton}" FontSize="10.5"
+                                            ToolTip="소량 분류용 불량(Defect) 클래스 샘플로 등록합니다."/>
+                                </UniformGrid>
+                                <Button Content="등록 기준 및 오버레이 초기화" Command="{Binding ClearReferences}" Style="{StaticResource SecondaryButton}" FontSize="10.5" Margin="0,0,0,6"/>
+                                <TextBlock Text="{Binding ReferenceSummary}" TextWrapping="Wrap" FontSize="10.5" Foreground="{StaticResource TextSecondary}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 1. 서브픽셀 캘리퍼 · 기하 계측 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsMetrologySelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="캘리퍼 계측 모드" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding MetrologyModes}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Mode"
+                                      SelectedValue="{Binding MetrologyMode}"
+                                      AutomationProperties.Name="캘리퍼 계측 모드"
+                                      Margin="0,4,0,10"/>
+
+                            <TextBlock Text="에지 검출 극성 (Polarity)" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding PolarityModes}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Polarity"
+                                      SelectedValue="{Binding PolarityMode}"
+                                      AutomationProperties.Name="캘리퍼 에지 극성"
+                                      Margin="0,4,0,10"/>
+
+                            <TextBlock Text="가우시안 스무딩 σ (0.5 ~ 8.0 · 기본 1.2)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.5" Maximum="6.0" TickFrequency="0.1" SmallChange="0.1" LargeChange="0.5"
+                                        Value="{Binding GaussianSigma, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GaussianSigma, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="캘리퍼 가우시안 시그마"/>
+                            </Grid>
+
+                            <TextBlock Text="최소 에지 대비 Contrast (2 ~ 200 GV · 기본 18)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="2" Maximum="120" TickFrequency="1" SmallChange="1" LargeChange="10"
+                                        Value="{Binding MinimumContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding MinimumContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="최소 에지 대비"/>
+                            </Grid>
+
+                            <TextBlock Text="다중 레이크 / 스포크 분할 수 (5 ~ 48개 · 기본 15)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="5" Maximum="48" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding CaliperRakeCount, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding CaliperRakeCount, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="레이크 분할 수"/>
+                            </Grid>
+
+                            <TextBlock Text="1D 투영 적분 폭 (3 ~ 45 px · 기본 11)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="3" Maximum="45" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding CaliperProjectionWidth, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding CaliperProjectionWidth, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="1D 투영 적분 폭"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 2. 골든 배리에이션 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsGoldenVariationSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="골든 배리에이션 표준편차 배수 k (1.0 ~ 10.0 · 기본 3.0)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1.0" Maximum="10.0" TickFrequency="0.2"
+                                        Value="{Binding VariationStdMultiplier, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding VariationStdMultiplier, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="표준편차 배수"/>
+                            </Grid>
+
+                            <TextBlock Text="골든 배리에이션 에지 지터 허용치 c (0.0 ~ 3.0 · 기본 0.5)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.0" Maximum="3.0" TickFrequency="0.05"
+                                        Value="{Binding VariationEdgeMultiplier, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding VariationEdgeMultiplier, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="에지 지터 허용 배수"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 3. 고속 RLE 블롭 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsBlobRleSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="RLE 블롭 이진화 최소 밝기 (1 ~ 255 GV · 기본 128)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding ThresholdIntensity, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding ThresholdIntensity, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="RLE 이진화 임계값"/>
+                            </Grid>
+
+                            <TextBlock Text="구간 모폴로지 오프닝 반경 (0 ~ 12 px · 기본 1)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding MorphologyRadius, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding MorphologyRadius, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="모폴로지 오프닝 반경"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 4. 곡선 비드·실링 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsCurvilinearSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="Steger 헤시안 가우시안 σ (0.7 ~ 6.0 · 기본 1.2)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.7" Maximum="6.0" TickFrequency="0.1"
+                                        Value="{Binding GaussianSigma, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GaussianSigma, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="Steger 가우시안 시그마"/>
+                            </Grid>
+
+                            <TextBlock Text="비드 최소 에지 대비 (3 ~ 150 GV · 기본 18)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="3" Maximum="120" TickFrequency="1"
+                                        Value="{Binding MinimumContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding MinimumContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="비드 최소 대비"/>
+                            </Grid>
+
+                            <TextBlock Text="실링 비드 기준 폭 (3 ~ 120 px · 기본 14)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="3" Maximum="80" TickFrequency="1"
+                                        Value="{Binding NominalBeadWidth, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding NominalBeadWidth, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="비드 기준 폭"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 6. PaDiM 패치 이상 탐지 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsPatchAnomalySelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="PaDiM 공간 패치 크기 (4 ~ 32 px · 기본 8)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="4" Maximum="32" TickFrequency="2" IsSnapToTickEnabled="True"
+                                        Value="{Binding PatchSize, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding PatchSize, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="PaDiM 패치 크기"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 7. 9-Point 캘리브레이션 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsCalibrationSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="9-Point 캘리브레이션 격자 피치 (0.5 ~ 100 mm · 기본 10)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="50" TickFrequency="0.5"
+                                        Value="{Binding GridPitchMm, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GridPitchMm, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="캘리브레이션 격자 피치"/>
+                            </Grid>
+
+                            <TextBlock Text="Brown-Conrady 방사 왜곡 계수 k1 (-0.5 ~ 0.5 · 기본 -0.05)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="-0.3" Maximum="0.3" TickFrequency="0.01"
+                                        Value="{Binding LensK1, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding LensK1, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                         AutomationProperties.Name="렌즈 방사 왜곡 계수"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding AlgorithmDescription}"
+                                   FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="검사 결과">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,8,4,10">
+                        <CheckBox Content="캔버스 오버레이 표시 (청록:검출점 / 하늘점선:스캔가이드 / 빨강:결함)"
+                                  IsChecked="{Binding ShowOverlay}" Margin="0,0,0,8"/>
+                        <Button Content="검출 ROI 위치로 화면 맞춤" Command="{Binding Locate}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,10"/>
+                        <Border Background="{StaticResource Shell}" CornerRadius="6" Padding="10,8">
+                            <TextBlock Text="{Binding Results}" TextWrapping="Wrap" FontSize="11" LineHeight="16"/>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- 하단 고정 실행 바: 화면 밖으로 밀리지 않고 항상 노출 -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Stroke}" BorderThickness="0,1,0,0" Padding="0,8,0,8">
+            <StackPanel>
+                <CheckBox Content="실시간 프리뷰 (ROI 선택·이동·파라미터 변경 시 즉시 반영)"
+                          IsChecked="{Binding AutoPreview}"
+                          Margin="0,0,0,6"
+                          ToolTip="켜면 캔버스에서 ROI를 회전·이동하거나 슬라이더를 조절할 때 즉시 스캔 보조선과 서브픽셀 계측 결과를 프리뷰합니다."/>
+                <TextBlock Text="{Binding OptionsError}" Foreground="#9A3412" TextWrapping="Wrap" FontSize="10.5" Margin="0,0,0,4"/>
+                <UniformGrid Columns="2" Margin="0,0,0,5">
+                    <Button Content="선택 ROI 검사" Command="{Binding ExecuteSelected}" Style="{StaticResource PrimaryButton}" Margin="0,0,5,0"
+                            ToolTip="캔버스에서 선택한 ROI(미선택 시 전체 ROI)에 대해 현재 알고리즘을 실행합니다."/>
+                    <Button Content="전체 ROI 일괄 검사" Command="{Binding ExecuteAllRois}" Style="{StaticResource PrimaryButton}"
+                            ToolTip="캔버스에 배치된 모든 리프 ROI에 대해 일괄 실행합니다."/>
+                </UniformGrid>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="8K(8192×8192) 7종 마스터 전수 검증" Command="{Binding RunMaster8kBenchmark}"
+                            Style="{StaticResource SecondaryButton}" Margin="0,0,5,0" FontSize="10.5"
+                            ToolTip="8K 합성 웨이퍼·기판 위에서 7대 알고리즘을 원클릭 전수 실행하고 서브픽셀 정밀도를 검증합니다."/>
+                    <Button Grid.Column="1" Content="취소" Command="{Binding Cancel}" Style="{StaticResource SecondaryButton}" Padding="12,0"/>
+                </Grid>
+                <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,4" Visibility="{Binding IsBusy, Converter={StaticResource BoolVisibility}}"/>
+                <Border Background="{StaticResource Shell}" CornerRadius="5" Padding="8,5">
+                    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="10.5" Foreground="#0F172A"/>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

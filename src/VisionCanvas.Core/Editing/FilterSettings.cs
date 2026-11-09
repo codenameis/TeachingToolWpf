@@ -4,7 +4,9 @@ public enum RoiFilterKind
 {
     None, Binarize, Edge,
     Gaussian, Erosion, Dilation, Opening, Closing, WhiteTopHat, BlackHat,
-    NativeThreshold, GaussianBlackHatThreshold
+    NativeThreshold, GaussianBlackHatThreshold,
+    Clahe, GuidedFilter, Bilateral, Median, AdaptiveThreshold, UnsharpMask, SobelGradient,
+    WarpAffineShear, WarpPerspectiveKeystone, WarpPolarUnwrap, WarpLensUndistort
 }
 
 public enum RoiFilterExecution
@@ -16,18 +18,36 @@ public enum RoiFilterExecution
 public sealed record FilterSettings(RoiFilterKind Kind, double Threshold = 128, double EdgeLow = 50, double EdgeHigh = 150,
     int Radius = 3, double Sigma = 1, RoiFilterExecution Execution = RoiFilterExecution.CpuOnly)
 {
-    public static bool IsIndustrialKind(RoiFilterKind kind) => kind >= RoiFilterKind.Gaussian;
+    public static bool IsIndustrialKind(RoiFilterKind kind) =>
+        kind is >= RoiFilterKind.Gaussian and <= RoiFilterKind.GaussianBlackHatThreshold;
 
-    public static bool UsesRadiusKind(RoiFilterKind kind) => IsIndustrialKind(kind) && kind != RoiFilterKind.NativeThreshold;
+    public static bool IsPreprocessingOrWarpKind(RoiFilterKind kind) =>
+        kind >= RoiFilterKind.Clahe;
 
-    public static bool UsesSigmaKind(RoiFilterKind kind) => kind is RoiFilterKind.Gaussian or RoiFilterKind.GaussianBlackHatThreshold;
+    public static bool UsesRadiusKind(RoiFilterKind kind) =>
+        (IsIndustrialKind(kind) && kind != RoiFilterKind.NativeThreshold) ||
+        kind is RoiFilterKind.Clahe or RoiFilterKind.GuidedFilter or RoiFilterKind.Bilateral
+            or RoiFilterKind.Median or RoiFilterKind.AdaptiveThreshold or RoiFilterKind.UnsharpMask;
 
-    public static bool UsesNativeThresholdKind(RoiFilterKind kind) => kind is RoiFilterKind.NativeThreshold or RoiFilterKind.GaussianBlackHatThreshold;
+    public static bool UsesSigmaKind(RoiFilterKind kind) =>
+        kind is RoiFilterKind.Gaussian or RoiFilterKind.GaussianBlackHatThreshold
+            or RoiFilterKind.Clahe or RoiFilterKind.GuidedFilter or RoiFilterKind.Bilateral
+            or RoiFilterKind.AdaptiveThreshold or RoiFilterKind.UnsharpMask or RoiFilterKind.SobelGradient
+            or RoiFilterKind.WarpAffineShear or RoiFilterKind.WarpPerspectiveKeystone or RoiFilterKind.WarpLensUndistort;
+
+    public static bool UsesNativeThresholdKind(RoiFilterKind kind) =>
+        kind is RoiFilterKind.NativeThreshold or RoiFilterKind.GaussianBlackHatThreshold;
+
+    public static bool UsesByteThresholdKind(RoiFilterKind kind) =>
+        kind is RoiFilterKind.Binarize or RoiFilterKind.WarpAffineShear or RoiFilterKind.WarpPerspectiveKeystone
+            or RoiFilterKind.WarpPolarUnwrap or RoiFilterKind.WarpLensUndistort;
 
     public bool IsIndustrial => IsIndustrialKind(Kind);
+    public bool IsPreprocessingOrWarp => IsPreprocessingOrWarpKind(Kind);
     public bool UsesRadius => UsesRadiusKind(Kind);
     public bool UsesSigma => UsesSigmaKind(Kind);
     public bool UsesNativeThreshold => UsesNativeThresholdKind(Kind);
+    public bool UsesByteThreshold => UsesByteThresholdKind(Kind);
 
     public void Validate()
     {
@@ -35,7 +55,7 @@ public sealed record FilterSettings(RoiFilterKind Kind, double Threshold = 128, 
             (UsesRadius && Radius is < 1 or > 31) ||
             (UsesSigma && (!double.IsFinite(Sigma) || Sigma <= 0 || Sigma > 100)) ||
             (UsesNativeThreshold && (!double.IsFinite(Threshold) || Threshold is < 0 or > 65535)) ||
-            (Kind == RoiFilterKind.Binarize && (!double.IsFinite(Threshold) || Threshold is < 0 or > 255)) ||
+            (UsesByteThreshold && (!double.IsFinite(Threshold) || Threshold is < 0 or > 255)) ||
             (Kind == RoiFilterKind.Edge && (!double.IsFinite(EdgeLow) || !double.IsFinite(EdgeHigh) || EdgeLow < 0 || EdgeHigh > 255 || EdgeLow >= EdgeHigh)))
         {
             throw new ArgumentException("임계값: 기존 0–255 / 원본 0–65535, Edge 하한 < 상한, 반경 정수 1–31, sigma 0 초과–100 이하가 필요합니다.");

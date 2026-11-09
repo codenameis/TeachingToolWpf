@@ -109,12 +109,17 @@ public sealed partial class ShapeMatchingViewModel
         {
             return;
         }
+        var wasIdle = IsIdle;
         ActiveCpuState.Parameters = parameters;
         Notify(property);
         Notify(nameof(IsTrainingDirty));
         Notify(nameof(ModelSummary));
         Invalidate();
         RefreshCommands();
+        if (wasIdle)
+        {
+            ScheduleLivePreview(trainingParametersChanged: true);
+        }
     }
     private string CpuSummary => ActiveCpuState.Template is { } model
         ? $"{model.Method} · {model.TeachingRegion.Width:F0}×{model.TeachingRegion.Height:F0} px · 학습 방향 {model.TeachingRegion.Angle:F2}°" +
@@ -135,10 +140,16 @@ public sealed partial class ShapeMatchingViewModel
         {
             return;
         }
+        var wasIdle = IsIdle;
+        var hadTrainingPreview = _result?.Summary.Contains("미리보기", StringComparison.Ordinal) == true || _livePreview is not null;
         ActiveCpuState.Options = options;
         Notify(property);
         Invalidate();
         RefreshCommands();
+        if (wasIdle && (hadTrainingPreview || !HasModel))
+        {
+            ScheduleLivePreview(trainingParametersChanged: false);
+        }
     }
 
     private async Task TrainCpuAsync()
@@ -152,6 +163,7 @@ public sealed partial class ShapeMatchingViewModel
         var parameters = state.Parameters;
         var exclusion = _selectionExclusion;
         var id = _selectedRoiId;
+        var roiName = _selectedRoiName;
         await RunAsync(async (token, epoch) =>
         {
             Status = $"{cpuMethod} 원본 템플릿 등록 중…";
@@ -163,7 +175,15 @@ public sealed partial class ShapeMatchingViewModel
             state.Template = template;
             state.TeachingRoiId = id;
             state.IsMaskDirty = false;
-            PresentActivity("CPU 템플릿 등록 완료 · 검색 범위와 파라미터를 설정하고 검사하세요.");
+            RegisterOrUpdateTrainedPattern(
+                method: method,
+                roiId: id,
+                roiName: roiName,
+                teachingRegion: roi,
+                teachingMasks: exclusion?.Regions ?? [],
+                summary: $"{template.Method} · {roi.Width:F0}×{roi.Height:F0} px · 표본 {template.Matcher.PreviewPoints.Count}개",
+                cpuTemplate: template);
+            PresentCpuTrainingPreview(template);
             Status = CpuSummary;
             Notify(nameof(ModelSummary));
             Notify(nameof(HasModel));
@@ -210,11 +230,21 @@ public sealed partial class ShapeMatchingViewModel
             _inspectionNotice = DetectionNotice(result.CandidatesTruncated, result.MatchLimitExceeded, result.Matches.Count);
             Verdict = incomplete ? InspectionVerdict.Warning : InspectionVerdict.Review;
             var color = InspectionResultPresentation.Color(Verdict.Value);
-            var markers = result.Matches.Select((match, index) => new MatchMarker(
-                new RoiGeometry(new(match.X, match.Y), model.TeachingRegion.Width * match.Scale,
-                    model.TeachingRegion.Height * match.Scale, match.AngleDegrees).Outline.ToImmutableArray(),
-                new(match.X, match.Y), match.AngleDegrees * Math.PI / 180, $"#{index + 1} {match.Score:F3}", color, [])).ToImmutableArray();
-            _result = new($"{model.Method} {execution} · {markers.Length}개", color, SearchBoundary(image, region), markers, false)
+            var rawPoints = model.Matcher.PreviewPoints;
+            var markers = result.Matches.Select((match, index) =>
+            {
+                var rad = match.AngleDegrees * Math.PI / 180;
+                var cos = Math.Cos(rad) * match.Scale;
+                var sin = Math.Sin(rad) * match.Scale;
+                var features = rawPoints.Count == 0
+                    ? []
+                    : rawPoints.Select(p => new PointD(match.X + (cos * p.X) - (sin * p.Y), match.Y + (sin * p.X) + (cos * p.Y))).ToImmutableArray();
+                return new MatchMarker(
+                    new RoiGeometry(new(match.X, match.Y), model.TeachingRegion.Width * match.Scale,
+                        model.TeachingRegion.Height * match.Scale, match.AngleDegrees).Outline.ToImmutableArray(),
+                    new(match.X, match.Y), rad, $"#{index + 1} {match.Score:F3}", color, features);
+            }).ToImmutableArray();
+            _result = new($"{model.Method} {execution} · {markers.Length}개", color, SearchBoundary(image, region), markers, ShowFeatures)
             {
                 BatchLabels = true
             };
@@ -235,6 +265,15 @@ public sealed partial class ShapeMatchingViewModel
                 ResultPreparedMilliseconds = Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds
             });
             PublishResult();
+            RecordSingleRoiPatternResult(
+                _selectedRoiId,
+                _selectedRoiName,
+                region,
+                Verdict ?? InspectionVerdict.Review,
+                result.Matches.Count,
+                result.Matches.Count == 0 ? 0.0 : result.Matches[0].Score,
+                result.Matches.Count == 0 ? "검출 없음" : $"X={result.Matches[0].X:F2}, Y={result.Matches[0].Y:F2}, θ={result.Matches[0].AngleDegrees:F2}°",
+                output.TotalMilliseconds);
             UpdateCpuLog(id, log => log with { PublishedMilliseconds = Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds });
         });
         UpdateCpuLog(id, log => log with

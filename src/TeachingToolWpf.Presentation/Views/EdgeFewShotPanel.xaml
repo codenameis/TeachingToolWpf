@@ -1,0 +1,74 @@
+<UserControl x:Class="TeachingToolWpf.Views.EdgeFewShotPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:TeachingToolWpf.Controls"
+             Validation.Error="OnValidationError">
+    <Expander Header="소량 샘플 분류 · OOD 이상 탐지 (Few-Shot)" IsExpanded="True" Margin="0,0,0,20">
+        <StackPanel Margin="0,10,0,0">
+            <TextBlock Text="클래스당 5~20장의 소량 ROI 샘플만으로 다중 프로토타입(K-Means++)과 Ledoit-Wolf 수축 공분산을 학습하여 정상(Good)·등록 불량(BackBad)·미등록 이상치(OOD)를 분리 판정합니다."
+                       FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+            <Border BorderBrush="#38BDF8" BorderThickness="2,0,0,0" Background="{StaticResource Shell}" Padding="8,5" Margin="0,0,0,10">
+                <TextBlock Text="{Binding ParameterPreviewSummary}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondary}" AutomationProperties.Name="소량 분류 파라미터 미리보기 요약"/>
+            </Border>
+
+            <StackPanel IsEnabled="{Binding IsIdle}">
+                <TextBlock Text="1단계 · 학습용 ROI 샘플 등록" Style="{StaticResource Caption}" Margin="0,0,0,6"/>
+                <UniformGrid Columns="2" Margin="0,0,0,6">
+                    <Button Content="선택 ROI → 정상(Good)" Command="{Binding RegisterGood}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"
+                            ToolTip="캔버스에서 선택한 ROI들을 정상(Good) 클래스 샘플로 등록합니다."/>
+                    <Button Content="선택 ROI → 불량(BackBad)" Command="{Binding RegisterDefect}" Style="{StaticResource SecondaryButton}"
+                            ToolTip="캔버스에서 선택한 ROI들을 불량(BackBad) 클래스 샘플로 등록합니다."/>
+                </UniformGrid>
+                <UniformGrid Columns="2" Margin="0,0,0,8">
+                    <Button Content="단일 보드 10개 자동 등록" Command="{Binding RegisterBoardPreset}" Style="{StaticResource SecondaryButton}" Margin="0,0,6,0"
+                            ToolTip="단일 보드의 상단 5개 ROI를 정상(Good), 중단 5개 ROI를 불량(BackBad)으로 일괄 등록합니다."/>
+                    <Button Content="등록 샘플 초기화" Command="{Binding ClearSamples}" Style="{StaticResource SecondaryButton}"/>
+                </UniformGrid>
+                <Border Background="{StaticResource Shell}" CornerRadius="6" Padding="8,6" Margin="0,0,0,12">
+                    <TextBlock Text="{Binding SampleSummary}" TextWrapping="Wrap" FontSize="11"/>
+                </Border>
+
+                <TextBlock Text="2단계 · 특징 추출 및 공분산 모델 학습" Style="{StaticResource Caption}" Margin="0,0,0,6"/>
+                <Expander Header="학습 수식 및 마할라노비스 상세 설정" IsExpanded="False" Margin="0,0,0,8">
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock Text="GeM 공간 풀링 지수 p (1.0 ~ 10.0 · 기본 3.0)" Style="{StaticResource Caption}"/>
+                        <TextBox Text="{Binding GemExponentP, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                 AutomationProperties.Name="GeM 풀링 지수" Margin="0,4,0,8"/>
+                        <TextBlock Text="Ledoit-Wolf 공분산 수축 계수 λ (0.001 ~ 0.999 · 기본 0.15)" Style="{StaticResource Caption}"/>
+                        <TextBox Text="{Binding ShrinkageLambda, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                 AutomationProperties.Name="공분산 수축 계수" Margin="0,4,0,8"/>
+                        <TextBlock Text="클래스당 K-Means++ 서브 프로토타입 수 K (1 ~ 16 · 기본 2)" Style="{StaticResource Caption}"/>
+                        <TextBox Text="{Binding SubPrototypesPerClass, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                 AutomationProperties.Name="서브 프로토타입 수" Margin="0,4,0,8"/>
+                        <TextBlock Text="자동 OOD 임계치 배수 (1.0 ~ 20.0 · 기본 2.5)" Style="{StaticResource Caption}"/>
+                        <TextBox Text="{Binding OodThresholdMultiplier, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                 AutomationProperties.Name="자동 OOD 임계치 배수" Margin="0,4,0,8"/>
+                        <TextBlock Text="수동 OOD 마할라노비스 임계치 (0 = 자동 보정 사용)" Style="{StaticResource Caption}"/>
+                        <TextBox Text="{Binding ManualOodThreshold, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
+                                 AutomationProperties.Name="수동 OOD 임계치" Margin="0,4,0,6"/>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+
+            <TextBlock Text="{Binding OptionsError}" Foreground="#9A3412" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
+            <Button Content="소량 샘플 모델 학습 실행" Command="{Binding Train}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8"/>
+            <Border Background="{StaticResource Shell}" CornerRadius="6" Padding="8,6" Margin="0,0,0,12">
+                <TextBlock Text="{Binding ModelSummary}" TextWrapping="Wrap" FontSize="11"/>
+            </Border>
+
+            <TextBlock Text="3단계 · 실시간 추론 및 미등록 이상치(OOD) 판정" Style="{StaticResource Caption}" Margin="0,0,0,6"/>
+            <UniformGrid Columns="2" Margin="0,0,0,6">
+                <Button Content="선택 ROI 분류" Command="{Binding ClassifySelected}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0"
+                        ToolTip="현재 선택한 ROI들에 대해 마할라노비스 거리 기반 분류 및 OOD 판정을 수행합니다."/>
+                <Button Content="문서 전체 ROI 분류" Command="{Binding ClassifyAll}" Style="{StaticResource PrimaryButton}"
+                        ToolTip="캔버스에 배치된 모든 리프 ROI를 한 번에 분류하고 색상 오버레이로 표시합니다."/>
+            </UniformGrid>
+            <Button Content="작업 취소" Command="{Binding Cancel}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,6"/>
+            <ProgressBar IsIndeterminate="True" Height="4" Margin="0,4,0,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolVisibility}}"/>
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="11" Margin="0,8,0,8"/>
+            <CheckBox Content="분류 결과 오버레이 표시 (초록:Good / 주황:BackBad / 빨강:OOD)" IsChecked="{Binding ShowOverlay}" Margin="0,0,0,8"/>
+            <Button Content="결과 ROI 위치로 화면 맞춤" Command="{Binding Locate}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,10"/>
+            <TextBlock Text="{Binding Results}" TextWrapping="Wrap" FontSize="11"/>
+        </StackPanel>
+    </Expander>
+</UserControl>

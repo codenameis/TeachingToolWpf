@@ -6,7 +6,13 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record TemplateTrainingOutput(CorrelationTemplate Model, double Milliseconds);
+public sealed record TemplateTrainingOutput(
+    CorrelationTemplate Model,
+    double Milliseconds,
+    byte[]? PreviewGray8 = null,
+    int PreviewWidth = 0,
+    int PreviewHeight = 0);
+
 public sealed record TemplateSearchOutput(ImmutableArray<CorrelationMatch> Matches, int Windows, bool Truncated,
     double ReadMilliseconds, double TotalMilliseconds, bool MatchLimitExceeded = false);
 
@@ -40,7 +46,21 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
                 }
             }
             var model = CorrelationTemplate.Train(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / 180), token);
-            return new TemplateTrainingOutput(model, timer.Elapsed.TotalMilliseconds);
+            var previewPatch = RoiPreviewPatchExtractor.ExtractRectifiedPatch(
+                pixels.Pixels.Span,
+                pixels.Width,
+                pixels.Height,
+                pixels.Stride,
+                left,
+                top,
+                roi,
+                exclusion);
+            return new TemplateTrainingOutput(
+                model,
+                timer.Elapsed.TotalMilliseconds,
+                previewPatch.Pixels,
+                previewPatch.Width,
+                previewPatch.Height);
         }, token);
 
     public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model,

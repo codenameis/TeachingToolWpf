@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/PatternMatching/Imaging/OpenCvTemplateMatcher.cs
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;

@@ -49,6 +49,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private int _rowPage;
     private RoiRows _visibleRows = new([]);
     private object? _rowSelection;
+    private bool _wasPreviewing;
+    private RoiTransformPreview? _lastTransformPreview;
 
     public RoiRows VisibleRows => _visibleRows;
 
@@ -91,6 +93,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public RoiStyleSettingsViewModel StyleSettings { get; } = new();
 
     public CrosshairSettingsViewModel GuideSettings { get; } = new();
+
+    public PatternMaskEditorViewModel PatternMaskEditor { get; }
+
+    public event Action? PatternMaskWindowRequested;
 
     public RoiRows Rows
     {
@@ -291,6 +297,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public AsyncCommand PrimitiveSample { get; private set; }
 
+    public AsyncCommand FewShotSample { get; private set; }
+
+    public AsyncCommand SuiteSample { get; private set; }
+
     public AsyncCommand Undo { get; private set; }
 
     public AsyncCommand Redo { get; private set; }
@@ -325,13 +335,27 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Navigation = new(Session, Input, Layout, () => CanEdit);
         Masks = new(Session, Input, message => Status = message);
         Masks.Changed += Publish;
+        Masks.PatternMaskEditorRequested += RequestPatternMaskWindow;
         Images = new(Session, display, layout, loader, Live.CloseAsync, PrepareRowsAsync);
+        PatternMaskEditor = new(Session, loader, () => null, message => Status = message);
         Inspections = inspections;
         Matching = inspections.Pattern;
         Inspections.Changed += Publish;
+        Inspections.AssignmentsChanged += RefreshRowAssignments;
+        Inspections.LocateBoundsRequested += LocateInspection;
         Matching.LocateRequested += LocateInspection;
         Matching.SearchRangeRequested += EnsurePatternSearchRange;
+        Matching.PatternMaskEditorRequested += RequestPatternMaskWindow;
         Inspections.Shapes.LocateRequested += LocateInspection;
+        if (Inspections.FewShot is { } fewShot)
+        {
+            fewShot.LocateRequested += LocateInspection;
+        }
+        if (Inspections.Suite is { } suite)
+        {
+            suite.LocateRequested += LocateInspection;
+            suite.SampleLoadRequested += RequestSuiteSampleLoad;
+        }
         Properties = new(Session);
         WireCommands(display);
         Live.Changed += Refresh;
@@ -356,6 +380,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             Filters.RefreshLiveFrame();
         }
     }
+
+    public Task RefreshPatternMaskEditorAsync()
+        => PatternMaskEditor.LoadSelectedRoiAsync(Session.State.Image, Live.IsRunning);
+
+    private void RequestPatternMaskWindow()
+        => PatternMaskWindowRequested?.Invoke();
 
     private void LayoutChanged()
     {
@@ -510,16 +540,40 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void SessionChanged(object? sender, EventArgs e)
     {
         Input.ValidateDraftImage();
-        if (!Session.IsPreviewing)
+        var isPreviewing = Session.IsPreviewing;
+        var previewingTransition = _wasPreviewing != isPreviewing;
+        _wasPreviewing = isPreviewing;
+        if (!isPreviewing)
         {
             _previewPreparation.Cancel();
         }
 
         var state = Session.State;
+        var transformPreview = Session.TransformPreview;
+        var viewOnlyNavigation = !isPreviewing && !previewingTransition &&
+            ReferenceEquals(_rowRois, state.Rois) &&
+            ReferenceEquals(_rowSelection, state.Selection) &&
+            _lastTransformPreview == transformPreview;
+        _lastTransformPreview = transformPreview;
+        if (viewOnlyNavigation)
+        {
+            ZoomText = (state.Viewport.Scale * Layout.Dpi * 100).ToString("0.##");
+            Refresh();
+            return;
+        }
+        if (isPreviewing && !previewingTransition && ReferenceEquals(_rowSelection, state.Selection))
+        {
+            Properties.Refresh();
+            Filters.Update(state, Live.Image is not null, transformPreview, DisplayImage?.Pixels ?? PixelKind.Gray8);
+            Inspections.Update(state, Images.Generation, Live.Image is not null, false, transformPreview);
+            Publish();
+            return;
+        }
+
         RefreshRowsForDocument(state);
         RevealSingleSelection(state);
         _rowSelection = state.Selection;
-        if (!Session.IsPreviewing)
+        if (!isPreviewing)
         {
             _rowRois = state.Rois;
         }
@@ -539,15 +593,26 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (_preparedRows is { } prepared && ReferenceEquals(prepared.Version, state.Snapshot.RowVersion))
         {
             Rows = prepared.Rows;
+            Rows.ApplyAssignments(Inspections.RoiAssignments);
         }
-        else if (!Rows.TryRefreshMetadata(_rowRois, state))
+        else if (!Rows.TryRefreshMetadata(_rowRois, state, Inspections.RoiAssignments))
         {
-            Rows = new(RoiRow.Build(state));
+            Rows = new(RoiRow.Build(state, default, Inspections.RoiAssignments));
         }
 
         _rowVersion = state.Snapshot.RowVersion;
         var lastPage = Math.Max(0, (Rows.Count - 1) / RowPageSize);
         ChangeRowPage(Math.Min(_rowPage, lastPage), force: true);
+    }
+
+    private void RefreshRowAssignments()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        Rows.ApplyAssignments(Inspections.RoiAssignments);
+        ChangeRowPage(_rowPage, force: true);
     }
 
     private void RevealSingleSelection(DocumentState state)
@@ -590,7 +655,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Input.NavigationOnly = !CanEdit;
         Masks.Update(CanEdit);
         Filters.Update(Session.State, Live.Image is not null, Session.TransformPreview, DisplayImage?.Pixels ?? PixelKind.Gray8);
-        Inspections.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing);
+        Inspections.Update(Session.State, Images.Generation, Live.Image is not null, CanEdit && !Live.IsRunning && !Session.IsPreviewing, Session.TransformPreview);
         Notify(nameof(HasRepeatedSelection));
         Notify(nameof(CanUseOrdinaryRoiTools));
         Notify(nameof(CanEdit));
@@ -706,7 +771,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
         Input.SetViewportSize(Layout.Width, Layout.Height);
-        Scene = new(Session.State, DisplayImage, Images.Generation, Layout.Width, Layout.Height, Layout.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Filters.Result, Session.TransformPreview, StyleSettings.Palette, Inspections.Overlay)
+        Scene = new(Session.State, DisplayImage, Images.Generation, Layout.Width, Layout.Height, Layout.Dpi, Input.Overlay, PointSampling, Live.Image is not null, Inspections.FilterPreview ?? Filters.Result, Session.TransformPreview, StyleSettings.Palette, Inspections.Overlay)
         {
             ShowMasks = Masks.ShowMasks,
             MinimapOptions = Input.MinimapOptions,
@@ -827,9 +892,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         StyleSettings.Changed -= ApplyRoiSettings;
         Filters.Changed -= Publish;
         Inspections.Changed -= Publish;
+        Inspections.AssignmentsChanged -= RefreshRowAssignments;
+        Inspections.LocateBoundsRequested -= LocateInspection;
         Matching.LocateRequested -= LocateInspection;
         Matching.SearchRangeRequested -= EnsurePatternSearchRange;
         Inspections.Shapes.LocateRequested -= LocateInspection;
+        if (Inspections.FewShot is { } fewShot)
+        {
+            fewShot.LocateRequested -= LocateInspection;
+        }
+        if (Inspections.Suite is { } suite)
+        {
+            suite.LocateRequested -= LocateInspection;
+            suite.SampleLoadRequested -= RequestSuiteSampleLoad;
+        }
         Live.Changed -= Refresh;
         Images.Changed -= Refresh;
         Layout.Changed -= LayoutChanged;

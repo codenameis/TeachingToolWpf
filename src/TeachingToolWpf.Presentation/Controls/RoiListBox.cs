@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -138,6 +141,20 @@ internal sealed class RoiListSlot(RoiRow row) : ObservableObject
 
     public double IndentWidth => Row.IndentWidth;
 
+    public string ShapeGlyph => Row.ShapeGlyph;
+
+    public string AlgorithmBadge => Row.AlgorithmBadge;
+
+    public string AlgorithmAccent => Row.AlgorithmAccent;
+
+    public string VerdictBadge => Row.VerdictBadge;
+
+    public string VerdictAccent => Row.VerdictAccent;
+
+    public bool HasAlgorithm => Row.HasAlgorithm;
+
+    public bool HasVerdict => Row.HasVerdict;
+
     public override string ToString() => Label;
 
     public void Update(RoiRow next)
@@ -157,6 +174,33 @@ internal sealed class RoiListSlot(RoiRow row) : ObservableObject
         if (previous.Depth != next.Depth)
         {
             Notify(nameof(IndentWidth));
+        }
+
+        if (previous.ShapeGlyph != next.ShapeGlyph)
+        {
+            Notify(nameof(ShapeGlyph));
+        }
+
+        if (previous.AlgorithmBadge != next.AlgorithmBadge)
+        {
+            Notify(nameof(AlgorithmBadge));
+            Notify(nameof(HasAlgorithm));
+        }
+
+        if (previous.AlgorithmAccent != next.AlgorithmAccent)
+        {
+            Notify(nameof(AlgorithmAccent));
+        }
+
+        if (previous.VerdictBadge != next.VerdictBadge)
+        {
+            Notify(nameof(VerdictBadge));
+            Notify(nameof(HasVerdict));
+        }
+
+        if (previous.VerdictAccent != next.VerdictAccent)
+        {
+            Notify(nameof(VerdictAccent));
         }
     }
 }

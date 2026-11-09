@@ -7,19 +7,57 @@
         <TextBlock Text="작업 패널" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
         <TabControl x:Name="WorkspaceTabs" Grid.Row="1" Style="{StaticResource InspectorTabs}" ItemContainerStyle="{StaticResource InspectorTab}" AutomationProperties.Name="오른쪽 작업 선택">
             <TabItem Header="검사">
-                <Grid Margin="0,12,0,0">
+                <Grid Margin="0,10,0,0">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <ComboBox ItemsSource="{Binding Inspections.Tools}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding Inspections.Selected}" IsEnabled="{Binding Inspections.IsIdle}" AutomationProperties.Name="검사 도구" Margin="0,0,0,12"/>
-                    <Grid Grid.Row="1">
+                    <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                        <StackPanel>
+                            <DockPanel>
+                                <Border DockPanel.Dock="Right" CornerRadius="4" Padding="6,2" Background="#0F172A"
+                                        Visibility="{Binding Inspections.SelectedRoiHasVerdict, Converter={StaticResource BoolVisibility}}">
+                                    <TextBlock Text="{Binding Inspections.SelectedRoiVerdictBadge}" Foreground="{Binding Inspections.SelectedRoiVerdictAccent}" FontSize="10" FontWeight="Bold"/>
+                                </Border>
+                                <TextBlock Text="{Binding Inspections.SelectedRoiHeaderText}" FontSize="11.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                            <DockPanel Margin="0,5,0,0">
+                                <Button DockPanel.Dock="Right" Content="현재 알고리즘 할당" Command="{Binding Inspections.AssignCurrentAlgorithmToSelectedRois}"
+                                        Style="{StaticResource SecondaryButton}" Padding="8,3" FontSize="10.5" Margin="6,0,0,0"/>
+                                <TextBlock Text="{Binding Inspections.SelectedRoiAlgorithmBadge}" FontSize="11" FontWeight="Bold" Foreground="#0284C7" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding Inspections.SelectedRoiParameterSummary}" FontSize="10" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <ComboBox ItemsSource="{Binding Inspections.Tools}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding Inspections.Selected}" IsEnabled="{Binding Inspections.IsIdle}" AutomationProperties.Name="검사 도구" Margin="0,0,0,6"/>
+                        <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="10,6" IsEnabled="{Binding Inspections.IsIdle}">
+                            <StackPanel>
+                                <DockPanel>
+                                    <CheckBox x:Name="InspectFullImageCheckBox" DockPanel.Dock="Right" Content="전체 이미지 검사" IsChecked="{Binding Inspections.SearchFullImage}"
+                                              FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"
+                                              ToolTip="체크하면 ROI 검색 범위를 무시하고 전체 이미지에서 검사를 수행합니다. 해제하면 선택 ROI(또는 대상 리프 ROI) 영역을 검사합니다."
+                                              AutomationProperties.Name="전체 이미지 검사"/>
+                                    <TextBlock Text="검사 영역 범위 (공통)" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <TextBlock Text="{Binding Inspections.SearchScopeSummaryText}" FontSize="10" Foreground="{StaticResource TextSecondary}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Inspections.SearchScopeSummaryText}" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <Grid Grid.Row="2">
                         <Grid Visibility="{Binding Inspections.ShowPatterns, Converter={StaticResource BoolVisibility}}">
                             <views:ShapeMatchingPanel DataContext="{Binding Matching}"/>
                         </Grid>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding Inspections.ShowShapes, Converter={StaticResource BoolVisibility}}">
                             <views:PrimitiveShapeDetectionPanel DataContext="{Binding Inspections.Shapes}"/>
                         </ScrollViewer>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding Inspections.ShowFewShot, Converter={StaticResource BoolVisibility}}">
+                            <views:EdgeFewShotPanel DataContext="{Binding Inspections.FewShot}"/>
+                        </ScrollViewer>
+                        <Grid Visibility="{Binding Inspections.ShowSuite, Converter={StaticResource BoolVisibility}}">
+                            <views:InspectionSuitePanel DataContext="{Binding Inspections.Suite}"/>
+                        </Grid>
                     </Grid>
                 </Grid>
             </TabItem>

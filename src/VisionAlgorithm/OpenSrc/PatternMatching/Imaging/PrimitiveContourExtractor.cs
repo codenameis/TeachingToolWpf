@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/PatternMatching/Imaging/PrimitiveContourExtractor.cs
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using OpenCvSharp;

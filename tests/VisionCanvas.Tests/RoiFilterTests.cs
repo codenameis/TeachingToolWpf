@@ -99,4 +99,38 @@ public class RoiFilterTests
         Assert.All(region.Gray8, value => Assert.True(value is 0 or 255));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.ProcessAsync(request, new CancellationToken(true)));
     }
+
+    [Theory]
+    [InlineData(RoiFilterKind.Clahe)]
+    [InlineData(RoiFilterKind.GuidedFilter)]
+    [InlineData(RoiFilterKind.Bilateral)]
+    [InlineData(RoiFilterKind.Median)]
+    [InlineData(RoiFilterKind.AdaptiveThreshold)]
+    [InlineData(RoiFilterKind.UnsharpMask)]
+    [InlineData(RoiFilterKind.SobelGradient)]
+    [InlineData(RoiFilterKind.WarpAffineShear)]
+    [InlineData(RoiFilterKind.WarpPerspectiveKeystone)]
+    [InlineData(RoiFilterKind.WarpPolarUnwrap)]
+    [InlineData(RoiFilterKind.WarpLensUndistort)]
+    public async Task PreprocessingAndWarpingModesExecuteThroughRoiFilterPreview(RoiFilterKind kind)
+    {
+        var pixels = new PixelBuffer(32, 32, PixelKind.Gray8);
+        for (var y = 0; y < 32; y++)
+        {
+            for (var x = 0; x < 32; x++)
+            {
+                pixels.Bytes[(y * 32) + x] = (byte)(((x * 5) + (y * 3)) & 0xFF);
+            }
+        }
+
+        using var frame = new VideoFrame(1, 1, pixels);
+        using var service = new RoiFilterPreview(new ImageLoader("unused-for-live"), frame.Retain);
+        var roi = new Roi(Guid.NewGuid(), "preproc-warp", new(new(16, 16), 24, 24, 0), null, false, 1)
+        {
+            Filter = new(kind, Threshold: 140, Radius: 3, Sigma: 1.5)
+        };
+        var result = await service.ProcessAsync(new(new("live:Gray8", "Live", 32, 32), true, [roi]), CancellationToken.None);
+        var region = Assert.Single(result.Regions);
+        Assert.Equal(24 * 24, region.Gray8.Length);
+    }
 }

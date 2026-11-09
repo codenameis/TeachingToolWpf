@@ -1,0 +1,32 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TeachingToolWpf.Fluent2/TeachingToolWpf.Fluent2.csproj" />
+    <Project Path="src/TeachingToolWpf.Presentation/TeachingToolWpf.Presentation.csproj" />
+    <Project Path="src/VisionCanvas/VisionCanvas.csproj" />
+    <Project Path="src/VisionCanvas.Host/VisionCanvas.Host.csproj" />
+    <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
+    <Project Path="src/VisionCanvas.Filters.Wpf/VisionCanvas.Filters.Wpf.csproj" />
+    <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
+    <Project Path="src/VisionCompute.ILGPU/VisionCompute.ILGPU.csproj" />
+    <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
+    <Project Path="src/VisionImaging/VisionImaging.csproj" />
+    <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
+    <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
+    <Project Path="src/VisionInspection/VisionInspection.csproj" />
+    <Project Path="src/CpuMatching.Core/CpuMatching.Core.csproj" />
+    <Project Path="src/CpuMatching.Cuda/CpuMatching.Cuda.csproj" />
+    <Project Path="src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
+    <Project Path="src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TeachingToolWpf.Fluent2.Tests/TeachingToolWpf.Fluent2.Tests.csproj" />
+  </Folder>
+  <Folder Name="/dependencies/">
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Core/IndustrialVision.Filters.Core.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Cpu/IndustrialVision.Filters.Cpu.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Pipeline/IndustrialVision.Filters.Pipeline.csproj" />
+    <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Gpu.ILGPU/IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+    <Project Path="experiments/VisionImaging.Codecs/VisionImaging.Codecs.csproj" />
+    <Project Path="experiments/VisionImaging.Pyramid/VisionImaging.Pyramid.csproj" />
+  </Folder>
+</Solution>

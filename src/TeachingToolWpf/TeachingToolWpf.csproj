@@ -33,6 +33,7 @@
   <ItemGroup>
     <None Update="Assets\pattern-matching.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Assets\primitive-shapes.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Assets\edge-fewshot-single-board.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Import Project="../../build/InspectionNativeRuntime.props" />

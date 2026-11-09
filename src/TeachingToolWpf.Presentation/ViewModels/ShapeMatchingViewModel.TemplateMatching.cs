@@ -17,6 +17,7 @@ public sealed partial class ShapeMatchingViewModel
     [
         new(PatternMatchingMethod.OpenCvTemplate, "OpenCV · 템플릿 매칭"),
         new(PatternMatchingMethod.Shape, "하이브리드 초고속 기하 매칭 · 광역/정밀"),
+        new(PatternMatchingMethod.PatMax, "PatMax / PatQuick · 에지 다이폴 & 4-Step 인력장"),
         new(PatternMatchingMethod.CpuLine2D, "Line2D 방향 응답 · CPU/CUDA"),
         new(PatternMatchingMethod.CpuSubNcc, "Sub-NCC 선택 픽셀 · CPU/CUDA"),
     ];
@@ -31,24 +32,37 @@ public sealed partial class ShapeMatchingViewModel
             }
             if (Set(ref _method, value))
             {
+                if (value == PatternMatchingMethod.PatMax && !_showFeatures)
+                {
+                    _showFeatures = true;
+                }
+                RebuildActiveMethodPatterns();
                 Invalidate();
                 ResetResult(IsTrainingDirty ? "학습 설정 변경 · 선택한 방식에서 다시 학습하세요." :
                     HasModel ? "매칭 방식 변경 · 저장된 모델로 검사할 수 있습니다." : "선택한 방식의 모델 없음 · ROI를 선택하고 학습하세요.");
                 Notify(null);
                 RefreshCommands();
+                if (IsIdle && _result is null && ShowOverlay && ShowFeatures)
+                {
+                    ScheduleLivePreview(trainingParametersChanged: true);
+                }
             }
         }
     }
     public bool IsShapeMethod => Method is PatternMatchingMethod.Shape;
     public bool IsTemplateMethod => Method == PatternMatchingMethod.OpenCvTemplate;
+    public bool SupportsFeaturePreview => IsShapeMethod || IsCpuMethod || IsPatMaxMethod;
     public CorrelationTemplate? TemplateModel => _templateState.Model;
-    public bool HasModel => IsCpuMethod ? ActiveCpuState.Template is not null : IsShapeMethod ? Model is not null : TemplateModel is not null;
-    public bool IsTrainingDirty => IsCpuMethod ? ActiveCpuState.IsMaskDirty ||
+    public bool HasModel => IsPatMaxMethod ? _patMaxState.Template is not null : IsCpuMethod ? ActiveCpuState.Template is not null : IsShapeMethod ? Model is not null : TemplateModel is not null;
+    public bool IsTrainingDirty => IsPatMaxMethod
+        ? _patMaxState.IsMaskDirty || (_patMaxState.Template is { } pm && pm.TrainParams != _patMaxState.Settings.ToTrainParams())
+        : IsCpuMethod ? ActiveCpuState.IsMaskDirty ||
         (ActiveCpuState.Template is { } cpu && cpu.Parameters != ActiveCpuState.Parameters) : IsShapeMethod
         ? Model is not null && (ActiveShapeState.Training != ActiveShapeState.TrainedSettings || ActiveShapeState.IsMaskDirty)
         : TemplateModel is not null && _templateState.IsMaskDirty;
     public string MethodDescription => Method switch
     {
+        PatternMatchingMethod.PatMax => "US 6,408,109 서브픽셀 에지 다이폴 + US 7,016,539 PatQuick 내적 탐색 + US 7,065,262 2D 벡터 인력장 4-Step WLS 정합 (SIMD AVX2 / Zero-Alloc).",
         PatternMatchingMethod.CpuLine2D => "희소 윤곽·방향 응답 맵 → 원본 자세 정밀화. CPU 또는 CPU+CUDA 선택. 마스크 없는 사각형 학습.",
         PatternMatchingMethod.CpuSubNcc => "선택 픽셀 ZNCC 후보 → 전체 템플릿 명암 정밀화. CPU 회전·균일 배율 검색. 마스크 없는 사각형 학습.",
         PatternMatchingMethod.Shape => "심층 다중 피라미드 + Greediness 조기 가지치기(Halcon식) + Point-to-Tangent 연속 서브픽셀 정밀화(PatMax식) 하이브리드 기하 매칭. 광역 검색/회전/배율/마스크 및 추가 윤곽 감점을 지원합니다.",
@@ -57,10 +71,14 @@ public sealed partial class ShapeMatchingViewModel
     private ShapeMatchingModeState ActiveShapeState => _paperState;
     private MatchingSearchSettings ActiveSearchSettings
     {
-        get => IsCpuMethod ? ActiveCpuState.Search : IsShapeMethod ? ActiveShapeState.Search : _templateState.Search;
+        get => IsPatMaxMethod ? _patMaxState.Search : IsCpuMethod ? ActiveCpuState.Search : IsShapeMethod ? ActiveShapeState.Search : _templateState.Search;
         set
         {
-            if (IsCpuMethod)
+            if (IsPatMaxMethod)
+            {
+                _patMaxState.Search = value;
+            }
+            else if (IsCpuMethod)
             {
                 ActiveCpuState.Search = value;
             }
@@ -80,7 +98,26 @@ public sealed partial class ShapeMatchingViewModel
 
     private void ClearModel()
     {
-        if (IsCpuMethod)
+        RemoveAllPatternsForMethod(Method);
+        ClearActiveMethodStateCore(disposePatMax: true);
+    }
+
+    private void ClearActiveMethodStateCore(bool disposePatMax)
+    {
+        if (IsPatMaxMethod)
+        {
+            _patMaxState.PreviewTemplate?.Dispose();
+            _patMaxState.PreviewTemplate = null;
+            if (disposePatMax)
+            {
+                _patMaxState.Template?.Dispose();
+            }
+            _patMaxState.Template = null;
+            _patMaxState.FilterPreview = null;
+            _patMaxState.TeachingRoiId = null;
+            _patMaxState.IsMaskDirty = false;
+        }
+        else if (IsCpuMethod)
         {
             ActiveCpuState.Template = null;
             ActiveCpuState.TeachingRoiId = null;
@@ -115,6 +152,7 @@ public sealed partial class ShapeMatchingViewModel
         var method = Method;
         var exclusion = _selectionExclusion;
         var roiId = _selectedRoiId;
+        var roiName = _selectedRoiName;
         await RunAsync(async (token, epoch) =>
         {
             Status = "원본 명암 템플릿 준비 중…";
@@ -128,7 +166,18 @@ public sealed partial class ShapeMatchingViewModel
             _templateState.TeachingRoiId = roiId;
             _templateState.TeachingMasks = exclusion?.Regions ?? [];
             _templateState.IsMaskDirty = false;
-            PresentActivity("학습 완료 · 검사 실행을 누르세요.");
+            RegisterOrUpdateTrainedPattern(
+                method: method,
+                roiId: roiId,
+                roiName: roiName,
+                teachingRegion: roi,
+                teachingMasks: _templateState.TeachingMasks,
+                summary: $"OpenCV {output.Model.Width}×{output.Model.Height} px · {roi.Angle:F1}°",
+                templateModel: output.Model,
+                previewGray8: output.PreviewGray8,
+                previewWidth: output.PreviewWidth,
+                previewHeight: output.PreviewHeight);
+            PresentTemplateTrainingPreview(output.Model, roi);
             Status = $"OpenCV 학습 {output.Milliseconds:F1} ms · 회전/배율은 학습 상태로 고정";
             Results = "학습 완료 · 검사 실행으로 같은 모양의 위치를 찾으세요.";
             Notify(nameof(ModelSummary));
@@ -169,6 +218,15 @@ public sealed partial class ShapeMatchingViewModel
                 (output.Truncated ? " · 후보 예산 초과: 검색 불완전" : "") +
                 (output.MatchLimitExceeded ? " · 최대 결과 수 도달: 일부 검출 결과 생략" : "");
             PublishResult();
+            RecordSingleRoiPatternResult(
+                _selectedRoiId,
+                _selectedRoiName,
+                roi,
+                decision.Verdict,
+                output.Matches.Length,
+                output.Matches.IsEmpty ? 0.0 : output.Matches[0].Score,
+                output.Matches.IsEmpty ? "검출 없음" : $"X={output.Matches[0].ReferencePoint.X:F2}, Y={output.Matches[0].ReferencePoint.Y:F2}",
+                output.TotalMilliseconds);
         });
     }
 }

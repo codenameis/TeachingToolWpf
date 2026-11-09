@@ -10,6 +10,7 @@
     <ProjectReference Include="../VisionGeometry/VisionGeometry.csproj" />
     <ProjectReference Include="../VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Presentation" />
     <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />
     <InternalsVisibleTo Include="VisionInspection.Tests" />
   </ItemGroup>

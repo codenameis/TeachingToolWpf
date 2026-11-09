@@ -16,7 +16,7 @@ public readonly record struct PointD(double X, double Y)
 
     public PointD Rotate(double degrees)
     {
-        var radians = degrees * Math.PI / 180;
+        var radians = degrees * GeometryConstants.DegreesToRadians;
         var (sin, cos) = Math.SinCos(radians);
         return new((X * cos) - (Y * sin), (X * sin) + (Y * cos));
     }

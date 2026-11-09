@@ -20,6 +20,22 @@ public sealed class Line2DMatcher : ITemplateMatcher
             throw new ArgumentException("Template needs at least six distinct edges.", nameof(template));
         }
         _template = template;
+        PreviewPoints = ExtractPreviewPoints(template, _parameters);
+    }
+
+    public IReadOnlyList<(double X, double Y)> PreviewPoints { get; }
+
+    private static (double X, double Y)[] ExtractPreviewPoints(GrayImage template, Line2DOptions parameters)
+    {
+        var cx = (template.Width - 1) / 2.0;
+        var cy = (template.Height - 1) / 2.0;
+        var edges = Edges.Extract(template, cx, cy, parameters.FineFeatures);
+        var points = new (double X, double Y)[edges.Length];
+        for (var i = 0; i < edges.Length; i++)
+        {
+            points[i] = (edges[i].X, edges[i].Y);
+        }
+        return points;
     }
 
     public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
@@ -64,8 +80,12 @@ public sealed class Line2DMatcher : ITemplateMatcher
             _features = Edges.Extract(template, cx, cy, fine ? parameters.FineFeatures : parameters.CoarseFeatures);
             _maps = new float[Bins][];
             var gradients = Edges.Gradients(scene);
-            // 방향과 무관한 길이는 픽셀당 한 번만 구한다. 나눗셈/반올림 순서는 그대로다.
-            var lengths = gradients.Select(gradient => Math.Sqrt((gradient.X * gradient.X) + (gradient.Y * gradient.Y))).ToArray();
+            var lengths = new double[gradients.Length];
+            for (var i = 0; i < gradients.Length; i++)
+            {
+                var g = gradients[i];
+                lengths[i] = Math.Sqrt((g.X * g.X) + (g.Y * g.Y));
+            }
             if (workers > 1 && gradients.Length >= 16_384)
             {
                 Parallel.For(0, Bins, new ParallelOptions { MaxDegreeOfParallelism = workers, CancellationToken = token }, BuildMap);
@@ -155,7 +175,13 @@ public sealed class Line2DMatcher : ITemplateMatcher
         public CoarsePose(float[][] maps, DirectionalSample[] points, int width, int height)
         {
             _maps = maps;
-            _points = points.Select(point => point with { X = Math.Round(point.X), Y = Math.Round(point.Y) }).ToArray();
+            var rounded = new DirectionalSample[points.Length];
+            for (var i = 0; i < points.Length; i++)
+            {
+                var pt = points[i];
+                rounded[i] = pt with { X = Math.Round(pt.X), Y = Math.Round(pt.Y) };
+            }
+            _points = rounded;
             _width = width;
             _height = height;
         }

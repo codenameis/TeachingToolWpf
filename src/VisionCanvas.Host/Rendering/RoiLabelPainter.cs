@@ -32,10 +32,13 @@ internal sealed class RoiLabelPainter
         if (_previous is null || !ReferenceEquals(_previous.Document.Rois, scene.Document.Rois) ||
             !ReferenceEquals(_previous.Document.Selection, scene.Document.Selection) || _previous.Document.Viewport.Scale != scene.Document.Viewport.Scale ||
             !ReferenceEquals(_previous.Transform?.Selection, scene.Transform?.Selection) ||
+            !ReferenceEquals(_previous.Alignment, scene.Alignment) ||
             transform.AngleDegrees != priorTransform.AngleDegrees || transform.Pivot != priorTransform.Pivot ||
             _previous.Width != scene.Width || _previous.Height != scene.Height || _previous.Dpi != scene.Dpi ||
             _previous.Overlay.HandleScale != scene.Overlay.HandleScale ||
-            Math.Abs(offset.X) > 64 || Math.Abs(offset.Y) > 64 || moved.Length * scene.Document.Viewport.Scale > 64)
+            Math.Abs(offset.X) > RenderingConstants.LabelPanInvalidationThresholdPixels ||
+            Math.Abs(offset.Y) > RenderingConstants.LabelPanInvalidationThresholdPixels ||
+            moved.Length * scene.Document.Viewport.Scale > RenderingConstants.LabelPanInvalidationThresholdPixels)
         {
             Rebuild(scene);
             _previous = scene;
@@ -44,7 +47,7 @@ internal sealed class RoiLabelPainter
         ClearOccupied();
         foreach (var label in _labels)
         {
-            var geometry = scene.Transform?.Geometry(label.Roi) ?? label.Roi.Geometry;
+            var geometry = scene.EffectiveGeometry(label.Roi);
             if (!IsVisible(geometry.Bounds, scene.Document.Viewport, scene.Width, scene.Height))
             {
                 continue;
@@ -64,9 +67,12 @@ internal sealed class RoiLabelPainter
             }
 
             Occupy(box);
-            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).StrokeColor(true, scene.Document.SelectionCount > 1) : new Vector4(.13f, .16f, .22f, .90f);
-            var foreground = ((background.X * .299f) + (background.Y * .587f) + (background.Z * .114f)) > .55f
-                ? new Vector4(.05f, .07f, .09f, 1) : Vector4.One;
+            var background = label.Selected ? scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, label.Roi.Id)).StrokeColor(true, scene.Document.SelectionCount > 1) : RenderingConstants.DarkPanelBackground;
+            var luminance = (background.X * RenderingConstants.Bt601LuminanceRed) +
+                            (background.Y * RenderingConstants.Bt601LuminanceGreen) +
+                            (background.Z * RenderingConstants.Bt601LuminanceBlue);
+            var foreground = luminance > RenderingConstants.LightBackgroundThreshold
+                ? RenderingConstants.DarkHighContrastForeground : Vector4.One;
             mesh.Rectangle(white, box, background);
             mesh.Rectangle(texture, new(box.Left + 6, box.Top + 4, box.Left + 6 + (texture.Width / scene.Dpi), box.Top + 4 + (texture.Height / scene.Dpi)), foreground);
         }
@@ -79,8 +85,24 @@ internal sealed class RoiLabelPainter
         var state = scene.Document;
         var view = state.Viewport;
         var preview = scene.Transform;
-        var transform = preview?.Transform ?? default;
-        _visible.Update(preview?.Selection.Stationary ?? state.Snapshot.Spatial, view, scene.Width, scene.Height);
+        var alignment = scene.Alignment;
+        var transform = preview?.Transform ?? (alignment is { HasGroupAlignments: false } ? alignment.OverallTransform : default);
+
+        if (preview is null && alignment is { HasGroupAlignments: true })
+        {
+            HasSummaries = false;
+            foreach (var partition in state.Snapshot.AlignmentPartitions)
+            {
+                var scopeTransform = alignment.GetScopeTransform(partition.ScopeId);
+                _visible.Update(partition.Spatial, view, scene.Width, scene.Height, scopeTransform);
+                HasSummaries |= _visible.Summaries.Count > 0;
+                Add(_visible.Rois, false);
+            }
+
+            return;
+        }
+
+        _visible.Update(preview?.Selection.Stationary ?? state.Snapshot.Spatial, view, scene.Width, scene.Height, preview is null ? transform : default);
         HasSummaries = _visible.Summaries.Count > 0;
         if (preview is null && state.Selection.Count == state.Rois.Count)
         {
@@ -108,7 +130,7 @@ internal sealed class RoiLabelPainter
             var children = state.Snapshot.Children;
             foreach (var roi in candidates)
             {
-                if (_labels.Count >= 256)
+                if (_labels.Count >= RenderingConstants.MaxScreenLabelCount)
                 {
                     break;
                 }
@@ -118,7 +140,7 @@ internal sealed class RoiLabelPainter
                     continue;
                 }
 
-                var geometry = preview?.Geometry(roi) ?? roi.Geometry;
+                var geometry = scene.EffectiveGeometry(roi);
                 if (!IsVisible(geometry.Bounds, view, scene.Width, scene.Height))
                 {
                     continue;
@@ -126,7 +148,7 @@ internal sealed class RoiLabelPainter
 
                 var anchor = ClampAnchor(Anchor(geometry, view, selected && state.SelectionCount == 1, scene.Overlay.HandleScale), scene.Width, scene.Height);
                 var estimatedLength = roi.Name.Length + (children.ContainsKey(roi.Id) ? 12 : 0) + (selected ? 14 : 0);
-                var estimate = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + Math.Min(430, (estimatedLength * 12) + 12)), anchor.Y + 24);
+                var estimate = new BoundsD(anchor.X, anchor.Y, Math.Min(scene.Width, anchor.X + Math.Min(RenderingConstants.MaxLabelWidth, (estimatedLength * 12) + 12)), anchor.Y + 24);
                 if (Intersects(estimate))
                 {
                     continue;
@@ -145,7 +167,7 @@ internal sealed class RoiLabelPainter
         var bounds = geometry.Bounds;
         var corner = view.ImageToScreen(new(bounds.Left, bounds.Top));
         var top = singleSelection ? Math.Min(corner.Y, HandleGeometry.RotationHandle(geometry, view, handleScale).Y - (8 * handleScale)) : corner.Y;
-        return new(corner.X, top - 30);
+        return new(corner.X, top - RenderingConstants.LabelAnchorTopOffset);
     }
 
     private bool Intersects(BoundsD bounds)
@@ -172,13 +194,16 @@ internal sealed class RoiLabelPainter
     }
 
     internal static PointD ClampAnchor(PointD anchor, double width, double height)
-        => new(Math.Clamp(anchor.X, 4, Math.Max(4, width - 100)), Math.Clamp(anchor.Y, 4, Math.Max(4, height - 30)));
+        => new(
+            Math.Clamp(anchor.X, RenderingConstants.LabelScreenMarginLeft, Math.Max(RenderingConstants.LabelScreenMarginLeft, width - RenderingConstants.LabelScreenSafetyMarginRight)),
+            Math.Clamp(anchor.Y, RenderingConstants.LabelScreenMarginLeft, Math.Max(RenderingConstants.LabelScreenMarginLeft, height - RenderingConstants.LabelAnchorTopOffset)));
 
     internal static bool IsVisible(BoundsD bounds, ViewportTransform view, double width, double height)
     {
+        var margin = RenderingConstants.ViewportCullingMarginPixels;
         var a = view.ImageToScreen(new(bounds.Left, bounds.Top));
         var b = view.ImageToScreen(new(bounds.Right, bounds.Bottom));
-        return b.X >= -64 && a.X <= width + 64 && b.Y >= -64 && a.Y <= height + 64;
+        return b.X >= -margin && a.X <= width + margin && b.Y >= -margin && a.Y <= height + margin;
     }
 
     private void Occupy(BoundsD box)
@@ -213,9 +238,10 @@ internal sealed class RoiLabelPainter
 
     private static void GetCellRange(BoundsD bounds, out int minX, out int maxX, out int minY, out int maxY)
     {
-        minX = (int)Math.Floor(bounds.Left / 128);
-        maxX = (int)Math.Floor(bounds.Right / 128);
-        minY = (int)Math.Floor(bounds.Top / 32);
-        maxY = (int)Math.Floor(bounds.Bottom / 32);
+        // [Domain Why]: 공간 상 점유 격자를 셀 단위로 나누어 라벨 간 겹침(Collision) 여부를 O(1) 수준으로 검사한다.
+        minX = (int)Math.Floor(bounds.Left / RenderingConstants.LabelOccupancyCellWidth);
+        maxX = (int)Math.Floor(bounds.Right / RenderingConstants.LabelOccupancyCellWidth);
+        minY = (int)Math.Floor(bounds.Top / RenderingConstants.LabelOccupancyCellHeight);
+        maxY = (int)Math.Floor(bounds.Bottom / RenderingConstants.LabelOccupancyCellHeight);
     }
 }

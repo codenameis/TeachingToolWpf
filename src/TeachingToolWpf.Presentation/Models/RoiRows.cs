@@ -1,5 +1,8 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using VisionCanvas.Core.Editing;
 
 namespace TeachingToolWpf.Models;
@@ -22,7 +25,40 @@ public sealed class RoiRows : IList, IReadOnlyList<RoiRow>
 
     public RoiRows Page(int page, int size) => new(_items.Skip(page * size).Take(size));
 
-    internal bool TryRefreshMetadata(ImmutableDictionary<Guid, Roi>? previous, DocumentState state)
+    internal void ApplyAssignments(IReadOnlyDictionary<Guid, RoiAlgorithmAssignment> assignments)
+    {
+        for (var i = 0; i < _items.Length; i++)
+        {
+            var current = _items[i];
+            if (assignments.TryGetValue(current.Id, out var assignment))
+            {
+                _items[i] = current with
+                {
+                    AlgorithmBadge = assignment.AlgorithmBadge,
+                    AlgorithmAccent = assignment.AlgorithmAccent,
+                    VerdictBadge = assignment.VerdictBadge,
+                    VerdictAccent = assignment.VerdictAccent,
+                    PatternThumbnail = assignment.PatternThumbnail
+                };
+            }
+            else if (current.HasAlgorithm || current.HasVerdict || current.HasPatternThumbnail)
+            {
+                _items[i] = current with
+                {
+                    AlgorithmBadge = "미지정",
+                    AlgorithmAccent = "#64748B",
+                    VerdictBadge = "",
+                    VerdictAccent = "#64748B",
+                    PatternThumbnail = null
+                };
+            }
+        }
+    }
+
+    internal bool TryRefreshMetadata(
+        ImmutableDictionary<Guid, Roi>? previous,
+        DocumentState state,
+        IReadOnlyDictionary<Guid, RoiAlgorithmAssignment>? assignments = null)
     {
         if (!ReferenceEquals(previous, state.Snapshot.PreviousRois) || previous is null)
         {
@@ -38,17 +74,34 @@ public sealed class RoiRows : IList, IReadOnlyList<RoiRow>
                 return false;
             }
         }
+
         foreach (var id in state.Snapshot.ChangedIds)
         {
             var roi = state.Rois[id];
             var index = _indices[id];
             var count = state.Snapshot.Children.GetValueOrDefault(id, []).Length;
-            _items[index] = _items[index] with
+            var updated = _items[index] with
             {
                 Label = roi.Name,
-                Kind = RoiRow.Describe(roi, count, state.Snapshot.GroupLevels.GetValueOrDefault(id))
+                Kind = RoiRow.Describe(roi, count, state.Snapshot.GroupLevels.GetValueOrDefault(id)),
+                ShapeGlyph = RoiRow.ResolveShapeGlyph(roi, count)
             };
+
+            if (assignments is not null && assignments.TryGetValue(id, out var assignment))
+            {
+                updated = updated with
+                {
+                    AlgorithmBadge = assignment.AlgorithmBadge,
+                    AlgorithmAccent = assignment.AlgorithmAccent,
+                    VerdictBadge = assignment.VerdictBadge,
+                    VerdictAccent = assignment.VerdictAccent,
+                    PatternThumbnail = assignment.PatternThumbnail
+                };
+            }
+
+            _items[index] = updated;
         }
+
         return true;
     }
 

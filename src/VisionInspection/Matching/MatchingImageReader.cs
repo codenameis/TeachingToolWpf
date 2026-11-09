@@ -250,6 +250,8 @@ internal sealed class MatchingImageReader : IDisposable
         }
     }
 
+    internal bool TryGetCachedTile(TileKey key, out PixelBuffer tile) => _tiles.TryGet(key, out tile);
+
     public void Dispose()
     {
         if (_disposed)
@@ -261,5 +263,142 @@ internal sealed class MatchingImageReader : IDisposable
         _reducedTiles.Clear();
         _source?.Dispose();
         _frame?.Dispose();
+    }
+}
+
+/// <summary>
+/// 실시간 미리보기(드래그·리사이즈·파라미터 변경) 시 매 프레임마다 디스크 타일 소스 및 잠금 파일을 열지 않도록
+/// 최근 사용한 원본 Gray8 타일을 메모리에 유지하는 스레드 안전 캐시.
+/// </summary>
+internal sealed class MatchingPreviewCache
+{
+    private readonly object _gate = new();
+    private ImageReference? _image;
+    private readonly MatchingTileCache _tiles = new();
+
+    public async Task<GrayImage> ReadAsync(ImageReference image, bool live, IImageLoader loader,
+        Func<VideoFrame?> retainFrame, int left, int top, int width, int height, RoiExclusion? exclusion,
+        CancellationToken token, int maximumPixels = PreparedSearchImage.MaximumPixels, bool preferDirectGray = false)
+    {
+        if (!live && TryReadFromMemory(image, left, top, width, height, exclusion, token, maximumPixels, out var cached))
+        {
+            return cached;
+        }
+        using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+        reader.PreferDirectGray = preferDirectGray;
+        reader.Exclusion = exclusion;
+        var result = reader.Read(left, top, width, height, token, maximumPixels);
+        if (!live)
+        {
+            StoreFromReader(image, reader, left, top, width, height);
+        }
+        return result;
+    }
+
+    private bool TryReadFromMemory(ImageReference image, int left, int top, int width, int height,
+        RoiExclusion? exclusion, CancellationToken token, int maximumPixels, out GrayImage result)
+    {
+        token.ThrowIfCancellationRequested();
+        if ((long)width * height > maximumPixels || maximumPixels > CorrelationTemplate.MaximumSearchPixels)
+        {
+            throw new ArgumentException($"학습/검색 창이 {maximumPixels:N0} pixel 작업 예산을 초과했습니다.");
+        }
+        var minTy = top / 512;
+        var maxTy = (top + height - 1) / 512;
+        var minTx = left / 512;
+        var maxTx = (left + width - 1) / 512;
+        byte[] bytes;
+        lock (_gate)
+        {
+            if (_image != image)
+            {
+                _tiles.Clear();
+                _image = image;
+                result = default!;
+                return false;
+            }
+            for (var ty = minTy; ty <= maxTy; ty++)
+            {
+                for (var tx = minTx; tx <= maxTx; tx++)
+                {
+                    if (!_tiles.TryGet(new(0, tx, ty), out _))
+                    {
+                        result = default!;
+                        return false;
+                    }
+                }
+            }
+            bytes = new byte[checked(width * height)];
+            for (var ty = minTy; ty <= maxTy; ty++)
+            {
+                for (var tx = minTx; tx <= maxTx; tx++)
+                {
+                    _tiles.TryGet(new(0, tx, ty), out var tile);
+                    var copyLeft = Math.Max(left, tx * 512);
+                    var copyRight = Math.Min(left + width, (tx * 512) + tile.Width);
+                    var copyWidth = copyRight - copyLeft;
+                    if (copyWidth <= 0)
+                    {
+                        continue;
+                    }
+                    var rowStart = Math.Max(top, ty * 512);
+                    var rowEnd = Math.Min(top + height, (ty * 512) + tile.Height);
+                    for (var y = rowStart; y < rowEnd; y++)
+                    {
+                        tile.Span.Slice(((y - (ty * 512)) * tile.Stride) + copyLeft - (tx * 512), copyWidth)
+                            .CopyTo(bytes.AsSpan(((y - top) * width) + copyLeft - left, copyWidth));
+                    }
+                }
+            }
+        }
+        byte[]? mask = null;
+        if (exclusion is not null && !exclusion.Regions.IsDefaultOrEmpty &&
+            exclusion.Owner.Bounds.Intersects(new(left, top, left + width, top + height)))
+        {
+            for (var y = 0; y < height; y++)
+            {
+                token.ThrowIfCancellationRequested();
+                for (var x = 0; x < width; x++)
+                {
+                    if (exclusion.Contains(new(left + x + .5, top + y + .5)))
+                    {
+                        mask ??= new byte[checked(width * height)];
+                        mask[(y * width) + x] = 255;
+                    }
+                }
+            }
+        }
+        result = new(bytes.AsMemory(0, bytes.Length), width, height, width, mask);
+        return true;
+    }
+
+    private void StoreFromReader(ImageReference image, MatchingImageReader reader, int left, int top, int width, int height)
+    {
+        var minTy = top / 512;
+        var maxTy = (top + height - 1) / 512;
+        var minTx = left / 512;
+        var maxTx = (left + width - 1) / 512;
+        lock (_gate)
+        {
+            if (_image != image)
+            {
+                _tiles.Clear();
+                _image = image;
+            }
+            for (var ty = minTy; ty <= maxTy; ty++)
+            {
+                for (var tx = minTx; tx <= maxTx; tx++)
+                {
+                    var key = new TileKey(0, tx, ty);
+                    if (_tiles.TryGet(key, out _) || !reader.TryGetCachedTile(key, out var tile))
+                    {
+                        continue;
+                    }
+                    var clone = new PixelBuffer(tile.Width, tile.Height, PixelKind.Gray8);
+                    tile.Span.CopyTo(clone.Span);
+                    _tiles.Add(key, clone);
+                }
+            }
+        }
     }
 }

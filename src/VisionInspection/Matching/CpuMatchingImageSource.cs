@@ -13,7 +13,7 @@ internal sealed class CpuMatchingImageSource(MatchingImageReader reader, SearchR
 
     public GrayImage Read(SearchRegion region, int reduction, CancellationToken token)
     {
-        if (region.X < 0 || region.Y < 0 || region.Width < 4 || region.Height < 4 ||
+        if (region.Width < 1 || region.Height < 1 || region.X < 0 || region.Y < 0 || region.Width < 4 || region.Height < 4 ||
             (long)region.X + region.Width > Width || (long)region.Y + region.Height > Height ||
             reduction is < 1 or > 16 || (reduction & (reduction - 1)) != 0 ||
             region.Width % reduction != 0 || region.Height % reduction != 0 ||

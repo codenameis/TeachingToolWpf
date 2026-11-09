@@ -31,6 +31,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         Layout = layout;
         KeyAction = HandleKey;
         Navigation = new(editor, input, layout, () => IsInputEnabled);
+        AlignmentTest = new(editor, input, layout, images, Refresh, ReportStatus);
         OpenCommand = CreateAsync(async () =>
         {
             if (picker.Pick() is { } image)
@@ -118,6 +119,8 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
     }
     public RenderScene Scene { get; private set; } = null!;
     public ViewportNavigationViewModel Navigation { get; }
+
+    public AlignmentTestViewModel AlignmentTest { get; }
 
     public bool IsNavigationEnabled => Input.IsEnabled && !_disposed;
 
@@ -396,8 +399,9 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         }
         Input.NavigationOnly = !IsInputEnabled;
         Navigation.Refresh();
+        AlignmentTest.OnDocumentChanged();
         Input.SetViewportSize(Layout.Width, Layout.Height);
-        Scene = new(_editor.State, _images.Image, _images.Generation, Layout.Width, Layout.Height, Layout.Dpi, Input.Overlay, Transform: _editor.TransformPreview);
+        Scene = new(_editor.State, _images.Image, _images.Generation, Layout.Width, Layout.Height, Layout.Dpi, Input.Overlay, Transform: _editor.TransformPreview, Alignment: AlignmentTest.CurrentAlignment);
         PropertyChanged?.Invoke(this, new(nameof(Scene)));
         PropertyChanged?.Invoke(this, new(nameof(IsInputEnabled)));
         PropertyChanged?.Invoke(this, new(nameof(IsNavigationEnabled)));

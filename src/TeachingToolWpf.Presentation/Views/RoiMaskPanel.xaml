@@ -10,6 +10,9 @@
                 <TextBlock Text="마스킹" FontSize="13" FontWeight="SemiBold"/>
             </DockPanel>
             <TextBlock Text="{Binding Summary}" Foreground="{StaticResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+            <Button Content="▦  패턴 마스크 전용 페이지 열기" Command="{Binding OpenPatternMaskEditor}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,10"
+                    ToolTip="메인 캔버스와 분리된 전용 패턴 마스크 페이지에서 회전 보정된 ROI 영상과 특징점을 보며 정밀 마스킹을 수행합니다."
+                    AutomationProperties.Name="패턴 마스크 전용 페이지 열기"/>
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
                 <Button Content="▧  사각형 추가" Command="{Binding DrawRectangle}" AutomationProperties.Name="사각 마스크 추가">

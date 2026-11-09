@@ -25,7 +25,8 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var rows = await EditPreparation.Run(() => new RoiRows(RoiRow.Build(state, token)), token);
+        var assignments = Inspections?.RoiAssignments;
+        var rows = await EditPreparation.Run(() => new RoiRows(RoiRow.Build(state, token, assignments)), token);
         token.ThrowIfCancellationRequested();
         _preparedRows = (state.Snapshot.RowVersion, rows);
     }

@@ -208,10 +208,14 @@ public sealed class InspectionResultTests
     {
         var (_, editor, viewModel) = await CreateAsync();
         using var lifetime = viewModel;
+        IVisionAlgorithmPreview preview = viewModel;
+        Assert.NotNull(preview.Overlay);
+        Assert.True(preview.Overlay!.ShowFeatures);
+        Assert.Single(preview.Overlay.Matches);
         await viewModel.Search.ExecuteAsync();
         var state = editor.State;
         BoundsD? requested = null;
-        viewModel.LocateRequested += bounds => requested = bounds;
+        preview.LocateRequested += bounds => requested = bounds;
         viewModel.Locate.Execute(null);
         Assert.NotNull(requested);
         Assert.True(requested.Value.Left < 120 && requested.Value.Right > 120);

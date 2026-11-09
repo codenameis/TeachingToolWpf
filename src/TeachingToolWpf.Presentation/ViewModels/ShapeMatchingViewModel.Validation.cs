@@ -48,7 +48,11 @@ public sealed partial class ShapeMatchingViewModel
             }
             try
             {
-                if (IsCpuMethod)
+                if (IsPatMaxMethod)
+                {
+                    _patMaxState.Settings.Validate(MinimumScore, MaximumMatches);
+                }
+                else if (IsCpuMethod)
                 {
                     if (!Enum.IsDefined(ComputeMode))
                     {

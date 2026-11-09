@@ -32,11 +32,11 @@ public sealed class PatternMatchingModeTests
     {
         var (_, _, model) = Create();
         using var lifetime = model;
-        Assert.Equal(new[] { PatternMatchingMethod.OpenCvTemplate, PatternMatchingMethod.Shape,
+        Assert.Equal(new[] { PatternMatchingMethod.OpenCvTemplate, PatternMatchingMethod.Shape, PatternMatchingMethod.PatMax,
             PatternMatchingMethod.CpuLine2D, PatternMatchingMethod.CpuSubNcc }, model.Methods.Select(option => option.Method));
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)2);
         Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)3);
-        Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)6);
+        Assert.Throws<ArgumentOutOfRangeException>(() => model.Method = (PatternMatchingMethod)7);
         Assert.Equal(PatternMatchingMethod.Shape, model.Method);
     }
 
@@ -473,6 +473,179 @@ public sealed class PatternMatchingModeTests
         Assert.Empty(viewModel.Markers);
     }
 
+    [Fact]
+    public async Task RegisteredPatternList_ManagesMultipleGoodAndDefectPatterns_AndEvaluatesPassFailVerdicts()
+    {
+        var (service, editor, viewModel) = Create();
+        using var lifetime = viewModel;
+
+        // 1. Register Good pattern #1
+        var roiGood1 = editor.State.Selection.Single();
+        editor.SetProperties(roiGood1, "정상칩A", editor.State.Rois[roiGood1].Geometry, null, true);
+        viewModel.Update(new(editor.State, 1, false, true));
+        await viewModel.RegisterGoodPattern.ExecuteAsync();
+
+        Assert.Single(viewModel.ActiveMethodPatterns);
+        Assert.Equal(1, viewModel.RegisteredPatternCount);
+        Assert.Equal(1, viewModel.RegisteredGoodPatternCount);
+        Assert.Equal(0, viewModel.RegisteredDefectPatternCount);
+        var item1 = viewModel.ActiveMethodPatterns[0];
+        Assert.True(item1.IsGood);
+        Assert.Contains("정상-1 (정상칩A)", item1.Name);
+
+        // 2. Register Good pattern #2 on a second ROI
+        var roiGood2 = editor.Add(new(new(160, 100), 64, 54, 0));
+        editor.SetProperties(roiGood2, "정상칩B", editor.State.Rois[roiGood2].Geometry, null, true);
+        editor.Select([roiGood2]);
+        viewModel.Update(new(editor.State, 1, false, true));
+        await viewModel.RegisterGoodPattern.ExecuteAsync();
+
+        Assert.Equal(2, viewModel.RegisteredPatternCount);
+        Assert.Equal(2, viewModel.RegisteredGoodPatternCount);
+
+        // 3. Register Defect pattern #1 on a third ROI
+        var roiDefect1 = editor.Add(new(new(100, 180), 68, 58, 0));
+        editor.SetProperties(roiDefect1, "깨진칩NG", editor.State.Rois[roiDefect1].Geometry, null, true);
+        editor.Select([roiDefect1]);
+        viewModel.Update(new(editor.State, 1, false, true));
+        await viewModel.RegisterDefectPattern.ExecuteAsync();
+
+        Assert.Equal(3, viewModel.RegisteredPatternCount);
+        Assert.Equal(2, viewModel.RegisteredGoodPatternCount);
+        Assert.Equal(1, viewModel.RegisteredDefectPatternCount);
+        var defectItem = viewModel.ActiveMethodPatterns[2];
+        Assert.True(defectItem.IsDefect);
+        Assert.Contains("불량-1 (깨진칩NG)", defectItem.Name);
+
+        // 4. Case A: Good pattern #1 scores higher (0.96) than Defect pattern (0.78) at the same location -> PASS (OK · 정상)
+        service.ModelOutputs[item1.ShapeModel!] = ShapeService.CreateSingleMatchOutput(120, 130, 0.96);
+        service.ModelOutputs[viewModel.ActiveMethodPatterns[1].ShapeModel!] = new([], 1, false, 0, 0, []);
+        service.ModelOutputs[defectItem.ShapeModel!] = ShapeService.CreateSingleMatchOutput(122, 131, 0.78);
+
+        viewModel.SearchFullImage = true;
+        await viewModel.Search.ExecuteAsync();
+        Assert.Equal(InspectionVerdict.Pass, viewModel.Verdict);
+        var passMarker = Assert.Single(viewModel.Markers);
+        Assert.Contains("정상·OK", passMarker.Label);
+        Assert.Contains(item1.Name, passMarker.Label);
+
+        // 5. Case B: Defect pattern scores higher (0.97) than Good pattern (0.81) -> FAIL (NG · 불량)
+        service.ModelOutputs[item1.ShapeModel!] = ShapeService.CreateSingleMatchOutput(120, 130, 0.81);
+        service.ModelOutputs[defectItem.ShapeModel!] = ShapeService.CreateSingleMatchOutput(121, 130, 0.97);
+
+        await viewModel.Search.ExecuteAsync();
+        Assert.Equal(InspectionVerdict.Fail, viewModel.Verdict);
+        var failMarker = Assert.Single(viewModel.Markers);
+        Assert.Contains("불량·NG", failMarker.Label);
+        Assert.Contains(defectItem.Name, failMarker.Label);
+        Assert.Equal(InspectionResultPresentation.Color(InspectionVerdict.Fail), failMarker.Color);
+
+        // 6. Toggle role on defectItem (Defect -> Good) and re-run -> now PASS!
+        defectItem.ToggleRoleCommand.Execute(null);
+        Assert.True(defectItem.IsGood);
+        Assert.Equal(3, viewModel.RegisteredGoodPatternCount);
+        Assert.Equal(0, viewModel.RegisteredDefectPatternCount);
+        await viewModel.Search.ExecuteAsync();
+        Assert.Equal(InspectionVerdict.Pass, viewModel.Verdict);
+
+        // 7. Remove patterns one by one via RemoveCommand
+        viewModel.ActiveMethodPatterns[1].RemoveCommand.Execute(null);
+        Assert.Equal(2, viewModel.RegisteredPatternCount);
+        Assert.Equal(1, viewModel.ActiveMethodPatterns[0].Index);
+        Assert.Equal(2, viewModel.ActiveMethodPatterns[1].Index);
+    }
+
+    [Fact]
+    public async Task RegisteredPatternList_GeneratesFrozenThumbnailAndPersistsParallelPatternFiles()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "TeachingToolWpfTests", $"pattern-store-{Guid.NewGuid():N}");
+        try
+        {
+            var (_, editor, viewModel) = Create();
+            using var lifetime = viewModel;
+            viewModel.SetPatternStoreDirectory(tempDir);
+
+            // 1. Register Good pattern
+            await viewModel.RegisterGoodPattern.ExecuteAsync();
+            var goodItem = Assert.Single(viewModel.ActiveMethodPatterns);
+            Assert.True(goodItem.HasThumbnail);
+            Assert.NotNull(goodItem.ThumbnailImage);
+            Assert.True(goodItem.ThumbnailImage!.IsFrozen);
+            Assert.True(goodItem.PreviewWidth > 0);
+            Assert.True(goodItem.PreviewHeight > 0);
+            Assert.True(goodItem.IsBackedByFile);
+            Assert.True(File.Exists(goodItem.ImageFilePath));
+
+            // 2. Register Defect pattern on second ROI
+            var roi2 = editor.Add(new(new(150, 120), 48, 40, 0));
+            editor.Select([roi2]);
+            viewModel.Update(new(editor.State, 1, false, true));
+            await viewModel.RegisterDefectPattern.ExecuteAsync();
+
+            Assert.Equal(2, viewModel.ActiveMethodPatterns.Count);
+            var defectItem = viewModel.ActiveMethodPatterns[1];
+            Assert.True(defectItem.HasThumbnail);
+            Assert.True(defectItem.IsBackedByFile);
+
+            // 3. Verify manifest.json and parallel reload from external .pimg files
+            var manifestItems = await viewModel.PatternFileStore.ReadManifestAndImagesInParallelAsync();
+            Assert.Equal(2, manifestItems.Count);
+            Assert.All(manifestItems, entry =>
+            {
+                Assert.False(entry.Patch.IsEmpty);
+                Assert.Equal(entry.Metadata.PreviewWidth, entry.Patch.Width);
+                Assert.Equal(entry.Metadata.PreviewHeight, entry.Patch.Height);
+            });
+
+            await viewModel.ReloadPatternImages.ExecuteAsync();
+            Assert.All(viewModel.ActiveMethodPatterns, item =>
+            {
+                Assert.NotNull(item.ThumbnailImage);
+                Assert.True(item.ThumbnailImage!.IsFrozen);
+                Assert.True(item.IsBackedByFile);
+            });
+
+            // 4. Removing a pattern deletes its external .pimg file
+            string removedPath = defectItem.ImageFilePath!;
+            defectItem.RemoveCommand.Execute(null);
+            Assert.False(File.Exists(removedPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void RoiPreviewPatchExtractor_HandlesPaddedStrideAndGuardsDefaultStruct()
+    {
+        Assert.True(default(RectifiedPatternPatch).IsEmpty);
+        Assert.False(default(RectifiedPatternPatch).IsInitialized);
+
+        const int width = 33;
+        const int height = 25;
+        const int stride = width + 7;
+        var buffer = new byte[height * stride];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                buffer[(y * stride) + x] = (byte)((x * 4) + (y * 3));
+            }
+        }
+
+        var roi = new RoiGeometry(new(16, 12), 20, 16, 0);
+        var patch = RoiPreviewPatchExtractor.ExtractRectifiedPatch(buffer, width, height, stride, 0, 0, roi);
+        Assert.True(patch.IsInitialized);
+        Assert.False(patch.IsEmpty);
+        Assert.Equal(20, patch.Width);
+        Assert.Equal(16, patch.Height);
+        Assert.Equal(20 * 16, patch.Pixels.Length);
+    }
+
     private static (ShapeService Service, EditorSession Editor, ShapeMatchingViewModel ViewModel) Create()
     {
         var service = new ShapeService();
@@ -486,6 +659,16 @@ public sealed class PatternMatchingModeTests
 
     private sealed class ShapeService : IShapeMatchingService
     {
+        public Dictionary<ShapeModel, ShapeSearchOutput> ModelOutputs { get; } = [];
+
+        public static ShapeSearchOutput CreateSingleMatchOutput(double x, double y, double score)
+        {
+            var pose = new MatchPose(x, y, 0.1);
+            var match = new ShapeMatch(pose, score, score, 0.9, 4,
+                new(RefinementStatus.Converged, pose, 1, 0.1, 3, 100, true));
+            return new([match], 1, false, 0, 0, []);
+        }
+
         public RoiGeometry? TrainingRegion
         {
             get; private set;
@@ -546,6 +729,10 @@ public sealed class PatternMatchingModeTests
             options.Validate();
             SearchOptions = options;
             Token = token;
+            if (ModelOutputs.TryGetValue(model, out var customOutput))
+            {
+                return Task.FromResult(customOutput);
+            }
             return PendingSearch?.Task ?? Task.FromResult(Output);
         }
     }

@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/ShapeDetection/PrimitiveDetectionContracts.cs
 using System.Collections.Immutable;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 

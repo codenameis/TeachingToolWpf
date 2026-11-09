@@ -77,7 +77,7 @@ public sealed class FiducialAlignment
 
         var local = new RigidTransform2D(currentCenter, angle, localTranslation);
         // 기준 중심이 검출 중심으로 가도록 합성한다. 이동량을 단순히 더하면 회전 시 틀어진다.
-        var combined = new RigidTransform2D(referenceCenter, Math.IEEERemainder(inherited.AngleDegrees + angle, 360), translation);
+        var combined = new RigidTransform2D(referenceCenter, Math.IEEERemainder(inherited.AngleDegrees + angle, GeometryConstants.FullCircleDegrees), translation);
         var squaredError = 0d;
         var maxError = 0d;
         for (var i = 0; i < referenceMarks.Length; i++)
@@ -164,7 +164,7 @@ public sealed class FiducialAlignment
         {
             return false;
         }
-        angle = Math.Atan2(cross, dot) * 180 / Math.PI;
+        angle = Math.Atan2(cross, dot) * GeometryConstants.RadiansToDegrees;
         return true;
     }
 }

@@ -86,7 +86,7 @@ internal sealed class ScenePainter
         if (scene.Overlay.Hover is { } hover && scene.Document.Rois.TryGetValue(hover, out var hovered))
         {
             var style = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, hover));
-            var hoveredGeometry = scene.Transform?.Geometry(hovered) ?? hovered.Geometry;
+            var hoveredGeometry = scene.EffectiveGeometry(hovered);
             DrawGeometryScreenOutline(
                 white,
                 hoveredGeometry,
@@ -99,7 +99,7 @@ internal sealed class ScenePainter
         {
             var roi = scene.Document.Rois[scene.Document.Selection.Single()];
             var color = scene.RoiStyles.For(RoiStyleRoles.Resolve(scene.Document, roi.Id)).SelectedColor;
-            var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
+            var geometry = scene.EffectiveGeometry(roi);
             var points = geometry.FrameCorners.Select(view, static (v, p) => v.ImageToScreen(p));
             Span<PointD> handles = stackalloc PointD[8];
             HandleGeometry.CopyResizeHandlesTo(geometry, view, handles);
@@ -133,16 +133,18 @@ internal sealed class ScenePainter
             DrawGeometryScreenOutline(white, draft, view, draftStyle.StrokeThickness(true), draftStyle.SelectedColor);
         }
 
+        // [Domain Why]: 드래프트 다각형 꼭짓점 핸들의 고정 화면 반경 (5px).
+        const double draftHandleRadius = 5.0;
         var polygonPoints = scene.Overlay.PolygonPoints;
         if (!polygonPoints.IsDefaultOrEmpty)
         {
             var previous = view.ImageToScreen(polygonPoints[0]);
-            Handle(white, previous, 5, draftStyle.SelectedColor);
+            Handle(white, previous, draftHandleRadius, draftStyle.SelectedColor);
             for (var i = 1; i < polygonPoints.Length; i++)
             {
                 var current = view.ImageToScreen(polygonPoints[i]);
                 _mesh.Line(white, previous, current, draftStyle.StrokeThickness(true), draftStyle.SelectedColor);
-                Handle(white, current, 5, draftStyle.SelectedColor);
+                Handle(white, current, draftHandleRadius, draftStyle.SelectedColor);
                 previous = current;
             }
         }
@@ -155,6 +157,43 @@ internal sealed class ScenePainter
                 new(selection.Right, selection.Bottom),
                 new(selection.Left, selection.Bottom));
             _mesh.Outline(white, marqueeCorners, 1, s_accent);
+        }
+
+        if (scene.Alignment is { Marks.IsDefaultOrEmpty: false } alignment)
+        {
+            DrawAlignmentFiducials(white, view, alignment.Marks);
+        }
+    }
+
+    private void DrawAlignmentFiducials(IRenderTexture white, ViewportTransform view, System.Collections.Immutable.ImmutableArray<VisionCanvas.Core.Alignment.AlignedFiducialMark> marks)
+    {
+        var referenceColor = RenderingConstants.FiducialReferenceColor;
+        var detectedColor = RenderingConstants.FiducialDetectedColor;
+        var disabledColor = RenderingConstants.FiducialDisabledColor;
+        var arm = RenderingConstants.FiducialArmLength;
+
+        for (var i = 0; i < marks.Length; i++)
+        {
+            var mark = marks[i];
+            var refScreen = view.ImageToScreen(mark.Reference);
+            _mesh.Line(white, new(refScreen.X - arm, refScreen.Y), new(refScreen.X + arm, refScreen.Y), 1.5, mark.IsEnabled ? referenceColor : disabledColor);
+            _mesh.Line(white, new(refScreen.X, refScreen.Y - arm), new(refScreen.X, refScreen.Y + arm), 1.5, mark.IsEnabled ? referenceColor : disabledColor);
+            _mesh.Circle(white, refScreen, RenderingConstants.FiducialReferenceRadius, mark.IsEnabled ? referenceColor : disabledColor);
+
+            if (!mark.IsEnabled)
+            {
+                continue;
+            }
+
+            var detScreen = view.ImageToScreen(mark.Detected);
+            if ((detScreen - refScreen).Length > RenderingConstants.FiducialMinDisplacementDistance)
+            {
+                _mesh.Line(white, refScreen, detScreen, 1.8, detectedColor);
+            }
+
+            _mesh.Line(white, new(detScreen.X - arm, detScreen.Y - arm), new(detScreen.X + arm, detScreen.Y + arm), 2, detectedColor);
+            _mesh.Line(white, new(detScreen.X - arm, detScreen.Y + arm), new(detScreen.X + arm, detScreen.Y - arm), 2, detectedColor);
+            _mesh.Circle(white, detScreen, RenderingConstants.FiducialDetectedRadius, detectedColor);
         }
     }
 
@@ -186,7 +225,7 @@ internal sealed class ScenePainter
         if (_labels.HasSummaries)
         {
             var text = label("미세 ROI 요약 · 확대하면 개별 윤곽 표시");
-            _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), new(.13f, .16f, .22f, .94f));
+            _mesh.Rectangle(white, new(8, 8, 20 + (text.Width / scene.Dpi), 16 + (text.Height / scene.Dpi)), RenderingConstants.DarkBannerBackground);
             _mesh.Rectangle(text, new(14, 12, 14 + (text.Width / scene.Dpi), 12 + (text.Height / scene.Dpi)), Vector4.One);
         }
         if (!scene.InspectionInLayer && scene.Inspection is { } inspection)
@@ -231,7 +270,7 @@ internal sealed class ScenePainter
         {
             mesh.Rectangle(white, area, s_accent with
             {
-                W = .08f
+                W = RenderingConstants.DragFillAlpha
             });
         }
     }
@@ -245,15 +284,15 @@ internal sealed class ScenePainter
 
     private void Handle(IRenderTexture white, PointD point, double scale, Vector4 color)
     {
-        var outer = 4 * scale;
-        var inner = 3 * scale;
+        var outer = RenderingConstants.HandleOuterRadius * scale;
+        var inner = RenderingConstants.HandleInnerRadius * scale;
         _mesh.Rectangle(white, new(point.X - outer, point.Y - outer, point.X + outer, point.Y + outer), color);
         _mesh.Rectangle(white, new(point.X - inner, point.Y - inner, point.X + inner, point.Y + inner), Vector4.One);
     }
 
     private void RotationHandle(IRenderTexture white, PointD point, Vector4 color, double scale = HandleGeometry.DefaultScale)
     {
-        _mesh.Circle(white, point, 5 * scale, color);
-        _mesh.Circle(white, point, 3.5 * scale, Vector4.One);
+        _mesh.Circle(white, point, RenderingConstants.RotationHandleOuterRadius * scale, color);
+        _mesh.Circle(white, point, RenderingConstants.RotationHandleInnerRadius * scale, Vector4.One);
     }
 }

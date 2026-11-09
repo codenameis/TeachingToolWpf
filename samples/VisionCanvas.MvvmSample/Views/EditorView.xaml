@@ -52,6 +52,7 @@
                 <Button Content="삭제" Command="{Binding DeleteCommand}" ToolTip="Delete" />
             </WrapPanel>
             <host:ViewportNavigationBar DataContext="{Binding Navigation}" />
+            <host:AlignmentTestPanel DataContext="{Binding AlignmentTest}" />
             <TextBlock Text="{Binding ToolDescription}" FontWeight="SemiBold" Margin="0,2,0,8" />
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">

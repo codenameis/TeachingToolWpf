@@ -48,10 +48,33 @@ internal static class ResultOverlayPainter
         }
         foreach (var match in result.Matches)
         {
-            DrawContourStroke(mesh, white, match.Bounds, view, clip, strokes, 2, match.Color);
+            var boundsColor = match.BoundsColor ?? match.Color;
+            DrawContourStroke(
+                mesh,
+                white,
+                match.Bounds,
+                view,
+                clip,
+                strokes,
+                match.BoundsThickness,
+                boundsColor,
+                match.BoundsDashLength,
+                match.BoundsGapLength);
+
+            var innerColor = match.InnerContourColor ?? match.Color;
             for (var i = 0; i < match.InnerContours.Length; i++)
             {
-                DrawContourStroke(mesh, white, match.InnerContours[i], view, clip, strokes, 2, match.Color);
+                DrawContourStroke(
+                    mesh,
+                    white,
+                    match.InnerContours[i],
+                    view,
+                    clip,
+                    strokes,
+                    match.InnerContourThickness,
+                    innerColor,
+                    match.InnerContourDashLength,
+                    match.InnerContourGapLength);
             }
             for (var i = 0; i < match.AdditionalContours.Length; i++)
             {
@@ -59,27 +82,60 @@ internal static class ResultOverlayPainter
             }
             if (result.ShowFeatures)
             {
-                foreach (var feature in match.Features)
+                DrawPoints(mesh, white, view, scene.Width, scene.Height, match.Features, match.Color, 1.5);
+                if (!match.DiagnosticGroups.IsDefaultOrEmpty)
                 {
-                    var point = view.ImageToScreen(feature);
-                    if (point.X >= -2 && point.X <= scene.Width + 2 && point.Y >= -2 && point.Y <= scene.Height + 2)
+                    for (var g = 0; g < match.DiagnosticGroups.Length; g++)
                     {
-                        mesh.Rectangle(white, new(point.X - 1.5, point.Y - 1.5, point.X + 1.5, point.Y + 1.5), match.Color);
+                        var group = match.DiagnosticGroups[g];
+                        DrawPoints(mesh, white, view, scene.Width, scene.Height, group.Points, group.Color, group.HalfSize);
+                    }
+                }
+                else
+                {
+                    if (!match.KeyFeatures.IsDefaultOrEmpty)
+                    {
+                        DrawPoints(mesh, white, view, scene.Width, scene.Height, match.KeyFeatures, MatchMarker.KeyFeatureColor, 2.2);
+                    }
+                    if (!match.UnmatchedFeatures.IsDefaultOrEmpty)
+                    {
+                        DrawPoints(mesh, white, view, scene.Width, scene.Height, match.UnmatchedFeatures, MatchMarker.UnmatchedFeatureColor, 2.2);
                     }
                 }
             }
             var center = view.ImageToScreen(match.ReferencePoint);
-            mesh.Line(white, center - new PointD(7, 0), center + new PointD(7, 0), 2, match.Color);
-            mesh.Line(white, center - new PointD(0, 7), center + new PointD(0, 7), 2, match.Color);
+            var arm = RenderingConstants.ResultMarkerCrossArmLength;
+            mesh.Line(white, center - new PointD(arm, 0), center + new PointD(arm, 0), 2, match.Color);
+            mesh.Line(white, center - new PointD(0, arm), center + new PointD(0, arm), 2, match.Color);
             var direction = new PointD(Math.Cos(match.AngleRadians), Math.Sin(match.AngleRadians));
-            var end = center + (direction * 26);
+            var end = center + (direction * RenderingConstants.ResultMarkerArrowLength);
             var normal = new PointD(-direction.Y, direction.X);
             mesh.Line(white, center, end, 2, match.Color);
-            mesh.Line(white, end, end - (direction * 6) + (normal * 4), 2, match.Color);
-            mesh.Line(white, end, end - (direction * 6) - (normal * 4), 2, match.Color);
+            var headLen = RenderingConstants.ResultMarkerArrowHeadLength;
+            var headWid = RenderingConstants.ResultMarkerArrowHeadWidth;
+            mesh.Line(white, end, end - (direction * headLen) + (normal * headWid), 2, match.Color);
+            mesh.Line(white, end, end - (direction * headLen) - (normal * headWid), 2, match.Color);
         }
         // 미검출·취소 또는 화면 밖 결과도 현재 판정을 확인할 수 있다.
         DrawLabel(mesh, scene, white, Whole(label(result.Summary)), new(14, 12), result.Color);
+    }
+
+    private static void DrawPoints(SpriteMesh mesh, IRenderTexture white, ViewportTransform view, double width, double height,
+        ImmutableArray<PointD> points, Vector4 color, double halfSize)
+    {
+        if (points.IsDefaultOrEmpty)
+        {
+            return;
+        }
+        var margin = halfSize + 1.0;
+        for (var i = 0; i < points.Length; i++)
+        {
+            var point = view.ImageToScreen(points[i]);
+            if (point.X >= -margin && point.X <= width + margin && point.Y >= -margin && point.Y <= height + margin)
+            {
+                mesh.Rectangle(white, new(point.X - halfSize, point.Y - halfSize, point.X + halfSize, point.Y + halfSize), color);
+            }
+        }
     }
 
     private static void DrawContourStroke(SpriteMesh mesh, IRenderTexture white, ImmutableArray<PointD> contour,
@@ -105,10 +161,12 @@ internal static class ResultOverlayPainter
 
     private static void DrawStroke(SpriteMesh mesh, IRenderTexture white, ReadOnlySpan<OverlayStrokeSegment> strokes, double thickness, Vector4 color)
     {
+        var shadowAlpha = Math.Clamp(color.W * 0.85f, 0.25f, 0.9f);
+        var shadowThickness = thickness <= 1.25 ? thickness + 1.0 : thickness + 2.0;
         for (var i = 0; i < strokes.Length; i++)
         {
             var segment = strokes[i];
-            mesh.Line(white, segment.Start, segment.End, thickness + 2, new(.02f, .02f, .02f, .9f));
+            mesh.Line(white, segment.Start, segment.End, shadowThickness, new(.02f, .02f, .02f, shadowAlpha));
         }
         for (var i = 0; i < strokes.Length; i++)
         {
@@ -204,8 +262,10 @@ internal static class ResultOverlayPainter
     {
         var width = text.Width / scene.Dpi;
         var height = text.Height / scene.Dpi;
-        mesh.Rectangle(white, new(origin.X - 6, origin.Y - 4, origin.X + width + 6, origin.Y + height + 4), new(.05f, .07f, .09f, .96f));
-        mesh.Rectangle(white, new(origin.X - 6, origin.Y - 4, origin.X - 3, origin.Y + height + 4), color);
+        var padH = RenderingConstants.ResultLabelPaddingHorizontal;
+        var padV = RenderingConstants.ResultLabelPaddingVertical;
+        mesh.Rectangle(white, new(origin.X - padH, origin.Y - padV, origin.X + width + padH, origin.Y + height + padV), new(.05f, .07f, .09f, .96f));
+        mesh.Rectangle(white, new(origin.X - padH, origin.Y - padV, origin.X - (padH / 2), origin.Y + height + padV), color);
         mesh.Quad(text.Texture, origin, new(origin.X + width, origin.Y),
             new(origin.X + width, origin.Y + height), new(origin.X, origin.Y + height), color, uv: text.Uv);
     }

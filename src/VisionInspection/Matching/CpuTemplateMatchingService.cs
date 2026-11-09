@@ -16,6 +16,9 @@ public enum CpuTemplateMethod
 public sealed record CpuTemplate(CpuTemplateMethod Method, ITemplateMatcher Matcher, RoiGeometry TeachingRegion)
 {
     public CpuTemplateParameters Parameters { get; init; } = new();
+    public byte[]? PreviewGray8 { get; init; }
+    public int PreviewWidth { get; init; }
+    public int PreviewHeight { get; init; }
 }
 public sealed record CpuSearchOutput(SearchResult Result, double TotalMilliseconds, double ReadMilliseconds, double SearchMilliseconds)
 {
@@ -33,14 +36,30 @@ public interface ICpuTemplateMatchingService
 {
     Task<CpuTemplate> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method, CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null);
     Task<CpuSearchOutput> SearchAsync(ImageReference image, bool live, CpuTemplate template, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false);
+    Task<CpuTemplate?> PreviewAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method, CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null)
+        => Task.FromResult<CpuTemplate?>(null);
 }
 
 /// <summary>원본 읽기/회전 학습 ROI와 CPU 라이브러리의 픽셀 인덱스 좌표를 연결한다.</summary>
 public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame,
     Func<ICoarseScoreAccelerator>? rentAccelerator = null) : ICpuTemplateMatchingService
 {
+    private readonly MatchingPreviewCache _previewCache = new();
+
+    public Task<CpuTemplate?> PreviewAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method,
+        CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null) => Task.Run<CpuTemplate?>(async () =>
+    {
+        return await BuildTemplateAsync(image, live, roi, method, token, exclusion, parameters, usePreviewCache: true).ConfigureAwait(false);
+    }, token);
+
     public Task<CpuTemplate> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method,
         CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null) => Task.Run(async () =>
+    {
+        return await BuildTemplateAsync(image, live, roi, method, token, exclusion, parameters, usePreviewCache: false).ConfigureAwait(false);
+    }, token);
+
+    private async Task<CpuTemplate> BuildTemplateAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method,
+        CancellationToken token, RoiExclusion? exclusion, CpuTemplateParameters? parameters, bool usePreviewCache)
     {
         parameters ??= new CpuTemplateParameters();
         parameters.Validate(method);
@@ -57,8 +76,6 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
         {
             throw new ArgumentOutOfRangeException(nameof(method));
         }
-        using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
-        reader.PreferDirectGray = true;
         var width = (int)Math.Round(roi.Width);
         var height = (int)Math.Round(roi.Height);
         // 재표본화의 배율을 숨기지 않고 1픽셀 간격으로 학습한다. 표시 경계도 이 크기다.
@@ -67,7 +84,20 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
         var top = Math.Max(0, (int)Math.Floor(teaching.Bounds.Top) - 1);
         var right = Math.Min(image.Width, (int)Math.Ceiling(teaching.Bounds.Right) + 1);
         var bottom = Math.Min(image.Height, (int)Math.Ceiling(teaching.Bounds.Bottom) + 1);
-        var crop = Read(reader, left, top, right - left, bottom - top, token);
+        GrayImage crop;
+        if (usePreviewCache)
+        {
+            var raw = await _previewCache.ReadAsync(image, live, loader, retainFrame, left, top, right - left, bottom - top, null, token, preferDirectGray: true).ConfigureAwait(false);
+            var rawBytes = new byte[raw.Width * raw.Height];
+            raw.Pixels.Span.Slice(0, rawBytes.Length).CopyTo(rawBytes);
+            crop = new GrayImage(raw.Width, raw.Height, rawBytes);
+        }
+        else
+        {
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            reader.PreferDirectGray = true;
+            crop = Read(reader, left, top, right - left, bottom - top, token);
+        }
         var pixels = new byte[width * height];
         for (var y = 0; y < height; y++)
         {
@@ -86,8 +116,14 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
             CpuTemplateMethod.SubNcc => new SubNccMatcher(gray, parameters.SubNcc),
             _ => throw new ArgumentOutOfRangeException(nameof(method))
         };
-        return new CpuTemplate(method, matcher, teaching) { Parameters = parameters };
-    }, token);
+        return new CpuTemplate(method, matcher, teaching)
+        {
+            Parameters = parameters,
+            PreviewGray8 = pixels,
+            PreviewWidth = width,
+            PreviewHeight = height
+        };
+    }
 
     public async Task<CpuSearchOutput> SearchAsync(ImageReference image, bool live, CpuTemplate template, RoiGeometry? region,
         SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false)

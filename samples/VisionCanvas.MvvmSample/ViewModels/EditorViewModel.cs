@@ -46,6 +46,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         Layout = layout;
         KeyAction = HandleKey;
         Navigation = new(editor, input, layout, () => IsInputEnabled);
+        AlignmentTest = new(editor, input, layout, images, Refresh, ReportStatus);
         // () => ... 는 '나중에 호출할 함수'를 전달하는 문법이다. 생성 순간 파일 창이 열리는 것은 아니다.
         // 두 번째 함수는 실행 가능 여부다. 파일 로딩 중에는 다른 열기 요청을 시작하지 않는다.
         OpenCommand = CreateAsync(async () =>
@@ -114,6 +115,8 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
     // null!의 !는 컴파일러에 초기화를 보장한다고 알린다. 실제 값은 생성자의 Refresh에서 넣는다.
     public RenderScene Scene { get; private set; } = null!;
     public ViewportNavigationViewModel Navigation { get; }
+
+    public AlignmentTestViewModel AlignmentTest { get; }
 
     public bool IsNavigationEnabled => Input.IsEnabled && !_disposed;
 
@@ -278,10 +281,11 @@ public sealed class EditorViewModel : INotifyPropertyChanged, IDisposable
         // DIP는 WPF의 화면 크기 단위다. DPI 배율이 달라도 입력과 표시가 같은 위치를 가리켜야 한다.
         Input.NavigationOnly = !IsInputEnabled;
         Navigation.Refresh();
+        AlignmentTest.OnDocumentChanged();
         Input.SetViewportSize(Layout.Width, Layout.Height);
         // 기존 문서와 미리보기 데이터를 묶는다. 이 줄에서 큰 이미지의 픽셀 배열을 복사하지 않는다.
         Scene = new(_editor.State, _images.Image, _images.Generation, Layout.Width, Layout.Height, Layout.Dpi,
-            Input.Overlay, Transform: _editor.TransformPreview);
+            Input.Overlay, Transform: _editor.TransformPreview, Alignment: AlignmentTest.CurrentAlignment);
         // 속성에 값을 넣는 것만으로 WPF가 변경을 알아채지는 못한다. 바뀐 속성의 이름을 알린다.
         // nameof(Scene)은 "Scene"이라는 문자열을 만들며, 속성 이름을 바꿀 때 함께 추적할 수 있다.
         PropertyChanged?.Invoke(this, new(nameof(Scene)));

@@ -50,6 +50,7 @@
                 <Button Content="0° 초기화" Command="{Binding ResetAngleCommand}" />
             </WrapPanel>
             <canvas:ViewportNavigationBar DataContext="{Binding Navigation}" />
+            <canvas:AlignmentTestPanel DataContext="{Binding AlignmentTest}" />
             <TextBlock Text="{Binding Tool}" FontWeight="SemiBold" Margin="0,2,0,8" />
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">

@@ -6,12 +6,28 @@
             <TextBlock Text="영역" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
         </DockPanel>
         <controls:RoiListBox x:Name="RoiList" Grid.Row="1" SelectionMode="Extended" Style="{StaticResource {x:Type ListBox}}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="ROI 계층 목록">
-            <ListBox.ItemTemplate><DataTemplate><DockPanel>
-                <TextBlock DockPanel.Dock="Right" Text="{Binding Kind}" Foreground="{StaticResource TextSecondary}" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                <Border DockPanel.Dock="Left" Width="{Binding IndentWidth}"/>
-                <Path DockPanel.Dock="Left" Data="{StaticResource DrawIcon}" Width="13" Height="13" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" StrokeThickness="1.3" Margin="0,0,9,0"/>
-                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}"/>
-            </DockPanel></DataTemplate></ListBox.ItemTemplate>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <DockPanel Margin="0,2">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Kind}" Foreground="{StaticResource TextSecondary}" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        <Border DockPanel.Dock="Right" CornerRadius="4" Padding="5,1" Margin="4,0,0,0" Background="#1E293B"
+                                Visibility="{Binding HasVerdict, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="{Binding VerdictBadge}" Foreground="{Binding VerdictAccent}" FontSize="9.5" FontWeight="Bold"/>
+                        </Border>
+                        <Border DockPanel.Dock="Right" CornerRadius="4" Padding="5,1" Margin="4,0,0,0" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1"
+                                Visibility="{Binding HasAlgorithm, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="{Binding AlgorithmBadge}" Foreground="#1D4ED8" FontSize="9.5" FontWeight="SemiBold"/>
+                        </Border>
+                        <Border DockPanel.Dock="Left" Width="{Binding IndentWidth}"/>
+                        <TextBlock DockPanel.Dock="Left" Text="{Binding ShapeGlyph}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Border DockPanel.Dock="Left" Width="28" Height="28" CornerRadius="3" Background="#FF0F172A" BorderBrush="#94A3B8" BorderThickness="1" Margin="0,0,6,0" ClipToBounds="True"
+                                Visibility="{Binding HasPatternThumbnail, Converter={StaticResource BoolVisibility}}">
+                            <Image Source="{Binding PatternThumbnail}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                        <TextBlock Text="{Binding Label}" FontWeight="Medium" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}"/>
+                    </DockPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
         </controls:RoiListBox>
         <StackPanel Grid.Row="1" Margin="22,64,22,0" VerticalAlignment="Top">
             <StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasRois}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>

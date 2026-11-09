@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/ShapeDetection/IPrimitivePreprocessor.cs
 namespace VisionAlgorithm.OpenSrc.ShapeDetection;
 
 /// <summary>원본과 같은 3×3 median, 복제 경계를 적용한다. 반환 버퍼는 호출자가 소유한다.</summary>

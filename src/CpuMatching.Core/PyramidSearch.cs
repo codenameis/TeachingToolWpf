@@ -312,9 +312,16 @@ public static partial class PyramidSearch
         if (count >= 4 && level.SupportsParallelEvaluation)
         {
             // 같은 지역의 맵을 연달아 사용하되 출력은 원래 후보 번호에 저장한다.
-            var order = Enumerable.Range(0, count)
-                .OrderBy(index => Math.Floor(candidates[index].Y / LocalScoreLevel.CellSize))
-                .ThenBy(index => Math.Floor(candidates[index].X / LocalScoreLevel.CellSize)).ToArray();
+            var keys = new long[count];
+            var order = new int[count];
+            for (var i = 0; i < count; i++)
+            {
+                var ty = (int)Math.Floor(candidates[i].Y / LocalScoreLevel.CellSize);
+                var tx = (int)Math.Floor(candidates[i].X / LocalScoreLevel.CellSize);
+                keys[i] = ((long)ty << 32) | (uint)tx;
+                order[i] = i;
+            }
+            Array.Sort(keys, order);
             Parallel.For(0, count, ParallelOptions(workers, token), index => evaluate(order[index]));
         }
         else
@@ -375,13 +382,20 @@ public static partial class PyramidSearch
             Score = -1
         };
         var scaleRadius = options.MinimumScale == options.MaximumScale ? 0 : options.ScaleStep / 2;
-        foreach (var scale in Samples(Math.Max(options.MinimumScale, seed.Scale - scaleRadius),
-            Math.Min(options.MaximumScale, seed.Scale + scaleRadius), Math.Max(0.01, scaleRadius)))
+        Span<double> scaleBuffer = stackalloc double[5];
+        var scaleCount = FillSamples(Math.Max(options.MinimumScale, seed.Scale - scaleRadius),
+            Math.Min(options.MaximumScale, seed.Scale + scaleRadius), Math.Max(0.01, scaleRadius), scaleBuffer);
+        var fullRotation = options.MaximumAngle - options.MinimumAngle == 360;
+        Span<double> angleBuffer = stackalloc double[5];
+        var angleCount = FillSamples(fullRotation ? seed.AngleDegrees - angleRadius : Math.Max(options.MinimumAngle, seed.AngleDegrees - angleRadius),
+            fullRotation ? seed.AngleDegrees + angleRadius : Math.Min(options.MaximumAngle, seed.AngleDegrees + angleRadius), Math.Max(0.25, angleRadius / 2), angleBuffer);
+
+        for (var si = 0; si < scaleCount; si++)
         {
-            var fullRotation = options.MaximumAngle - options.MinimumAngle == 360;
-            foreach (var angle in Samples(fullRotation ? seed.AngleDegrees - angleRadius : Math.Max(options.MinimumAngle, seed.AngleDegrees - angleRadius),
-                fullRotation ? seed.AngleDegrees + angleRadius : Math.Min(options.MaximumAngle, seed.AngleDegrees + angleRadius), Math.Max(0.25, angleRadius / 2)))
+            var scale = scaleBuffer[si];
+            for (var ai = 0; ai < angleCount; ai++)
             {
+                var angle = angleBuffer[ai];
                 var scorer = level.AtPose(angle, scale);
                 for (var dy = -positionRadius; dy <= positionRadius; dy++)
                 {
@@ -400,6 +414,17 @@ public static partial class PyramidSearch
             }
         }
         return best;
+    }
+
+    private static int FillSamples(double minimum, double maximum, double step, Span<double> buffer)
+    {
+        var count = (int)Math.Ceiling((maximum - minimum) / step);
+        var total = count + 1;
+        for (var i = 0; i <= count && i < buffer.Length; i++)
+        {
+            buffer[i] = Math.Min(maximum, minimum + (i * step));
+        }
+        return Math.Min(total, buffer.Length);
     }
 
     private static IEnumerable<double> Samples(double minimum, double maximum, double step)
@@ -433,13 +458,31 @@ public static partial class PyramidSearch
         var result = new List<Match>();
         foreach (var match in source.OrderByDescending(match => match.Score).ThenBy(match => match.Y).ThenBy(match => match.X))
         {
-            if (!result.Any(other => Math.Abs(match.Scale - other.Scale) <= scaleRadius &&
-                AngleDistance(match.AngleDegrees, other.AngleDegrees) <= angleRadius &&
-                ((match.X - other.X) * (match.X - other.X)) + ((match.Y - other.Y) * (match.Y - other.Y)) < radius * radius))
+            if (!IsSuppressed(match, result, radius, angleRadius, scaleRadius))
             {
                 result.Add(match);
             }
         }
         return result;
+    }
+
+    private static bool IsSuppressed(Match match, List<Match> existing, double radius, double angleRadius, double scaleRadius)
+    {
+        var radiusSquared = radius * radius;
+        for (var i = 0; i < existing.Count; i++)
+        {
+            var other = existing[i];
+            if (Math.Abs(match.Scale - other.Scale) <= scaleRadius &&
+                AngleDistance(match.AngleDegrees, other.AngleDegrees) <= angleRadius)
+            {
+                var dx = match.X - other.X;
+                var dy = match.Y - other.Y;
+                if ((dx * dx) + (dy * dy) < radiusSquared)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

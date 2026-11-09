@@ -6,7 +6,10 @@
     <Expander Header="일반 도형 검출 · 학습 불필요" IsExpanded="True" Margin="0,0,0,20">
         <StackPanel Margin="0,10,0,0">
             <TextBlock Text="기본 도형과 PCB 정렬 마크를 찾습니다. 도넛 안의 독립 도형은 별도로 세며, 더블스퀘어는 대각선의 같은 정사각형 두 개를 하나로 셉니다. 부분 가림·임의로 붙은 도형은 지원하지 않습니다."
-                       FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,10"/>
+                       FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+            <Border BorderBrush="#38BDF8" BorderThickness="2,0,0,0" Background="{StaticResource Shell}" Padding="8,5" Margin="0,0,0,10">
+                <TextBlock Text="{Binding ParameterPreviewSummary}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondary}" AutomationProperties.Name="도형 파라미터 미리보기 요약"/>
+            </Border>
             <StackPanel IsEnabled="{Binding IsIdle}">
                 <CheckBox Content="GPU 사용 (CPU + NVIDIA CUDA)" IsChecked="{Binding UseGpu}" Margin="0,0,0,10"
                           ToolTip="선택 해제: CPU 전용. 선택: CUDA 전처리와 CPU 윤곽 분류. 장치가 없으면 오류를 표시합니다."/>
@@ -25,8 +28,6 @@
                     <CheckBox Content="별 (5각)" IsChecked="{Binding FindStars}" Margin="0,0,10,8"/>
                     <CheckBox Content="별표 (6·8방향)" IsChecked="{Binding FindAsterisks}" Margin="0,0,10,8"/>
                 </WrapPanel>
-                <CheckBox Content="선택 ROI 안의 도형만 검출" IsChecked="{Binding UseSelection}" Margin="0,0,0,10"
-                          ToolTip="도형의 전체 윤곽이 선택한 ROI 안에 있어야 합니다."/>
                 <ComboBox ItemsSource="{Binding Polarities}" DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding Polarity}"
                           AutomationProperties.Name="도형 명암 방향" Margin="0,0,0,10"/>
                 <TextBlock Text="최소 / 최대 크기 (원본 px · 6~512)" Style="{StaticResource Caption}"/>
@@ -37,7 +38,7 @@
                              AutomationProperties.Name="최대 도형 크기"/>
                 </UniformGrid>
                 <TextBlock Text="크기는 이미지 축 기준 바깥 폭·높이입니다. 최대 크기를 높이면 원본 검색 창의 겹침과 검사 시간이 늘어납니다."
-                           FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,10"/>
+                           FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
                 <Expander Header="도형 검출 고급 설정" IsExpanded="False" Margin="0,0,0,10">
                     <StackPanel Margin="0,10,0,0">
                         <CheckBox Content="자동 이진화 (창별 Otsu)" IsChecked="{Binding AutomaticThreshold}" Margin="0,0,0,8"/>

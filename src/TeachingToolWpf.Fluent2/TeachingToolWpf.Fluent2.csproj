@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>TeachingToolWpf.Fluent2</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TeachingToolWpf.Presentation\TeachingToolWpf.Presentation.csproj" />
+    <ProjectReference Include="..\CpuMatching.Cuda\CpuMatching.Cuda.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Host\VisionCanvas.Host.csproj" />
+    <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
+    <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
+    <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
+    <ProjectReference Include="..\VisionGeometry\VisionGeometry.csproj" />
+    <ProjectReference Include="..\VisionImaging\VisionImaging.csproj" />
+    <ProjectReference Include="..\VisionImaging.Abstractions\VisionImaging.Abstractions.csproj" />
+    <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
+    <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
+    <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TeachingToolWpf.Fluent2.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md;..\..\THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\TeachingToolWpf\Assets\pattern-matching.png" Link="Assets\pattern-matching.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\TeachingToolWpf\Assets\primitive-shapes.png" Link="Assets\primitive-shapes.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\TeachingToolWpf\Assets\edge-fewshot-single-board.png" Link="Assets\edge-fewshot-single-board.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Import Project="../../build/InspectionNativeRuntime.props" />
+</Project>

@@ -13,13 +13,13 @@ internal static class MinimapPainter
             return;
         }
 
-        var accent = new Vector4(.22f, .52f, 1, 1);
+        var accent = RenderingConstants.MinimapAccentColor;
         mesh.Rectangle(white, new(map.Panel.Left - 2, map.Panel.Top - 2, map.Panel.Right + 2, map.Panel.Bottom + 2), new(0, 0, 0, .35f));
-        mesh.Rectangle(white, map.Panel, new(.10f, .13f, .18f, .98f));
-        Outline(map.Panel, 1, new(.38f, .44f, .55f, 1));
+        mesh.Rectangle(white, map.Panel, RenderingConstants.MinimapPanelBackground);
+        Outline(map.Panel, 1, RenderingConstants.MinimapBorderColor);
         var title = label("미니맵 · 클릭/드래그 이동");
         mesh.Rectangle(title, new(map.Panel.Left + 10, map.Panel.Top + 7, map.Panel.Left + 10 + (title.Width / scene.Dpi), map.Panel.Top + 7 + (title.Height / scene.Dpi)), Vector4.One);
-        mesh.Rectangle(white, map.ImageBounds, new(.04f, .05f, .07f, 1));
+        mesh.Rectangle(white, map.ImageBounds, RenderingConstants.MinimapImageBackground);
         if (overview is not null)
         {
             mesh.Rectangle(overview, map.ImageBounds, Vector4.One);

@@ -48,7 +48,18 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         new(RoiFilterKind.Opening, "Opening · 열기"), new(RoiFilterKind.Closing, "Closing · 닫기"),
         new(RoiFilterKind.WhiteTopHat, "White Top-hat · 밝은 결함"), new(RoiFilterKind.BlackHat, "Black-hat · 어두운 결함"),
         new(RoiFilterKind.NativeThreshold, "Threshold · 원본 명암 임계값"),
-        new(RoiFilterKind.GaussianBlackHatThreshold, "Gaussian → Black-hat → Threshold")
+        new(RoiFilterKind.GaussianBlackHatThreshold, "Gaussian → Black-hat → Threshold"),
+        new(RoiFilterKind.Clahe, "[전처리] CLAHE · 적응형 히스토그램 대비 향상"),
+        new(RoiFilterKind.GuidedFilter, "[전처리] Guided Filter · 엣지 보존 평활화"),
+        new(RoiFilterKind.Bilateral, "[전처리] Bilateral · 양방향 노이즈 제거"),
+        new(RoiFilterKind.Median, "[전처리] Median · 임펄스 점 노이즈 제거"),
+        new(RoiFilterKind.AdaptiveThreshold, "[전처리] Adaptive Sauvola · 적분영상 지역 이진화"),
+        new(RoiFilterKind.UnsharpMask, "[전처리] Unsharp Mask · 미세 엣지 선명화"),
+        new(RoiFilterKind.SobelGradient, "[전처리] Sobel Gradient · 방향 경계 강도"),
+        new(RoiFilterKind.WarpAffineShear, "[워핑] Affine & Shear · 회전/전단 보정"),
+        new(RoiFilterKind.WarpPerspectiveKeystone, "[워핑] Perspective Keystone · 원근 사다리꼴 보정"),
+        new(RoiFilterKind.WarpPolarUnwrap, "[워핑] Polar Ring Unwrap · 원형 링 직선 전개"),
+        new(RoiFilterKind.WarpLensUndistort, "[워핑] Lens Undistort · 방사/접선 렌즈 왜곡 보정")
     ];
 
     public IReadOnlyList<RoiFilterExecution> ExecutionOptions { get; } = Enum.GetValues<RoiFilterExecution>();
@@ -102,14 +113,22 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         }
     }
 
-    public bool IsBinarize => SelectedFilter == RoiFilterKind.Binarize;
+    public bool IsBinarize => FilterSettings.UsesByteThresholdKind(SelectedFilter);
 
     public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
     public bool IsIndustrial => FilterSettings.IsIndustrialKind(SelectedFilter);
     public bool UsesRadius => FilterSettings.UsesRadiusKind(SelectedFilter);
     public bool UsesSigma => FilterSettings.UsesSigmaKind(SelectedFilter);
     public bool UsesThreshold => IsBinarize || FilterSettings.UsesNativeThresholdKind(SelectedFilter);
-    public string ThresholdCaption => IsBinarize ? "이진화 임계값 · 0–255" : "원본 명암 임계값 · Gray8 0–255 / Gray16 0–65535";
+    public string ThresholdCaption => SelectedFilter switch
+    {
+        RoiFilterKind.Binarize => "이진화 임계값 · 0–255",
+        RoiFilterKind.WarpAffineShear => "어파인 회전 제어 · 0–255 (128 = 0°)",
+        RoiFilterKind.WarpPerspectiveKeystone => "키스톤 수평 원근 제어 · 0–255 (128 = 대칭)",
+        RoiFilterKind.WarpPolarUnwrap => "극좌표 링 내경 비율 · 0–255",
+        RoiFilterKind.WarpLensUndistort => "렌즈 방사 왜곡 계수 k1 · 0–255 (128 = 0)",
+        _ => "원본 명암 임계값 · Gray8 0–255 / Gray16 0–65535"
+    };
 
     public string Radius
     {

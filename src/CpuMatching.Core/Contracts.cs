@@ -4,7 +4,7 @@ public readonly record struct SearchRegion(int X, int Y, int Width, int Height)
 {
     public void Validate(GrayImage image)
     {
-        if (X < 0 || Y < 0 || Width < 4 || Height < 4 || (long)X + Width > image.Width || (long)Y + Height > image.Height)
+        if (Width < 1 || Height < 1 || X < 0 || Y < 0 || Width < 4 || Height < 4 || (long)X + Width > image.Width || (long)Y + Height > image.Height)
         {
             throw new ArgumentOutOfRangeException(nameof(image), "Search region must be inside the image.");
         }
@@ -73,6 +73,9 @@ public sealed record SearchTimings(double Preparation, double CoarseSearch, doub
 
 public interface ITemplateMatcher
 {
+    /// <summary>모델 중심(0,0) 기준의 상대 특징점/표본 좌표 목록. 시각적 미리보기에 사용한다.</summary>
+    IReadOnlyList<(double X, double Y)> PreviewPoints => [];
+
     /// <summary>전체 원본을 작은 창으로 읽으며 전역 후보와 최종 중복 제거를 유지한다.</summary>
     SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)

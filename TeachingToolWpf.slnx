@@ -14,6 +14,7 @@
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
     <Project Path="src/TeachingToolWpf/TeachingToolWpf.csproj" />
+    <Project Path="src/TeachingToolWpf.Fluent2/TeachingToolWpf.Fluent2.csproj" />
     <Project Path="src/TeachingToolWpf.Presentation/TeachingToolWpf.Presentation.csproj" />
     <Project Path="src/TeachingToolWpf.Diagnostics/TeachingToolWpf.Diagnostics.csproj" />
     <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
@@ -38,6 +39,7 @@
     <Project Path="tests/VisionCanvas.Wgpu.Tests/VisionCanvas.Wgpu.Tests.csproj" />
     <Project Path="tests/TeachingToolWpf.Core.Tests/TeachingToolWpf.Core.Tests.csproj" />
     <Project Path="tests/TeachingToolWpf.Imaging.Tests/TeachingToolWpf.Imaging.Tests.csproj" />
+    <Project Path="tests/TeachingToolWpf.Fluent2.Tests/TeachingToolWpf.Fluent2.Tests.csproj" />
     <Project Path="tests/VisionAlgorithm.Tests/VisionAlgorithm.Tests.csproj" />
     <Project Path="tests/VisionInspection.Tests/VisionInspection.Tests.csproj" />
     <Project Path="tests/VisionCompute.Tests/VisionCompute.Tests.csproj" />

@@ -5,16 +5,21 @@ public readonly record struct DirectionalSample(double X, double Y, int Bin, int
 {
     public static DirectionalSample[] Rotate(EdgePoint[] features, double angleDegrees, double scale, int bins)
     {
-        var angle = angleDegrees * Math.PI / 180;
-        var cos = Math.Cos(angle) * scale;
-        var sin = Math.Sin(angle) * scale;
-        return features.Select(point =>
+        var angle = angleDegrees * EdgeRefinementConstants.DegreesToRadians;
+        var (sinVal, cosVal) = Math.SinCos(angle);
+        var cos = cosVal * scale;
+        var sin = sinVal * scale;
+        var result = new DirectionalSample[features.Length];
+        var twoPi = EdgeRefinementConstants.TwoPi;
+        for (var i = 0; i < features.Length; i++)
         {
-            var orientation = (point.Angle + angle + (4 * Math.PI)) % (2 * Math.PI) * bins / (2 * Math.PI);
+            var point = features[i];
+            var orientation = ((point.Angle + angle + (4 * Math.PI)) % twoPi) * bins / twoPi;
             var bin = (int)orientation;
-            return new DirectionalSample((point.X * cos) - (point.Y * sin), (point.X * sin) + (point.Y * cos),
+            result[i] = new DirectionalSample((point.X * cos) - (point.Y * sin), (point.X * sin) + (point.Y * cos),
                 bin % bins, (bin + 1) % bins, orientation - bin);
-        }).ToArray();
+        }
+        return result;
     }
 }
 

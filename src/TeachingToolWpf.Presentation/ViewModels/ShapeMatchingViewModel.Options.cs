@@ -108,6 +108,18 @@ public sealed partial class ShapeMatchingViewModel
         set => ChangeSearchOptions(ActiveSearchSettings.Options with { Greediness = value });
     }
 
+    public double MaxOcclusionRatio
+    {
+        get => ActiveSearchSettings.Options.MaxOcclusionRatio;
+        set => ChangeSearchOptions(ActiveSearchSettings.Options with { MaxOcclusionRatio = value });
+    }
+
+    public bool StrictContext
+    {
+        get => ActiveSearchSettings.Options.StrictContext;
+        set => ChangeSearchOptions(ActiveSearchSettings.Options with { StrictContext = value });
+    }
+
     public int MaximumCandidates
     {
         get => ActiveSearchSettings.Options.MaximumCandidates;
@@ -160,7 +172,9 @@ public sealed partial class ShapeMatchingViewModel
         {
             return;
         }
+        var wasIdle = IsIdle;
         ActiveShapeState.Training = settings;
+        _previewShapeModel = null;
         Notify(property);
         Invalidate();
         if (Model is not null)
@@ -171,6 +185,10 @@ public sealed partial class ShapeMatchingViewModel
         Notify(nameof(IsTrainingDirty));
         Notify(nameof(ModelSummary));
         RefreshCommands();
+        if (wasIdle)
+        {
+            ScheduleLivePreview(trainingParametersChanged: true);
+        }
     }
 
     private void ChangeSearchOptions(SearchOptions options, [CallerMemberName] string? property = null)
@@ -185,6 +203,8 @@ public sealed partial class ShapeMatchingViewModel
         {
             return;
         }
+        var wasIdle = IsIdle;
+        var hadTrainingPreview = _result?.Summary.Contains("미리보기", StringComparison.Ordinal) == true || _livePreview is not null;
         ActiveSearchSettings = settings;
         Notify(property);
         Notify(nameof(SpeedProfile));
@@ -194,6 +214,10 @@ public sealed partial class ShapeMatchingViewModel
         }
         Invalidate();
         RefreshCommands();
+        if (wasIdle && (hadTrainingPreview || !HasModel))
+        {
+            ScheduleLivePreview(trainingParametersChanged: false);
+        }
     }
 
     private SearchOptions CreateTemplateSearchOptions() => new()

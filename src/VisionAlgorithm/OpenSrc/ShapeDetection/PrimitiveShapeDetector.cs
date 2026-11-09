@@ -1,3 +1,4 @@
+// File: src/VisionAlgorithm/OpenSrc/ShapeDetection/PrimitiveShapeDetector.cs
 using System.Collections.Immutable;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionAlgorithm.OpenSrc.PatternMatching.Imaging;
@@ -33,8 +34,9 @@ public static class PrimitiveShapeDetector
             {
                 continue;
             }
-            var width = contour.Points.Max(point => point.X) - contour.Points.Min(point => point.X);
-            var height = contour.Points.Max(point => point.Y) - contour.Points.Min(point => point.Y);
+            GetBounds(contour.Points.AsSpan(), out var minX, out var minY, out var maxX, out var maxY);
+            var width = maxX - minX;
+            var height = maxY - minY;
             if (Math.Min(width, height) < (doubleSquares ? 6 : options.MinimumSize))
             {
                 continue;
@@ -74,7 +76,8 @@ public static class PrimitiveShapeDetector
         bool MeetsMinimumSize(PrimitiveShapeDetection shape)
         {
             var points = shape.Contour.Concat(shape.AdditionalContours.SelectMany(contour => contour)).ToArray();
-            return Math.Min(points.Max(p => p.X) - points.Min(p => p.X), points.Max(p => p.Y) - points.Min(p => p.Y)) >= options.MinimumSize;
+            GetBounds(points.AsSpan(), out var minX, out var minY, out var maxX, out var maxY);
+            return Math.Min(maxX - minX, maxY - minY) >= options.MinimumSize;
         }
     }
 
@@ -86,10 +89,11 @@ public static class PrimitiveShapeDetector
         }
         var region = new SearchRegion(contour.Points);
         var holes = contour.Holes.Select(hole => new SearchRegion(hole.Points)).ToArray();
-        var left = Math.Max(0, (int)Math.Floor(contour.Points.Min(point => point.X)) - 1);
-        var top = Math.Max(0, (int)Math.Floor(contour.Points.Min(point => point.Y)) - 1);
-        var right = Math.Min(image.Width - 1, (int)Math.Ceiling(contour.Points.Max(point => point.X)) + 1);
-        var bottom = Math.Min(image.Height - 1, (int)Math.Ceiling(contour.Points.Max(point => point.Y)) + 1);
+        GetBounds(contour.Points.AsSpan(), out var minX, out var minY, out var maxX, out var maxY);
+        var left = Math.Max(0, (int)Math.Floor(minX) - 1);
+        var top = Math.Max(0, (int)Math.Floor(minY) - 1);
+        var right = Math.Min(image.Width - 1, (int)Math.Ceiling(maxX) + 1);
+        var bottom = Math.Min(image.Height - 1, (int)Math.Ceiling(maxY) + 1);
         for (var y = top; y <= bottom; y++)
         {
             token.ThrowIfCancellationRequested();
@@ -128,5 +132,24 @@ public static class PrimitiveShapeDetector
             }
         }
         return true;
+    }
+
+    private static void GetBounds(ReadOnlySpan<ImagePoint> points, out double minX, out double minY, out double maxX, out double maxY)
+    {
+        if (points.IsEmpty)
+        {
+            minX = minY = maxX = maxY = 0;
+            return;
+        }
+        minX = maxX = points[0].X;
+        minY = maxY = points[0].Y;
+        for (var i = 1; i < points.Length; i++)
+        {
+            var p = points[i];
+            if (p.X < minX) minX = p.X;
+            else if (p.X > maxX) maxX = p.X;
+            if (p.Y < minY) minY = p.Y;
+            else if (p.Y > maxY) maxY = p.Y;
+        }
     }
 }

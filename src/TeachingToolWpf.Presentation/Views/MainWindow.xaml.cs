@@ -9,6 +9,7 @@ namespace TeachingToolWpf.Views;
 public partial class MainWindow : Window
 {
     private ConfigPage? _configPage;
+    private PatternMaskWindow? _patternMaskWindow;
 
     public MainWindow() => InitializeComponent();
 
@@ -16,6 +17,7 @@ public partial class MainWindow : Window
     internal void Bind(MainWindowViewModel model)
     {
         DataContext = model;
+        model.PatternMaskEditor.AttachFrameRetainer(Viewport.RetainFrame);
         var guideLink = new Controls.CrosshairLayerLink(Viewport, model.GuideSettings);
         var selectionLink = new Controls.RoiListSelectionLink(Regions.List, model);
         var filterTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(200), DispatcherPriority.Background,
@@ -23,8 +25,10 @@ public partial class MainWindow : Window
         void ReportLiveFailure(Exception error) => Dispatcher.BeginInvoke(() => model.ReportError(error));
         void ReportTileFailure(string message) => Dispatcher.BeginInvoke(() => model.Status = message);
         void ReportRendererStatus(string status) => model.GpuStatus = status;
+        void OpenPatternMaskEditor() => _ = OpenPatternMaskEditorAsync(model);
 
         model.Live.Failed += ReportLiveFailure;
+        model.PatternMaskWindowRequested += OpenPatternMaskEditor;
         Viewport.InputFailed += model.ReportError;
         Viewport.OverlayPresented += model.Matching.RecordOverlayPresentation;
         Viewport.RendererStatusChanged += ReportRendererStatus;
@@ -42,6 +46,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             model.Live.Failed -= ReportLiveFailure;
+            model.PatternMaskWindowRequested -= OpenPatternMaskEditor;
             Viewport.InputFailed -= model.ReportError;
             Viewport.OverlayPresented -= model.Matching.RecordOverlayPresentation;
             Viewport.RendererStatusChanged -= ReportRendererStatus;
@@ -50,6 +55,29 @@ public partial class MainWindow : Window
             selectionLink.Dispose();
             guideLink.Dispose();
         };
+    }
+
+    private async Task OpenPatternMaskEditorAsync(MainWindowViewModel model)
+    {
+        await model.RefreshPatternMaskEditorAsync();
+        if (_patternMaskWindow is null)
+        {
+            _patternMaskWindow = new()
+            {
+                Owner = this,
+                DataContext = model.PatternMaskEditor
+            };
+            _patternMaskWindow.Closed += (_, _) => _patternMaskWindow = null;
+            _patternMaskWindow.Show();
+        }
+        else
+        {
+            if (_patternMaskWindow.WindowState == WindowState.Minimized)
+            {
+                _patternMaskWindow.WindowState = WindowState.Normal;
+            }
+            _patternMaskWindow.Activate();
+        }
     }
 
     private void OpenConfiguration(object sender, RoutedEventArgs e)

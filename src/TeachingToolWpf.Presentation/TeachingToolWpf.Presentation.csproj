@@ -25,6 +25,8 @@
     <InternalsVisibleTo Include="TeachingToolWpf" />
     <InternalsVisibleTo Include="TeachingToolWpf.Diagnostics" />
     <InternalsVisibleTo Include="TeachingToolWpf.Imaging.Tests" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Fluent2" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Fluent2.Tests" />
   </ItemGroup>
 
   <!-- 파일 로더 선택(스트리밍/스키아)은 화면 계층의 조립 지점이 담당한다. 정의는 여기 한 곳에만 존재한다. -->

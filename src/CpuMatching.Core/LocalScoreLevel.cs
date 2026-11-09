@@ -6,6 +6,8 @@ namespace CpuMatching.Core;
 internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
     bool reuseIdenticalTiles = false) : IScoreLevel
 {
+    private int ImageWidth => image.Width;
+    private int ImageHeight => image.Height;
     public LocalScoreLevel(GrayImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
         bool reuseIdenticalTiles = false) : this(new SearchImage(image), margin, prepare, token, reuseIdenticalTiles) { }
 
@@ -95,9 +97,18 @@ internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayIm
                 fingerprint.AddBytes(pixels.Pixels.Span);
                 hash = fingerprint.ToHashCode();
                 // 해시는 비교 대상을 줄일 뿐이다. 크기와 모든 픽셀이 같아야 맵을 공유한다.
-                identical = _contentMaps.FirstOrDefault(tile => tile.Level.SupportsParallelEvaluation &&
-                    tile.Hash == hash && tile.Pixels.Width == pixels.Width && tile.Pixels.Height == pixels.Height &&
-                    tile.Pixels.Pixels.Span.SequenceEqual(pixels.Pixels.Span));
+                foreach (var candidate in _contentMaps)
+                {
+                    if (candidate.Level.SupportsParallelEvaluation &&
+                        candidate.Hash == hash &&
+                        candidate.Pixels.Width == pixels.Width &&
+                        candidate.Pixels.Height == pixels.Height &&
+                        candidate.Pixels.Pixels.Span.SequenceEqual(pixels.Pixels.Span))
+                    {
+                        identical = candidate;
+                        break;
+                    }
+                }
             }
             started = _profile ? Stopwatch.GetTimestamp() : 0;
             var tile = new Tile(left, top, identical?.Level ?? prepare(pixels), identical?.Pixels ?? pixels, hash);
@@ -149,9 +160,17 @@ internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayIm
 
     private sealed class Pose(LocalScoreLevel owner, double angle, double scale) : IPoseScore
     {
+        private Tile? _lastTile;
+        private (int X, int Y) _lastTileKey = (-1, -1);
+
         public double Score(double x, double y)
         {
-            var tile = owner.GetTile(x, y);
+            var keyX = Math.Clamp((int)x, 0, owner.ImageWidth - 1) / CellSize;
+            var keyY = Math.Clamp((int)y, 0, owner.ImageHeight - 1) / CellSize;
+            var tile = (_lastTileKey.X == keyX && _lastTileKey.Y == keyY && _lastTile is not null)
+                ? _lastTile
+                : UpdateTile((keyX, keyY), x, y);
+
             if (tile.Level.SupportsParallelEvaluation)
             {
                 return tile.Level.AtPose(angle, scale).Score(x - tile.Left, y - tile.Top);
@@ -161,6 +180,14 @@ internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayIm
             {
                 return tile.Level.AtPose(angle, scale).Score(x - tile.Left, y - tile.Top);
             }
+        }
+
+        private Tile UpdateTile((int X, int Y) key, double x, double y)
+        {
+            var tile = owner.GetTile(x, y);
+            _lastTile = tile;
+            _lastTileKey = key;
+            return tile;
         }
     }
 }

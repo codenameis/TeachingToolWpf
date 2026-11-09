@@ -19,7 +19,7 @@ internal sealed class SkiaMasks : IDisposable
         {
             return;
         }
-        var geometry = scene.Transform?.Geometry(roi) ?? roi.Geometry;
+        var geometry = scene.EffectiveGeometry(roi);
         var view = scene.Document.Viewport;
         using var owner = new SKPath();
         if (geometry.Shape.Kind == RoiShapeKind.Circle)

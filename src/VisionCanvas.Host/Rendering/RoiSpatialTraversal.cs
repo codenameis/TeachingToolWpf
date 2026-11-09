@@ -34,6 +34,45 @@ internal static class RoiSpatialTraversal
             drawIndex(preview.Selection.StationarySearch, false, default, true);
             drawIndex(preview.Selection.MovingSearch, false, preview.Transform, true);
         }
+        else if (scene.Alignment is { HasAnyAlignment: true } alignment)
+        {
+            if (!alignment.HasGroupAlignments)
+            {
+                var overall = alignment.OverallTransform;
+                if (scene.Document.Selection.Count != scene.Document.Rois.Count)
+                {
+                    drawIndex(scene.Document.Snapshot.Spatial, false, overall, false);
+                }
+
+                if (scene.Document.Selection.Count > 0)
+                {
+                    drawIndex(scene.Document.SelectedSpatial, true, overall, false);
+                }
+
+                drawIndex(scene.Document.Snapshot.SearchSpatial, false, overall, true);
+                return;
+            }
+
+            foreach (var partition in scene.Document.Snapshot.AlignmentPartitions)
+            {
+                var scopeTransform = alignment.GetScopeTransform(partition.ScopeId);
+                drawIndex(partition.Spatial, false, scopeTransform, false);
+                if (partition.HasSearchRanges)
+                {
+                    drawIndex(partition.SearchSpatial, false, scopeTransform, true);
+                }
+            }
+
+            if (scene.Document.Selection.Count == 1)
+            {
+                var selectedRoi = scene.Document.Rois[scene.Document.Selection.Single()];
+                drawIndex(scene.Document.SelectedSpatial, true, alignment.GetEffectiveTransform(selectedRoi), false);
+            }
+            else if (scene.Document.Selection.Count > 1)
+            {
+                drawIndex(scene.Document.SelectedSpatial, true, alignment.OverallTransform, false);
+            }
+        }
         else
         {
             if (scene.Document.Selection.Count != scene.Document.Rois.Count)

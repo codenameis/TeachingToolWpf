@@ -59,6 +59,12 @@ internal static class ShapeCandidateRefinement
                         X = match.Pose.X + job.Left,
                         Y = match.Pose.Y + job.Top
                     },
+                    UnmatchedFeatures = match.UnmatchedFeatures.IsDefaultOrEmpty
+                        ? []
+                        : match.UnmatchedFeatures.Select(p => new ImagePoint(p.X + job.Left, p.Y + job.Top)).ToImmutableArray(),
+                    KeyMatchedFeatures = match.KeyMatchedFeatures.IsDefaultOrEmpty
+                        ? []
+                        : match.KeyMatchedFeatures.Select(p => new ImagePoint(p.X + job.Left, p.Y + job.Top)).ToImmutableArray(),
                     Refinement = match.Refinement with
                     {
                         InitialPose = match.Refinement.InitialPose with

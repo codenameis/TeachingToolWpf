@@ -7,7 +7,13 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record ShapeTrainingOutput(ShapeModel Model, double ReadMilliseconds, double TrainingMilliseconds);
+public sealed record ShapeTrainingOutput(
+    ShapeModel Model,
+    double ReadMilliseconds,
+    double TrainingMilliseconds,
+    byte[]? PreviewGray8 = null,
+    int PreviewWidth = 0,
+    int PreviewHeight = 0);
 /// <summary>순차 단계의 wall time. 각 단계에는 해당 단계의 원본 읽기와 병렬 worker 대기가 포함된다.</summary>
 public sealed record ShapeSearchPhases(double SourceOpenMilliseconds, double CoarseSearchMilliseconds,
     double OriginalRefinementMilliseconds, double WindowSearchMilliseconds, double FinalSuppressionMilliseconds);
@@ -33,6 +39,8 @@ public interface IShapeMatchingService
 {
     Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null);
     Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null);
+    Task<ShapeTrainingOutput?> PreviewAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        => Task.FromResult<ShapeTrainingOutput?>(null);
 }
 
 public enum ShapeSearchPipeline
@@ -46,6 +54,8 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
     Func<CancellationToken, Task>? prepareGpu = null,
     ShapeSearchPipeline pipeline = ShapeSearchPipeline.Classic) : IShapeMatchingService, IShapeComputePreparation
 {
+    private readonly MatchingPreviewCache _previewCache = new();
+
     public async Task<double> PrepareGpuAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -92,8 +102,96 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             var readTime = timer.Elapsed.TotalMilliseconds;
             timer.Restart();
             var model = ShapeTrainer.Train(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / 180), options, token);
+            var previewPatch = RoiPreviewPatchExtractor.ExtractRectifiedPatch(
+                pixels.Pixels.Span,
+                pixels.Width,
+                pixels.Height,
+                pixels.Stride,
+                left,
+                top,
+                roi,
+                exclusion);
+            return new ShapeTrainingOutput(
+                model,
+                readTime,
+                timer.Elapsed.TotalMilliseconds,
+                previewPatch.Pixels,
+                previewPatch.Width,
+                previewPatch.Height);
+        }, token);
+
+    public Task<ShapeTrainingOutput?> PreviewAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        => Task.Run<ShapeTrainingOutput?>(async () =>
+        {
+            options.Validate();
+            ValidateRegion(image, roi);
+            var desiredLevels = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(roi.Width, roi.Height) / 64)) + 1, 1, 6);
+            options = options with
+            {
+                PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels),
+                UseFineDetailValidation = options.UseFineDetailValidation
+            };
+            var timer = Stopwatch.StartNew();
+            const int previewAlignment = 16;
+            const int previewPadding = 24;
+            var left = Math.Max(0, ((int)Math.Floor(roi.Bounds.Left) - previewPadding) / previewAlignment * previewAlignment);
+            var top = Math.Max(0, ((int)Math.Floor(roi.Bounds.Top) - previewPadding) / previewAlignment * previewAlignment);
+            var right = Math.Min(image.Width, (int)Math.Ceiling(roi.Bounds.Right) + previewPadding);
+            var bottom = Math.Min(image.Height, (int)Math.Ceiling(roi.Bounds.Bottom) + previewPadding);
+            var pixels = await _previewCache.ReadAsync(image, live, loader, retainFrame, left, top, right - left, bottom - top, null, token, ShapeTrainer.MaximumPixels).ConfigureAwait(false);
+            var mask = BuildRoiMask(pixels.Width, pixels.Height, left, top, roi, exclusion, token);
+            var readTime = timer.Elapsed.TotalMilliseconds;
+            timer.Restart();
+            var model = ShapeTrainer.TrainPreview(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / 180), options, token);
             return new ShapeTrainingOutput(model, readTime, timer.Elapsed.TotalMilliseconds);
         }, token);
+
+    private static byte[] BuildRoiMask(int width, int height, int left, int top, RoiGeometry roi, RoiExclusion? exclusion, CancellationToken token)
+    {
+        var mask = new byte[width * height];
+        var roiBounds = roi.Bounds;
+        var minX = Math.Max(0, (int)Math.Floor(roiBounds.Left) - left);
+        var maxX = Math.Min(width - 1, (int)Math.Ceiling(roiBounds.Right) - left);
+        var minY = Math.Max(0, (int)Math.Floor(roiBounds.Top) - top);
+        var maxY = Math.Min(height - 1, (int)Math.Ceiling(roiBounds.Bottom) - top);
+        if (minX > maxX || minY > maxY)
+        {
+            return mask;
+        }
+        var (sin, cos) = Math.SinCos(-roi.Angle * (Math.PI / 180.0));
+        var centerX = roi.Center.X;
+        var centerY = roi.Center.Y;
+        var roiWidth = roi.Width;
+        var roiHeight = roi.Height;
+        var isRectangle = roi.Shape.Kind == RoiShapeKind.Rectangle;
+        var halfWidth = (roiWidth / 2.0) + 1e-10;
+        var halfHeight = (roiHeight / 2.0) + 1e-10;
+        var hasExclusion = exclusion is not null && !exclusion.Regions.IsDefaultOrEmpty;
+        for (var y = minY; y <= maxY; y++)
+        {
+            token.ThrowIfCancellationRequested();
+            var worldY = top + y + .5;
+            var dy = worldY - centerY;
+            var dySin = dy * sin;
+            var dyCos = dy * cos;
+            var rowOffset = y * width;
+            for (var x = minX; x <= maxX; x++)
+            {
+                var worldX = left + x + .5;
+                var dx = worldX - centerX;
+                var localX = (dx * cos) - dySin;
+                var localY = (dx * sin) + dyCos;
+                var inside = isRectangle
+                    ? Math.Abs(localX) <= halfWidth && Math.Abs(localY) <= halfHeight
+                    : roi.Shape.ContainsLocal(new(localX, localY), roiWidth, roiHeight, 0);
+                if (inside && (!hasExclusion || !exclusion!.Contains(new(worldX, worldY))))
+                {
+                    mask[rowOffset + x] = 255;
+                }
+            }
+        }
+        return mask;
+    }
 
     public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region,
         SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
@@ -213,6 +311,12 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                             all.Add(match with
                             {
                                 Pose = pose,
+                                UnmatchedFeatures = match.UnmatchedFeatures.IsDefaultOrEmpty
+                                    ? []
+                                    : match.UnmatchedFeatures.Select(p => new ImagePoint(p.X + spec.Left, p.Y + spec.Top)).ToImmutableArray(),
+                                KeyMatchedFeatures = match.KeyMatchedFeatures.IsDefaultOrEmpty
+                                    ? []
+                                    : match.KeyMatchedFeatures.Select(p => new ImagePoint(p.X + spec.Left, p.Y + spec.Top)).ToImmutableArray(),
                                 Refinement = match.Refinement with
                                 {
                                     InitialPose = match.Refinement.InitialPose with

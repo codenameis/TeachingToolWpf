@@ -2,16 +2,18 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows.Input;
 using TeachingToolWpf.Commands;
+using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Models;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
+using VisionImaging;
 using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.ViewModels;
 
-/// <summary>메인 창의 명령 40개를 한곳에서 연결한다. 생성자는 객체 조립만 남긴다.</summary>
+/// <summary>메인 창의 명령을 한곳에서 연결한다. 생성자는 객체 조립만 남긴다.</summary>
 public sealed partial class MainWindowViewModel
 {
     /// <summary>버튼·단축키가 호출할 명령을 만든다. 실행 조건(CanExecute)은 각 명령이 스스로 갖는다.</summary>
@@ -37,7 +39,7 @@ public sealed partial class MainWindowViewModel
     [MemberNotNull(
         nameof(CancelImport), nameof(Initialize), nameof(OpenImage),                     // 이미지·라이브·샘플
         nameof(Sample8K), nameof(Sample24K), nameof(PatternSample), nameof(PrimitiveSample),
-        nameof(StartLive), nameof(StopLive), nameof(RestartRenderer))]
+        nameof(FewShotSample), nameof(SuiteSample), nameof(StartLive), nameof(StopLive), nameof(RestartRenderer))]
     private void WireCommands(IImageDisplay display)
     {
         // 목록 페이지
@@ -92,6 +94,8 @@ public sealed partial class MainWindowViewModel
         Sample24K = Async(() => LoadSampleAsync(24576, 32768));
         PatternSample = Async(LoadPatternSampleAsync);
         PrimitiveSample = Async(LoadPrimitiveSampleAsync, () => Inspections.IsIdle);
+        FewShotSample = Async(LoadFewShotSampleAsync, () => Inspections.IsIdle);
+        SuiteSample = Async(() => LoadInspectionSuiteSampleAsync(Inspections.Suite?.SelectedAlgorithm ?? InspectionSuiteAlgorithmKind.Metrology), () => Inspections.IsIdle);
         StartLive = Async(StartLiveAsync, () => !Live.IsRunning);
         StopLive = Async(Live.StopAsync, () => Live.IsRunning);
         RestartRenderer = Async(display.RestartAsync);
@@ -105,6 +109,180 @@ public sealed partial class MainWindowViewModel
         {
             Inspections.Selected = InspectionToolKind.PrimitiveShapes;
         }
+    }
+
+    private async Task LoadFewShotSampleAsync()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "edge-fewshot-single-board.png");
+        await Images.ReplaceAsync(new(path, "소량 분류 단일 보드 샘플", 1000, 560, ImageFileVersion.Read(path)));
+        if (Session.State.Image?.Key != path)
+        {
+            return;
+        }
+
+        float[] trainGoodAngles = [0f, 4.0f, -3.5f, 2.5f, -2.0f];
+        for (int i = 0; i < 5; i++)
+        {
+            var id = Session.Add(new(new(110 + i * 155, 96), 64, 64, trainGoodAngles[i]));
+            var roi = Session.State.Rois[id];
+            Session.SetProperties(id, $"학습-정상-{i + 1}", roi.Geometry, roi.SearchRange, true);
+        }
+
+        float[] trainBadAngles = [0f, -4.0f, 3.0f, -2.5f, 4.5f];
+        for (int i = 0; i < 5; i++)
+        {
+            var id = Session.Add(new(new(110 + i * 155, 256), 64, 64, trainBadAngles[i]));
+            var roi = Session.State.Rois[id];
+            Session.SetProperties(id, $"학습-불량-{i + 1}", roi.Geometry, roi.SearchRange, true);
+        }
+
+        (double X, double Y, double Angle, string Name)[] testSpecs =
+        [
+            (110, 426, 6.0, "테스트-정상(회전)"),
+            (295, 426, -3.5, "테스트-불량(상단번짐)"),
+            (480, 426, 3.0, "테스트-불량(하단번짐)"),
+            (665, 426, -2.0, "테스트-미등록오염(OOD)")
+        ];
+        foreach (var spec in testSpecs)
+        {
+            var id = Session.Add(new(new(spec.X, spec.Y), 64, 64, spec.Angle));
+            var roi = Session.State.Rois[id];
+            Session.SetProperties(id, spec.Name, roi.Geometry, roi.SearchRange, true);
+        }
+
+        if (Inspections.FewShot is { } fewShot)
+        {
+            Inspections.Selected = InspectionToolKind.EdgeFewShot;
+            Inspections.Update(Session.State, Images.Generation, false, true);
+            fewShot.RegisterSingleBoardPresetSamples();
+        }
+    }
+
+    private void RequestSuiteSampleLoad(InspectionSuiteAlgorithmKind kind)
+    {
+        if (!CanEdit || Input.IsDragging || !Inspections.IsIdle)
+        {
+            return;
+        }
+
+        _ = ObserveEditAsync(LoadInspectionSuiteSampleAsync(kind));
+    }
+
+    public async Task LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind kind)
+    {
+        (string sceneSlug, string sampleTitle) = kind switch
+        {
+            InspectionSuiteAlgorithmKind.Metrology => ("metrology", "1. 서브픽셀 캘리퍼·직선·원 계측 합성 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.GoldenVariation => ("golden", "2. 통계적 골든 마스터 변이 검사 합성 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.BlobRle => ("blob", "3. RLE 블롭 해석·구간 모폴로지 합성 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.Curvilinear => ("curvilinear", "4. Steger 곡선 능선·실링 비드 단선 검사 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.FewShot => ("fewshot", "5. Few-Shot 마할라노비스·OOD 기각 합성 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.PatchAnomaly => ("padim", "6. PaDiM 공간 패치 이상 히트맵 합성 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.Calibration => ("calibration", "7. 9-Point 핸드아이 호모그래피·왜곡 보정 샘플 (1200×800)"),
+            _ => ("metrology", "검사 스위트 합성 샘플 (1200×800)")
+        };
+
+        string key = $"{InspectionSuiteSampleTileSource.KeyPrefix}{sceneSlug}";
+        await Images.ReplaceAsync(new(key, sampleTitle, InspectionSuiteSampleTileSource.DefaultWidth, InspectionSuiteSampleTileSource.DefaultHeight));
+        if (Session.State.Image?.Key != key)
+        {
+            return;
+        }
+
+        List<Guid> normalRefIds = [];
+        List<Guid> defectRefIds = [];
+        List<Guid> targetIds = [];
+
+        Guid AddNamedRoi(double cx, double cy, double w, double h, double angleDeg, string name)
+        {
+            Guid id = Session.Add(new(new(cx, cy), w, h, angleDeg));
+            var roi = Session.State.Rois[id];
+            Session.SetProperties(id, name, roi.Geometry, roi.SearchRange, true);
+            return id;
+        }
+
+        switch (kind)
+        {
+            case InspectionSuiteAlgorithmKind.Metrology:
+                targetIds.Add(AddNamedRoi(320.35, 400.25, 130, 220, 10.0, "트레이스 폭·직선 계측"));
+                targetIds.Add(AddNamedRoi(820.40, 400.60, 230, 230, 0.0, "원형 패드 외경·진원도"));
+                break;
+
+            case InspectionSuiteAlgorithmKind.GoldenVariation:
+                double[] goldX = [200.2, 460.4, 720.1, 980.3];
+                for (int i = 0; i < goldX.Length; i++)
+                {
+                    normalRefIds.Add(AddNamedRoi(goldX[i], 230.25, 136, 136, 1.15, $"기준-정상다이-{i + 1}"));
+                }
+                targetIds.Add(AddNamedRoi(250.25, 570.30, 136, 136, 1.15, "검사-정상다이"));
+                targetIds.Add(AddNamedRoi(600.30, 570.25, 136, 136, 1.15, "검사-스크래치불량"));
+                targetIds.Add(AddNamedRoi(950.20, 570.35, 136, 136, 1.15, "검사-솔더브릿지불량"));
+                break;
+
+            case InspectionSuiteAlgorithmKind.BlobRle:
+                targetIds.Add(AddNamedRoi(260.5, 400.5, 210, 210, 0.0, "원형 패드 블롭(+노이즈)"));
+                targetIds.Add(AddNamedRoi(600.4, 400.6, 230, 210, 0.0, "타원 캡슐 블롭(+노이즈)"));
+                targetIds.Add(AddNamedRoi(940.3, 400.4, 230, 210, 0.0, "사각 패키지 블롭(+노이즈)"));
+                break;
+
+            case InspectionSuiteAlgorithmKind.Curvilinear:
+                targetIds.Add(AddNamedRoi(588.0, 250.0, 780, 110, 0.0, "실링 비드 1 (정상 연속)"));
+                targetIds.Add(AddNamedRoi(588.0, 550.0, 780, 110, 0.0, "실링 비드 2 (단선·협소 불량)"));
+                break;
+
+            case InspectionSuiteAlgorithmKind.FewShot:
+                double[] fsX = [200.0, 460.0, 720.0, 980.0];
+                for (int i = 0; i < fsX.Length; i++)
+                {
+                    normalRefIds.Add(AddNamedRoi(fsX[i], 180.0, 110, 90, (i - 1.5) * 1.4, $"학습-정상-{i + 1}"));
+                }
+                for (int i = 0; i < fsX.Length; i++)
+                {
+                    defectRefIds.Add(AddNamedRoi(fsX[i], 400.0, 110, 90, (1.5 - i) * 1.4, $"학습-불량-{i + 1}"));
+                }
+                targetIds.Add(AddNamedRoi(250.0, 630.0, 110, 90, 1.7, "테스트-정상(Good)"));
+                targetIds.Add(AddNamedRoi(600.0, 630.0, 110, 90, -1.1, "테스트-등록불량(Defect)"));
+                targetIds.Add(AddNamedRoi(950.0, 630.0, 110, 90, 0.6, "테스트-미등록이상치(OOD)"));
+                break;
+
+            case InspectionSuiteAlgorithmKind.PatchAnomaly:
+                double[] padimX = [200.2, 460.3, 720.1, 980.4];
+                for (int i = 0; i < padimX.Length; i++)
+                {
+                    normalRefIds.Add(AddNamedRoi(padimX[i], 230.2, 132, 132, 0.0, $"기준-정상BGA-{i + 1}"));
+                }
+                targetIds.Add(AddNamedRoi(250.2, 570.2, 132, 132, 0.0, "검사-정상BGA"));
+                targetIds.Add(AddNamedRoi(600.2, 570.2, 132, 132, 0.0, "검사-볼누락불량"));
+                targetIds.Add(AddNamedRoi(950.2, 570.2, 132, 132, 0.0, "검사-솔더이물불량"));
+                break;
+
+            case InspectionSuiteAlgorithmKind.Calibration:
+                targetIds.Add(AddNamedRoi(600.0, 400.0, 760, 560, 0.0, "9-Point 핸드아이 교정 플레이트"));
+                break;
+        }
+
+        if (targetIds.Count > 0)
+        {
+            Session.Select(targetIds);
+        }
+
+        FitImage();
+
+        if (Inspections.Suite is { } suite)
+        {
+            Inspections.Selected = InspectionToolKind.InspectionSuite;
+            suite.SelectedAlgorithm = kind;
+            Inspections.Update(Session.State, Images.Generation, false, true);
+            Inspections.RecordPresetSuiteAssignments(Session.State, targetIds, kind);
+            suite.RegisterPresetReferenceRois(normalRefIds, defectRefIds);
+
+            if (suite.ExecuteSelected.CanExecute(null))
+            {
+                await suite.ExecuteSelected.ExecuteAsync();
+            }
+        }
+
+        Status = $"{sampleTitle} 및 전용 ROI {Session.State.RoiCount}개를 불러왔습니다.";
     }
 
     /// <summary>동기 명령을 만들어 <see cref="RefreshCommands"/> 목록에 넣는다.</summary>
