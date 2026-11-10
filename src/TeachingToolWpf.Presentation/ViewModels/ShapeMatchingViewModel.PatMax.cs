@@ -416,6 +416,7 @@ public sealed partial class ShapeMatchingViewModel
         }
 
         var wasIdle = IsIdle;
+        bool canScheduleLivePreview = wasIdle && ShowFeatures && ShowOverlay && _toolAvailable && !_disposed && _image is not null;
         _patMaxState.Settings = updated;
         if (isExtractionParam)
         {
@@ -427,10 +428,10 @@ public sealed partial class ShapeMatchingViewModel
         Notify(nameof(IsTrainingDirty));
         Notify(nameof(ModelSummary));
         Notify(nameof(PatMaxDiagnosticsText));
-        Invalidate();
+        Invalidate(keepLivePreview: canScheduleLivePreview);
         if (_patMaxState.Template is not null && IsTrainingDirty)
         {
-            ResetResult("PatMax 학습 파라미터 변경 · 미리보기를 확인한 뒤 ‘선택 ROI 학습’을 다시 누르세요.");
+            ResetResult("PatMax 학습 파라미터 변경 · 미리보기를 확인한 뒤 ‘선택 ROI 학습’을 다시 누르세요.", clearLivePreview: !canScheduleLivePreview);
         }
 
         RefreshCommands();

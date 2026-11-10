@@ -8,15 +8,6 @@ using VisionAlgorithm.OpenSrc.Common;
 namespace VisionAlgorithm.OpenSrc.GoldenVariation;
 
 /// <summary>
-/// Summary result of inspecting a target ROI against a trained <see cref="VariationModel"/>.
-/// </summary>
-public readonly record struct VariationInspectionResult(
-    bool IsDefectFree,
-    int DefectPixelCount,
-    float MaxExcessDifference,
-    float MaxNormalizedZScore);
-
-/// <summary>
 /// Performs SIMD-accelerated statistical golden-template comparison:
 /// $|I(x,y) - \mu(x,y)| > T_{\text{adaptive}}(x,y)$, producing a binary defect mask (`255` = defect, `0` = normal)
 /// and continuous excess residual map.
@@ -63,11 +54,18 @@ public static class VariationModelInspector
             model.Height,
             warped);
 
-        return EvaluateRectifiedPatch(
+        VariationInspectionResult res = EvaluateRectifiedPatch(
             warped,
             model,
             minimumDefectAreaPixels,
             binaryDefectMaskOut);
+
+        return res with
+        {
+            InspectedWorldPose = targetPose,
+            RoiWidth = model.Width,
+            RoiHeight = model.Height
+        };
     }
 
     /// <summary>
@@ -217,6 +215,10 @@ public static class VariationModelInspector
             IsDefectFree: isDefectFree,
             DefectPixelCount: defectPixels,
             MaxExcessDifference: MathF.Max(0f, maxExcess),
-            MaxNormalizedZScore: maxRatio);
+            MaxNormalizedZScore: maxRatio)
+        {
+            RoiWidth = model.Width,
+            RoiHeight = model.Height
+        };
     }
 }

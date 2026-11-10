@@ -1,11 +1,17 @@
 // File: ViewModels/Fluent2StudioViewModel.cs
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
+using Microsoft.Win32;
 using TeachingToolWpf.Commands;
 using TeachingToolWpf.Fluent2.Common;
 using TeachingToolWpf.Fluent2.TeachingReadiness;
+using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Infrastructure;
+using TeachingToolWpf.MassiveModels;
 using TeachingToolWpf.Models;
 using TeachingToolWpf.ViewModels;
 using VisionCanvas.Core.Editing;
@@ -33,6 +39,7 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
     private string _readinessDetail = "캔버스에서 ROI를 선택하거나 그리면 Sobel 에지 에너지·명암비·2D 구조 텐서 등방성을 즉시 진단합니다.";
     private string _readinessAccent = "#0078D4";
     private float _readinessScore;
+    private bool _isFilterHelpManualOpen;
     private bool _disposed;
 
     public Fluent2StudioViewModel(MainWindowViewModel studio, ITeachingReadinessAnalyzer readinessAnalyzer)
@@ -55,6 +62,12 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         SelectSuiteStage = new RelayCommand(() => ActiveStage = StudioWorkspaceStage.InspectionSuite);
         SelectFilterMaskStage = new RelayCommand(() => ActiveStage = StudioWorkspaceStage.FilterMaskDisplay);
 
+        SelectMetrologyCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.MetrologyAndGeometry, InspectionSuiteAlgorithmKind.Metrology));
+        SelectSurface3DCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.SurfaceBlobAnd3D, InspectionSuiteAlgorithmKind.BlobRle));
+        SelectCodeOcrCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.CodeAndOcr, InspectionSuiteAlgorithmKind.Barcode1DReader));
+        SelectAiAutoTeachingCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.AiAndAutoTeaching, InspectionSuiteAlgorithmKind.AutoTeaching));
+        SelectPreprocessingCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.PreprocessingAndFrequency, InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon));
+
         SelectRectangleShape = new RelayCommand(() => SetDrawShape(RoiShapeKind.Rectangle));
         SelectCircleShape = new RelayCommand(() => SetDrawShape(RoiShapeKind.Circle));
         SelectTriangleShape = new RelayCommand(() => SetDrawShape(RoiShapeKind.Triangle));
@@ -73,10 +86,24 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         ToggleTheme = new RelayCommand(SwitchTheme);
         ApplyLightTheme = new RelayCommand(() => ApplyTheme(ApplicationTheme.Light));
         ApplyDarkTheme = new RelayCommand(() => ApplyTheme(ApplicationTheme.Dark));
+        ToggleFilterHelpManual = new RelayCommand(() => IsFilterHelpManualOpen = !IsFilterHelpManualOpen);
+
+        GenerateFiveMassiveModels = new RelayCommand(() => _ = EnsureAndReportFiveMassiveModels());
+        OpenMassiveModelFromExplorer = new AsyncCommand(OpenMassiveModelWithFileDialogAsync, Studio.ReportError);
+        LoadMassiveModel01 = new AsyncCommand(() => LoadPresetMassiveModelAsync(1), Studio.ReportError);
+        LoadMassiveModel02 = new AsyncCommand(() => LoadPresetMassiveModelAsync(2), Studio.ReportError);
+        LoadMassiveModel03 = new AsyncCommand(() => LoadPresetMassiveModelAsync(3), Studio.ReportError);
+        LoadMassiveModel04 = new AsyncCommand(() => LoadPresetMassiveModelAsync(4), Studio.ReportError);
+        LoadMassiveModel05 = new AsyncCommand(() => LoadPresetMassiveModelAsync(5), Studio.ReportError);
 
         Studio.PropertyChanged += OnStudioPropertyChanged;
         Studio.Inspections.PropertyChanged += OnInspectionsPropertyChanged;
+        if (Studio.Inspections.Suite is not null)
+        {
+            Studio.Inspections.Suite.PropertyChanged += OnSuitePropertyChanged;
+        }
         Studio.Matching.PropertyChanged += OnMatchingPropertyChanged;
+        Studio.Filters.PropertyChanged += OnFiltersPropertyChanged;
         Studio.Session.Changed += OnSessionChanged;
 
         RefreshReadinessFromSelection();
@@ -131,6 +158,16 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
 
     public bool IsFilterMaskStage => _activeStage == StudioWorkspaceStage.FilterMaskDisplay;
 
+    public bool IsMetrologyCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.MetrologyAndGeometry;
+
+    public bool IsSurface3DCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.SurfaceBlobAnd3D;
+
+    public bool IsCodeOcrCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.CodeAndOcr;
+
+    public bool IsAiAutoTeachingCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.AiAndAutoTeaching;
+
+    public bool IsPreprocessingCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.PreprocessingAndFrequency;
+
     public bool IsRectangleShapeSelected => Studio.SelectedShape == RoiShapeKind.Rectangle;
 
     public bool IsCircleShapeSelected => Studio.SelectedShape == RoiShapeKind.Circle;
@@ -183,6 +220,16 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
 
     public RelayCommand SelectFilterMaskStage { get; }
 
+    public RelayCommand SelectMetrologyCategoryStage { get; }
+
+    public RelayCommand SelectSurface3DCategoryStage { get; }
+
+    public RelayCommand SelectCodeOcrCategoryStage { get; }
+
+    public RelayCommand SelectAiAutoTeachingCategoryStage { get; }
+
+    public RelayCommand SelectPreprocessingCategoryStage { get; }
+
     public RelayCommand SelectRectangleShape { get; }
 
     public RelayCommand SelectCircleShape { get; }
@@ -212,6 +259,42 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
     public RelayCommand ApplyLightTheme { get; }
 
     public RelayCommand ApplyDarkTheme { get; }
+
+    public RelayCommand ToggleFilterHelpManual { get; }
+
+    public RelayCommand GenerateFiveMassiveModels { get; }
+
+    public AsyncCommand OpenMassiveModelFromExplorer { get; }
+
+    public AsyncCommand LoadMassiveModel01 { get; }
+
+    public AsyncCommand LoadMassiveModel02 { get; }
+
+    public AsyncCommand LoadMassiveModel03 { get; }
+
+    public AsyncCommand LoadMassiveModel04 { get; }
+
+    public AsyncCommand LoadMassiveModel05 { get; }
+
+    public string MassiveModelsDirectoryPath { get; set; } = MassiveRoiModelSerializer.GetDefaultModelsDirectory();
+
+    public Func<string, string?>? SelectMassiveModelFileDialogOverride { get; set; }
+
+    private string _massiveModelTelemetryBadge = "1억 랜덤 ROI 모델 5종 준비 가능";
+
+    public string MassiveModelTelemetryBadge
+    {
+        get => _massiveModelTelemetryBadge;
+        private set => Set(ref _massiveModelTelemetryBadge, value);
+    }
+
+    public bool IsFilterHelpManualOpen
+    {
+        get => _isFilterHelpManualOpen;
+        set => Set(ref _isFilterHelpManualOpen, value);
+    }
+
+    public AlgorithmHelpManual ActiveFilterHelpManual => AlgorithmHelpCatalog.ForImageFilter(Studio.Filters.SelectedFilter);
 
     public void ApplyTheme(ApplicationTheme theme)
     {
@@ -248,6 +331,57 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
             ? ApplicationTheme.Light
             : ApplicationTheme.Dark;
         ApplyTheme(nextTheme);
+    }
+
+    public IReadOnlyList<string> EnsureAndReportFiveMassiveModels()
+    {
+        IReadOnlyList<string> paths = MassiveRoiModelSerializer.EnsureFivePresetModelsOnDisk(MassiveModelsDirectoryPath);
+        MassiveModelTelemetryBadge = $"1억 ROI 모델 5종 생성 완료 ({Path.GetFileName(MassiveModelsDirectoryPath)})";
+        Studio.Status = $"1억 ROI 랜덤 모델 5종(.vmodel) 디스크 생성 완료: {MassiveModelsDirectoryPath} (모델별 100,000,000개 랜덤 좌표 + 임의 알고리즘)";
+        return paths;
+    }
+
+    public async Task<MassiveRoiModelFile?> OpenMassiveModelWithFileDialogAsync()
+    {
+        IReadOnlyList<string> presetPaths = MassiveRoiModelSerializer.EnsureFivePresetModelsOnDisk(MassiveModelsDirectoryPath);
+        string? selectedPath;
+
+        if (SelectMassiveModelFileDialogOverride is { } customSelector)
+        {
+            selectedPath = customSelector(MassiveModelsDirectoryPath);
+        }
+        else
+        {
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                Title = "1억 개 랜덤 ROI 모델 파일(.vmodel) 열기 — 사전 캐싱 없음",
+                Filter = "1억 ROI 비전 모델 (*.vmodel)|*.vmodel|모든 파일 (*.*)|*.*",
+                InitialDirectory = MassiveModelsDirectoryPath,
+                FileName = presetPaths.Count > 0 ? Path.GetFileName(presetPaths[0]) : string.Empty,
+                CheckFileExists = true,
+                Multiselect = false
+            };
+
+            selectedPath = dialog.ShowDialog() == true ? dialog.FileName : null;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedPath))
+        {
+            return null;
+        }
+
+        MassiveRoiModelFile loaded = await Studio.LoadMassiveModelFromFileAsync(selectedPath);
+        MassiveModelTelemetryBadge = $"로드됨: M{loaded.Header.ModelNumber:00} ({loaded.LoadElapsedMilliseconds:F1}ms · 1억 ROI)";
+        return loaded;
+    }
+
+    public async Task<MassiveRoiModelFile> LoadPresetMassiveModelAsync(int modelNumber)
+    {
+        IReadOnlyList<string> paths = MassiveRoiModelSerializer.EnsureFivePresetModelsOnDisk(MassiveModelsDirectoryPath);
+        string filePath = paths[Math.Clamp(modelNumber - 1, 0, paths.Count - 1)];
+        MassiveRoiModelFile loaded = await Studio.LoadMassiveModelFromFileAsync(filePath);
+        MassiveModelTelemetryBadge = $"로드됨: M{loaded.Header.ModelNumber:00} ({loaded.LoadElapsedMilliseconds:F1}ms · 1억 ROI)";
+        return loaded;
     }
 
     private void CopyLogsToClipboard()
@@ -312,6 +446,34 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void SelectSuiteCategoryStage(InspectionSuiteCategory category, InspectionSuiteAlgorithmKind defaultAlgorithm)
+    {
+        if (!Studio.Inspections.IsIdle)
+        {
+            return;
+        }
+
+        if (Studio.Inspections.Suite is { } suite)
+        {
+            suite.SelectedCategory = category;
+            if (InspectionSuiteViewModel.ResolveCategoryForAlgorithm(suite.SelectedAlgorithm) != category)
+            {
+                suite.SelectedAlgorithm = defaultAlgorithm;
+            }
+        }
+
+        ActiveStage = StudioWorkspaceStage.InspectionSuite;
+        NotifyStageFlags();
+    }
+
+    private void OnSuitePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null or nameof(InspectionSuiteViewModel.SelectedCategory) or nameof(InspectionSuiteViewModel.SelectedAlgorithm))
+        {
+            NotifyStageFlags();
+        }
+    }
+
     private void OnStudioPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.SelectedShape))
@@ -347,6 +509,14 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         if ((e.PropertyName is null) || (e.PropertyName == nameof(ShapeMatchingViewModel.Method)))
         {
             NotifyMethodFlags();
+        }
+    }
+
+    private void OnFiltersPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if ((e.PropertyName is null) || (e.PropertyName == nameof(VisionCanvas.Filters.Wpf.ViewModels.FilterPreviewViewModel.SelectedFilter)))
+        {
+            Notify(nameof(ActiveFilterHelpManual));
         }
     }
 
@@ -433,6 +603,11 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         Notify(nameof(IsFewShotStage));
         Notify(nameof(IsSuiteStage));
         Notify(nameof(IsFilterMaskStage));
+        Notify(nameof(IsMetrologyCategoryStage));
+        Notify(nameof(IsSurface3DCategoryStage));
+        Notify(nameof(IsCodeOcrCategoryStage));
+        Notify(nameof(IsAiAutoTeachingCategoryStage));
+        Notify(nameof(IsPreprocessingCategoryStage));
     }
 
     private void NotifyShapeFlags()
@@ -462,7 +637,12 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         _disposed = true;
         Studio.PropertyChanged -= OnStudioPropertyChanged;
         Studio.Inspections.PropertyChanged -= OnInspectionsPropertyChanged;
+        if (Studio.Inspections.Suite is not null)
+        {
+            Studio.Inspections.Suite.PropertyChanged -= OnSuitePropertyChanged;
+        }
         Studio.Matching.PropertyChanged -= OnMatchingPropertyChanged;
+        Studio.Filters.PropertyChanged -= OnFiltersPropertyChanged;
         Studio.Session.Changed -= OnSessionChanged;
     }
 }

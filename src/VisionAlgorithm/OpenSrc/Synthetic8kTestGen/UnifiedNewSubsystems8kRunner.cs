@@ -143,9 +143,9 @@ public static class UnifiedNewSubsystems8kRunner
             acceptThreshold: 0.40f,
             confusionMarginThreshold: 0.01f,
             minContrast: 20.0f,
-            minProjectionCorrelation: 0.45f,
-            maxQuadrantDropRatio: 0.50f,
-            maxMarginSmearRatio: 0.40f,
+            minProjectionCorrelation: 0.80f,
+            maxQuadrantDropRatio: 0.35f,
+            maxMarginSmearRatio: 0.35f,
             adaptGray: true,
             adaptPos: true,
             verifyCalendarDate: true);
@@ -460,7 +460,7 @@ public static class UnifiedNewSubsystems8kRunner
         TeachGoldenPartFile(suiteDir, "Case02_GoldenPartB_ConnectorWithPins.bmp", "PartB_Connector", goldenPose, partRoiW, partRoiH, childRoisB, pool, workspace, results);
         TeachGoldenPartFile(suiteDir, "Case03_GoldenPartC_ShieldCanWithFiducial.bmp", "PartC_ShieldCan", goldenPose, partRoiW, partRoiH, childRoisC, pool, workspace, results);
 
-        // Case 04: Mixed Multi-Part Scene (Part A @ 280,320,+23.5 deg; Part B @ 660,340,-41.2 deg; Part C @ 980,600,+112.0 deg)
+        // Case 04: Mixed Multi-Part Scene with Non-Integer Sub-Pixel Ground-Truth Poses
         var sw4 = Stopwatch.StartNew();
         byte[] px4 = Gray8BmpFileExporter.LoadGray8Bmp(Path.Combine(suiteDir, "Case04_MixedMultiPartScene_RotatedOccluded.bmp"), out int w4, out int h4);
         var view4 = new ReadOnlyImageView2D<byte>(px4, w4, h4, w4);
@@ -468,20 +468,59 @@ public static class UnifiedNewSubsystems8kRunner
             view4, pool, workspace, minGeometricScore: 0.50f, minAppearanceCosine: 0.45f, maxMahalanobisDistance: 25.0f);
         sw4.Stop();
 
-        bool hasA = ExistsPartNear(autoRes4.Instances, "PartA_Bracket", 280f, 320f, 5.0f, out DetectedPartInstance instA);
-        bool hasB = ExistsPartNear(autoRes4.Instances, "PartB_Connector", 660f, 340f, 5.0f, out _);
-        bool hasC = ExistsPartNear(autoRes4.Instances, "PartC_ShieldCan", 980f, 600f, 5.0f, out _);
+        var gtPoseA = new FixturePose2D(
+            UnifiedTestImageSuiteGenerator.Case04PartACenterX,
+            UnifiedTestImageSuiteGenerator.Case04PartACenterY,
+            UnifiedTestImageSuiteGenerator.Case04PartAAngleDeg * (MathF.PI / 180.0f));
+        var gtPoseB = new FixturePose2D(
+            UnifiedTestImageSuiteGenerator.Case04PartBCenterX,
+            UnifiedTestImageSuiteGenerator.Case04PartBCenterY,
+            UnifiedTestImageSuiteGenerator.Case04PartBAngleDeg * (MathF.PI / 180.0f));
+        var gtPoseC = new FixturePose2D(
+            UnifiedTestImageSuiteGenerator.Case04PartCCenterX,
+            UnifiedTestImageSuiteGenerator.Case04PartCCenterY,
+            UnifiedTestImageSuiteGenerator.Case04PartCAngleDeg * (MathF.PI / 180.0f));
+
+        bool hasA = ExistsPartNear(autoRes4.Instances, "PartA_Bracket", gtPoseA.CenterX, gtPoseA.CenterY, 5.0f, out DetectedPartInstance instA);
+        bool hasB = ExistsPartNear(autoRes4.Instances, "PartB_Connector", gtPoseB.CenterX, gtPoseB.CenterY, 5.0f, out DetectedPartInstance instB);
+        bool hasC = ExistsPartNear(autoRes4.Instances, "PartC_ShieldCan", gtPoseC.CenterX, gtPoseC.CenterY, 5.0f, out DetectedPartInstance instC);
 
         float maxChildErr = 0f;
-        if (hasA && instA.ChildRois.Length == 2)
+        if (hasA && instA.ChildRois.Length == childRoisA.Length)
         {
-            var expectedWorld = instA.WorldPose.Compose(childRoisA[1].LocalOffsetPose);
-            float dx = instA.ChildRois[1].WorldPose.OriginX - expectedWorld.OriginX;
-            float dy = instA.ChildRois[1].WorldPose.OriginY - expectedWorld.OriginY;
-            maxChildErr = MathF.Sqrt(dx * dx + dy * dy);
+            for (int c = 0; c < childRoisA.Length; c++)
+            {
+                var gtChildWorld = gtPoseA.Compose(childRoisA[c].LocalOffsetPose);
+                float dx = instA.ChildRois[c].WorldPose.OriginX - gtChildWorld.OriginX;
+                float dy = instA.ChildRois[c].WorldPose.OriginY - gtChildWorld.OriginY;
+                float err = MathF.Sqrt((dx * dx) + (dy * dy));
+                if (err > maxChildErr) maxChildErr = err;
+            }
+        }
+        if (hasB && instB.ChildRois.Length == childRoisB.Length)
+        {
+            for (int c = 0; c < childRoisB.Length; c++)
+            {
+                var gtChildWorld = gtPoseB.Compose(childRoisB[c].LocalOffsetPose);
+                float dx = instB.ChildRois[c].WorldPose.OriginX - gtChildWorld.OriginX;
+                float dy = instB.ChildRois[c].WorldPose.OriginY - gtChildWorld.OriginY;
+                float err = MathF.Sqrt((dx * dx) + (dy * dy));
+                if (err > maxChildErr) maxChildErr = err;
+            }
+        }
+        if (hasC && instC.ChildRois.Length == childRoisC.Length)
+        {
+            for (int c = 0; c < childRoisC.Length; c++)
+            {
+                var gtChildWorld = gtPoseC.Compose(childRoisC[c].LocalOffsetPose);
+                float dx = instC.ChildRois[c].WorldPose.OriginX - gtChildWorld.OriginX;
+                float dy = instC.ChildRois[c].WorldPose.OriginY - gtChildWorld.OriginY;
+                float err = MathF.Sqrt((dx * dx) + (dy * dy));
+                if (err > maxChildErr) maxChildErr = err;
+            }
         }
 
-        bool case4Passed = hasA && hasB && hasC && maxChildErr <= 0.03f;
+        bool case4Passed = hasA && hasB && hasC && maxChildErr > 0.0001f && maxChildErr <= 0.05f;
         results.Add(new VerificationCaseSummary(
             "AutoTeaching",
             "Case04_MixedMultiPartScene_RotatedOccluded.bmp",
@@ -511,32 +550,14 @@ public static class UnifiedNewSubsystems8kRunner
             sw5.Elapsed.TotalMilliseconds,
             $"Merged={dupReport.WasMergedIntoExisting},Sim={dupReport.MatchedSimilarity:F3}, PoolCount={pool.Count}, Summary='{autoRes5.SummaryText}'"));
 
-        // Case 06: Full 8K (7680x4320) Mass Production Panel (3x5 = 15 Parts)
-        var sw6 = Stopwatch.StartNew();
+        // Case 06: Full 8K (7680x4320) Mass Production Panel (3x5 = 15 Parts) — single full-8K call
         byte[] px6 = Gray8BmpFileExporter.LoadGray8Bmp(Path.Combine(suiteDir, "Case06_Full8K_MassProductionPanel_7680x4320.bmp"), out int w6, out int h6);
-        const int cols = 5;
-        const int rows = 3;
-        int cellW = w6 / cols;
-        int cellH = h6 / rows;
-        int recognizedCells = 0;
-
-        for (int r = 0; r < rows; r++)
-        {
-            for (int c = 0; c < cols; c++)
-            {
-                int ox = c * cellW + (cellW - 380) / 2;
-                int oy = r * cellH + (cellH - 380) / 2;
-                var subView = new ReadOnlyImageView2D<byte>(
-                    px6.AsSpan(oy * w6 + ox, (380 - 1) * w6 + 380), 380, 380, w6);
-                AutoTeachingResult cellRes = AutoTeachingOrchestrator.RecognizeAndAutoTeach(
-                    subView, pool, workspace, minGeometricScore: 0.50f, minAppearanceCosine: 0.45f, maxMahalanobisDistance: 25.0f);
-                if (cellRes.Instances.Length >= 1)
-                {
-                    recognizedCells++;
-                }
-            }
-        }
+        var view6 = new ReadOnlyImageView2D<byte>(px6, w6, h6, w6);
+        var sw6 = Stopwatch.StartNew();
+        AutoTeachingResult panelRes6 = AutoTeachingOrchestrator.RecognizeAndAutoTeach(
+            view6, pool, workspace, minGeometricScore: 0.50f, minAppearanceCosine: 0.45f, maxMahalanobisDistance: 25.0f);
         sw6.Stop();
+        int recognizedCells = panelRes6.Instances.Length;
         results.Add(new VerificationCaseSummary(
             "AutoTeaching",
             "Case06_Full8K_MassProductionPanel_7680x4320.bmp",

@@ -1,0 +1,940 @@
+<Window x:Class="ToolBlock.Simulator.Views.MainSimulatorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:skia="clr-namespace:VisionCanvas.Skia.Controls;assembly=VisionCanvas.Skia"
+        Title="Vision Workbench — [1. 필터 툴] · [2. 확인 툴] · [3. 검사 툴]"
+        Width="1720"
+        Height="980"
+        MinWidth="1320"
+        MinHeight="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#0B0F19"
+        Foreground="#F8FAFC"
+        PreviewKeyDown="OnPreviewKeyDown"
+        Closed="OnClosed">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="PanelBg" Color="#111827" />
+        <SolidColorBrush x:Key="CardBg" Color="#1E293B" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#334155" />
+        <SolidColorBrush x:Key="MutedText" Color="#94A3B8" />
+
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Background" Value="#1E293B" />
+            <Setter Property="Foreground" Value="#F1F5F9" />
+            <Setter Property="BorderBrush" Value="#334155" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="Margin" Value="0,0,5,0" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="#2563EB" />
+            <Setter Property="BorderBrush" Value="#3B82F6" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="AccentGreenButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="#059669" />
+            <Setter Property="BorderBrush" Value="#10B981" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="AccentAmberButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="#D97706" />
+            <Setter Property="BorderBrush" Value="#F59E0B" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#38BDF8" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="ParamLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#CBD5E1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="28" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== TOP FILE & STACK RIBBON ==================== -->
+        <Border Grid.Row="0" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- App Title & Active Image Badge -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                    <Border Background="#0284C7" CornerRadius="4" Padding="8,4" Margin="0,0,10,0">
+                        <TextBlock Text="VISION WORKBENCH" FontWeight="Bold" FontSize="11.5" Foreground="White" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="[1. 필터 툴] · [2. 확인 툴] · [3. 검사 툴] 통합 시뮬레이터" FontSize="13" FontWeight="Bold" Foreground="#F8FAFC" />
+                        <TextBlock Text="{Binding CurrentImageInfoText}" FontSize="11" Foreground="#38BDF8" FontFamily="Consolas" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- File & Edit Pixel Undo/Redo -->
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <Button Content="📂 이미지 열기 (Ctrl+O)" Style="{StaticResource PrimaryButton}" Command="{Binding OpenImageFilesCommand}" />
+                    <Button Content="💾 영역/영상 저장 (Ctrl+S)" Style="{StaticResource ToolbarButton}" Command="{Binding SaveImageAsCommand}" />
+                    <Button Content="🔄 원본 복원 (Revert)" Style="{StaticResource AccentAmberButton}" Command="{Binding RevertToOriginalCommand}" />
+                    <Button Content="↩ Undo (Ctrl+Z)" Style="{StaticResource ToolbarButton}" Command="{Binding PixelUndoCommand}" />
+                    <Button Content="↪ Redo (Ctrl+Y)" Style="{StaticResource ToolbarButton}" Command="{Binding PixelRedoCommand}" />
+                </WrapPanel>
+
+                <!-- Image > Stacks Navigation -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Stack:" Foreground="#94A3B8" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <Button Content="◀" Style="{StaticResource ToolbarButton}" Padding="7,4" Command="{Binding PreviousStackFrameCommand}" />
+                    <ComboBox ItemsSource="{Binding LoadedImageStack}"
+                              SelectedItem="{Binding SelectedStackFrame}"
+                              DisplayMemberPath="DisplayTitle"
+                              Width="240"
+                              Margin="0,0,5,0"
+                              VerticalContentAlignment="Center" />
+                    <Button Content="▶" Style="{StaticResource ToolbarButton}" Padding="7,4" Command="{Binding NextStackFrameCommand}" />
+                    <TextBlock Text="{Binding StackStatusText}" Foreground="#FBBF24" FontFamily="Consolas" FontSize="11.5" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,0,0" />
+                </StackPanel>
+
+                <!-- Optional On-Demand Samples (Never loaded automatically on startup) -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="테스트 샘플 생성:" Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <Button Content="Blobs" Style="{StaticResource ToolbarButton}" Command="{Binding LoadBlobsSampleCommand}" />
+                    <Button Content="Colonies" Style="{StaticResource ToolbarButton}" Command="{Binding LoadColoniesSampleCommand}" />
+                    <Button Content="Edges/Rings" Style="{StaticResource ToolbarButton}" Command="{Binding LoadMetrologySampleCommand}" />
+                    <Button Content="Shading+Noise" Style="{StaticResource ToolbarButton}" Margin="0" Command="{Binding LoadShadingSampleCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== MAIN WORKSPACE ==================== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="435" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ==================== LEFT DOCK: COMMON ROI BAR + 3 CLEAN TOOL TABS ==================== -->
+            <Border Grid.Column="0" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- COMMON ROI SELECTOR & DRAWING BOX -->
+                    <Border Grid.Row="0" Background="{StaticResource CardBg}" BorderBrush="#0284C7" BorderThickness="1" CornerRadius="6" Padding="9" Margin="0,0,0,8">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,4">
+                                <TextBlock Text="🎯 대상 ROI 영역 관리 (ROI Manager)" Style="{StaticResource SectionHeader}" Margin="0" />
+                                <TextBlock Text="{Binding ActiveRoiSummaryText}" Foreground="#FDE047" FontFamily="Consolas" FontSize="10.5" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            </DockPanel>
+
+                            <ComboBox ItemsSource="{Binding CanvasRoiOptions}"
+                                      SelectedItem="{Binding SelectedRoiOption}"
+                                      Margin="0,0,0,6">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#38BDF8" Width="135" />
+                                            <TextBlock Text="{Binding GeometrySummary}" Foreground="#94A3B8" FontFamily="Consolas" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <UniformGrid Columns="5">
+                                <Button Content="▭ 사각" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding DrawRectCommand}" />
+                                <Button Content="◯ 원형" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding DrawCircleCommand}" />
+                                <Button Content="⬠ 다각" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding DrawPolygonCommand}" />
+                                <Button Content="전체영역" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding SelectWholeImageRoiCommand}" />
+                                <Button Content="🗑 삭제" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0" Command="{Binding DeleteRoiCommand}" />
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ==================== 3 CLEAN TOOL CATEGORIES TABCONTROL ==================== -->
+                    <TabControl Grid.Row="1"
+                                SelectedIndex="{Binding SelectedToolCategoryIndex}"
+                                Background="#0F172A"
+                                BorderBrush="#334155"
+                                Padding="6">
+
+                        <!-- ==================== TAB 1: 🎨 1. 필터 툴 (FILTER TOOLS) ==================== -->
+                        <TabItem Header="🎨 1. 필터 툴">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,4,2,2">
+
+                                    <!-- 1-A. 공간 필터 · 모폴로지 · 배경 제거 (17종) -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="1-A. 공간 필터 · 모폴로지 · 배경 제거 (17종)" Style="{StaticResource SectionHeader}" Margin="0" />
+                                                <CheckBox Content="ROI 실시간 미리보기"
+                                                          IsChecked="{Binding IsLiveFilterPreviewEnabled}"
+                                                          Foreground="#FDE047"
+                                                          FontSize="11"
+                                                          FontWeight="SemiBold"
+                                                          HorizontalAlignment="Right" />
+                                            </DockPanel>
+
+                                            <ComboBox ItemsSource="{Binding FilterOptions}"
+                                                      SelectedItem="{Binding SelectedFilterOption}"
+                                                      DisplayMemberPath="FullMenuTitle"
+                                                      Margin="0,0,0,4" />
+                                            <TextBlock Text="{Binding SelectedFilterOption.Description}" Foreground="#94A3B8" FontSize="11" Margin="0,0,0,8" />
+
+                                            <TextBlock Text="원클릭 필터 프리셋 (선택 ROI 즉시 미리보기):" Foreground="#CBD5E1" FontSize="10.5" Margin="0,0,0,4" />
+                                            <UniformGrid Columns="4" Margin="0,0,0,8">
+                                                <Button Content="Gauss 3×3" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,3" Command="{Binding QuickGaussianCommand}" />
+                                                <Button Content="Median 3×3" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,3" Command="{Binding QuickMedianCommand}" />
+                                                <Button Content="Unsharp" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,3" Command="{Binding QuickUnsharpCommand}" />
+                                                <Button Content="Sobel Edge" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,0,3" Command="{Binding QuickSobelCommand}" />
+                                                <Button Content="Top-Hat 배경" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding QuickTopHatCommand}" />
+                                                <Button Content="Morph Open" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding QuickOpenCommand}" />
+                                                <Button Content="Morph Close" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding QuickCloseCommand}" />
+                                                <Button Content="Equalize" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0" Command="{Binding QuickEqualizeCommand}" />
+                                            </UniformGrid>
+
+                                            <UniformGrid Columns="2">
+                                                <Button Content="✔ 선택 ROI에 필터 적용" Style="{StaticResource PrimaryButton}" Margin="0,0,4,0" Command="{Binding ApplyFilterToRoiCommand}" />
+                                                <Button Content="✔ 전체 영상에 필터 적용" Style="{StaticResource AccentGreenButton}" Margin="4,0,0,0" Command="{Binding ApplyFilterToWholeImageCommand}" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 1-B. 밝기 / 대비 / 감마 (Brightness & Contrast) -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="1-B. 밝기 · 대비 · 감마 (Brightness / Contrast)" Style="{StaticResource SectionHeader}" Margin="0" />
+                                                <CheckBox Content="실시간 미리보기"
+                                                          IsChecked="{Binding IsLiveContrastPreviewEnabled}"
+                                                          Foreground="#FDE047"
+                                                          FontSize="11"
+                                                          FontWeight="SemiBold"
+                                                          HorizontalAlignment="Right" />
+                                            </DockPanel>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="38" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Display Min" Style="{StaticResource ParamLabel}" />
+                                                <Slider Grid.Column="1" Minimum="0" Maximum="254" Value="{Binding ContrastDisplayMin}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ContrastDisplayMin}" Foreground="#38BDF8" FontFamily="Consolas" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="38" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Display Max" Style="{StaticResource ParamLabel}" />
+                                                <Slider Grid.Column="1" Minimum="1" Maximum="255" Value="{Binding ContrastDisplayMax}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ContrastDisplayMax}" Foreground="#38BDF8" FontFamily="Consolas" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="38" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Gamma (γ)" Style="{StaticResource ParamLabel}" />
+                                                <Slider Grid.Column="1" Minimum="0.20" Maximum="3.50" SmallChange="0.05" LargeChange="0.20" Value="{Binding ContrastGamma}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ContrastGamma, StringFormat={}{0:F2}}" Foreground="#38BDF8" FontFamily="Consolas" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+
+                                            <UniformGrid Columns="3">
+                                                <Button Content="Auto B&amp;C" Style="{StaticResource ToolbarButton}" Margin="0,0,3,0" Command="{Binding AutoContrastCommand}" />
+                                                <Button Content="Reset" Style="{StaticResource ToolbarButton}" Margin="2,0,2,0" Command="{Binding ResetContrastCommand}" />
+                                                <Button Content="✔ 적용" Style="{StaticResource PrimaryButton}" Margin="3,0,0,0" Command="{Binding ApplyContrastToPixelsCommand}" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 1-C. 이진화 임계값 (Threshold — 6종 자동 기법) -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="#D97706" BorderThickness="1" CornerRadius="6" Padding="10">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="1-C. 이진화 임계값 필터 (Threshold)" Style="{StaticResource SectionHeader}" Foreground="#FBBF24" Margin="0" />
+                                                <CheckBox Content="마스크 미리보기"
+                                                          IsChecked="{Binding IsLiveThresholdPreviewEnabled}"
+                                                          Foreground="#FDE047"
+                                                          FontSize="11"
+                                                          FontWeight="SemiBold"
+                                                          HorizontalAlignment="Right" />
+                                            </DockPanel>
+
+                                            <Grid Margin="0,0,0,6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="85" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="자동 기법" Style="{StaticResource ParamLabel}" />
+                                                <ComboBox Grid.Column="1"
+                                                          ItemsSource="{Binding AutoThresholdMethods}"
+                                                          SelectedItem="{Binding SelectedAutoThresholdMethod}"
+                                                          Margin="0,0,8,0" />
+                                                <CheckBox Grid.Column="2"
+                                                          Content="Dark Bg"
+                                                          IsChecked="{Binding IsDarkBackground}"
+                                                          Foreground="#CBD5E1"
+                                                          VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <UniformGrid Columns="6" Margin="0,0,0,6">
+                                                <Button Content="Otsu" Style="{StaticResource ToolbarButton}" Padding="3,3" Margin="0,0,3,0" Command="{Binding ApplyOtsuThresholdCommand}" />
+                                                <Button Content="Triangle" Style="{StaticResource ToolbarButton}" Padding="3,3" Margin="0,0,3,0" Command="{Binding ApplyTriangleThresholdCommand}" />
+                                                <Button Content="IsoData" Style="{StaticResource ToolbarButton}" Padding="3,3" Margin="0,0,3,0" Command="{Binding ApplyIsoDataThresholdCommand}" />
+                                                <Button Content="Entropy" Style="{StaticResource ToolbarButton}" Padding="3,3" Margin="0,0,3,0" Command="{Binding ApplyMaxEntropyThresholdCommand}" />
+                                                <Button Content="Mean" Style="{StaticResource ToolbarButton}" Padding="3,3" Margin="0,0,3,0" Command="{Binding ApplyMeanThresholdCommand}" />
+                                                <Button Content="P50" Style="{StaticResource ToolbarButton}" Padding="3,3" Margin="0" Command="{Binding ApplyMedianThresholdCommand}" />
+                                            </UniformGrid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="38" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Min Threshold" Style="{StaticResource ParamLabel}" />
+                                                <Slider Grid.Column="1" Minimum="0" Maximum="255" Value="{Binding ThresholdMin}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ThresholdMin}" Foreground="#FB923C" FontFamily="Consolas" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="38" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Max Threshold" Style="{StaticResource ParamLabel}" />
+                                                <Slider Grid.Column="1" Minimum="0" Maximum="255" Value="{Binding ThresholdMax}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ThresholdMax}" Foreground="#FB923C" FontFamily="Consolas" FontSize="11" HorizontalAlignment="Right" />
+                                            </Grid>
+
+                                            <Button Content="✔ 이진화 마스크 적용 (Convert to Mask)"
+                                                    Style="{StaticResource AccentAmberButton}"
+                                                    Margin="0"
+                                                    Command="{Binding ApplyThresholdToPixelsCommand}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ==================== TAB 2: 🔍 2. 확인 툴 (CHECK / VERIFICATION TOOLS) ==================== -->
+                        <TabItem Header="🔍 2. 확인 툴">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,4,2,2">
+
+                                    <!-- 2-A. 히스토그램 & 단면 프로파일 확인 -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="2-A. 히스토그램 (Ctrl+H) &amp; 단면 프로파일 (Ctrl+K) 확인" Style="{StaticResource SectionHeader}" />
+                                            <TextBlock Text="{Binding HistogramStatsLine1}" Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10.5" TextWrapping="Wrap" Margin="0,0,0,3" />
+                                            <TextBlock Text="{Binding AutoThresholdSummaryText}" Foreground="#FBBF24" FontFamily="Consolas" FontSize="10.5" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                                            <UniformGrid Columns="2">
+                                                <Button Content="📊 히스토그램 갱신" Style="{StaticResource PrimaryButton}" Margin="0,0,4,0" Command="{Binding RefreshCheckChartsCommand}" />
+                                                <Button Content="📈 단면 X↔Y 방향 전환" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0" Command="{Binding ToggleProfileDirectionCommand}" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 2-B. 블랍 / 입자 확인 (On-Demand Analyze Particles) -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="#10B981" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="2-B. 블랍 / 입자 확인 (Blob &amp; Particle Check)" Style="{StaticResource SectionHeader}" Foreground="#34D399" />
+                                            <TextBlock Text="※ 드래그 중 자동 실행을 방지하여 대용량(ken32.png)에서도 버벅임이 없습니다. 아래 버튼을 눌러 선택 ROI 내 블랍을 즉시 확인하세요."
+                                                       Foreground="#94A3B8"
+                                                       FontSize="10.5"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,0,0,8" />
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="105" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="85" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Min Area (px²)" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding ParticleMinArea, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="Max Area" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding ParticleMaxArea, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <Grid Margin="0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="105" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="85" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Min Circularity" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding ParticleMinCircularity, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="Max Circ." Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding ParticleMaxCircularity, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                                <CheckBox Content="경계 접촉 입자 제외" IsChecked="{Binding ExcludeParticlesOnEdges}" Foreground="#CBD5E1" Margin="0,0,14,0" />
+                                                <CheckBox Content="캔버스 라벨 표시" IsChecked="{Binding ShowParticlesOverlay}" Foreground="#34D399" FontWeight="SemiBold" />
+                                            </StackPanel>
+
+                                            <UniformGrid Columns="2" Margin="0,0,0,4">
+                                                <Button Content="🔍 선택 ROI 블랍/입자 확인" Style="{StaticResource AccentGreenButton}" Margin="0,0,4,0" Command="{Binding RunAnalyzeParticlesCommand}" />
+                                                <Button Content="🧹 블랍 오버레이 지우기" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0" Command="{Binding ClearParticlesOverlayCommand}" />
+                                            </UniformGrid>
+
+                                            <TextBlock Text="{Binding ParticleSummaryText}" Foreground="#FDE047" FontFamily="Consolas" FontSize="10.5" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 2-C. ROI 정량 통계 계측 (Measure / Multi-Measure) -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                                        <StackPanel>
+                                            <TextBlock Text="2-C. ROI 정량 통계 계측 (Measure · Ctrl+M)" Style="{StaticResource SectionHeader}" />
+                                            <TextBlock Text="{Binding ResultsSummaryText}" Foreground="#CBD5E1" FontFamily="Consolas" FontSize="10.5" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                                            <UniformGrid Columns="2" Margin="0,0,0,6">
+                                                <Button Content="📏 선택 ROI 계측 (Ctrl+M)" Style="{StaticResource PrimaryButton}" Margin="0,0,4,0" Command="{Binding MeasureRoiCommand}" />
+                                                <Button Content="📐 전체 ROI 일괄 계측" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0" Command="{Binding MultiMeasureAllRoisCommand}" />
+                                            </UniformGrid>
+
+                                            <UniformGrid Columns="2">
+                                                <Button Content="📄 CSV 내보내기..." Style="{StaticResource ToolbarButton}" Margin="0,0,4,0" Command="{Binding ExportMeasurementsCsvCommand}" />
+                                                <Button Content="🗑 계측 기록 비우기" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0" Command="{Binding ClearMeasurementsCommand}" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ==================== TAB 3: ⚙️ 3. 검사 툴 (INSPECTION TOOLS) ==================== -->
+                        <TabItem Header="⚙️ 3. 검사 툴">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="2,4,2,2">
+
+                                    <!-- 3-A. 검사 알고리즘 추가 & 실행 -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="3-A. 검사 알고리즘 조합 (ToolBlock Pipeline)" Style="{StaticResource SectionHeader}" Margin="0" />
+                                                <Border Background="{Binding InspectionVerdictHex}" CornerRadius="4" Padding="8,2" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding InspectionVerdictBadge}" Foreground="White" FontWeight="Bold" FontSize="11" FontFamily="Consolas" />
+                                                </Border>
+                                            </DockPanel>
+
+                                            <ComboBox ItemsSource="{Binding InspectionToolPalette}"
+                                                      SelectedItem="{Binding SelectedPaletteTool}"
+                                                      DisplayMemberPath="DisplayName"
+                                                      Margin="0,0,0,4" />
+                                            <TextBlock Text="{Binding SelectedPaletteTool.Description}" Foreground="#94A3B8" FontSize="10.5" TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                                            <UniformGrid Columns="2" Margin="0,0,0,6">
+                                                <Button Content="➕ 선택 ROI에 검사 툴 추가" Style="{StaticResource PrimaryButton}" Margin="0,0,4,0" Command="{Binding AddInspectionToolCommand}" />
+                                                <Button Content="▶ 검사 실행 (F5)" Style="{StaticResource AccentGreenButton}" Margin="4,0,0,0" Command="{Binding RunInspectionPipelineCommand}" />
+                                            </UniformGrid>
+
+                                            <ListBox ItemsSource="{Binding InspectionNodeRows}"
+                                                     SelectedItem="{Binding SelectedInspectionNode}"
+                                                     Height="110"
+                                                     Background="#090D16"
+                                                     Foreground="#F8FAFC"
+                                                     BorderBrush="#334155"
+                                                     Margin="0,0,0,6">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="2,2">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="26" />
+                                                                <ColumnDefinition Width="115" />
+                                                                <ColumnDefinition Width="95" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="52" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding ExecutionStep, StringFormat=#{0}}" Foreground="#64748B" FontFamily="Consolas" FontSize="11" />
+                                                            <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="#38BDF8" FontWeight="Bold" FontSize="11" />
+                                                            <TextBlock Grid.Column="2" Text="{Binding BoundRoiLabel}" Foreground="#FDE047" FontFamily="Consolas" FontSize="10.5" />
+                                                            <TextBlock Grid.Column="3" Text="{Binding LiveMetricSummary}" Foreground="#CBD5E1" FontFamily="Consolas" FontSize="10.5" />
+                                                            <TextBlock Grid.Column="4" Text="{Binding StatusBadge}" Foreground="{Binding StatusHex}" FontWeight="Bold" FontFamily="Consolas" FontSize="10.5" HorizontalAlignment="Right" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+
+                                            <UniformGrid Columns="3">
+                                                <Button Content="🔗 현재 ROI 바인딩" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="0,0,3,0" Command="{Binding BindSelectedRoiToNodeCommand}" />
+                                                <Button Content="🗑 선택 노드 삭제" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="2,0,2,0" Command="{Binding RemoveSelectedInspectionToolCommand}" />
+                                                <Button Content="🧹 전체 초기화" Style="{StaticResource ToolbarButton}" Padding="4,4" Margin="3,0,0,0" Command="{Binding ClearInspectionPipelineCommand}" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 3-B. 선택 검사 노드 파라미터 설정 -->
+                                    <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="3-B. 선택 검사 노드 상세 파라미터" Style="{StaticResource SectionHeader}" Margin="0" />
+                                                <Button Content="📥 필터툴 임계값 가져오기"
+                                                        Style="{StaticResource ToolbarButton}"
+                                                        Padding="6,2"
+                                                        Margin="0"
+                                                        HorizontalAlignment="Right"
+                                                        Command="{Binding SyncFilterThresholdToNodeCommand}" />
+                                            </DockPanel>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="노드 이름" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding SelectedNodeName, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#F8FAFC" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="ROI 전처리 필터" Style="{StaticResource ParamLabel}" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding NodePreFilterOptions}" SelectedItem="{Binding SelectedNodePreFilter}" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="자동 임계값 기법" Style="{StaticResource ParamLabel}" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding AutoThresholdMethods}" SelectedItem="{Binding SelectedNodeAutoThreshold}" />
+                                            </Grid>
+
+                                            <Grid Margin="0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="PatMax 최소점수" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding SelectedNodePatMaxMinScore, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="각도 범위(±°)" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding SelectedNodePatMaxAngleDeg, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="캘리퍼 모드" Style="{StaticResource ParamLabel}" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding CaliperModeOptions}" SelectedItem="{Binding SelectedNodeCaliperMode}" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="최소 대비(GV)" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding SelectedNodeCaliperMinContrast, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="블랍 임계값 Min" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding SelectedNodeBlobMinThreshold, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="블랍 최소면적" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding SelectedNodeBlobMinArea, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="유효픽셀 합격% Min" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding SelectedNodeBinaryMinPassPct, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="합격% Max" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding SelectedNodeBinaryMaxPassPct, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="115" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="95" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="공차 판정 LSL" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="1" Text="{Binding SelectedNodeJudgeLsl, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" Margin="0,0,8,0" />
+                                                <TextBlock Grid.Column="2" Text="공차 판정 USL" Style="{StaticResource ParamLabel}" />
+                                                <TextBox Grid.Column="3" Text="{Binding SelectedNodeJudgeUsl, UpdateSourceTrigger=PropertyChanged}" Background="#090D16" Foreground="#38BDF8" BorderBrush="#334155" Padding="4,2" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                    </TabControl>
+                </Grid>
+            </Border>
+
+            <!-- ==================== CENTER + BOTTOM: VISION CANVAS & RESULTS DOCK ==================== -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="295" />
+                </Grid.RowDefinitions>
+
+                <!-- Canvas Interactive Toolbar + Live Cursor Probe -->
+                <Border Grid.Row="0" Background="#1E293B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+                    <DockPanel>
+                        <WrapPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <Button Content="↖ 선택" Style="{StaticResource ToolbarButton}" Command="{Binding SelectToolCommand}" />
+                            <Button Content="✋ 화면 이동" Style="{StaticResource ToolbarButton}" Command="{Binding PanToolCommand}" />
+                            <Button Content="▭ 사각 ROI" Style="{StaticResource ToolbarButton}" Command="{Binding DrawRectCommand}" />
+                            <Button Content="◯ 원형 ROI" Style="{StaticResource ToolbarButton}" Command="{Binding DrawCircleCommand}" />
+                            <Button Content="⬠ 다각형 ROI" Style="{StaticResource ToolbarButton}" Command="{Binding DrawPolygonCommand}" />
+                            <Button Content="🗑 ROI 삭제" Style="{StaticResource ToolbarButton}" Command="{Binding DeleteRoiCommand}" />
+                            <Button Content="🔍 화면 맞춤(F)" Style="{StaticResource ToolbarButton}" Command="{Binding FitCommand}" />
+                            <Button Content="＋" Style="{StaticResource ToolbarButton}" Command="{Binding ZoomInCommand}" />
+                            <Button Content="－" Style="{StaticResource ToolbarButton}" Command="{Binding ZoomOutCommand}" />
+                        </WrapPanel>
+
+                        <Border DockPanel.Dock="Right" Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="4" Padding="10,4" HorizontalAlignment="Right">
+                            <TextBlock Text="{Binding PixelProbeText}"
+                                       Foreground="#38BDF8"
+                                       FontFamily="Consolas"
+                                       FontSize="11.5"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                    </DockPanel>
+                </Border>
+
+                <!-- Skia VisionCanvas Viewport -->
+                <Border Grid.Row="1" Background="#050811">
+                    <skia:SkiaViewport x:Name="Canvas"
+                                       Scene="{Binding Scene}"
+                                       PointerInput="{Binding Input}"
+                                       LayoutState="{Binding Layout}"
+                                       KeyAction="{Binding KeyAction}"
+                                       IsInputEnabled="{Binding IsNavigationEnabled}" />
+                </Border>
+
+                <!-- Bottom Dock: Check & Inspection Results -->
+                <Border Grid.Row="2" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="8,6">
+                    <TabControl SelectedIndex="{Binding SelectedBottomTabIndex}" Background="#0F172A" BorderBrush="#334155">
+
+                        <!-- TAB 0: HISTOGRAM (확인 툴) -->
+                        <TabItem Header="📊 [확인 툴] 1. 히스토그램 (Ctrl+H)">
+                            <Grid Margin="8,6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="{Binding HistogramStatsLine1}" Foreground="#E2E8F0" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding HistogramStatsLine2}" Foreground="#94A3B8" FontFamily="Consolas" FontSize="11" />
+                                    </StackPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Text="자동 임계값:" Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <Button Content="Otsu" Style="{StaticResource ToolbarButton}" Padding="7,3" Command="{Binding ApplyOtsuThresholdCommand}" />
+                                        <Button Content="Triangle" Style="{StaticResource ToolbarButton}" Padding="7,3" Command="{Binding ApplyTriangleThresholdCommand}" />
+                                        <Button Content="IsoData" Style="{StaticResource ToolbarButton}" Padding="7,3" Command="{Binding ApplyIsoDataThresholdCommand}" />
+                                        <Button Content="MaxEntropy" Style="{StaticResource ToolbarButton}" Padding="7,3" Command="{Binding ApplyMaxEntropyThresholdCommand}" />
+                                        <Button Content="Mean" Style="{StaticResource ToolbarButton}" Padding="7,3" Command="{Binding ApplyMeanThresholdCommand}" />
+                                        <Button Content="Median(P50)" Style="{StaticResource ToolbarButton}" Padding="7,3" Margin="0" Command="{Binding ApplyMedianThresholdCommand}" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <Border Grid.Row="1" Background="#090D16" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="8,6">
+                                    <ItemsControl ItemsSource="{Binding HistogramBars}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Rows="1" Columns="64" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid VerticalAlignment="Bottom" ToolTip="{Binding TooltipText}">
+                                                    <Border Height="{Binding NormalizedHeightPx}"
+                                                            Background="{Binding BarColorHex}"
+                                                            Margin="0.5,0"
+                                                            CornerRadius="1,1,0,0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+
+                                <DockPanel Grid.Row="2" Margin="0,4,0,0">
+                                    <TextBlock DockPanel.Dock="Left" Text="0 GV (Black)" Foreground="#64748B" FontFamily="Consolas" FontSize="10.5" />
+                                    <TextBlock DockPanel.Dock="Right" Text="255 GV (White)" Foreground="#64748B" FontFamily="Consolas" FontSize="10.5" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding AutoThresholdSummaryText}" Foreground="#FBBF24" FontFamily="Consolas" FontSize="11" HorizontalAlignment="Center" />
+                                </DockPanel>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- TAB 1: PLOT PROFILE (확인 툴) -->
+                        <TabItem Header="📈 [확인 툴] 2. 단면 프로파일 (Ctrl+K)">
+                            <Grid Margin="8,6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding ProfileSummaryText}" Foreground="#34D399" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <Button DockPanel.Dock="Right"
+                                            Content="🔄 가로(X) ↔ 세로(Y) 프로파일 방향 전환"
+                                            Style="{StaticResource ToolbarButton}"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding ToggleProfileDirectionCommand}" />
+                                </DockPanel>
+
+                                <Border Grid.Row="1" Background="#090D16" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="8,6">
+                                    <ItemsControl ItemsSource="{Binding ProfileBars}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Rows="1" Columns="64" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid VerticalAlignment="Bottom" ToolTip="{Binding TooltipText}">
+                                                    <Border Height="{Binding IntensityHeightPx}"
+                                                            Background="{Binding IntensityColorHex}"
+                                                            Opacity="0.65"
+                                                            Margin="0.5,0"
+                                                            VerticalAlignment="Bottom" />
+                                                    <Border Height="{Binding GradientHeightPx}"
+                                                            Background="{Binding GradientColorHex}"
+                                                            Width="4"
+                                                            VerticalAlignment="Bottom" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+
+                                <TextBlock Grid.Row="2"
+                                           Text="초록 막대: 단면 평균 밝기 I(x) [0..255]  |  붉은 막대: 1차 미분 에지 경사도 |∇I(x)|"
+                                           Foreground="#94A3B8"
+                                           FontFamily="Consolas"
+                                           FontSize="10.5"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,4,0,0" />
+                            </Grid>
+                        </TabItem>
+
+                        <!-- TAB 2: BLOB / PARTICLE CHECK (확인 툴) -->
+                        <TabItem Header="🔬 [확인 툴] 3. 블랍/입자 확인 목록">
+                            <Grid Margin="8,6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding ParticleSummaryText}" Foreground="#34D399" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="🔍 선택 ROI 블랍/입자 확인 실행" Style="{StaticResource AccentGreenButton}" Command="{Binding RunAnalyzeParticlesCommand}" />
+                                        <Button Content="🧹 오버레이 지우기" Style="{StaticResource ToolbarButton}" Margin="0" Command="{Binding ClearParticlesOverlayCommand}" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <DataGrid Grid.Row="1"
+                                          ItemsSource="{Binding ParticleRows}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          Background="#090D16"
+                                          RowBackground="#0F172A"
+                                          AlternatingRowBackground="#162032"
+                                          Foreground="#F8FAFC"
+                                          BorderBrush="#334155"
+                                          GridLinesVisibility="All"
+                                          HorizontalGridLinesBrush="#1E293B"
+                                          VerticalGridLinesBrush="#1E293B"
+                                          HeadersVisibility="Column"
+                                          FontSize="11"
+                                          FontFamily="Consolas">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Blob #" Binding="{Binding ParticleNumber}" Width="65" />
+                                        <DataGridTextColumn Header="Area (px²)" Binding="{Binding AreaPixels}" Width="90" />
+                                        <DataGridTextColumn Header="Mean GV" Binding="{Binding MeanGray, StringFormat={}{0:F2}}" Width="80" />
+                                        <DataGridTextColumn Header="Min" Binding="{Binding MinGray}" Width="55" />
+                                        <DataGridTextColumn Header="Max" Binding="{Binding MaxGray}" Width="55" />
+                                        <DataGridTextColumn Header="World Centroid (X, Y)" Binding="{Binding CentroidText}" Width="145" />
+                                        <DataGridTextColumn Header="Bounding Box" Binding="{Binding BoundingBoxText}" Width="150" />
+                                        <DataGridTextColumn Header="Circularity" Binding="{Binding Circularity, StringFormat={}{0:F3}}" Width="88" />
+                                        <DataGridTextColumn Header="Aspect Ratio" Binding="{Binding AspectRatio, StringFormat={}{0:F2}}" Width="90" />
+                                        <DataGridTextColumn Header="Solidity" Binding="{Binding Solidity, StringFormat={}{0:F3}}" Width="80" />
+                                        <DataGridTextColumn Header="Angle (°)" Binding="{Binding OrientationDeg, StringFormat={}{0:F1}°}" Width="80" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- TAB 3: ROI MEASURE TABLE (확인 툴) -->
+                        <TabItem Header="📋 [확인 툴] 4. ROI 통계 계측표 (Ctrl+M)">
+                            <Grid Margin="8,6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding ResultsSummaryText}" Foreground="#38BDF8" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="📏 Measure 선택 ROI 추가 (Ctrl+M)" Style="{StaticResource AccentGreenButton}" Command="{Binding MeasureRoiCommand}" />
+                                        <Button Content="📐 Multi-Measure 전체 ROI" Style="{StaticResource PrimaryButton}" Command="{Binding MultiMeasureAllRoisCommand}" />
+                                        <Button Content="📄 CSV 내보내기..." Style="{StaticResource ToolbarButton}" Command="{Binding ExportMeasurementsCsvCommand}" />
+                                        <Button Content="🗑 비우기" Style="{StaticResource ToolbarButton}" Margin="0" Command="{Binding ClearMeasurementsCommand}" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <DataGrid Grid.Row="1"
+                                          ItemsSource="{Binding MeasuredRows}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          Background="#090D16"
+                                          RowBackground="#0F172A"
+                                          AlternatingRowBackground="#162032"
+                                          Foreground="#F8FAFC"
+                                          BorderBrush="#334155"
+                                          GridLinesVisibility="All"
+                                          HorizontalGridLinesBrush="#1E293B"
+                                          VerticalGridLinesBrush="#1E293B"
+                                          HeadersVisibility="Column"
+                                          FontSize="11"
+                                          FontFamily="Consolas">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding MeasurementNumber}" Width="40" />
+                                        <DataGridTextColumn Header="Label (Image:ROI)" Binding="{Binding Label}" Width="180" />
+                                        <DataGridTextColumn Header="Bounds" Binding="{Binding RoiBoundsText}" Width="135" />
+                                        <DataGridTextColumn Header="Area(px)" Binding="{Binding AreaPixels}" Width="85" />
+                                        <DataGridTextColumn Header="Mean" Binding="{Binding MeanGray, StringFormat={}{0:F2}}" Width="68" />
+                                        <DataGridTextColumn Header="StdDev" Binding="{Binding StdDevGray, StringFormat={}{0:F2}}" Width="68" />
+                                        <DataGridTextColumn Header="Min" Binding="{Binding MinGray}" Width="48" />
+                                        <DataGridTextColumn Header="Max" Binding="{Binding MaxGray}" Width="48" />
+                                        <DataGridTextColumn Header="Median" Binding="{Binding MedianGray}" Width="58" />
+                                        <DataGridTextColumn Header="IntDen" Binding="{Binding IntegratedDensity, StringFormat={}{0:F0}}" Width="95" />
+                                        <DataGridTextColumn Header="Centroid (X,Y)" Binding="{Binding CentroidText}" Width="125" />
+                                        <DataGridTextColumn Header="Otsu" Binding="{Binding OtsuThreshold}" Width="50" />
+                                        <DataGridTextColumn Header="%Area" Binding="{Binding ThresholdedAreaPercent, StringFormat={}{0:F1}%}" Width="65" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- TAB 4: INSPECTION PIPELINE RESULTS (검사 툴) -->
+                        <TabItem Header="⚙️ [검사 툴] 5. 검사 실행 판정 결과 (F5)">
+                            <Grid Margin="8,6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Background="{Binding InspectionVerdictHex}" CornerRadius="4" Padding="10,3" Margin="0,0,10,0">
+                                            <TextBlock Text="{Binding InspectionVerdictBadge}" Foreground="White" FontWeight="Bold" FontFamily="Consolas" FontSize="12" />
+                                        </Border>
+                                        <TextBlock Text="{Binding InspectionSummaryText}" Foreground="#E2E8F0" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </StackPanel>
+
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Content="➕ 선택 ROI에 검사 툴 추가" Style="{StaticResource PrimaryButton}" Command="{Binding AddInspectionToolCommand}" />
+                                        <Button Content="▶ 검사 실행 (F5)" Style="{StaticResource AccentGreenButton}" Margin="0" Command="{Binding RunInspectionPipelineCommand}" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <DataGrid Grid.Row="1"
+                                          ItemsSource="{Binding InspectionResultRows}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          Background="#090D16"
+                                          RowBackground="#0F172A"
+                                          AlternatingRowBackground="#162032"
+                                          Foreground="#F8FAFC"
+                                          BorderBrush="#334155"
+                                          GridLinesVisibility="All"
+                                          HorizontalGridLinesBrush="#1E293B"
+                                          VerticalGridLinesBrush="#1E293B"
+                                          HeadersVisibility="Column"
+                                          FontSize="11"
+                                          FontFamily="Consolas">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Node #" Binding="{Binding NodeId}" Width="60" />
+                                        <DataGridTextColumn Header="검사 노드명" Binding="{Binding NodeName}" Width="140" />
+                                        <DataGridTextColumn Header="알고리즘 분류" Binding="{Binding CategoryBadge}" Width="135" />
+                                        <DataGridTextColumn Header="판정 (Verdict)" Binding="{Binding VerdictBadge}" Width="95" />
+                                        <DataGridTextColumn Header="상태" Binding="{Binding StatusBadge}" Width="95" />
+                                        <DataGridTextColumn Header="검출 좌표 / 자세 (World Pose)" Binding="{Binding WorldPoseText}" Width="195" />
+                                        <DataGridTextColumn Header="핵심 측정치 (Metric &amp; Score)" Binding="{Binding PrimaryMetricText}" Width="175" />
+                                        <DataGridTextColumn Header="부가 진단 (SPC / PreFilter)" Binding="{Binding AuxDiagnosticsText}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </TabItem>
+
+                    </TabControl>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ==================== BOTTOM STATUS BAR ==================== -->
+        <Border Grid.Row="2" Background="#090D16" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="12,0">
+            <DockPanel VerticalAlignment="Center">
+                <TextBlock DockPanel.Dock="Left" Text="{Binding CanvasStatusText}" Foreground="#94A3B8" FontSize="11.5" />
+                <TextBlock DockPanel.Dock="Right"
+                           Text="단축키: Ctrl+O (열기) · Ctrl+S (저장) · Ctrl+H (히스토그램) · Ctrl+K (단면 프로파일) · Ctrl+M (ROI 계측) · F5 (검사 실행) · F (화면 맞춤)"
+                           Foreground="#64748B"
+                           FontSize="11"
+                           HorizontalAlignment="Right" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,3 +1,4 @@
+using TeachingToolWpf.Commands;
 using TeachingToolWpf.Models;
 
 namespace TeachingToolWpf.ViewModels;
@@ -5,6 +6,18 @@ namespace TeachingToolWpf.ViewModels;
 public sealed partial class ShapeMatchingViewModel
 {
     private string? _inspectionNotice;
+    private bool _isHelpManualOpen;
+    private RelayCommand? _toggleHelpManualCommand;
+
+    public bool IsHelpManualOpen
+    {
+        get => _isHelpManualOpen;
+        set => Set(ref _isHelpManualOpen, value);
+    }
+
+    public RelayCommand ToggleHelpManual => _toggleHelpManualCommand ??= new(() => IsHelpManualOpen = !IsHelpManualOpen);
+
+    public AlgorithmHelpManual ActiveHelpManual => AlgorithmHelpCatalog.ForPatternMethod(Method);
 
     public string TeachingSelectionText => _selection is { } roi
         ? $"선택: {roi.ShapeName} · {roi.Width:F0} × {roi.Height:F0} px · {roi.Angle:F1}°"
@@ -37,8 +50,8 @@ public sealed partial class ShapeMatchingViewModel
     public string SearchScopeText => UseSelection
         ? _searchSelection is { } roi
             ? $"검색: {roi.Width:F0} × {roi.Height:F0} px · 선택 영역"
-            : _targetRois.Length > 0
-                ? $"검색: 대상 리프 ROI {_targetRois.Length}개 각자 개별 검사"
+            : _targetRoiCount > 0
+                ? $"검색: 대상 리프 ROI {_targetRoiCount}개 각자 개별 검사"
                 : "검색할 ROI가 선택되지 않았습니다."
         : _image is { } image ? $"검색: {image.Width:N0} × {image.Height:N0} px · 전체 이미지" : "검색할 이미지를 열어 주세요.";
 
@@ -88,7 +101,7 @@ public sealed partial class ShapeMatchingViewModel
             {
                 return "등록된 패턴 리스트에서 검사에 사용할 패턴을 최소 1개 이상 체크하세요.";
             }
-            if (UseSelection && _selection is null && _targetRois.IsEmpty)
+            if (UseSelection && _selection is null && _targetRoiCount == 0)
             {
                 return "검사할 ROI를 선택하거나 상단 검사 범위에서 ‘전체 이미지 검사’를 켜세요.";
             }
@@ -214,6 +227,7 @@ public sealed partial class ShapeMatchingViewModel
         Notify(nameof(TrainedModelText));
         Notify(nameof(SearchScopeText));
         Notify(nameof(ParameterPreviewSummary));
+        Notify(nameof(ActiveHelpManual));
         NotifyPatternListProperties();
     }
 }

@@ -206,6 +206,30 @@ public static class OpenCvRoiFilter
                     width);
                 break;
             }
+            case RoiFilterKind.FftNotch:
+            {
+                var minRadius = Math.Clamp(settings.Radius + 2, 3, 24);
+                var notchSigma = Math.Clamp(settings.Sigma, 1.0, 18.0);
+                var ratio = Math.Clamp(settings.Threshold / 28.0, 2.2, 14.0);
+                FrequencyAndTextureFilterEngine.ApplyFftPeriodicNotchFilter(src, width, height, width, dst, minRadius, notchSigma, ratio);
+                break;
+            }
+            case RoiFilterKind.Homomorphic:
+            {
+                var gammaLow = Math.Clamp(settings.Threshold / 255.0, 0.08, 0.95);
+                var gammaHigh = Math.Clamp(1.0 + (settings.Sigma * 0.4), 1.05, 3.8);
+                var spaceSigma = Math.Clamp(settings.Radius * 3.0, 3.0, 60.0);
+                FrequencyAndTextureFilterEngine.ApplyHomomorphicFilter(src, width, height, width, dst, gammaLow, gammaHigh, spaceSigma);
+                break;
+            }
+            case RoiFilterKind.GaborTexture:
+            {
+                var wavelength = Math.Clamp((settings.Radius * 2.0) + 2.0, 4.0, 32.0);
+                var orientationDeg = (settings.Threshold / 255.0) * 180.0;
+                var gaborSigma = Math.Clamp(settings.Sigma + 1.5, 1.5, 10.0);
+                FrequencyAndTextureFilterEngine.ApplyGaborTextureFilter(src, width, height, width, dst, wavelength, orientationDeg, gaborSigma, 0.5);
+                break;
+            }
             default:
                 Array.Copy(src, dst, src.Length);
                 break;

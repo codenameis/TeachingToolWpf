@@ -25,10 +25,69 @@
         </Style>
     </UserControl.Resources>
     <StackPanel>
-        <DockPanel Margin="0,0,0,12">
+        <DockPanel Margin="0,0,0,8">
+            <Button DockPanel.Dock="Right" Content="? 매뉴얼" Command="{Binding ToggleHelpManual}" Padding="7,2" Margin="6,0,0,0" FontSize="10.5" FontWeight="Bold" Background="#EBF1FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" ToolTip="다단계 전처리 파이프라인 및 선(先)필터→후(後)검사 규칙 매뉴얼 펼치기/닫기"/>
             <Border DockPanel.Dock="Right" Background="#EBF1FF" CornerRadius="4" Padding="6,3"><TextBlock Text="IndustrialVision" Foreground="#2463EB" FontSize="9" FontWeight="SemiBold"/></Border>
-            <TextBlock Text="ROI 필터" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <TextBlock Text="ROI 전처리 필터 파이프라인" FontWeight="SemiBold" VerticalAlignment="Center"/>
         </DockPanel>
+
+        <Border x:Name="HelpManualBorder" Visibility="Collapsed" Background="#F8FAFC" BorderBrush="#93C5FD" BorderThickness="3,1,1,1" CornerRadius="6" Padding="8" Margin="0,0,0,10">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsHelpManualOpen}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel>
+                <TextBlock Text="다단계 전처리 파이프라인 &amp; 선(先)필터 → 후(後)검사 규칙" FontWeight="Bold" FontSize="11" Foreground="#1E40AF" Margin="0,0,0,4"/>
+                <TextBlock Text="• 필터 리스트에 들어간 활성 필터들은 모든 본검사(패턴 매칭, 도형 검출, Few-Shot, 정밀 계측/OCR/바코드) 실행 직전에 순서대로 먼저 수행됩니다." FontSize="10.5" Foreground="#334155" TextWrapping="Wrap" Margin="0,0,0,3"/>
+                <TextBlock Text="• 검사가 늦어지면 리스트에서 무거운 필터의 체크박스를 끄거나 [삭제] 버튼으로 빼면 즉시 우회되어 원래 속도로 복구됩니다." FontSize="10.5" Foreground="#B45309" TextWrapping="Wrap" Margin="0,0,0,3"/>
+                <TextBlock Text="• 신규 추가 필터: 2D FFT Periodic Notch(모아레/메쉬 격자 제거), Homomorphic(조명·반사율 분리), 2D Gabor(방향성 크랙 강조)." FontSize="10.5" Foreground="#047857" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <CheckBox Content="선(先)필터 → 후(後)검사 자동 적용 (본검사 전 필터 리스트 선행)" IsChecked="{Binding PreFilterBeforeInspection, Mode=TwoWay}" FontWeight="SemiBold" Foreground="#0F766E" Margin="0,0,0,6"/>
+        <TextBlock Text="{Binding PipelineSummaryText}" FontSize="10.5" Foreground="#1D4ED8" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+        <!-- Ordered Multi-Filter Pipeline List -->
+        <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,10">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right" Content="＋ 리스트에 추가" Command="{Binding AddStepToPipeline}" Padding="8,3" FontSize="10.5" Background="#2563EB" Foreground="White" BorderThickness="0"/>
+                    <TextBlock Text="전처리 필터 리스트 (순차 실행)" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <ListBox ItemsSource="{Binding PipelineSteps}" SelectedItem="{Binding SelectedPipelineStep, Mode=TwoWay}" MaxHeight="130" BorderBrush="{StaticResource Stroke}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel LastChildFill="True" Margin="0,1">
+                                <CheckBox DockPanel.Dock="Left" IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="체크 해제 시 이 필터를 건너뛰어 검사 속도를 즉시 확보합니다"/>
+                                <TextBlock DockPanel.Dock="Left" Text="{Binding StepBadge}" FontWeight="Bold" Foreground="#2563EB" FontSize="10.5" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding SummaryText}" FontSize="10.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <UniformGrid Columns="3" Margin="0,6,0,0">
+                    <Button Content="↑ 위로" Command="{Binding MoveSelectedStepUp}" Padding="6,3" FontSize="10.5" Margin="0,0,3,0"/>
+                    <Button Content="↓ 아래로" Command="{Binding MoveSelectedStepDown}" Padding="6,3" FontSize="10.5" Margin="2,0"/>
+                    <Button Content="✕ 선택 제거" Command="{Binding RemoveSelectedStep}" Padding="6,3" FontSize="10.5" Margin="3,0,0,0"/>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- Live ROI Histogram & 1D Line Profile Summary -->
+        <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="실시간 ROI 히스토그램(Otsu) &amp; 1D 중심선 프로파일" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,3"/>
+                <TextBlock Text="{Binding RoiHistogramSummaryText}" FontSize="10" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                <TextBlock Text="{Binding RoiLineProfileSummaryText}" FontSize="10" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
         <ComboBox ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Kind" SelectedValue="{Binding SelectedFilter}" ToolTip="{Binding SelectedItem, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="ROI 필터 선택"/>
         <ToggleButton x:Name="PreviewToggle" IsChecked="{Binding IsPreviewEnabled, Mode=TwoWay}" AutomationProperties.Name="실시간 필터 미리보기" Margin="0,12,0,0" Padding="12,8">
             <ToggleButton.Style>

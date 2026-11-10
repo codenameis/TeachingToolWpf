@@ -134,8 +134,18 @@
                     <ui:Button Content="패턴 샘플" Command="{Binding Studio.PatternSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" />
                     <ui:Button Content="도형 샘플" Command="{Binding Studio.PrimitiveSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" />
                     <ui:Button Content="Few-Shot" Command="{Binding Studio.FewShotSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" />
-                    <ui:Button Content="7종 스위트" Command="{Binding Studio.SuiteSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" />
-                    <ui:Button Content="1억 ROI" Command="{Binding Studio.AddRepeatedTest}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,6,0" ToolTip="100,020,001개 압축 반복 셀 배치 추가" />
+                    <ui:Button Content="캘리퍼·계측 샘플" Command="{Binding Studio.SuiteSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="캘리퍼·블롭·코너·OCR·자동티칭 등 카테고리별 알고리즘 샘플 열기" />
+                    <ui:Button Content="코너정합" Command="{Binding Studio.Inspections.Suite.LoadCornerAlignmentSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="2-Rake 서브픽셀 가상 코너 및 4-코너 대각 정합 샘플" />
+                    <ui:Button Content="OCR/OCV" Command="{Binding Studio.Inspections.Suite.LoadIndustrialOcrOcvSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="산업용 레이저/잉크젯 도트 매트릭스 OCR 및 OCV 품질 검증 샘플" />
+                    <ui:Button Content="경량OCR" Command="{Binding Studio.Inspections.Suite.LoadLightweightOcrSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="1-Pass 열 특징 시퀀스 경량 고속 OCR 샘플" />
+                    <ui:Button Content="자동티칭" Command="{Binding Studio.Inspections.Suite.LoadAutoTeachingSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="멀티파츠 풀 자동 인식 및 하위 검사 ROI 월드 좌표 자동 생성 샘플" />
+                    <ui:Button Content="1억 ROI" Command="{Binding Studio.AddRepeatedTest}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="100,020,001개 압축 반복 셀 배치 추가" />
+                    <ui:Button Content="📂 1억 모델 열기(탐색기)" Command="{Binding OpenMassiveModelFromExplorer}" Appearance="Primary" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="파일 탐색기(OpenFileDialog)에서 1억 개 랜덤 ROI 모델(.vmodel 5종)을 사전 캐싱 없이 초고속으로 불러옵니다." />
+                    <ui:Button Content="M1" Command="{Binding LoadMassiveModel01}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,2,0" ToolTip="모델 01 (1억 ROI · 전영역 균일 산포) 디스크 직접 로드" />
+                    <ui:Button Content="M2" Command="{Binding LoadMassiveModel02}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,2,0" ToolTip="모델 02 (1억 ROI · 16-클러스터 웨이퍼 군집) 디스크 직접 로드" />
+                    <ui:Button Content="M3" Command="{Binding LoadMassiveModel03}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,2,0" ToolTip="모델 03 (1억 ROI · 8-동심원 링 배열) 디스크 직접 로드" />
+                    <ui:Button Content="M4" Command="{Binding LoadMassiveModel04}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,2,0" ToolTip="모델 04 (1억 ROI · 대각 나선 파동 분포) 디스크 직접 로드" />
+                    <ui:Button Content="M5" Command="{Binding LoadMassiveModel05}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,6,0" ToolTip="모델 05 (1억 ROI · 체커보드 층화 지터) 디스크 직접 로드" />
                     <ComboBox ItemsSource="{Binding Studio.LiveFormats}" SelectedItem="{Binding Studio.LiveFormat}" Width="96" Margin="0,0,4,0" ToolTip="라이브 스트림 픽셀 포맷" />
                     <ui:Button Content="라이브" Command="{Binding Studio.StartLive}" Appearance="Primary" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" />
                     <Button Content="정지" Command="{Binding Studio.StopLive}" Style="{StaticResource DangerGlassButton}" Visibility="{Binding Studio.IsLiveRunning, Converter={StaticResource BoolVisibility}}" Margin="0,0,4,0" />
@@ -364,20 +374,21 @@
                             </Border>
 
                             <StackPanel Grid.Row="2" Margin="0,6,0,0">
-                                <!-- Left Panel Registered Pattern Image List (Always visible when patterns are registered or for quick OK/NG registration) -->
+                                <!-- Left Panel Registered Pattern Image List (Visible only in Pattern Stage so other stages stay uncluttered) -->
                                 <Border CornerRadius="{StaticResource Fluent2ControlCornerRadius}"
                                         Padding="6,5"
                                         Margin="0,0,0,6"
                                         Background="{DynamicResource SubtleFillColorSecondaryBrush}"
                                         BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                        BorderThickness="1">
+                                        BorderThickness="1"
+                                        Visibility="{Binding IsPatternStage, Converter={StaticResource BoolVisibility}}">
                                     <StackPanel>
-                                        <DockPanel Margin="0,0,0,4">
+                                        <DockPanel Margin="0,0,0,3">
                                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                                 <Button Content="＋정상"
                                                         Command="{Binding Studio.Matching.RegisterGoodPattern}"
                                                         Style="{StaticResource PrimaryButton}"
-                                                        Height="22"
+                                                        Height="21"
                                                         FontSize="10"
                                                         Padding="6,0"
                                                         Margin="0,0,3,0"
@@ -385,12 +396,12 @@
                                                 <Button Content="＋불량"
                                                         Command="{Binding Studio.Matching.RegisterDefectPattern}"
                                                         Style="{StaticResource DangerGlassButton}"
-                                                        Height="22"
+                                                        Height="21"
                                                         FontSize="10"
                                                         Padding="6,0"
                                                         ToolTip="현재 선택 ROI를 불량(NG) 패턴 이미지로 등록합니다." />
                                             </StackPanel>
-                                            <TextBlock Text="등록 패턴 이미지 관리 (정상/불량)"
+                                            <TextBlock Text="등록 패턴 이미지 (정상/불량)"
                                                        FontSize="10.5"
                                                        FontWeight="SemiBold"
                                                        Foreground="{DynamicResource SystemAccentColorPrimaryBrush}"
@@ -401,11 +412,11 @@
                                                    FontSize="9.5"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                    TextWrapping="Wrap"
-                                                   Margin="0,0,0,3" />
+                                                   Margin="0,0,0,2" />
 
                                         <ListBox ItemsSource="{Binding Studio.Matching.ActiveMethodPatterns}"
                                                  SelectedItem="{Binding Studio.Matching.SelectedRegisteredPattern, Mode=TwoWay}"
-                                                 MaxHeight="132"
+                                                 MaxHeight="104"
                                                  Background="Transparent"
                                                  BorderThickness="0"
                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -420,7 +431,7 @@
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border CornerRadius="4"
-                                                            Padding="5,4"
+                                                            Padding="5,3"
                                                             Background="{DynamicResource LayerFillColorDefaultBrush}"
                                                             BorderBrush="{Binding RoleAccent}"
                                                             BorderThickness="1">
@@ -433,8 +444,8 @@
                                                             </Grid.ColumnDefinitions>
 
                                                             <Border Grid.Column="0"
-                                                                    Width="38"
-                                                                    Height="38"
+                                                                    Width="34"
+                                                                    Height="34"
                                                                     CornerRadius="3"
                                                                     Background="#FF0F172A"
                                                                     BorderBrush="{Binding RoleAccent}"
@@ -448,7 +459,7 @@
 
                                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,4,0">
                                                                 <TextBlock Text="{Binding DisplayTitle}"
-                                                                           FontSize="10.5"
+                                                                           FontSize="10"
                                                                            FontWeight="SemiBold"
                                                                            TextTrimming="CharacterEllipsis" />
                                                                 <TextBlock Text="{Binding ImageDimensionsText}"
@@ -465,7 +476,7 @@
                                                                     FontSize="9.5"
                                                                     FontWeight="Bold"
                                                                     Padding="5,1"
-                                                                    Height="22"
+                                                                    Height="21"
                                                                     Margin="0,0,3,0"
                                                                     ToolTip="클릭하여 정상(OK) ↔ 불량(NG) 전환" />
 
@@ -475,7 +486,7 @@
                                                                     Style="{StaticResource DangerGlassButton}"
                                                                     FontSize="9.5"
                                                                     Padding="5,1"
-                                                                    Height="22"
+                                                                    Height="21"
                                                                     ToolTip="이 등록 패턴을 삭제합니다." />
                                                         </Grid>
                                                     </Border>
@@ -485,17 +496,17 @@
                                     </StackPanel>
                                 </Border>
 
-                                <UniformGrid Columns="4" Margin="0,0,0,4">
-                                    <Button Content="전체선택" Command="{Binding Studio.SelectAll}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="0,0,2,0" />
-                                    <Button Content="복사" Command="{Binding Studio.Copy}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="2,0" />
-                                    <Button Content="붙여넣기" Command="{Binding Studio.Paste}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="2,0" />
-                                    <Button Content="삭제" Command="{Binding Studio.Delete}" Style="{StaticResource DangerGlassButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="2,0,0,0" />
+                                <UniformGrid Columns="4" Margin="0,0,0,3">
+                                    <Button Content="전체선택" Command="{Binding Studio.SelectAll}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="0,0,2,0" />
+                                    <Button Content="복사" Command="{Binding Studio.Copy}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="2,0" />
+                                    <Button Content="붙여넣기" Command="{Binding Studio.Paste}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="2,0" />
+                                    <Button Content="삭제" Command="{Binding Studio.Delete}" Style="{StaticResource DangerGlassButton}" Height="24" FontSize="10" Padding="3,0" Margin="2,0,0,0" />
                                 </UniformGrid>
                                 <UniformGrid Columns="4">
-                                    <Button Content="그룹화" Command="{Binding Studio.Group}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="0,0,2,0" />
-                                    <Button Content="그룹해제" Command="{Binding Studio.Ungroup}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="2,0" />
-                                    <Button Content="자식지정" Command="{Binding Studio.ChooseChildRois}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="2,0" />
-                                    <Button Content="부모연결" Command="{Binding Studio.AttachToParent}" Style="{StaticResource SecondaryButton}" Height="26" FontSize="10.5" Padding="4,0" Margin="2,0,0,0" />
+                                    <Button Content="그룹화" Command="{Binding Studio.Group}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="0,0,2,0" />
+                                    <Button Content="그룹해제" Command="{Binding Studio.Ungroup}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="2,0" />
+                                    <Button Content="자식지정" Command="{Binding Studio.ChooseChildRois}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="2,0" />
+                                    <Button Content="부모연결" Command="{Binding Studio.AttachToParent}" Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" Padding="3,0" Margin="2,0,0,0" />
                                 </UniformGrid>
                             </StackPanel>
                         </Grid>
@@ -590,82 +601,73 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Row 3: Selected ROI Quick Geometry & Search Range Inspector -->
-                    <Border Grid.Row="3" Style="{StaticResource Fluent2SurfaceCardStyle}" Padding="10,8" Margin="0" IsEnabled="{Binding Studio.CanEdit}">
+                    <!-- Row 3: Compact Selected ROI Quick Geometry & Search Range Inspector -->
+                    <Border Grid.Row="3" Style="{StaticResource Fluent2SurfaceCardStyle}" Padding="8,6" Margin="0" IsEnabled="{Binding Studio.CanEdit}">
                         <StackPanel>
-                            <DockPanel Margin="0,0,0,5">
-                                <Button DockPanel.Dock="Right" Content="0° 초기화" Command="{Binding Studio.ResetAngle}" Style="{StaticResource SecondaryButton}" Height="22" Padding="7,0" FontSize="10" />
-                                <TextBlock Text="선택 ROI 수치 · 검색 여유 편집" Style="{StaticResource SectionBadgeText}" VerticalAlignment="Center" />
+                            <DockPanel Margin="0,0,0,4">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="−15°" Command="{Binding Studio.RotateLeft}" Style="{StaticResource SecondaryButton}" Width="34" Height="21" Padding="0" FontSize="9.5" Margin="0,0,2,0" />
+                                    <Button Content="＋15°" Command="{Binding Studio.RotateRight}" Style="{StaticResource SecondaryButton}" Width="34" Height="21" Padding="0" FontSize="9.5" Margin="0,0,2,0" />
+                                    <Button Content="0°" Command="{Binding Studio.ResetAngle}" Style="{StaticResource SecondaryButton}" Width="28" Height="21" Padding="0" FontSize="9.5" Margin="0,0,3,0" />
+                                    <Button Content="적용" Command="{Binding Studio.ApplyProperties}" Style="{StaticResource PrimaryButton}" Height="21" Padding="8,0" FontSize="9.5" />
+                                </StackPanel>
+                                <TextBlock Text="선택 ROI 수치 · 여유 편집" Style="{StaticResource SectionBadgeText}" VerticalAlignment="Center" />
                             </DockPanel>
 
                             <StackPanel Visibility="{Binding Studio.Properties.HasSingleSelection, Converter={StaticResource BoolVisibility}}">
-                                <Grid Margin="0,0,0,5">
+                                <Grid Margin="0,0,0,3">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.2*" />
-                                        <ColumnDefinition Width="6" />
-                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="1.15*" />
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="0.95*" />
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="0.65*" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="이름" Style="{StaticResource Caption}" />
+                                        <TextBlock Text="이름" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.Name, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Visibility="{Binding Studio.Properties.CanChangeType, Converter={StaticResource BoolVisibility}}">
-                                        <TextBlock Text="ROI 역할" Style="{StaticResource Caption}" />
+                                        <TextBlock Text="역할" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <ComboBox ItemsSource="{Binding Studio.Properties.Types}" SelectedIndex="{Binding Studio.Properties.SelectedType}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="각도(°)" Style="{StaticResource Caption}" Margin="0,0,0,1" />
+                                        <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.Angle, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
                                 </Grid>
 
-                                <UniformGrid Columns="3" Margin="0,0,0,5">
-                                    <StackPanel Margin="0,0,3,0">
-                                        <TextBlock Text="중심 X" Style="{StaticResource Caption}" />
+                                <UniformGrid Columns="6">
+                                    <StackPanel Margin="0,0,2,0">
+                                        <TextBlock Text="X" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.X, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
-                                    <StackPanel Margin="2,0">
-                                        <TextBlock Text="중심 Y" Style="{StaticResource Caption}" />
+                                    <StackPanel Margin="1,0">
+                                        <TextBlock Text="Y" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.Y, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
-                                    <StackPanel Margin="3,0,0,0">
-                                        <TextBlock Text="각도 (°)" Style="{StaticResource Caption}" />
-                                        <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.Angle, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
-                                </UniformGrid>
-
-                                <UniformGrid Columns="4" Margin="0,0,0,5">
-                                    <StackPanel Margin="0,0,3,0">
-                                        <TextBlock Text="너비 W" Style="{StaticResource Caption}" />
+                                    <StackPanel Margin="1,0">
+                                        <TextBlock Text="W" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.Width, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
-                                    <StackPanel Margin="2,0">
-                                        <TextBlock Text="높이 H" Style="{StaticResource Caption}" />
+                                    <StackPanel Margin="1,0">
+                                        <TextBlock Text="H" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.Height, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
-                                    <StackPanel Margin="2,0" Visibility="{Binding Studio.Properties.HasSearchRange, Converter={StaticResource BoolVisibility}}">
-                                        <TextBlock Text="검색 X여유" Style="{StaticResource Caption}" />
+                                    <StackPanel Margin="1,0" Visibility="{Binding Studio.Properties.HasSearchRange, Converter={StaticResource BoolVisibility}}">
+                                        <TextBlock Text="여유X" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.SearchHorizontal, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
-                                    <StackPanel Margin="3,0,0,0" Visibility="{Binding Studio.Properties.HasSearchRange, Converter={StaticResource BoolVisibility}}">
-                                        <TextBlock Text="검색 Y여유" Style="{StaticResource Caption}" />
+                                    <StackPanel Margin="2,0,0,0" Visibility="{Binding Studio.Properties.HasSearchRange, Converter={StaticResource BoolVisibility}}">
+                                        <TextBlock Text="여유Y" Style="{StaticResource Caption}" Margin="0,0,0,1" />
                                         <controls:ValueTextBox Style="{StaticResource ValueTextBoxStyle}" Value="{Binding Studio.Properties.SearchVertical, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
                                 </UniformGrid>
-
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="4" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="6" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Content="−15°" Command="{Binding Studio.RotateLeft}" Style="{StaticResource SecondaryButton}" Width="44" Height="27" Padding="0" />
-                                    <Button Grid.Column="2" Content="＋15°" Command="{Binding Studio.RotateRight}" Style="{StaticResource SecondaryButton}" Width="44" Height="27" Padding="0" />
-                                    <Button Grid.Column="4" Content="수치 변경 적용" Command="{Binding Studio.ApplyProperties}" Style="{StaticResource PrimaryButton}" Height="27" />
-                                </Grid>
                             </StackPanel>
 
-                            <TextBlock Text="ROI를 클릭하면 위치·크기·회전·검색 여유(px)와 적용 알고리즘을 즉시 확인·편집할 수 있습니다."
+                            <TextBlock Text="ROI를 클릭하면 위치·크기·회전·검색 여유(px)를 즉시 편집할 수 있습니다."
                                        TextWrapping="Wrap"
-                                       FontSize="10.5"
+                                       FontSize="10"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
@@ -831,7 +833,7 @@
                                     <ui:NavigationViewItem Content="③ Few-Shot"
                                                            Command="{Binding SelectFewShotStage}"
                                                            IsActive="{Binding IsFewShotStage, Mode=OneWay}" />
-                                    <ui:NavigationViewItem Content="④ 7종 스위트"
+                                    <ui:NavigationViewItem Content="④ 정밀 티칭 툴"
                                                            Command="{Binding SelectSuiteStage}"
                                                            IsActive="{Binding IsSuiteStage, Mode=OneWay}" />
                                     <ui:NavigationViewItem Content="⑤ 필터·마스크"
@@ -840,69 +842,123 @@
                                 </ui:NavigationView.MenuItems>
                             </ui:NavigationView>
 
-                            <!-- Equal-Width 5-Item Fluent 2 Navigation Bar (Never Overflows into '...' on 1920x1080) -->
-                            <UniformGrid Columns="5">
-                                <Button Content="① 패턴 매칭" Command="{Binding SelectPatternStage}" Margin="0,0,3,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsPatternStage}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button Content="② 도형·마크" Command="{Binding SelectPrimitiveStage}" Margin="2,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsPrimitiveStage}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button Content="③ Few-Shot" Command="{Binding SelectFewShotStage}" Margin="2,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsFewShotStage}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button Content="④ 7종 스위트" Command="{Binding SelectSuiteStage}" Margin="2,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSuiteStage}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button Content="⑤ 필터·마스크" Command="{Binding SelectFilterMaskStage}" Margin="3,0,0,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsFilterMaskStage}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                            </UniformGrid>
+                            <StackPanel>
+                                <!-- Equal-Width 4x2 Direct Algorithm Category Selector Grid (Zero Catch-All Names, Fitted for 1920x1080) -->
+                                <UniformGrid Columns="4" Rows="2">
+                                    <Button Content="① 패턴 매칭 (5종)" Command="{Binding SelectPatternStage}" Margin="0,0,2,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="Shape(윤곽) / PatMax / CPU Line2D / CPU Sub-NCC / OpenCV 템플릿 매칭">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPatternStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="② 도형·마크 검출 (11종)" Command="{Binding SelectPrimitiveStage}" Margin="2,0,2,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="원·사각형·십자·도넛·사각테두리·더블스퀘어·다이아몬드·별·# 등 11종 기본 도형·PCB 마크 검출">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsPrimitiveStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="③ 치수·기하계측 (5종)" Command="{Binding SelectMetrologyCategoryStage}" Margin="2,0,2,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="1D 캘리퍼·직선·원 / 복합캘리퍼·타원 / 2-Rake 가상 코너 / 다중형상 GD&amp;T / 9-Point 캘리브레이션">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMetrologyCategoryStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="④ 블롭·표면·3D (6종)" Command="{Binding SelectSurface3DCategoryStage}" Margin="2,0,0,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="RLE 블롭·모폴로지 / 워터셰드 분리 / Steger 곡선비드 / 골든 마스터 변이 / PaDiM 패치 / 포토메트릭 3D 표면">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSurface3DCategoryStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="⑤ 바코드·OCR (5종)" Command="{Binding SelectCodeOcrCategoryStage}" Margin="0,2,2,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="1D 바코드 / 2D DataMatrix / 산업용 OCR·OCV / 경량 고속 OCR / CPU 딥러닝 OCR">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCodeOcrCategoryStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="⑥ AI·자동티칭 (2종)" Command="{Binding SelectAiAutoTeachingCategoryStage}" Margin="2,2,2,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="멀티파츠 자동 티칭(1회 티칭→N개 파츠 자동 생성) / 스위트 Few-Shot 이상 분류">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAiAutoTeachingCategoryStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="⑦ Few-Shot 분류" Command="{Binding SelectFewShotStage}" Margin="2,2,2,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="Edge Few-Shot 특징 추출 기반 정상/불량 프로토타입 분류">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFewShotStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="⑧ 선(先)필터·마스크" Command="{Binding SelectFilterMaskStage}" Margin="2,2,0,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="전처리 필터 파이프라인 구성 및 ROI 마스크·스타일 설정">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFilterMaskStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </UniformGrid>
+
+                                <!-- Pre-Filter Rule Banner & Preprocessing Category Pill + Recipe Save/Load -->
+                                <DockPanel Margin="0,4,0,0">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Content="조명·FFT·Gabor (2종)" Command="{Binding SelectPreprocessingCategoryStage}" Style="{StaticResource SecondaryButton}" Height="20" Padding="6,0" FontSize="9.5" Margin="0,0,6,0" ToolTip="2D 다항식 조명보정·비등방성 확산·재구성 / 2D FFT 노치·호모모픽·Gabor 필터" />
+                                        <Button Content="💾 레시피 저장" Command="{Binding Studio.SaveTeachingRecipe}" Style="{StaticResource SecondaryButton}" Height="20" Padding="6,0" FontSize="9.5" Margin="0,0,3,0" />
+                                        <Button Content="📂 불러오기" Command="{Binding Studio.LoadTeachingRecipe}" Style="{StaticResource SecondaryButton}" Height="20" Padding="6,0" FontSize="9.5" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Studio.Inspections.PreFilterRuleStatusText}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SystemAccentColorPrimaryBrush}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="전처리 필터 리스트에 활성화된 단계가 있으면 모든 본검사 전에 필터가 먼저 실행됩니다. 속도가 느려지면 ⑧ 선(先)필터·마스크 탭에서 체크 해제하거나 삭제하세요." />
+                                </DockPanel>
+                            </StackPanel>
                         </Grid>
                     </Border>
 

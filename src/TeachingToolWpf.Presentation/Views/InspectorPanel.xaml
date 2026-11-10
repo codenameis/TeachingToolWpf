@@ -31,7 +31,27 @@
                         </StackPanel>
                     </Border>
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">
-                        <ComboBox ItemsSource="{Binding Inspections.Tools}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding Inspections.Selected}" IsEnabled="{Binding Inspections.IsIdle}" AutomationProperties.Name="검사 도구" Margin="0,0,0,6"/>
+                        <DockPanel Margin="0,0,0,4">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="레시피 저장" Command="{Binding SaveTeachingRecipe}" Style="{StaticResource SecondaryButton}" Padding="7,2" FontSize="10" Margin="0,0,4,0"/>
+                                <Button Content="레시피 로드" Command="{Binding LoadTeachingRecipe}" Style="{StaticResource SecondaryButton}" Padding="7,2" FontSize="10"/>
+                            </StackPanel>
+                            <TextBlock Text="통합 티칭 · 검사 카테고리 허브" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <UniformGrid Columns="4" Margin="0,0,0,4">
+                            <Button Content="패턴 티칭" Command="{Binding Inspections.SelectCategoryPattern}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="0,0,3,3"/>
+                            <Button Content="도형·마크" Command="{Binding Inspections.SelectCategoryShapes}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="1,0,2,3"/>
+                            <Button Content="Few-Shot" Command="{Binding Inspections.SelectCategoryFewShot}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="2,0,1,3"/>
+                            <Button Content="계측·GD&amp;T" Command="{Binding Inspections.SelectCategorySuiteMetrology}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="3,0,0,3"/>
+                            <Button Content="외관·3D법선" Command="{Binding Inspections.SelectCategorySuiteSurface}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="0,0,3,0"/>
+                            <Button Content="1D/2D·OCR" Command="{Binding Inspections.SelectCategorySuiteCodeOcr}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="1,0,2,0"/>
+                            <Button Content="FFT·Gabor" Command="{Binding Inspections.SelectCategorySuitePreprocess}" Style="{StaticResource SecondaryButton}" Padding="4,3" FontSize="10" Margin="2,0,1,0"/>
+                            <Button Content="⚡즉시검사" Command="{Binding Inspections.ExecuteActiveToolOnRois}" Style="{StaticResource PrimaryButton}" Padding="4,3" FontSize="10" Margin="3,0,0,0"/>
+                        </UniformGrid>
+                        <ComboBox ItemsSource="{Binding Inspections.Tools}" DisplayMemberPath="Name" SelectedValuePath="Kind" SelectedValue="{Binding Inspections.Selected}" IsEnabled="{Binding Inspections.IsIdle}" AutomationProperties.Name="검사 도구" Margin="0,0,0,5"/>
+                        <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,0,5">
+                            <TextBlock Text="{Binding Inspections.PreFilterRuleStatusText}" FontSize="10" FontWeight="SemiBold" Foreground="#0369A1" TextWrapping="Wrap"/>
+                        </Border>
                         <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="10,6" IsEnabled="{Binding Inspections.IsIdle}">
                             <StackPanel>
                                 <DockPanel>

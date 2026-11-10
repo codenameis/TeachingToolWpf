@@ -112,7 +112,9 @@ public sealed partial class ShapeMatchingViewModel
     private async Task SearchMultipleRoisAsync(long startedTimestamp)
     {
         var image = _image!;
-        var targets = _targetRois;
+        var targets = _state is not null
+            ? InspectionSelection.ResolveTargetLeafRois(_state, _lastTransformPreview)
+            : [];
         var method = Method;
         var live = _live;
 

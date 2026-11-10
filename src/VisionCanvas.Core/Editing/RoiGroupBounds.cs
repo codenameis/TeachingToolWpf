@@ -15,6 +15,11 @@ internal static class RoiGroupBounds
 
     public static bool Contains(DocumentState state, IEnumerable<Guid> changedIds, DocumentState? before = null)
     {
+        if (state.Snapshot.Children.IsEmpty)
+        {
+            return true;
+        }
+
         foreach (var id in changedIds)
         {
             var group = state.Rois[id];
@@ -50,7 +55,7 @@ internal static class RoiGroupBounds
 
     public static (RoiGeometry Parent, RoiGeometry Child)[] StationaryParents(DocumentState state, IReadOnlySet<Guid> moving)
     {
-        if (moving.Count == 0 || moving.Count == state.Rois.Count)
+        if (moving.Count == 0 || moving.Count == state.Rois.Count || state.Snapshot.Children.IsEmpty)
         {
             return [];
         }

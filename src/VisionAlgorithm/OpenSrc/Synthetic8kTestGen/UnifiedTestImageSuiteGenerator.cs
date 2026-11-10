@@ -23,6 +23,18 @@ public static class UnifiedTestImageSuiteGenerator
     public const int PartCanvasWidth = 1024;
     public const int PartCanvasHeight = 768;
 
+    public const float Case04PartACenterX = 280.37f;
+    public const float Case04PartACenterY = 319.76f;
+    public const float Case04PartAAngleDeg = 23.7f;
+
+    public const float Case04PartBCenterX = 660.42f;
+    public const float Case04PartBCenterY = 340.18f;
+    public const float Case04PartBAngleDeg = -41.3f;
+
+    public const float Case04PartCCenterX = 979.63f;
+    public const float Case04PartCCenterY = 600.29f;
+    public const float Case04PartCAngleDeg = 112.4f;
+
     private const byte DefaultBgIntensity = 232; // Light background (darkOnLight = true)
     private const byte DefaultFgIntensity = 28;  // Dark ink foreground
     private const float ErfBlurScale = 0.85f;
@@ -501,8 +513,8 @@ public static class UnifiedTestImageSuiteGenerator
         {
             for (int x = minX; x <= maxX; x++)
             {
-                float dx = x - centerX;
-                float dy = y - centerY;
+                float dx = (x + 0.5f) - centerX;
+                float dy = (y + 0.5f) - centerY;
                 float lx = dx * cos + dy * sin;
                 float ly = -dx * sin + dy * cos;
 
@@ -879,9 +891,9 @@ public static class UnifiedTestImageSuiteGenerator
 
         if (!includeDistractors)
         {
-            RenderPartIntoBuffer(pixels, width, height, width, partType: 1, centerX: 280f, centerY: 320f, angleDeg: 23.5f);
-            RenderPartIntoBuffer(pixels, width, height, width, partType: 2, centerX: 660f, centerY: 340f, angleDeg: -41.2f);
-            RenderPartIntoBuffer(pixels, width, height, width, partType: 3, centerX: 980f, centerY: 600f, angleDeg: 112.0f);
+            RenderPartIntoBuffer(pixels, width, height, width, partType: 1, centerX: Case04PartACenterX, centerY: Case04PartACenterY, angleDeg: Case04PartAAngleDeg);
+            RenderPartIntoBuffer(pixels, width, height, width, partType: 2, centerX: Case04PartBCenterX, centerY: Case04PartBCenterY, angleDeg: Case04PartBAngleDeg);
+            RenderPartIntoBuffer(pixels, width, height, width, partType: 3, centerX: Case04PartCCenterX, centerY: Case04PartCCenterY, angleDeg: Case04PartCAngleDeg);
         }
         else
         {

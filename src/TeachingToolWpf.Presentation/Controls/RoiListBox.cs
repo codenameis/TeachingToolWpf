@@ -20,6 +20,14 @@ public sealed class RoiListBox : ListBox
     private RoiRows? _pageRows;
     public event Action<RoiRow>? SingleSelectionRequested;
 
+    public RoiListBox()
+    {
+        VirtualizingPanel.SetIsVirtualizing(this, true);
+        VirtualizingPanel.SetVirtualizationMode(this, VirtualizationMode.Recycling);
+        VirtualizingPanel.SetScrollUnit(this, ScrollUnit.Item);
+        ScrollViewer.SetCanContentScroll(this, true);
+    }
+
     internal static RoiRow? RowFromItem(object? item) => item switch { RoiListSlot slot => slot.Row, RoiRow row => row, _ => null };
 
     internal void ShowPage(RoiRows rows)
@@ -155,6 +163,10 @@ internal sealed class RoiListSlot(RoiRow row) : ObservableObject
 
     public bool HasVerdict => Row.HasVerdict;
 
+    public bool HasPatternThumbnail => Row.HasPatternThumbnail;
+
+    public System.Windows.Media.ImageSource? PatternThumbnail => Row.PatternThumbnail;
+
     public override string ToString() => Label;
 
     public void Update(RoiRow next)
@@ -201,6 +213,12 @@ internal sealed class RoiListSlot(RoiRow row) : ObservableObject
         if (previous.VerdictAccent != next.VerdictAccent)
         {
             Notify(nameof(VerdictAccent));
+        }
+
+        if (!ReferenceEquals(previous.PatternThumbnail, next.PatternThumbnail))
+        {
+            Notify(nameof(PatternThumbnail));
+            Notify(nameof(HasPatternThumbnail));
         }
     }
 }

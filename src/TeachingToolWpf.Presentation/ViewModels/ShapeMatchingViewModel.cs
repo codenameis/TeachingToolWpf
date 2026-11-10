@@ -17,6 +17,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
 {
     private readonly IShapeMatchingService _service;
     private ImageReference? _image;
+    private DocumentState? _state;
     private object? _lastRois;
     private object? _lastSelection;
     private RoiTransformPreview? _lastTransformPreview;
@@ -25,7 +26,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
     private RoiExclusion? _selectionExclusion;
     private Guid? _selectedRoiId;
     private string? _selectedRoiName;
-    private ImmutableArray<InspectionSelection> _targetRois = [];
+    private int _targetRoiCount;
     private long _generation;
     private bool _live;
     private bool _canExecute;
@@ -185,7 +186,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
         _cpuService = cpuService;
         _patMaxService = patMaxService;
         Train = new(TrainSelectedOrDefaultAsync, Failed, CanTrainCurrentRoi);
-        Search = new(SearchAsync, Failed, () => IsIdle && _canExecute && _image is not null && HasModel && HasEnabledRegisteredPatterns && !IsTrainingDirty && OptionsError.Length == 0 && (!UseSelection || _selection is not null || _targetRois.Length > 0));
+        Search = new(SearchAsync, Failed, () => IsIdle && _canExecute && _image is not null && HasModel && HasEnabledRegisteredPatterns && !IsTrainingDirty && OptionsError.Length == 0 && (!UseSelection || _selection is not null || _targetRoiCount > 0));
         Cancel = new(() => _cancellation?.Cancel(), () => _cancellation is not null);
         Clear = new(ClearModel, () => IsIdle && (HasModel || HasRegisteredPatterns));
         OpenPatternMaskEditor = new(() => PatternMaskEditorRequested?.Invoke(), () => IsIdle && _canExecute && _image is not null && _selection is not null);
@@ -217,6 +218,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
         {
             var dragSelection = InspectionSelection.Resolve(state, update.TransformPreview);
             var dragSelectionChanged = _selection != dragSelection.Selection || _selectionExclusion != dragSelection.Exclusion;
+            _state = state;
             _lastRois = state.Rois;
             _lastSelection = state.Selection;
             _lastTransformPreview = update.TransformPreview;
@@ -225,7 +227,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
             _selectionExclusion = dragSelection.Exclusion;
             _selectedRoiId = dragSelection.RoiId;
             _selectedRoiName = dragSelection.RoiName;
-            _targetRois = InspectionSelection.ResolveTargetLeafRois(state, update.TransformPreview);
+            _targetRoiCount = InspectionSelection.CountTargetLeafRois(state);
             if (dragSelectionChanged)
             {
                 _previewShapeModel = null;
@@ -244,7 +246,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
         }
 
         var selection = InspectionSelection.Resolve(state, update.TransformPreview);
-        var targetRois = InspectionSelection.ResolveTargetLeafRois(state, update.TransformPreview);
+        var targetRoiCount = InspectionSelection.CountTargetLeafRois(state);
         var wasDirty = IsTrainingDirty;
         if (!ReferenceEquals(_lastRois, state.Rois))
         {
@@ -280,6 +282,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
         {
             Invalidate();
         }
+        _state = state;
         _lastRois = state.Rois;
         _lastSelection = state.Selection;
         _lastTransformPreview = update.TransformPreview;
@@ -290,7 +293,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
         _selectionExclusion = selection.Exclusion;
         _selectedRoiId = selection.RoiId;
         _selectedRoiName = selection.RoiName;
-        _targetRois = targetRois;
+        _targetRoiCount = targetRoiCount;
         _live = update.Live;
         _inputAvailable = update.CanExecute;
         _toolAvailable = update.ToolAvailable;
@@ -389,7 +392,7 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
             await SearchRegisteredPatternsAsync(startedTimestamp);
             return;
         }
-        if (UseSelection && _selection is null && _targetRois.Length > 0)
+        if (UseSelection && _selection is null && _targetRoiCount > 0)
         {
             await SearchMultipleRoisAsync(startedTimestamp);
             return;
@@ -610,34 +613,41 @@ public sealed partial class ShapeMatchingViewModel : ObservableObject, IVisionAl
     private bool Current(long epoch, CancellationToken token, PatternMatchingMethod method)
         => Current(epoch, token) && Method == method;
 
-    private void Invalidate()
+    private void Invalidate(bool keepLivePreview = false)
     {
         _epoch++;
         _cancellation?.Cancel();
-        CancelLivePreview();
+        CancelLivePreview(clearCurrentOverlay: !keepLivePreview);
         if (_result is not null || _cancellation is not null)
         {
-            ResetResult("입력 변경 · 다시 검사하세요.");
+            if (keepLivePreview && _livePreview is null && _result is not null)
+            {
+                _livePreview = _result;
+            }
+            ResetResult("입력 변경 · 다시 검사하세요.", clearLivePreview: !keepLivePreview);
         }
     }
 
-    private void CancelLivePreview()
+    private void CancelLivePreview(bool clearCurrentOverlay = true)
     {
         Interlocked.Increment(ref _previewGeneration);
         Interlocked.Exchange(ref _pendingPreview, null);
         _previewCancellation?.Cancel();
-        if (_livePreview is not null)
+        if (clearCurrentOverlay && _livePreview is not null)
         {
             _livePreview = null;
             Changed?.Invoke();
         }
     }
 
-    private void ResetResult(string message)
+    private void ResetResult(string message, bool clearLivePreview = true)
     {
         ResetResultRows();
         _result = null;
-        _livePreview = null;
+        if (clearLivePreview)
+        {
+            _livePreview = null;
+        }
         Verdict = null;
         Status = message;
         Results = message;

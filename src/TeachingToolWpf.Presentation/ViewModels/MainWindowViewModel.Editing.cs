@@ -152,6 +152,7 @@ public sealed partial class MainWindowViewModel
             throw new InvalidOperationException("1억 ROI 테스트에는 가로·세로 556px 이상의 이미지가 필요합니다.");
         }
 
+        _activeMassiveModel = null;
         var geometries = CreateGridGeometries(BatchGridSideCount, BatchGridSideCount, Math.Min(image.Width, image.Height) * .45 / BatchGridSideCount, new(image.Width / 2d, image.Height / 2d));
         Session.AddRange(geometries, selectAdded: true, isNameVisible: false);
         SetTool(VisionCanvas.Core.Interaction.EditorTool.Select);

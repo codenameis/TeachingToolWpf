@@ -1,3 +1,7 @@
+using System.Collections.Immutable;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using VisionAlgorithm.OpenSrc.Preprocessing;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionImaging.Abstractions;
@@ -9,7 +13,7 @@ public sealed record FilterOption(RoiFilterKind Kind, string Label)
     public override string ToString() => Label;
 }
 
-/// <summary>UI-owned preview session, with one worker and one replaceable pending request.</summary>
+/// <summary>UI-owned preview session, with one worker, one replaceable pending request, and an ordered multi-step filter pipeline list.</summary>
 public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposable
 {
     private const string RequestedCpuOnlyReason = "CpuOnly was requested.";
@@ -22,6 +26,9 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     private bool _busy;
     private bool _disposed;
     private bool _previewEnabled = true;
+    private bool _preFilterBeforeInspection = true;
+    private bool _isHelpManualOpen;
+    private bool _suppressPipelineSync;
     private bool _editing;
     private RoiFilterKind _selectedFilter;
     private string _threshold = "128";
@@ -31,6 +38,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     private string _sigma = "1";
     private RoiFilterExecution _execution;
     private string _status = "필터를 선택한 뒤 미리보기를 누르세요.";
+    private string _pipelineSummaryText = "전처리 파이프라인: 0단계 (필터 없음 — 원본 직접 검사)";
+    private string _roiHistogramSummaryText = "히스토그램(256-Bin): ROI 필터 미리보기 시 Otsu 임계값·평균·표준편차 자동 계산";
+    private string _roiLineProfileSummaryText = "1D 중심선 프로파일: 수평/수직 평균 밝기 및 최대 에지 기울기(ΔI) 대기";
+    private FilterPipelineStepItem? _selectedPipelineStep;
     private FilterRequest? _pending;
     private FilterRequest? _requested;
     private CancellationTokenSource? _cancellation;
@@ -38,6 +49,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     private Task? _pump;
     private FilterPreviewResult? _result;
     private RoiTransformPreview? _transformPreview;
+
+    public ObservableCollection<FilterPipelineStepItem> PipelineSteps { get; } = [];
+
+    public event Action<ImmutableArray<FilterSettings>, bool>? ActivePipelineChanged;
 
     public IReadOnlyList<FilterOption> Options { get; } =
     [
@@ -59,10 +74,70 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         new(RoiFilterKind.WarpAffineShear, "[워핑] Affine & Shear · 회전/전단 보정"),
         new(RoiFilterKind.WarpPerspectiveKeystone, "[워핑] Perspective Keystone · 원근 사다리꼴 보정"),
         new(RoiFilterKind.WarpPolarUnwrap, "[워핑] Polar Ring Unwrap · 원형 링 직선 전개"),
-        new(RoiFilterKind.WarpLensUndistort, "[워핑] Lens Undistort · 방사/접선 렌즈 왜곡 보정")
+        new(RoiFilterKind.WarpLensUndistort, "[워핑] Lens Undistort · 방사/접선 렌즈 왜곡 보정"),
+        new(RoiFilterKind.FftNotch, "[주파수] 2D FFT Periodic Notch · 모아레/메쉬 격자 제거"),
+        new(RoiFilterKind.Homomorphic, "[조명분리] Homomorphic · 로그 조명·반사율 분리"),
+        new(RoiFilterKind.GaborTexture, "[텍스처] 2D Gabor Filter · 방향성 스크래치/크랙 강조")
     ];
 
     public IReadOnlyList<RoiFilterExecution> ExecutionOptions { get; } = Enum.GetValues<RoiFilterExecution>();
+
+    public bool PreFilterBeforeInspection
+    {
+        get => _preFilterBeforeInspection;
+        set
+        {
+            if (Set(ref _preFilterBeforeInspection, value))
+            {
+                UpdatePipelineSummary();
+                RaiseActivePipelineChanged();
+            }
+        }
+    }
+
+    public bool IsHelpManualOpen
+    {
+        get => _isHelpManualOpen;
+        set => Set(ref _isHelpManualOpen, value);
+    }
+
+    public string PipelineSummaryText
+    {
+        get => _pipelineSummaryText;
+        private set => Set(ref _pipelineSummaryText, value);
+    }
+
+    public string RoiHistogramSummaryText
+    {
+        get => _roiHistogramSummaryText;
+        private set => Set(ref _roiHistogramSummaryText, value);
+    }
+
+    public string RoiLineProfileSummaryText
+    {
+        get => _roiLineProfileSummaryText;
+        private set => Set(ref _roiLineProfileSummaryText, value);
+    }
+
+    public FilterPipelineStepItem? SelectedPipelineStep
+    {
+        get => _selectedPipelineStep;
+        set
+        {
+            if (Set(ref _selectedPipelineStep, value) && value is not null && !_suppressPipelineSync)
+            {
+                _suppressPipelineSync = true;
+                try
+                {
+                    LoadSettings(value.Settings);
+                }
+                finally
+                {
+                    _suppressPipelineSync = false;
+                }
+            }
+        }
+    }
 
     public RoiFilterKind SelectedFilter
     {
@@ -127,6 +202,9 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         RoiFilterKind.WarpPerspectiveKeystone => "키스톤 수평 원근 제어 · 0–255 (128 = 대칭)",
         RoiFilterKind.WarpPolarUnwrap => "극좌표 링 내경 비율 · 0–255",
         RoiFilterKind.WarpLensUndistort => "렌즈 방사 왜곡 계수 k1 · 0–255 (128 = 0)",
+        RoiFilterKind.FftNotch => "FFT 피크 감도 스케일 · 0–255 (128 = 4.5배)",
+        RoiFilterKind.Homomorphic => "저주파 조명 감쇠율 γL · 0–255 (90 = 0.35)",
+        RoiFilterKind.GaborTexture => "Gabor 방향 각도 θ · 0–255 (0°–180°)",
         _ => "원본 명암 임계값 · Gray8 0–255 / Gray16 0–65535"
     };
 
@@ -224,6 +302,16 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public RelayCommand ClearRegistration { get; }
 
+    public RelayCommand AddStepToPipeline { get; }
+
+    public RelayCommand RemoveSelectedStep { get; }
+
+    public RelayCommand MoveSelectedStepUp { get; }
+
+    public RelayCommand MoveSelectedStepDown { get; }
+
+    public RelayCommand ToggleHelpManual { get; }
+
     public Task WhenIdle => _pump ?? Task.CompletedTask;
 
     public void RefreshLiveFrame()
@@ -251,10 +339,193 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         Stop = new(StopPreview, () => IsActive);
         ClearRegistration = new(() =>
         {
+            _suppressPipelineSync = true;
+            try
+            {
+                PipelineSteps.Clear();
+                SelectedPipelineStep = null;
+                SelectedFilter = RoiFilterKind.None;
+            }
+            finally
+            {
+                _suppressPipelineSync = false;
+            }
+
+            editor.SetFilterPipeline([]);
             editor.SetFilters(new(RoiFilterKind.None));
             Update(editor.State, _live);
+            UpdatePipelineSummary();
+            RaiseActivePipelineChanged();
+            RefreshCommands();
         },
-            () => !editor.IsPreviewing && !_document.SelectionFacts.RegisteredFilters.IsEmpty);
+            () => !editor.IsPreviewing && (!_document.SelectionFacts.RegisteredFilters.IsEmpty || PipelineSteps.Count > 0 || SelectedFilter != RoiFilterKind.None));
+
+        AddStepToPipeline = new(AddCurrentFilterStep, () => SelectedFilter != RoiFilterKind.None && !editor.IsPreviewing);
+        RemoveSelectedStep = new(RemoveCurrentFilterStep, () => SelectedPipelineStep is not null && !editor.IsPreviewing);
+        MoveSelectedStepUp = new(() => MoveCurrentFilterStep(-1), () => SelectedPipelineStep is not null && PipelineSteps.IndexOf(SelectedPipelineStep) > 0);
+        MoveSelectedStepDown = new(() => MoveCurrentFilterStep(1), () => SelectedPipelineStep is not null && PipelineSteps.IndexOf(SelectedPipelineStep) >= 0 && PipelineSteps.IndexOf(SelectedPipelineStep) < PipelineSteps.Count - 1);
+        ToggleHelpManual = new(() => IsHelpManualOpen = !IsHelpManualOpen);
+    }
+
+    public ImmutableArray<FilterSettings> BuildEffectivePipeline()
+    {
+        if (!PreFilterBeforeInspection)
+        {
+            return [];
+        }
+
+        if (PipelineSteps.Count > 0)
+        {
+            return PipelineSteps
+                .Where(static s => s.IsEnabled && s.Settings.Kind != RoiFilterKind.None)
+                .Select(static s => s.Settings)
+                .ToImmutableArray();
+        }
+
+        if (TryReadSettings(out var current) && current.Kind != RoiFilterKind.None && current.IsEnabled)
+        {
+            return [current];
+        }
+
+        return [];
+    }
+
+    public void LoadRecipePipeline(IEnumerable<FilterSettings> steps, bool preFilterBeforeInspection = true)
+    {
+        _suppressPipelineSync = true;
+        try
+        {
+            PreFilterBeforeInspection = preFilterBeforeInspection;
+            PipelineSteps.Clear();
+            var idx = 1;
+            foreach (var s in steps)
+            {
+                if (s.Kind == RoiFilterKind.None)
+                {
+                    continue;
+                }
+
+                PipelineSteps.Add(new FilterPipelineStepItem(idx++, s, OnPipelineStepItemToggled));
+            }
+
+            SelectedPipelineStep = PipelineSteps.LastOrDefault();
+            if (SelectedPipelineStep is { } last)
+            {
+                LoadSettings(last.Settings);
+            }
+        }
+        finally
+        {
+            _suppressPipelineSync = false;
+        }
+
+        CommitPipelineToSelection();
+    }
+
+    private void AddCurrentFilterStep()
+    {
+        if (!TryReadSettings(out var settings) || settings.Kind == RoiFilterKind.None)
+        {
+            return;
+        }
+
+        var item = new FilterPipelineStepItem(PipelineSteps.Count + 1, settings with { IsEnabled = true }, OnPipelineStepItemToggled);
+        PipelineSteps.Add(item);
+        SelectedPipelineStep = item;
+        CommitPipelineToSelection();
+    }
+
+    private void RemoveCurrentFilterStep()
+    {
+        if (SelectedPipelineStep is not { } target || !PipelineSteps.Remove(target))
+        {
+            return;
+        }
+
+        RenumberPipelineSteps();
+        SelectedPipelineStep = PipelineSteps.LastOrDefault();
+        CommitPipelineToSelection();
+    }
+
+    private void MoveCurrentFilterStep(int delta)
+    {
+        if (SelectedPipelineStep is not { } target)
+        {
+            return;
+        }
+
+        var idx = PipelineSteps.IndexOf(target);
+        var nextIdx = idx + delta;
+        if (idx < 0 || nextIdx < 0 || nextIdx >= PipelineSteps.Count)
+        {
+            return;
+        }
+
+        PipelineSteps.Move(idx, nextIdx);
+        RenumberPipelineSteps();
+        SelectedPipelineStep = target;
+        CommitPipelineToSelection();
+    }
+
+    private void RenumberPipelineSteps()
+    {
+        for (var i = 0; i < PipelineSteps.Count; i++)
+        {
+            PipelineSteps[i].RefreshStepOrder(i + 1);
+        }
+    }
+
+    private void OnPipelineStepItemToggled(FilterPipelineStepItem step)
+    {
+        if (_suppressPipelineSync)
+        {
+            return;
+        }
+
+        CommitPipelineToSelection();
+    }
+
+    private void CommitPipelineToSelection()
+    {
+        UpdatePipelineSummary();
+        RaiseActivePipelineChanged();
+        if (_document.Selection.Count > 0 && !_editor.IsPreviewing)
+        {
+            var all = PipelineSteps.Select(static s => s.Settings).ToImmutableArray();
+            _editor.SetFilterPipeline(all);
+            Update(_editor.State, _live);
+            Schedule(force: true, invalidate: true);
+        }
+        else
+        {
+            RefreshCommands();
+        }
+    }
+
+    private void UpdatePipelineSummary()
+    {
+        var enabled = PipelineSteps.Where(static s => s.IsEnabled && s.Settings.Kind != RoiFilterKind.None).ToList();
+        if (enabled.Count > 0)
+        {
+            var prefix = PreFilterBeforeInspection ? "[선(先)필터 → 후(後)검사 ON]" : "[선필터 우회]";
+            var chain = string.Join(" → ", enabled.Select(static s => s.Settings.Kind.ToString()));
+            PipelineSummaryText = $"{prefix} 활성 {enabled.Count}/{PipelineSteps.Count}단계: {chain}";
+            return;
+        }
+
+        if (SelectedFilter != RoiFilterKind.None)
+        {
+            var prefix = PreFilterBeforeInspection ? "[선(先)필터 → 후(後)검사 ON]" : "[선필터 우회]";
+            PipelineSummaryText = $"{prefix} 단일 필터: {SelectedFilter}";
+            return;
+        }
+
+        PipelineSummaryText = "전처리 파이프라인: 0단계 (필터 없음 — 원본 직접 검사)";
+    }
+
+    private void RaiseActivePipelineChanged()
+    {
+        ActivePipelineChanged?.Invoke(BuildEffectivePipeline(), PreFilterBeforeInspection);
     }
 
     public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null, PixelKind? pixelKind = null)
@@ -282,10 +553,34 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         if (selectionChanged || settingsChanged)
         {
             ResetParameterEdit();
-            LoadSettings(state.SelectionFacts.First?.Filter ?? new(RoiFilterKind.None));
+            var firstRoi = state.SelectionFacts.First;
+            LoadSettings(firstRoi?.Filter ?? new(RoiFilterKind.None));
+            if (firstRoi is not null && !firstRoi.EffectiveFilterPipeline.IsEmpty)
+            {
+                _suppressPipelineSync = true;
+                try
+                {
+                    PipelineSteps.Clear();
+                    var order = 1;
+                    foreach (var step in firstRoi.EffectiveFilterPipeline)
+                    {
+                        PipelineSteps.Add(new FilterPipelineStepItem(order++, step, OnPipelineStepItemToggled));
+                    }
+
+                    SelectedPipelineStep = PipelineSteps.LastOrDefault();
+                }
+                finally
+                {
+                    _suppressPipelineSync = false;
+                }
+            }
+
+            UpdatePipelineSummary();
+            RaiseActivePipelineChanged();
         }
         var invalidate = selectionChanged || settingsChanged || sourceChanged;
-        Schedule(invalidate: invalidate, keepVisible: !invalidate);
+        var keepExistingVisible = !invalidate || (!selectionChanged && !sourceChanged && _result is not null && SelectedFilter != RoiFilterKind.None);
+        Schedule(invalidate: invalidate, keepVisible: keepExistingVisible);
         RefreshCommands();
     }
 
@@ -321,7 +616,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     private bool HasSelectedFilterSettingsChanged(DocumentState state)
         => !ReferenceEquals(_document.Rois, state.Rois) &&
-           state.Selection.Any(id => !_document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter);
+           state.Selection.Any(id => !_document.Rois.TryGetValue(id, out var old) || old.Filter != state.Rois[id].Filter || !old.FilterPipeline.SequenceEqual(state.Rois[id].FilterPipeline));
 
     private void DraftChanged()
     {
@@ -339,19 +634,42 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
             Register();
         }
 
+        UpdatePipelineSummary();
+        RaiseActivePipelineChanged();
         RefreshCommands();
     }
 
     private void Register()
     {
-        if (_disposed || _editor.IsPreviewing || _document.Selection.Count == 0)
+        if (_disposed || _editor.IsPreviewing)
         {
             return;
         }
 
         if (TryReadSettings(out var settings))
         {
-            _editor.SetFilters(settings);
+            if (SelectedPipelineStep is not null && settings.Kind != RoiFilterKind.None && !_suppressPipelineSync)
+            {
+                SelectedPipelineStep.UpdateSettings(settings);
+            }
+
+            UpdatePipelineSummary();
+            RaiseActivePipelineChanged();
+
+            if (_document.Selection.Count == 0)
+            {
+                return;
+            }
+
+            if (PipelineSteps.Count > 0)
+            {
+                _editor.SetFilterPipeline(PipelineSteps.Select(static s => s.Settings).ToImmutableArray());
+            }
+            else
+            {
+                _editor.SetFilters(settings);
+            }
+
             Update(_editor.State, _live);
             Schedule(force: true, invalidate: true);
         }
@@ -366,6 +684,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         BeginParameterEdit?.Refresh();
         EndParameterEdit?.Refresh();
         CancelParameterEdit?.Refresh();
+        AddStepToPipeline?.Refresh();
+        RemoveSelectedStep?.Refresh();
+        MoveSelectedStepUp?.Refresh();
+        MoveSelectedStepDown?.Refresh();
     }
 
     private void ClearResult()
@@ -396,14 +718,19 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         {
             var idleStatus = !IsPreviewEnabled
                 ? "미리보기 꺼짐 · 등록 설정 유지"
-                : "등록된 필터 없음 · 필터 선택 후 설정을 적용하세요.";
+                : "등록된 필터 없음 · 필터 선택 후 설정을 적용하거나 리스트에 추가하세요.";
             ResetPendingSchedule(idleStatus);
             return;
         }
 
         try
         {
-            var next = new FilterRequest(_document.Image!, _live, rois, _transformPreview) { OverrideSettings = _draftSettings };
+            var activePipeline = BuildEffectivePipeline();
+            var next = new FilterRequest(_document.Image!, _live, rois, _transformPreview)
+            {
+                OverrideSettings = _draftSettings,
+                OverridePipeline = activePipeline.IsEmpty ? null : activePipeline
+            };
             if (!force && IsSameFilterRequest(_requested, next))
             {
                 return;
@@ -423,6 +750,8 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         previous.IsLive == next.IsLive &&
         previous.Transform == next.Transform &&
         previous.OverrideSettings == next.OverrideSettings &&
+        ((previous.OverridePipeline is null && next.OverridePipeline is null) ||
+         (previous.OverridePipeline is { } p1 && next.OverridePipeline is { } p2 && p1.SequenceEqual(p2))) &&
         previous.Rois.SequenceEqual(next.Rois);
 
     private void QueueFilterRequest(FilterRequest next, bool keepVisible, bool invalidate)
@@ -480,6 +809,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
                     }
 
                     _result = output;
+                    UpdateHistogramFromResult(output);
                     var state = _pending is null ? "미리보기 켜짐" : "갱신 중 · 마지막 완료 결과 표시";
                     Status = $"{state} · {output.Regions.Count}개 ROI · 전체 {output.Milliseconds:F0} ms\n{DescribeExecution(output)}";
                     Changed?.Invoke();
@@ -510,6 +840,28 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         }
     }
 
+    private void UpdateHistogramFromResult(FilterPreviewResult output)
+    {
+        if (output.Regions.Count == 0)
+        {
+            return;
+        }
+
+        var first = output.Regions[0];
+        if (first.Width <= 4 || first.Height <= 4 || first.Gray8.Length < first.Width * first.Height)
+        {
+            return;
+        }
+
+        var summary = FrequencyAndTextureFilterEngine.ComputeRoiHistogramAndProfile(first.Gray8, first.Width, first.Height, first.Width);
+        RoiHistogramSummaryText = string.Create(
+            CultureInfo.InvariantCulture,
+            $"히스토그램(256-Bin) | Otsu T={summary.OtsuThreshold} | 평균={summary.MeanIntensity:F1}, σ={summary.StdDevIntensity:F1}, Min={summary.MinIntensity}, Max={summary.MaxIntensity}");
+        RoiLineProfileSummaryText = string.Create(
+            CultureInfo.InvariantCulture,
+            $"1D 중심선 프로파일 | 수평 평균={summary.HorizontalCenterMean:F1} (최대 ΔI={summary.HorizontalPeakGradient:F0}) | 수직 평균={summary.VerticalCenterMean:F1} (최대 ΔI={summary.VerticalPeakGradient:F0})");
+    }
+
     public void Dispose()
     {
         _disposed = true;
@@ -525,7 +877,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         var reports = output.Regions.Where(region => region.Execution is not null).Select(region => region.Execution!).ToArray();
         if (reports.Length == 0)
         {
-            return "OpenCV · CPU";
+            return "OpenCV / OpenSrc · CPU";
         }
         var stages = reports.SelectMany(report => report.Stages).ToArray();
         var devices = string.Join(", ", stages.Select(stage => stage.Device == "CPU" ? "CPU" : "CUDA · " + stage.Device).Distinct());

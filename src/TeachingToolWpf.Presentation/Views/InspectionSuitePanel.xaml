@@ -10,22 +10,45 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 상단 고정 영역: 서브 알고리즘 선택 + 원클릭 샘플 로더 -->
+        <!-- 상단 고정 영역: 알고리즘 콤보박스 선택 + 전용 샘플 로더 -->
         <StackPanel Grid.Row="0" Margin="0,0,0,6" IsEnabled="{Binding IsIdle}">
-            <TextBlock Text="정밀 검사 알고리즘 선택" Style="{StaticResource Caption}" Margin="0,0,0,4"/>
+            <DockPanel Margin="0,0,0,4">
+                <Button DockPanel.Dock="Right" Content="? 매뉴얼" Command="{Binding ToggleHelpManual}" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="10.5" FontWeight="Bold"
+                        ToolTip="현재 선택된 정밀 검사·전처리 알고리즘의 상세 수식 원리·단계별 티칭·파라미터 튜닝 매뉴얼을 펼치거나 닫습니다." AutomationProperties.Name="검사 스위트 알고리즘 매뉴얼 열기"/>
+                <TextBlock Text="정밀 검사·티칭 알고리즘 선택 (콤보박스 선택 시 아래 전용 파라미터 페이지 전환)" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+            </DockPanel>
             <ComboBox ItemsSource="{Binding Algorithms}"
                       DisplayMemberPath="Name"
                       SelectedValuePath="Kind"
                       SelectedValue="{Binding SelectedAlgorithm}"
                       AutomationProperties.Name="검사 스위트 서브 알고리즘"
                       Margin="0,0,0,6"/>
+            <Border Visibility="{Binding IsHelpManualOpen, Converter={StaticResource BoolVisibility}}"
+                    BorderBrush="#0284C7" BorderThickness="3,1,1,1" Background="#F0F9FF" CornerRadius="4" Padding="9,7" Margin="0,0,0,6">
+                <StackPanel DataContext="{Binding ActiveHelpManual}">
+                    <DockPanel Margin="0,0,0,4">
+                        <Button DockPanel.Dock="Right" Content="닫기 ✕" Command="{Binding DataContext.ToggleHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                Style="{StaticResource SecondaryButton}" Padding="6,1" FontSize="9.5"/>
+                        <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="11" Foreground="#0369A1" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="10" FontWeight="SemiBold" Foreground="#0284C7" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 핵심 원리 및 수식" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding PrincipleAndFormula}" FontSize="10" Foreground="#334155" TextWrapping="Wrap" LineHeight="14" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 단계별 티칭 및 사용 방법" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding StepByStepGuide}" FontSize="10" Foreground="#334155" TextWrapping="Wrap" LineHeight="14" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 주요 파라미터 튜닝 가이드" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding ParameterTuningGuide}" FontSize="10" Foreground="#334155" TextWrapping="Wrap" LineHeight="14" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 현장 트러블슈팅 팁" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding TroubleshootingTips}" FontSize="10" Foreground="#0369A1" TextWrapping="Wrap" LineHeight="14"/>
+                </StackPanel>
+            </Border>
             <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0"
-                        Content="현재 알고리즘 샘플 열기 (1200×800)"
+                        Content="▶ 선택 알고리즘 샘플 + 티칭 ROI 배치"
                         Command="{Binding LoadSelectedAlgorithmSample}"
                         Style="{StaticResource SecondaryButton}"
                         Margin="0,0,6,0"
@@ -37,17 +60,6 @@
                         Padding="10,0"
                         ToolTip="검출된 ROI/캘리퍼 위치로 캔버스 화면을 맞춥니다."/>
             </Grid>
-            <Expander Header="7종 알고리즘별 샘플 빠른 전환" IsExpanded="False" Margin="0,2,0,2">
-                <UniformGrid Columns="2" Margin="0,6,0,2">
-                    <Button Content="1. 캘리퍼·기하계측" Command="{Binding LoadMetrologySample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,4" FontSize="10.5"/>
-                    <Button Content="2. 골든 배리에이션" Command="{Binding LoadGoldenVariationSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,4" FontSize="10.5"/>
-                    <Button Content="3. 고속 RLE 블롭" Command="{Binding LoadBlobRleSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,4" FontSize="10.5"/>
-                    <Button Content="4. 곡선 비드·실링" Command="{Binding LoadCurvilinearSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,4" FontSize="10.5"/>
-                    <Button Content="5. 소량 분류·OOD" Command="{Binding LoadFewShotSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,4" FontSize="10.5"/>
-                    <Button Content="6. PaDiM 이상탐지" Command="{Binding LoadPatchAnomalySample}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,4" FontSize="10.5"/>
-                    <Button Content="7. 9점 캘리브레이션" Command="{Binding LoadCalibrationSample}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0" FontSize="10.5"/>
-                </UniformGrid>
-            </Expander>
         </StackPanel>
 
         <!-- 중단 스크롤 탭 영역: 설정·가이드 / 상세 결과 -->
@@ -68,24 +80,41 @@
                             <TextBlock Text="{Binding ParameterPreviewSummary}" TextWrapping="Wrap" FontSize="10.5" Foreground="{StaticResource TextSecondary}" AutomationProperties.Name="검사 스위트 파라미터 미리보기 요약"/>
                         </Border>
 
-                        <!-- 기준 ROI 등록 섹션 (GoldenVariation / FewShot / PatchAnomaly 선택 시에만 표시) -->
+                        <!-- 기준 ROI / 멀티파츠 모델 풀 학습 등록 섹션 (GoldenVariation / FewShot / PatchAnomaly / AutoTeaching 선택 시 표시) -->
                         <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="9,8" Margin="0,0,0,10"
                                 Visibility="{Binding UsesReferenceRois, Converter={StaticResource BoolVisibility}}">
                             <StackPanel>
-                                <TextBlock Text="기준(학습) ROI 샘플 등록" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,6"/>
+                                <TextBlock Text="{Binding ReferenceCardTitle}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,6"/>
                                 <UniformGrid Columns="2" Margin="0,0,0,6">
-                                    <Button Content="선택 ROI → 정상 등록" Command="{Binding RegisterNormalReference}" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0" FontSize="10.5"
-                                            ToolTip="현재 선택한 ROI를 정상(Golden/Good) 기준으로 등록합니다."/>
+                                    <Button Content="{Binding RegisterNormalButtonText}" Command="{Binding RegisterNormalReference}" Style="{StaticResource PrimaryButton}" Margin="0,0,4,0" FontSize="10.5"
+                                            ToolTip="현재 선택한 ROI를 파츠 모델 풀 또는 정상(Golden/Good) 기준으로 학습·등록합니다."/>
                                     <Button Content="선택 ROI → 불량 등록" Command="{Binding RegisterDefectReference}" Style="{StaticResource SecondaryButton}" FontSize="10.5"
                                             ToolTip="소량 분류용 불량(Defect) 클래스 샘플로 등록합니다."/>
                                 </UniformGrid>
-                                <Button Content="등록 기준 및 오버레이 초기화" Command="{Binding ClearReferences}" Style="{StaticResource SecondaryButton}" FontSize="10.5" Margin="0,0,0,6"/>
-                                <TextBlock Text="{Binding ReferenceSummary}" TextWrapping="Wrap" FontSize="10.5" Foreground="{StaticResource TextSecondary}"/>
+                                <Button Content="등록 모델 풀 · 기준 ROI 초기화" Command="{Binding ClearReferences}" Style="{StaticResource SecondaryButton}" FontSize="10.5" Margin="0,0,0,6"/>
+                                <TextBlock Text="{Binding ReferenceSummary}" TextWrapping="Wrap" FontSize="10.5" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
+                                <ItemsControl ItemsSource="{Binding RegisteredReferenceItems}"
+                                              Visibility="{Binding HasRegisteredReferences, Converter={StaticResource BoolVisibility}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="White" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="4" Padding="6,4" Margin="0,0,0,4">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Content="삭제" Command="{Binding RemoveCommand}" Style="{StaticResource SecondaryButton}" Padding="6,1" FontSize="9.5" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="10.5"/>
+                                                        <TextBlock Text="{Binding GeometrySummary}" FontSize="9.5" Foreground="{StaticResource TextSecondary}"/>
+                                                        <TextBlock Text="{Binding ChildTargetSummary}" FontSize="9" Foreground="#0284C7"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </Border>
 
-                        <!-- 1. 서브픽셀 캘리퍼 · 기하 계측 전용 설정 -->
-                        <StackPanel Visibility="{Binding IsMetrologySelected, Converter={StaticResource BoolVisibility}}">
+                        <!-- 1. 서브픽셀 캘리퍼 · 기하 계측 / 코너 정합 전용 설정 -->
+                        <StackPanel Visibility="{Binding UsesMetrologyOrCornerParams, Converter={StaticResource BoolVisibility}}">
                             <TextBlock Text="캘리퍼 계측 모드" Style="{StaticResource Caption}"/>
                             <ComboBox ItemsSource="{Binding MetrologyModes}"
                                       DisplayMemberPath="Name"
@@ -283,6 +312,543 @@
                                         Value="{Binding LensK1, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBox Grid.Column="1" Text="{Binding LensK1, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"
                                          AutomationProperties.Name="렌즈 방사 왜곡 계수"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 5. Few-Shot · OOD 이상치 분류 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsFewShotSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="OOD 미등록 이상치 기각 배수 (1.0 ~ 10.0 σ · 기본 3.5)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1.0" Maximum="10.0" TickFrequency="0.1"
+                                        Value="{Binding FewShotOodSigmaMultiplier, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding FewShotOodSigmaMultiplier, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="클래스당 서브클러스터 수 K (1 ~ 5개 · 기본 2)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding FewShotMaxSubClusters, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding FewShotMaxSubClusters, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 8. 2-Rake 서브픽셀 가상 코너 정합 추가 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsCornerAlignmentSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="모따기(Chamfer) 회피 마진 (16 ~ 80 px · 기본 36)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="16" Maximum="80" TickFrequency="1"
+                                        Value="{Binding CornerApexIgnoreMargin, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding CornerApexIgnoreMargin, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="RANSAC 인라이어 허용 거리 (0.1 ~ 3.0 px · 기본 0.55)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.1" Maximum="3.0" TickFrequency="0.05"
+                                        Value="{Binding CornerRansacThresholdPixels, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding CornerRansacThresholdPixels, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="직각(90°) 편차 허용 한계 (0.5 ~ 25° · 기본 5.0)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.5" Maximum="25.0" TickFrequency="0.5"
+                                        Value="{Binding CornerOrthogonalityToleranceDeg, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding CornerOrthogonalityToleranceDeg, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 9. 산업용 OCR · OCV 문자 품질 검증 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsIndustrialOcrOcvSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="문자 인식 최소 수락 점수 (0.10 ~ 0.98 · 기본 0.40)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
+                                        Value="{Binding OcrAcceptThreshold, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding OcrAcceptThreshold, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="OCV 투영 상관 최소 품질 점수 (0.10 ~ 0.98 · 기본 0.75)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
+                                        Value="{Binding OcrMinQualityScore, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding OcrMinQualityScore, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="문자 전경 최소 대비 오프셋 (2 ~ 80 GV · 기본 14)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
+                                        Value="{Binding OcrForegroundContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding OcrForegroundContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="예상 문자 피치 간격 (8 ~ 64 px · 기본 24)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="8" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding OcrExpectedCharPitch, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding OcrExpectedCharPitch, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="도트 브리징 모폴로지 반경 R (0 ~ 5 px · 기본 1)" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding OcrDotClosingRadius, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding OcrDotClosingRadius, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 10. 경량 고속 1-Pass 시퀀스 OCR 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsLightweightOcrSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="CTC Prefix Beam 탐색 폭 (1 ~ 12 · 기본 4)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding LightweightOcrBeamWidth, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrBeamWidth, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="1D 열 특징 스트라이드 (1 ~ 6 px · 기본 2)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding LightweightOcrColumnStride, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrColumnStride, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="적응 이진화 대비 오프셋 (2 ~ 80 GV · 기본 12)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
+                                        Value="{Binding LightweightOcrContrastOffset, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrContrastOffset, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="시퀀스 최소 판독 신뢰도 (0.10 ~ 0.98 · 기본 0.40)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
+                                        Value="{Binding LightweightOcrMinConfidence, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrMinConfidence, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 11. 멀티파츠 풀 자동 인식 · 하위 ROI 자동 티칭 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsAutoTeachingSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="기하학 PatMax 매칭 최소 점수 (0.10 ~ 0.98 · 기본 0.45)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
+                                        Value="{Binding AutoTeachMinGeometricScore, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding AutoTeachMinGeometricScore, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="64B 회전불변 서명 최소 코사인 유사도 (0.10 ~ 0.98 · 기본 0.35)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
+                                        Value="{Binding AutoTeachMinAppearanceCosine, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding AutoTeachMinAppearanceCosine, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="외형 마할라노비스 허용 상한 (3.0 ~ 100.0 · 기본 35.0)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="3.0" Maximum="100.0" TickFrequency="1.0"
+                                        Value="{Binding AutoTeachMaxMahalanobis, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding AutoTeachMaxMahalanobis, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 12. CPU 딥 시퀀스 OCR 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsCpuDeepOcrSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="초해상도 업스케일 배율 (1.0 ~ 2.5x · 기본 1.50)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1.0" Maximum="2.5" TickFrequency="0.05"
+                                        Value="{Binding DeepOcrSuperResScale, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DeepOcrSuperResScale, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="라플라시안 언샤프닝 이득 α (0.0 ~ 2.0 · 기본 0.38)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.0" Maximum="2.0" TickFrequency="0.02"
+                                        Value="{Binding DeepOcrUnsharpGain, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DeepOcrUnsharpGain, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="다중 대비 앙상블 빔 폭 (1 ~ 12 · 기본 6)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding DeepOcrEnsembleBeamWidth, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DeepOcrEnsembleBeamWidth, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="앙상블 기준 대비 오프셋 (2 ~ 80 GV · 기본 14)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
+                                        Value="{Binding DeepOcrContrastOffset, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DeepOcrContrastOffset, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="합의 판독 최소 신뢰도 (0.10 ~ 0.98 · 기본 0.40)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
+                                        Value="{Binding DeepOcrMinConfidence, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DeepOcrMinConfidence, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 13. 조명 평탄화 · 비등방성 확산 · 형태학 재구성 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsPreprocessingShadingSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="다항식 목표 배경 밝기 (16 ~ 240 GV · 기본 128)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="16" Maximum="240" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding ShadingTargetBaseGray, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding ShadingTargetBaseGray, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="비등방성 확산 대비 κ (2 ~ 80 · 기본 18)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="0.5"
+                                        Value="{Binding AnisotropicDiffusionKappa, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding AnisotropicDiffusionKappa, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="Vincent 재구성 마커 반경 (1 ~ 10 px · 기본 2)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding ReconstructionMarkerRadius, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding ReconstructionMarkerRadius, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 14. 복합 스코어링 캘리퍼 · 타원 피팅 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsAdvancedMetrologyEllipseSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="복합 캘리퍼 목표 폭 (4 ~ 160 px · 기본 28)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="4" Maximum="160" TickFrequency="0.5"
+                                        Value="{Binding CompositeExpectedSpanPx, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding CompositeExpectedSpanPx, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="타원 방사 스포크 수 (8 ~ 64개 · 기본 24)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="8" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding EllipseSpokeCount, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding EllipseSpokeCount, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="Sampson 허용 잔차 RMS (0.2 ~ 8.0 px · 기본 1.8)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.2" Maximum="8.0" TickFrequency="0.1"
+                                        Value="{Binding EllipseMaxRmsErrorPx, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding EllipseMaxRmsErrorPx, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 15. 심화 블롭 위상 · EDT 워터셰드 분리 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsAdvancedBlobWatershedSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="워터셰드 이진화 밝기 (1 ~ 254 GV · 기본 128)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="254" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding WatershedThresholdIntensity, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding WatershedThresholdIntensity, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="EDT 시드 최소 분리 거리 (3 ~ 80 px · 기본 14)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="3" Maximum="80" TickFrequency="0.5"
+                                        Value="{Binding WatershedMinPeakDistancePx, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding WatershedMinPeakDistancePx, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="분리 객체 최소 면적 (1 ~ 1000 px · 기본 12)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="1000" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding WatershedMinAreaPixels, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding WatershedMinAreaPixels, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 16. 2D DataMatrix ECC 200 리더 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsDataMatrix2DSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="ISO 15415 최소 심볼 대비 (0.05 ~ 0.90 · 기본 0.20)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.05" Maximum="0.90" TickFrequency="0.01"
+                                        Value="{Binding DataMatrixMinIsoContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DataMatrixMinIsoContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="Reed-Solomon 최대 허용 정정 부호어 (0 ~ 32 · 기본 8)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0" Maximum="32" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding DataMatrixMaxEccErrors, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding DataMatrixMaxEccErrors, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 17. 2D FFT 노치 · 호모모픽 · Gabor 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsPreprocessingFftGaborSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="노치/Gabor 주파수 대역폭 σ (0.6 ~ 10.0 · 기본 2.5)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.6" Maximum="10.0" TickFrequency="0.1"
+                                        Value="{Binding FftNotchOrGaborSigma, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding FftNotchOrGaborSigma, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="FFT 주기 피크 억제 임계비 (1.5 ~ 12.0x · 기본 4.2)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1.5" Maximum="12.0" TickFrequency="0.1"
+                                        Value="{Binding FftPeakThresholdRatio, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding FftPeakThresholdRatio, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="호모모픽 고주파 증폭 γH (1.0 ~ 3.5 · 기본 1.85)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1.0" Maximum="3.5" TickFrequency="0.05"
+                                        Value="{Binding HomomorphicGammaHigh, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding HomomorphicGammaHigh, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 18. 1D 바코드 리더 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsBarcode1DSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="다중 스캔라인 투표 줄 수 (1 ~ 25 · 기본 9)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="25" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding BarcodeScanlineCount, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding BarcodeScanlineCount, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="ISO 15416 최소 심볼 대비 (0.05 ~ 0.90 · 기본 0.20)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.05" Maximum="0.90" TickFrequency="0.01"
+                                        Value="{Binding BarcodeMinSymbolContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding BarcodeMinSymbolContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 19. 3D 포토메트릭 스테레오 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsPhotometricStereoSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="조명 링 경사 고도각 (15 ~ 75° · 기본 45°)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="15" Maximum="75" TickFrequency="1"
+                                        Value="{Binding PhotometricSlantAngleDeg, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding PhotometricSlantAngleDeg, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="3D 평균곡률 |H| 결함 임계 (0.01 ~ 0.45 · 기본 0.08)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.01" Maximum="0.45" TickFrequency="0.005"
+                                        Value="{Binding PhotometricCurvatureThreshold, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding PhotometricCurvatureThreshold, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="허용 최대 곡률 결함 화소수 (1 ~ 500 px · 기본 6)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="1" Maximum="500" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding PhotometricMaxDefectPixels, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding PhotometricMaxDefectPixels, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 20. 다중 형상 기하공차(GD&T) 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsGeometricTolerancingSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="데이텀 직교도 허용 공차 (0.2 ~ 15.0° · 기본 3.0°)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.2" Maximum="15.0" TickFrequency="0.1"
+                                        Value="{Binding GdtAngleToleranceDeg, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GdtAngleToleranceDeg, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="이중 보어 동심도 한계 Δc (0.2 ~ 20.0 px · 기본 2.5)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.2" Maximum="20.0" TickFrequency="0.1"
+                                        Value="{Binding GdtConcentricityLimitPx, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GdtConcentricityLimitPx, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="보어-데이텀 거리 공차 (0.2 ~ 30.0 px · 기본 4.0)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.2" Maximum="30.0" TickFrequency="0.2"
+                                        Value="{Binding GdtDistanceTolerancePx, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GdtDistanceTolerancePx, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="서브픽셀 에지 최소 대비 (2 ~ 120 · 기본 18)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="2" Maximum="120" TickFrequency="1"
+                                        Value="{Binding GdtGradientThreshold, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding GdtGradientThreshold, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
                             </Grid>
                         </StackPanel>
 

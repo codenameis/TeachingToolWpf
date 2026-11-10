@@ -24,12 +24,27 @@ public static class DualRakeCornerScanner
         RakeSearchRegion region,
         CornerDetectionOptions options,
         Span<SubpixelEdgePoint> destination)
+        => ScanSingleRake(image, region, options, destination, Span<SubpixelEdgePoint>.Empty, out _);
+
+    /// <summary>
+    /// 단일 <see cref="RakeSearchRegion"/>을 따라 <see cref="RakeSearchRegion.ApexIgnoreMargin"/> 이후 구간에
+    /// 등간격 1D 캘리퍼를 배치하고, 2D 그래디언트 방향 게이트를 통과한 유효 에지 점들과
+    /// 모따기/라운딩 경사로 인해 기각된 이상치(Outlier) 점들을 분리하여 추출한다.
+    /// </summary>
+    public static int ScanSingleRake(
+        ReadOnlyImageView2D<byte> image,
+        RakeSearchRegion region,
+        CornerDetectionOptions options,
+        Span<SubpixelEdgePoint> destination,
+        Span<SubpixelEdgePoint> rejectedOutliers,
+        out int rejectedCount)
     {
+        rejectedCount = 0;
         int caliperCount = Math.Max(MinCaliperStations, region.CaliperCount);
         Vector2 legDir = region.GetUnitLegDirection(out float totalLegLength);
         Vector2 scanDir = region.GetUnitScanDirection();
 
-        float startOffset = Math.Clamp(region.ApexIgnoreMargin, 0.0f, totalLegLength * 0.6f);
+        float startOffset = Math.Clamp(region.ApexIgnoreMargin, 0.0f, totalLegLength * 0.70f);
         float usableLength = MathF.Max(1.0f, totalLegLength - startOffset);
 
         int detectedCount = 0;
@@ -53,6 +68,10 @@ public static class DualRakeCornerScanner
                 out SubpixelEdgePoint hit))
             {
                 destination[detectedCount++] = hit;
+            }
+            else if (hit.Magnitude >= options.MinimumContrast && rejectedCount < rejectedOutliers.Length)
+            {
+                rejectedOutliers[rejectedCount++] = hit;
             }
         }
 

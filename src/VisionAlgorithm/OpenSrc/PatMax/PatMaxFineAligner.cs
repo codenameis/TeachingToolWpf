@@ -847,6 +847,9 @@ public static class PatMaxFineAligner
 
         var runtimeInBoxCount = 0;
         var clutterOutsideSafeRadiusCount = 0;
+        var matchedRuntimeEdgeCount = 0;
+        var matchedRuntimeContrastSum = 0.0f;
+        var matchedNormalErrorSqSum = 0.0f;
         var safeClutterRadius = elasticity * ClutterSafeZoneElasticityMultiplier;
         var safeClutterRadiusSq = safeClutterRadius * safeClutterRadius;
 
@@ -882,6 +885,7 @@ public static class PatMaxFineAligner
             var cX = (int)MathF.Round((mx - fOriginX) * fInvCellSize);
             var cY = (int)MathF.Round((my - fOriginY) * fInvCellSize);
             var matchedAny = false;
+            var bestLocalNormalErrSq = float.PositiveInfinity;
             var minDistSqToAnyModelDipole = float.PositiveInfinity;
 
             var nStartY = Math.Max(0, cY - 1);
@@ -922,6 +926,11 @@ public static class PatMaxFineAligner
                             // [Math Why]: Project error onto edge normal so sub-pixel tangential sampling difference along straight contours does not penalize Coverage.
                             var normalErr = (ex * cell.NormalX) + (ey * cell.NormalY);
                             var normalErrSq = normalErr * normalErr;
+                            if (normalErrSq < bestLocalNormalErrSq)
+                            {
+                                bestLocalNormalErrSq = normalErrSq;
+                            }
+
                             var distFactor = 1.0f - (0.5f * Math.Clamp(normalErrSq / elasticitySq, 0.0f, 1.0f));
                             var contribution = mMag[dipIdx] * sim * distFactor;
                             if (contribution > bestModelContribution[dipIdx])
@@ -930,6 +939,16 @@ public static class PatMaxFineAligner
                             }
                         }
                     }
+                }
+            }
+
+            if (matchedAny)
+            {
+                matchedRuntimeEdgeCount++;
+                matchedRuntimeContrastSum += rMag[i];
+                if (float.IsFinite(bestLocalNormalErrSq))
+                {
+                    matchedNormalErrorSqSum += bestLocalNormalErrSq;
                 }
             }
 
@@ -1001,6 +1020,13 @@ public static class PatMaxFineAligner
         var clutter = Math.Clamp((float)clutterOutsideSafeRadiusCount / denomDipoleCount, 0.0f, 1.0f);
 
         var finalScore = Math.Clamp((coverage - missingSectorPenalty) - (ClutterPenaltyFactor * clutter), 0.0f, 1.0f);
+        var rmsFitError = matchedRuntimeEdgeCount > 0
+            ? MathF.Sqrt(matchedNormalErrorSqSum / matchedRuntimeEdgeCount)
+            : 0.0f;
+        var meanContrast = matchedRuntimeEdgeCount > 0
+            ? matchedRuntimeContrastSum / matchedRuntimeEdgeCount
+            : 0.0f;
+
         return new PatMaxResult(
             X: poseX,
             Y: poseY,
@@ -1011,6 +1037,17 @@ public static class PatMaxFineAligner
             Coverage: coverage,
             Clutter: clutter,
             MatchedDipoleCount: matchedDipoleCount,
-            IterationCount: iterations);
+            IterationCount: iterations)
+        {
+            DeltaX = poseX - model.OriginX,
+            DeltaY = poseY - model.OriginY,
+            DeltaAngleRadians = angle,
+            RmsFitErrorPixels = rmsFitError,
+            MeanEdgeContrast = meanContrast,
+            AppearanceScore = coverage,
+            ModelDipoleCount = bestModelContribution.Length,
+            PatternWidth = model.PatternWidth,
+            PatternHeight = model.PatternHeight
+        };
     }
 }

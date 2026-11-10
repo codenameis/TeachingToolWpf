@@ -6,16 +6,6 @@ using VisionAlgorithm.OpenSrc.EdgeFewShot.Engine;
 namespace VisionAlgorithm.OpenSrc.PatchAnomaly;
 
 /// <summary>
-/// Result of evaluating a query ROI with <see cref="PadimHeatmapDetector"/>.
-/// </summary>
-public readonly record struct PadimAnomalyResult(
-    bool IsAnomalous,
-    float ImageAnomalyScore,
-    float AnomalyThreshold,
-    Vector2 PeakAnomalyLocalPosition,
-    int AnomalousPixelCount);
-
-/// <summary>
 /// Implements PaDiM ("PaDiM: a Patch Distribution Modeling Framework for Anomaly Detection and Localization",
 /// Defard et al., ICPR 2021): fits a spatially-indexed multivariate Gaussian $\mathcal{N}(\mu_{ij}, \Sigma_{ij} + \epsilon I)$
 /// at each patch coordinate $(i, j)$ from normal training images, evaluates per-patch Mahalanobis distance at inference,

@@ -106,6 +106,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
     private string _height = "0";
     private string _status = "선택된 ROI의 패턴 영상을 불러오는 중…";
     private string _error = "";
+    private bool _isHelpManualOpen;
 
     public PatternMaskEditorViewModel(
         EditorSession session,
@@ -137,6 +138,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
         ZoomInCommand = new(() => ZoomScale = Math.Clamp(ZoomScale * 1.25, 0.5, 12.0));
         ZoomOutCommand = new(() => ZoomScale = Math.Clamp(ZoomScale / 1.25, 0.5, 12.0));
         ZoomFitCommand = new(() => ZoomScale = 2.5);
+        ToggleHelpManualCommand = new(() => IsHelpManualOpen = !IsHelpManualOpen);
     }
 
     public void AttachFrameRetainer(Func<VideoFrame?> retainFrame)
@@ -161,6 +163,21 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
     public RelayCommand ZoomInCommand { get; }
     public RelayCommand ZoomOutCommand { get; }
     public RelayCommand ZoomFitCommand { get; }
+    public RelayCommand ToggleHelpManualCommand { get; }
+
+    public bool IsHelpManualOpen
+    {
+        get => _isHelpManualOpen;
+        set => Set(ref _isHelpManualOpen, value);
+    }
+
+    public AlgorithmHelpManual ActiveHelpManual { get; } = new(
+        Title: "패턴 마스크 전용 편집기 · RLE 브러시 & 벡터 도형 마스킹",
+        Subtitle: "Rectified ROI Edge Dipole Filtering & Run-Length Encoded Exclusion Mask",
+        PrincipleAndFormula: "선택된 ROI를 회전 보정(Rectified)한 로컬 좌표계에서 Sobel 에지 다이폴(p_i, n_i)을 추출한 뒤, 사각형·타원·폴리곤 벡터 도형 또는 2D 래스터 브러시(RLE 자동 병합)로 칠한 영역 내부의 특징점을 패턴 학습 및 매칭 점수 계산에서 완전히 제외합니다.",
+        StepByStepGuide: "1. 상단 도구바에서 사각형·타원·폴리곤·브러시·지우개 중 원하는 도구를 선택합니다.\n2. 캔버스에서 변동이 심한 영역(로트 번호, 배경 노이즈, 반사광 등)을 드래그해 마스킹합니다.\n3. 초록색(유효 특징점)과 빨간색(제외 특징점) 분포를 확인한 뒤 [ROI에 마스크 적용]을 누릅니다.",
+        ParameterTuningGuide: "• 브러시 크기(3~64 px): 자유 곡선 마스킹 두께를 조절합니다.\n• 에지 민감도(5~80): 미리보기 에지 특징점 추출 임계값을 조절합니다.",
+        TroubleshootingTips: "• 대칭 구조나 가변 각인이 포함된 부품은 해당 영역을 마스킹하면 오검출과 점수 저하를 동시에 방지할 수 있습니다.");
 
     public ObservableCollection<MaskRow> Rows { get; } = [];
     public PatternMaskFeaturePoint[] FeaturePoints => _featurePoints;

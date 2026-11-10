@@ -18,9 +18,38 @@
                 <Border Style="{StaticResource Fluent2SurfaceCardStyle}" DataContext="{Binding Studio.Filters}">
                     <StackPanel>
                         <DockPanel Margin="0,0,0,6">
-                            <CheckBox DockPanel.Dock="Right" Content="실시간 미리보기" IsChecked="{Binding IsPreviewEnabled, Mode=TwoWay}" />
+                            <Button DockPanel.Dock="Right" Content="? 매뉴얼"
+                                    Command="{Binding DataContext.ToggleFilterHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Style="{StaticResource SecondaryButton}" Padding="8,2" Height="22" FontSize="10.5" FontWeight="Bold" Margin="6,0,0,0"
+                                    ToolTip="선택한 전처리/워핑 필터 및 마스크 도구의 상세 수식·파라미터 사용 매뉴얼을 펼치거나 닫습니다." />
+                            <CheckBox DockPanel.Dock="Right" Content="실시간 미리보기" IsChecked="{Binding IsPreviewEnabled, Mode=TwoWay}" VerticalAlignment="Center" />
                             <TextBlock Text="1 · ROI 실시간 필터 미리보기" Style="{StaticResource CardHeaderTitle}" VerticalAlignment="Center" />
                         </DockPanel>
+
+                        <Border Visibility="{Binding DataContext.IsFilterHelpManualOpen, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolVisibility}}"
+                                BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                                BorderThickness="3,1,1,1"
+                                Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                CornerRadius="6"
+                                Padding="10,8"
+                                Margin="0,0,0,6">
+                            <StackPanel DataContext="{Binding DataContext.ActiveFilterHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button DockPanel.Dock="Right" Content="닫기 ✕" Command="{Binding DataContext.ToggleFilterHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Style="{StaticResource SecondaryButton}" Padding="6,1" Height="20" FontSize="9.5" />
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding Subtitle}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                                <TextBlock Text="■ 핵심 원리 및 수식" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding PrincipleAndFormula}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                                <TextBlock Text="■ 단계별 적용 방법" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding StepByStepGuide}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                                <TextBlock Text="■ 주요 파라미터 가이드" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding ParameterTuningGuide}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                                <TextBlock Text="■ 현장 활용 팁" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                <TextBlock Text="{Binding TroubleshootingTips}" FontSize="10" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" LineHeight="14.5" />
+                            </StackPanel>
+                        </Border>
 
                         <TextBlock Text="필터 종류 (원본 보존 · 선택 ROI 화면만 갱신)" Style="{StaticResource Caption}" />
                         <ComboBox ItemsSource="{Binding Options}" DisplayMemberPath="Label" SelectedValuePath="Kind" SelectedValue="{Binding SelectedFilter}" Margin="0,0,0,6" />
@@ -91,10 +120,75 @@
                             </Grid>
                         </StackPanel>
 
-                        <UniformGrid Columns="2" Margin="0,2,0,4">
+                        <UniformGrid Columns="3" Margin="0,2,0,4">
                             <Button Content="필터 설정 적용" Command="{Binding Apply}" Style="{StaticResource PrimaryButton}" Margin="0,0,3,0" />
-                            <Button Content="필터 등록 해제" Command="{Binding ClearRegistration}" Style="{StaticResource SecondaryButton}" Margin="3,0,0,0" />
+                            <Button Content="＋ 리스트에 추가" Command="{Binding AddStepToPipeline}" Style="{StaticResource SecondaryButton}" Margin="2,0"
+                                    ToolTip="현재 선택한 전처리 필터를 다단계 선행 필터 파이프라인 리스트에 추가합니다." />
+                            <Button Content="필터 전체 해제" Command="{Binding ClearRegistration}" Style="{StaticResource SecondaryButton}" Margin="3,0,0,0" />
                         </UniformGrid>
+
+                        <!-- Multi-Step Pre-Inspection Filter Pipeline List -->
+                        <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8,6"
+                                Margin="0,2,0,4">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,4">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Content="↑" Command="{Binding MoveSelectedStepUp}" Style="{StaticResource SecondaryButton}" Width="24" Height="20" Padding="0" FontSize="10" Margin="0,0,2,0" ToolTip="선택한 필터 단계 위로 이동" />
+                                        <Button Content="↓" Command="{Binding MoveSelectedStepDown}" Style="{StaticResource SecondaryButton}" Width="24" Height="20" Padding="0" FontSize="10" Margin="0,0,2,0" ToolTip="선택한 필터 단계 아래로 이동" />
+                                        <Button Content="✕ 삭제" Command="{Binding RemoveSelectedStep}" Style="{StaticResource DangerGlassButton}" Height="20" Padding="6,0" FontSize="9.5" ToolTip="선택한 필터 단계를 리스트에서 제거합니다 (검사 속도가 느려지면 제거/체크해제)" />
+                                    </StackPanel>
+                                    <CheckBox Content="본검사 전(前) 필터 파이프라인 선행 실행"
+                                              IsChecked="{Binding PreFilterBeforeInspection, Mode=TwoWay}"
+                                              FontSize="10.5"
+                                              FontWeight="SemiBold"
+                                              VerticalAlignment="Center"
+                                              ToolTip="규칙: 필터 리스트에 활성 단계가 있으면 모든 본검사(패턴·도형·Few-Shot·스위트) 전에 순서대로 먼저 실행됩니다." />
+                                </DockPanel>
+
+                                <TextBlock Text="{Binding PipelineSummaryText}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,4" />
+
+                                <ListBox ItemsSource="{Binding PipelineSteps}"
+                                         SelectedItem="{Binding SelectedPipelineStep, Mode=TwoWay}"
+                                         MaxHeight="108"
+                                         Background="Transparent"
+                                         BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                         BorderThickness="1"
+                                         Padding="2">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel LastChildFill="True">
+                                                <CheckBox DockPanel.Dock="Left"
+                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,6,0"
+                                                          ToolTip="체크 해제하면 삭제하지 않고도 본검사 선행 필터에서 즉시 제외됩니다." />
+                                                <TextBlock Text="{Binding SummaryLabel}"
+                                                           FontSize="10.5"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Live 256-Bin ROI Grayscale Histogram & 1D Line Profile Summary -->
+                        <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8,5"
+                                Margin="0,0,0,4">
+                            <StackPanel>
+                                <TextBlock Text="{Binding RoiHistogramSummaryText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding RoiLineProfileSummaryText}" FontSize="9.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
 
                         <TextBlock Text="{Binding ValidationMessage}" Foreground="{StaticResource RoseAccent}" TextWrapping="Wrap" FontSize="10" />
                         <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="8,5" Margin="0,3,0,0">

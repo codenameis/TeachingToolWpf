@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Input;
 using TeachingToolWpf.Commands;
 using TeachingToolWpf.Infrastructure;
+using TeachingToolWpf.MassiveModels;
 using TeachingToolWpf.Models;
 using TeachingToolWpf.Services;
 using VisionCanvas.Core.Editing;
@@ -20,6 +22,7 @@ namespace TeachingToolWpf.ViewModels;
 /// <summary>MainWindow의 화면 상태와 명령. 편집 규칙은 EditorSession이 담당한다.</summary>
 public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
+    private const int MassiveModelPageSize = 512; // [Perf Why]: Bounds virtualized page slice for 100M ROI models to 512 rows per page (< 0.1 ms on-demand slice).
     private readonly Func<string?>? _selectImage;
     public ViewportLayout Layout { get; }
     public RenderScene? Scene { get; private set; }
@@ -30,7 +33,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly RoiClipboard _clipboard = new();
     private readonly RoiPreviewPreparation _previewPreparation;
     private CancellationTokenSource? _editCancellation;
+    private MassiveRoiModelFile? _activeMassiveModel;
+    private bool _suppressMassiveModelReset;
     private bool _disposed;
+
+    public MassiveRoiModelFile? ActiveMassiveModel => _activeMassiveModel;
+
+    public bool HasActiveMassiveModel => _activeMassiveModel is not null;
 
     public Task PasteCompletion { get; private set; } = Task.CompletedTask;
 
@@ -44,7 +53,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private System.Collections.Immutable.ImmutableDictionary<Guid, Roi>? _rowRois;
     private RoiRows _rows = new([]);
     // Small documents keep the virtualized list stable; paging bounds WPF's unresolved multi-selection scan at scale.
-    private int RowPageSize => Rows.Count <= 4096 ? 4096 : 512;
+    private int RowPageSize => _activeMassiveModel is not null ? MassiveModelPageSize : (Rows.Count <= 4096 ? 4096 : 512);
+
+    private long TotalLogicalRowCount => _activeMassiveModel?.Header.TotalRoiCount ?? Rows.Count;
 
     private int _rowPage;
     private RoiRows _visibleRows = new([]);
@@ -54,7 +65,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public RoiRows VisibleRows => _visibleRows;
 
-    public string RowPageLabel => $"{_rowPage + 1:N0} / {Math.Max(1, (Rows.Count + RowPageSize - 1) / RowPageSize):N0} 페이지";
+    public string RowPageLabel => $"{_rowPage + 1:N0} / {Math.Max(1L, (TotalLogicalRowCount + RowPageSize - 1) / RowPageSize):N0} 페이지";
 
     public event Action? RowPageChanged;
 
@@ -62,7 +73,33 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public RelayCommand NextRowPage { get; private set; }
 
-    public RoiRow? FindRow(Guid id) => Rows.Find(id);
+    public RoiRow? FindRow(Guid id)
+    {
+        if ( _visibleRows.Find(id) is { } visible )
+        {
+            return visible;
+        }
+
+        if (_activeMassiveModel is { } massive && massive.TryResolveIndex(id, out long idx))
+        {
+            RoiRow row = massive.GetEntry(idx).ToRoiRow();
+            if (Inspections.RoiAssignments.TryGetValue(id, out RoiAlgorithmAssignment? custom))
+            {
+                row = row with
+                {
+                    AlgorithmBadge = custom.AlgorithmBadge,
+                    AlgorithmAccent = custom.AlgorithmAccent,
+                    VerdictBadge = custom.VerdictBadge,
+                    VerdictAccent = custom.VerdictAccent,
+                    PatternThumbnail = custom.PatternThumbnail
+                };
+            }
+
+            return row;
+        }
+
+        return Rows.Find(id);
+    }
 
     public EditorSession Session { get; } = new();
 
@@ -128,9 +165,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public string ImageDetails => DisplayImage is { } image ? $"{image.Width:N0} × {image.Height:N0} px   ·   {image.Pixels}" : "이미지를 열어 주세요";
 
-    public string SelectionSummary => $"{Session.State.SelectionCount:N0}개 선택 / ROI {Session.State.RoiCount:N0}개";
+    public string SelectionSummary => $"{Session.State.SelectionCount:N0}개 선택 / ROI {RoiCount:N0}개";
 
-    public long RoiCount => Session.State.RoiCount;
+    public long RoiCount => _activeMassiveModel?.Header.TotalRoiCount ?? Session.State.RoiCount;
 
     public bool HasRois => RoiCount > 0;
 
@@ -307,6 +344,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public AsyncCommand RestartRenderer { get; private set; }
 
+    public RelayCommand SaveTeachingRecipe { get; private set; }
+
+    public RelayCommand LoadTeachingRecipe { get; private set; }
+
     private string _performance = "";
 
     public string Performance
@@ -330,6 +371,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Live = live;
         Filters = new(filterPreview, Session);
         Filters.Changed += Publish;
+        Filters.ActivePipelineChanged += SyncPreInspectionFilterPipeline;
         _previewPreparation = new(Session, ReportError, () => Status = "선택 영역 준비 중… 최신 포인터 위치 반영", preparePreview);
         Input = new(Session, CompletePreview, CompleteSelection, _previewPreparation.SubmitTranslation, _previewPreparation.SubmitRotation, CompleteRegionSelection);
         Navigation = new(Session, Input, Layout, () => CanEdit);
@@ -340,6 +382,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         PatternMaskEditor = new(Session, loader, () => null, message => Status = message);
         Inspections = inspections;
         Matching = inspections.Pattern;
+        SyncPreInspectionFilterPipeline(Filters.BuildEffectivePipeline(), Filters.PreFilterBeforeInspection);
         Inspections.Changed += Publish;
         Inspections.AssignmentsChanged += RefreshRowAssignments;
         Inspections.LocateBoundsRequested += LocateInspection;
@@ -590,6 +633,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (!_suppressMassiveModelReset && state.Rois.IsEmpty && _activeMassiveModel is not null)
+        {
+            _activeMassiveModel = null;
+            Notify(nameof(ActiveMassiveModel));
+            Notify(nameof(HasActiveMassiveModel));
+        }
+
+        if (_activeMassiveModel is not null)
+        {
+            _rowVersion = state.Snapshot.RowVersion;
+            int maxMassivePage = (int)Math.Max(0L, (TotalLogicalRowCount - 1) / RowPageSize);
+            ChangeRowPage(Math.Min(_rowPage, maxMassivePage), force: true);
+            return;
+        }
+
         if (_preparedRows is { } prepared && ReferenceEquals(prepared.Version, state.Snapshot.RowVersion))
         {
             Rows = prepared.Rows;
@@ -611,6 +669,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             return;
         }
+
+        if (_activeMassiveModel is not null)
+        {
+            ChangeRowPage(_rowPage, force: true);
+            return;
+        }
+
         Rows.ApplyAssignments(Inspections.RoiAssignments);
         ChangeRowPage(_rowPage, force: true);
     }
@@ -623,11 +688,24 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var index = Rows.IndexOf(state.Selection.First());
+        Guid selectedId = state.Selection.First();
+        if (_activeMassiveModel is { } massive && massive.TryResolveIndex(selectedId, out long massiveIndex))
+        {
+            ChangeRowPage((int)(massiveIndex / RowPageSize));
+            return;
+        }
+
+        var index = Rows.IndexOf(selectedId);
         if (index >= 0)
         {
             ChangeRowPage(index / RowPageSize);
         }
+    }
+
+    public void JumpToRowPage(int pageIndex)
+    {
+        int maxPage = (int)Math.Max(0L, (TotalLogicalRowCount - 1) / RowPageSize);
+        ChangeRowPage(Math.Clamp(pageIndex, 0, maxPage), force: true);
     }
 
     private void ChangeRowPage(int page, bool force = false)
@@ -638,7 +716,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _rowPage = page;
-        _visibleRows = Rows.Page(page, RowPageSize);
+        _visibleRows = _activeMassiveModel is { } massive
+            ? massive.BuildPageRows(page, RowPageSize, Inspections.RoiAssignments)
+            : Rows.Page(page, RowPageSize);
         Notify(nameof(VisibleRows));
         Notify(nameof(RowPageLabel));
         RowPageChanged?.Invoke();
@@ -786,14 +866,140 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (CanEdit && !Input.IsDragging)
         {
             var captured = ids.ToArray();
+            if (_activeMassiveModel is { } massive && captured.Length > 0 && captured.Length <= 64)
+            {
+                foreach (var id in captured)
+                {
+                    if (!Session.State.Rois.ContainsKey(id) && massive.TryResolveIndex(id, out long idx))
+                    {
+                        MassiveRoiEntry entry = massive.GetEntry(idx);
+                        Roi materialized = new Roi(entry.Id, entry.Name, entry.Geometry, null, false, idx + 1)
+                        {
+                            IsNameVisible = false
+                        };
+                        Session.EnsureNamedRoiPresent(materialized);
+                        Inspections.RecordSingleAssignment(Session.State, entry.ToAssignment());
+                    }
+                }
+            }
+
             if (captured.Length <= SynchronousPreviewRoiLimit || Session.State.Rois.Count <= SynchronousSelectionDocumentLimit)
             {
                 Session.Select(captured);
+                FocusSelectedRowBounds(captured);
             }
             else
             {
                 EditCompletion = ObserveEditAsync(PrepareEditAsync("목록 선택", token => Session.PrepareSelectionAsync(captured, token)));
             }
+        }
+    }
+
+    public async Task<MassiveRoiModelFile> LoadMassiveModelFromFileAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        long totalStart = Stopwatch.GetTimestamp();
+
+        MassiveRoiModelFile modelFile = await MassiveRoiModelSerializer.LoadFromDiskAsync(filePath, cancellationToken);
+        ApplyLoadedMassiveModel(modelFile, totalStart);
+        return modelFile;
+    }
+
+    public MassiveRoiModelFile LoadMassiveModelFromFile(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        long totalStart = Stopwatch.GetTimestamp();
+
+        MassiveRoiModelFile modelFile = MassiveRoiModelSerializer.LoadFromDisk(filePath);
+        ApplyLoadedMassiveModel(modelFile, totalStart);
+        return modelFile;
+    }
+
+    private void ApplyLoadedMassiveModel(MassiveRoiModelFile modelFile, long totalStartTimestamp)
+    {
+        _suppressMassiveModelReset = true;
+        try
+        {
+            if (Session.State.Image is null)
+            {
+                int w = modelFile.Header.ImageWidth;
+                int h = modelFile.Header.ImageHeight;
+                Session.InitializeImage(
+                    new ImageReference($"sample:{w}:{h}", $"{w:N0} × {h:N0} 합성 모델 캔버스", w, h),
+                    ViewportTransform.Fit(w, h, Math.Max(1.0, Layout.Width), Math.Max(1.0, Layout.Height)));
+            }
+
+            IReadOnlyList<MassiveRoiEntry> anchors = modelFile.CanvasAnchors;
+            Roi[] anchorRois = new Roi[anchors.Count];
+            RoiAlgorithmAssignment[] anchorAssignments = new RoiAlgorithmAssignment[anchors.Count];
+            for (int i = 0; i < anchors.Count; i++)
+            {
+                MassiveRoiEntry entry = anchors[i];
+                anchorRois[i] = new Roi(entry.Id, entry.Name, entry.Geometry, null, false, entry.Index + 1)
+                {
+                    IsNameVisible = false
+                };
+                anchorAssignments[i] = entry.ToAssignment();
+            }
+
+            _activeMassiveModel = modelFile;
+            _rowPage = 0;
+            Session.ReplaceWithNamedRois(modelFile.Header.ModelName, anchorRois, selectAdded: false);
+            Inspections.ReplaceMassiveModelAssignments(Session.State, anchorAssignments);
+            FitImage();
+            SetTool(EditorTool.Select);
+        }
+        finally
+        {
+            _suppressMassiveModelReset = false;
+        }
+
+        double totalElapsedMs = Stopwatch.GetElapsedTime(totalStartTimestamp).TotalMilliseconds;
+        Notify(nameof(ActiveMassiveModel));
+        Notify(nameof(HasActiveMassiveModel));
+        Notify(nameof(RoiCount));
+        Notify(nameof(SelectionSummary));
+        ChangeRowPage(0, force: true);
+        Refresh();
+
+        Status = $"[{modelFile.Header.ModelName}] 디스크 직접 로드 완료 ({totalElapsedMs:F1} ms, 파일 I/O {modelFile.LoadElapsedMilliseconds:F1} ms) · 총 {modelFile.Header.TotalRoiCount:N0}개 랜덤 ROI & 알고리즘 배정";
+    }
+
+    private void FocusSelectedRowBounds(IReadOnlyList<Guid> ids)
+    {
+        if (ids.Count == 0 || ids.Count > 64 || !CanNavigate || Input.IsDragging || Session.IsPreviewing)
+        {
+            return;
+        }
+
+        BoundsD? combined = null;
+        foreach (var id in ids)
+        {
+            if (Session.State.Rois.TryGetValue(id, out var roi))
+            {
+                var roiBounds = roi.Geometry.Bounds;
+                combined = combined is { } existing
+                    ? new BoundsD(
+                        Math.Min(existing.Left, roiBounds.Left),
+                        Math.Min(existing.Top, roiBounds.Top),
+                        Math.Max(existing.Right, roiBounds.Right),
+                        Math.Max(existing.Bottom, roiBounds.Bottom))
+                    : roiBounds;
+            }
+        }
+
+        if (combined is { Width: > 0, Height: > 0 } bounds)
+        {
+            var padX = Math.Max(bounds.Width * 0.45, 24.0);
+            var padY = Math.Max(bounds.Height * 0.45, 24.0);
+            var padded = new BoundsD(
+                bounds.Left - padX,
+                bounds.Top - padY,
+                bounds.Right + padX,
+                bounds.Bottom + padY);
+            LocateInspection(padded);
         }
     }
 
@@ -880,6 +1086,100 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         return true;
     }
 
+    private void SyncPreInspectionFilterPipeline(
+        System.Collections.Immutable.ImmutableArray<FilterSettings> pipeline,
+        bool preFilterBeforeInspection)
+    {
+        if (!preFilterBeforeInspection || pipeline.IsDefaultOrEmpty)
+        {
+            TeachingToolWpf.Imaging.Matching.PreInspectionFilterPipeline.ClearActivePipeline();
+            Inspections.UpdatePreFilterStatus(Filters.PipelineSummaryText, hasEnabledSteps: false);
+            return;
+        }
+
+        var builder = System.Collections.Immutable.ImmutableArray.CreateBuilder<TeachingToolWpf.Imaging.Matching.PreInspectionFilterStep>(pipeline.Length);
+        foreach (var step in pipeline)
+        {
+            if (step.IsEnabled && step.Kind != RoiFilterKind.None)
+            {
+                builder.Add(new TeachingToolWpf.Imaging.Matching.PreInspectionFilterStep(
+                    Kind: (TeachingToolWpf.Imaging.Matching.PreInspectionFilterKind)(int)step.Kind,
+                    Threshold: step.Threshold,
+                    EdgeLow: step.EdgeLow,
+                    EdgeHigh: step.EdgeHigh,
+                    Radius: step.Radius,
+                    Sigma: step.Sigma,
+                    IsEnabled: true));
+            }
+        }
+
+        var mapped = builder.ToImmutable();
+        TeachingToolWpf.Imaging.Matching.PreInspectionFilterPipeline.SetActivePipeline(mapped);
+        Inspections.UpdatePreFilterStatus(Filters.PipelineSummaryText, hasEnabledSteps: !mapped.IsEmpty);
+    }
+
+    public void SaveTeachingRecipeToDefaultFile()
+    {
+        var rois = new List<TeachingRecipeRoiEntry>();
+        foreach (var roi in Session.State.Rois.Values)
+        {
+            if (Session.State.IsGroupRoi(roi.Id))
+            {
+                continue;
+            }
+
+            rois.Add(new TeachingRecipeRoiEntry(
+                Name: roi.Name,
+                Kind: roi.Geometry.Shape.Kind,
+                CenterX: roi.Geometry.Center.X,
+                CenterY: roi.Geometry.Center.Y,
+                Width: roi.Geometry.Width,
+                Height: roi.Geometry.Height,
+                AngleDegrees: roi.Geometry.Angle,
+                SearchMarginPixels: roi.SearchRange?.Horizontal ?? 0.0,
+                PrimaryFilter: roi.Filter,
+                FilterPipeline: [.. roi.FilterPipeline]));
+        }
+
+        var doc = new TeachingRecipeDocument
+        {
+            ActiveTeachingCategory = Inspections.Selected.ToString(),
+            PreFilterBeforeInspection = Filters.PreFilterBeforeInspection,
+            SessionFilterPipeline = [.. Filters.PipelineSteps.Select(static s => s.Settings)],
+            Rois = rois
+        };
+
+        var recipePath = Path.Combine(AppContext.BaseDirectory, "latest-teaching-recipe.json");
+        File.WriteAllText(recipePath, doc.ToJson());
+        Status = $"티칭 레시피 저장 완료: ROI {rois.Count}개 · 필터 파이프라인 {doc.SessionFilterPipeline.Count}단계 ({Path.GetFileName(recipePath)})";
+    }
+
+    public void LoadTeachingRecipeFromDefaultFile()
+    {
+        var recipePath = Path.Combine(AppContext.BaseDirectory, "latest-teaching-recipe.json");
+        if (!File.Exists(recipePath))
+        {
+            Status = "저장된 티칭 레시피 파일(latest-teaching-recipe.json)이 없습니다. 먼저 '레시피 저장'을 실행하세요.";
+            return;
+        }
+
+        var json = File.ReadAllText(recipePath);
+        var doc = TeachingRecipeDocument.FromJson(json);
+        if (doc is null)
+        {
+            Status = "티칭 레시피 JSON 파싱에 실패했습니다.";
+            return;
+        }
+
+        Filters.LoadRecipePipeline(doc.SessionFilterPipeline, doc.PreFilterBeforeInspection);
+        if (Enum.TryParse<InspectionToolKind>(doc.ActiveTeachingCategory, out var category))
+        {
+            Inspections.Selected = category;
+        }
+
+        Status = $"티칭 레시피 불러오기 완료: 카테고리={doc.ActiveTeachingCategory} · ROI {doc.Rois.Count}개 · 필터 {doc.SessionFilterPipeline.Count}단계";
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -891,6 +1191,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _previewPreparation.Dispose();
         StyleSettings.Changed -= ApplyRoiSettings;
         Filters.Changed -= Publish;
+        Filters.ActivePipelineChanged -= SyncPreInspectionFilterPipeline;
         Inspections.Changed -= Publish;
         Inspections.AssignmentsChanged -= RefreshRowAssignments;
         Inspections.LocateBoundsRequested -= LocateInspection;

@@ -37,6 +37,16 @@ public static class OcrMaxSegmenter
 
         SimdAffineWarper.WarpAffineBilinear(image, in fixture, w, h, rectifiedStripOut, warpScratch);
 
+        if (segmentParams.PrintMethod == PrintMethodType.InkjetDotMatrix &&
+            (segmentParams.DotClosingRadiusX > 0 || segmentParams.DotClosingRadiusY > 0))
+        {
+            BridgeInkjetDotMatrixStrip(
+                rectifiedStripOut,
+                w,
+                h,
+                segmentParams.DarkOnLight);
+        }
+
         // Compute background median/mean and dynamic half-contrast threshold so anti-aliased fringes do not bloat bounding boxes
         double sum = 0.0;
         byte minPix = 255;
@@ -277,6 +287,102 @@ public static class OcrMaxSegmenter
         }
 
         return outCount;
+    }
+
+    private static void BridgeInkjetDotMatrixStrip(
+        Span<byte> strip,
+        int width,
+        int height,
+        bool darkOnLight)
+    {
+        int len = checked(width * height);
+        byte[] srcBuf = new byte[len];
+        strip.Slice(0, len).CopyTo(srcBuf);
+        ReadOnlySpan<byte> src = srcBuf;
+
+        // Restore discrete 5x7 / 7x9 dot radius (+0.55 px isotropic soft dilation) and bridge 1..2 px horizontal/vertical inter-dot gaps
+        for (int y = 2; y < height - 2; y++)
+        {
+            int ym1 = (y - 1) * width;
+            int yc = y * width;
+            int yp1 = (y + 1) * width;
+            int ym2 = (y - 2) * width;
+            int yp2 = (y + 2) * width;
+            int ym3 = Math.Max(0, y - 3) * width;
+            int yp3 = Math.Min(height - 1, y + 3) * width;
+
+            for (int x = 2; x < width - 2; x++)
+            {
+                int c = src[yc + x];
+                int l1 = src[yc + x - 1];
+                int r1 = src[yc + x + 1];
+                int u1 = src[ym1 + x];
+                int d1 = src[yp1 + x];
+
+                int ul = src[ym1 + x - 1];
+                int ur = src[ym1 + x + 1];
+                int dl = src[yp1 + x - 1];
+                int dr = src[yp1 + x + 1];
+
+                if (darkOnLight)
+                {
+                    int n4 = Math.Min(c, Math.Min(Math.Min(l1, r1), Math.Min(u1, d1)));
+                    int n8 = Math.Min(n4, Math.Min(Math.Min(ul, ur), Math.Min(dl, dr)));
+                    int expandedDot = ((c * 3) + (n4 * 9) + (n8 * 4) + 8) >> 4;
+
+                    int hBridge = Math.Max(Math.Min(l1, src[yc + x - 2]), Math.Min(r1, src[yc + x + 2]));
+                    int vBridge = Math.Max(Math.Min(u1, src[ym2 + x]), Math.Min(d1, src[yp2 + x]));
+                    int vDropoutBridge = Math.Max(src[ym3 + x], src[yp3 + x]);
+                    int dBridgeA = Math.Max(ul, dr);
+                    int dBridgeB = Math.Max(ur, dl);
+
+                    int bridged = Math.Min(expandedDot, Math.Min(Math.Min(hBridge, vBridge), Math.Min(vDropoutBridge, Math.Min(dBridgeA, dBridgeB))));
+                    strip[yc + x] = (byte)Math.Clamp(bridged, 0, 255);
+                }
+                else
+                {
+                    int n4 = Math.Max(c, Math.Max(Math.Max(l1, r1), Math.Max(u1, d1)));
+                    int n8 = Math.Max(n4, Math.Max(Math.Max(ul, ur), Math.Max(dl, dr)));
+                    int expandedDot = ((c * 3) + (n4 * 9) + (n8 * 4) + 8) >> 4;
+
+                    int hBridge = Math.Min(Math.Max(l1, src[yc + x - 2]), Math.Max(r1, src[yc + x + 2]));
+                    int vBridge = Math.Min(Math.Max(u1, src[ym2 + x]), Math.Max(d1, src[yp2 + x]));
+                    int vDropoutBridge = Math.Min(src[ym3 + x], src[yp3 + x]);
+                    int dBridgeA = Math.Min(ul, dr);
+                    int dBridgeB = Math.Min(ur, dl);
+
+                    int bridged = Math.Max(expandedDot, Math.Max(Math.Max(hBridge, vBridge), Math.Max(vDropoutBridge, Math.Max(dBridgeA, dBridgeB))));
+                    strip[yc + x] = (byte)Math.Clamp(bridged, 0, 255);
+                }
+            }
+        }
+
+        // Second pass: widen newly bridged 1px filaments so bridged stroke width matches continuous stroke thickness
+        strip.Slice(0, len).CopyTo(srcBuf);
+        for (int y = 1; y < height - 1; y++)
+        {
+            int ym1 = (y - 1) * width;
+            int yc = y * width;
+            int yp1 = (y + 1) * width;
+            for (int x = 1; x < width - 1; x++)
+            {
+                int c = src[yc + x];
+                int l1 = src[yc + x - 1];
+                int r1 = src[yc + x + 1];
+                int u1 = src[ym1 + x];
+                int d1 = src[yp1 + x];
+                if (darkOnLight)
+                {
+                    int n4 = Math.Min(c, Math.Min(Math.Min(l1, r1), Math.Min(u1, d1)));
+                    strip[yc + x] = (byte)(((c * 9) + (n4 * 7) + 8) >> 4);
+                }
+                else
+                {
+                    int n4 = Math.Max(c, Math.Max(Math.Max(l1, r1), Math.Max(u1, d1)));
+                    strip[yc + x] = (byte)(((c * 9) + (n4 * 7) + 8) >> 4);
+                }
+            }
+        }
     }
 
     private static void SplitOverwideSegment(

@@ -68,13 +68,25 @@ public sealed class PartModelPool : IDisposable
             }
         }
 
-        // Extract local crop around teachPose to train PatMaxModel
+        // Extract local crop around teachPose using exact LocalToWorld centered at (cropW * 0.5f, cropH * 0.5f)
         int pad = 12;
         int cropW = Math.Max(24, (int)MathF.Ceiling(roiWidth) + (2 * pad));
         int cropH = Math.Max(24, (int)MathF.Ceiling(roiHeight) + (2 * pad));
         Span<byte> cropBytes = workspace.GetByteBufferA(checked(cropW * cropH));
-        Span<float> warpScratch = workspace.GetFloatBufferA(checked(cropW * cropH));
-        SimdAffineWarper.WarpAffineBilinear(image, in teachPose, cropW, cropH, cropBytes, warpScratch);
+        float halfCropW = cropW * 0.5f;
+        float halfCropH = cropH * 0.5f;
+        for (int cy = 0; cy < cropH; cy++)
+        {
+            float ly = cy - halfCropH;
+            int rowOff = cy * cropW;
+            for (int cx = 0; cx < cropW; cx++)
+            {
+                float lx = cx - halfCropW;
+                var wpt = teachPose.LocalToWorld(lx, ly);
+                float sample = SubpixelInterpolator.SampleBilinear(image, wpt.X, wpt.Y);
+                cropBytes[rowOff + cx] = (byte)Math.Clamp((int)MathF.Round(sample), 0, 255);
+            }
+        }
 
         PatMaxTrainParams trainParams = PatMaxTrainParams.Create(
             coarseGranularity: 4,
@@ -88,8 +100,8 @@ public sealed class PartModelPool : IDisposable
             cropH,
             cropW,
             in trainParams,
-            customOriginX: cropW * 0.5f,
-            customOriginY: cropH * 0.5f);
+            customOriginX: halfCropW,
+            customOriginY: halfCropH);
 
         // Extract canonical 16x16 CL2N appearance prototype and fit Ledoit-Wolf Mahalanobis covariance
         float[] prototype = new float[PartPoolEntry.AppearanceDimension];
@@ -114,6 +126,7 @@ public sealed class PartModelPool : IDisposable
             mahalanobis,
             childSpecs.ToArray());
 
+        newEntry.BuildIcgnTemplate(image, in teachPose, roiWidth, roiHeight);
         _entries.Add(newEntry);
         return new PartTeachRegistrationResult(
             newId,

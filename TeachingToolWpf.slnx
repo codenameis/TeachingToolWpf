@@ -55,6 +55,7 @@
     <Project Path="samples/VisionCanvas.SkiaSample/VisionCanvas.SkiaSample.csproj" />
     <Project Path="samples/VisionCanvas.WgpuSample/VisionCanvas.WgpuSample.csproj" />
     <Project Path="samples/VisionCanvas.Sample/VisionCanvas.Sample.csproj" />
+    <Project Path="samples/ToolBlock.Simulator/ToolBlock.Simulator.csproj" />
   </Folder>
   <Folder Name="/file-engine/">
     <Project Path="tools/CpuMatching.Evaluation/CpuMatching.Evaluation.csproj" />

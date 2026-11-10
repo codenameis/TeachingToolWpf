@@ -22,9 +22,10 @@ public sealed class RoiSelectionFacts
     internal RoiSelectionFacts(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection, RoiSnapshot snapshot)
     {
         // Command availability shares this result across navigation without adding work to unrelated facts.
-        _hasMultipleRoots = new(() => FindMultipleRoots(rois, selection));
-        _canGroup = new(() => HasMultipleRoots && RoiGroupEditor.CanGroup(snapshot,
-            RoiHierarchy.EffectiveRoots(rois, selection).ToArray()));
+        _hasMultipleRoots = new(() => FindMultipleRoots(rois, selection, snapshot));
+        _canGroup = new(() => HasMultipleRoots &&
+            (snapshot.Children.IsEmpty && snapshot.GroupLevels.IsEmpty
+                || RoiGroupEditor.CanGroup(snapshot, RoiHierarchy.EffectiveRoots(rois, selection).ToArray())));
         var registered = ImmutableArray.CreateBuilder<Roi>();
         FilterSettings? firstSettings = null;
         // Large partial selections scan immutable values once instead of performing a tree lookup
@@ -37,7 +38,7 @@ public sealed class RoiSelectionFacts
                 First = roi;
             }
 
-            HasGroup |= roi.IsGroup || snapshot.Children.ContainsKey(roi.Id);
+            HasGroup |= roi.IsGroup || (!snapshot.Children.IsEmpty && snapshot.Children.ContainsKey(roi.Id));
             if (firstSettings is null)
             {
                 firstSettings = roi.Filter;
@@ -47,7 +48,7 @@ public sealed class RoiSelectionFacts
                 HasMixedFilters |= firstSettings != roi.Filter;
             }
 
-            if (roi.Filter.Kind != RoiFilterKind.None)
+            if (roi.HasActiveFilter)
             {
                 registered.Add(roi);
             }
@@ -71,11 +72,16 @@ public sealed class RoiSelectionFacts
         return selection.Select(id => rois[id]);
     }
 
-    private static bool FindMultipleRoots(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection)
+    private static bool FindMultipleRoots(ImmutableDictionary<Guid, Roi> rois, IReadOnlySet<Guid> selection, RoiSnapshot snapshot)
     {
         if (selection.Count < 2)
         {
             return false;
+        }
+
+        if (snapshot.Children.IsEmpty)
+        {
+            return true;
         }
 
         var roots = 0;

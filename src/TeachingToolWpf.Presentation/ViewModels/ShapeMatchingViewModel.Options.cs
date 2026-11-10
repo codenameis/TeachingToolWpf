@@ -173,14 +173,15 @@ public sealed partial class ShapeMatchingViewModel
             return;
         }
         var wasIdle = IsIdle;
+        bool canScheduleLivePreview = wasIdle && ShowFeatures && ShowOverlay && _toolAvailable && !_disposed && _image is not null;
         ActiveShapeState.Training = settings;
         _previewShapeModel = null;
         Notify(property);
-        Invalidate();
+        Invalidate(keepLivePreview: canScheduleLivePreview);
         if (Model is not null)
         {
             ResetResult(IsTrainingDirty ? "학습 설정 변경 · 기존 모델을 보관합니다. 다시 학습한 뒤 검사하세요." :
-                "학습 설정 복원 · 저장된 모델로 다시 검사할 수 있습니다.");
+                "학습 설정 복원 · 저장된 모델로 다시 검사할 수 있습니다.", clearLivePreview: !canScheduleLivePreview);
         }
         Notify(nameof(IsTrainingDirty));
         Notify(nameof(ModelSummary));
@@ -205,6 +206,7 @@ public sealed partial class ShapeMatchingViewModel
         }
         var wasIdle = IsIdle;
         var hadTrainingPreview = _result?.Summary.Contains("미리보기", StringComparison.Ordinal) == true || _livePreview is not null;
+        bool canScheduleLivePreview = wasIdle && (hadTrainingPreview || !HasModel) && ShowFeatures && ShowOverlay && _toolAvailable && !_disposed && _image is not null;
         ActiveSearchSettings = settings;
         Notify(property);
         Notify(nameof(SpeedProfile));
@@ -212,7 +214,7 @@ public sealed partial class ShapeMatchingViewModel
         {
             Notify(nameof(UseExpandedCandidateBudget));
         }
-        Invalidate();
+        Invalidate(keepLivePreview: canScheduleLivePreview);
         RefreshCommands();
         if (wasIdle && (hadTrainingPreview || !HasModel))
         {

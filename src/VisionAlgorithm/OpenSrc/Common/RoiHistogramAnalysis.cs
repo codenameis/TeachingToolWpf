@@ -1,0 +1,80 @@
+// File: src/VisionAlgorithm/OpenSrc/Common/RoiHistogramAnalysis.cs
+namespace VisionAlgorithm.OpenSrc.Common;
+
+/// <summary>
+/// Immutable ImageJ-style grayscale intensity distribution, multi-algorithm auto-thresholds
+/// (Otsu, Triangle, IsoData, MaxEntropy, Mean, Percentile), higher-order moments (Skewness, Kurtosis),
+/// Shannon entropy, and 1D intensity + first-derivative edge gradient profiles over an ROI.
+/// </summary>
+public readonly record struct RoiHistogramAnalysis(
+    int RoiX,
+    int RoiY,
+    int RoiWidth,
+    int RoiHeight,
+    int TotalPixelCount,
+    byte MinGray,
+    byte MaxGray,
+    byte ModeGray,
+    byte MedianGray,
+    byte Percentile5Gray,
+    byte Percentile95Gray,
+    byte OtsuThreshold,
+    byte TriangleThreshold,
+    byte IsoDataThreshold,
+    byte MaxEntropyThreshold,
+    byte MeanThreshold,
+    float MeanGray,
+    float StdDevGray,
+    float Skewness,
+    float Kurtosis,
+    float EntropyBits,
+    int ThresholdedPixelCount,
+    float ThresholdedRatioPercent,
+    int PeakBinCount,
+    int[] Bins256,
+    float[] HorizontalProfile,
+    float[] VerticalProfile,
+    float[] HorizontalGradientProfile,
+    float[] VerticalGradientProfile,
+    float MaxHorizontalGradient,
+    int PeakHorizontalGradientX,
+    float MaxVerticalGradient,
+    int PeakVerticalGradientY)
+{
+    private const byte DefaultThreshold = 128;
+
+    public static RoiHistogramAnalysis Empty => new(
+        RoiX: 0,
+        RoiY: 0,
+        RoiWidth: 0,
+        RoiHeight: 0,
+        TotalPixelCount: 0,
+        MinGray: 0,
+        MaxGray: 0,
+        ModeGray: 0,
+        MedianGray: 0,
+        Percentile5Gray: 0,
+        Percentile95Gray: 0,
+        OtsuThreshold: DefaultThreshold,
+        TriangleThreshold: DefaultThreshold,
+        IsoDataThreshold: DefaultThreshold,
+        MaxEntropyThreshold: DefaultThreshold,
+        MeanThreshold: DefaultThreshold,
+        MeanGray: 0.0f,
+        StdDevGray: 0.0f,
+        Skewness: 0.0f,
+        Kurtosis: 0.0f,
+        EntropyBits: 0.0f,
+        ThresholdedPixelCount: 0,
+        ThresholdedRatioPercent: 0.0f,
+        PeakBinCount: 0,
+        Bins256: new int[byte.MaxValue + 1],
+        HorizontalProfile: [],
+        VerticalProfile: [],
+        HorizontalGradientProfile: [],
+        VerticalGradientProfile: [],
+        MaxHorizontalGradient: 0.0f,
+        PeakHorizontalGradientX: 0,
+        MaxVerticalGradient: 0.0f,
+        PeakVerticalGradientY: 0);
+}

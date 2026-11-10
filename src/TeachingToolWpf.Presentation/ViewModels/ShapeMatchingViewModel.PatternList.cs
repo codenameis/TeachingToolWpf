@@ -646,7 +646,7 @@ public sealed partial class ShapeMatchingViewModel
             return;
         }
 
-        if (UseSelection && _selection is null && _targetRois.Length > 0)
+        if (UseSelection && _selection is null && _targetRoiCount > 0)
         {
             await SearchMultipleRoisWithRegisteredPatternsAsync(image, live, method, enabledPatterns);
             return;
@@ -702,7 +702,9 @@ public sealed partial class ShapeMatchingViewModel
         PatternMatchingMethod method,
         ImmutableArray<RegisteredPatternItem> enabledPatterns)
     {
-        var targets = _targetRois;
+        var targets = _state is not null
+            ? InspectionSelection.ResolveTargetLeafRois(_state, _lastTransformPreview)
+            : [];
         await RunAsync(async (token, epoch) =>
         {
             Status = $"대상 리프 ROI {targets.Length}개 × 등록 패턴 {enabledPatterns.Length}개 검사 중…";

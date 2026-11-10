@@ -15,8 +15,12 @@ public sealed class RoiRows : IList, IReadOnlyList<RoiRow>
 
     public RoiRows(IEnumerable<RoiRow> rows)
     {
-        _items = rows.ToArray();
-        _indices = _items.Select((row, index) => (row.Id, index)).ToDictionary(pair => pair.Id, pair => pair.index);
+        _items = rows is RoiRow[] array ? array : rows.ToArray();
+        _indices = new Dictionary<Guid, int>(_items.Length);
+        for (var i = 0; i < _items.Length; i++)
+        {
+            _indices[_items[i].Id] = i;
+        }
     }
 
     public RoiRow? Find(Guid id) => _indices.TryGetValue(id, out var index) ? _items[index] : null;

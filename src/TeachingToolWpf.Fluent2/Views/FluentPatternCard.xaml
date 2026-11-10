@@ -14,8 +14,11 @@
         <Border Style="{StaticResource Fluent2SurfaceCardStyle}" Padding="8,6" Margin="0,0,0,6">
             <StackPanel>
                 <DockPanel Margin="0,0,0,5">
+                    <Button DockPanel.Dock="Right" Content="? 매뉴얼" Command="{Binding Studio.Matching.ToggleHelpManual}"
+                            Style="{StaticResource SecondaryButton}" Padding="8,2" Height="22" FontSize="10.5" FontWeight="Bold" Margin="6,0,0,0"
+                            ToolTip="현재 선택된 패턴 매칭 알고리즘의 상세 수식·티칭 방법·파라미터 튜닝 매뉴얼을 펼치거나 닫습니다." />
                     <TextBlock DockPanel.Dock="Right" Text="{Binding Studio.Matching.ModelSummary}" FontSize="10.5" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="패턴 매칭 엔진 1-Click 선택" Style="{StaticResource SectionBadgeText}" />
+                    <TextBlock Text="패턴 매칭 엔진 1-Click 선택" Style="{StaticResource SectionBadgeText}" VerticalAlignment="Center" />
                 </DockPanel>
                 <UniformGrid Columns="5" IsEnabled="{Binding Studio.Matching.IsIdle}">
                     <Button Content="기하 Shape" Command="{Binding SelectShapeMethod}" Margin="0,0,3,0" ToolTip="심층 다중 피라미드 + Greediness + Point-to-Tangent 서브픽셀 정밀화">
@@ -84,6 +87,33 @@
                         </Button.Style>
                     </Button>
                 </UniformGrid>
+
+                <!-- Interactive '?' Algorithm Help Manual Panel (Zero-Expander) -->
+                <Border x:Name="HelpManualBorder"
+                        Visibility="{Binding Studio.Matching.IsHelpManualOpen, Converter={StaticResource BoolVisibility}}"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderThickness="3,1,1,1"
+                        Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                        CornerRadius="6"
+                        Padding="10,8"
+                        Margin="0,6,0,2">
+                    <StackPanel DataContext="{Binding Studio.Matching.ActiveHelpManual}">
+                        <DockPanel Margin="0,0,0,4">
+                            <Button DockPanel.Dock="Right" Content="닫기 ✕" Command="{Binding DataContext.Studio.Matching.ToggleHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    Style="{StaticResource SecondaryButton}" Padding="6,1" Height="20" FontSize="9.5" />
+                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding Subtitle}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                        <TextBlock Text="■ 핵심 원리 및 수식" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding PrincipleAndFormula}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                        <TextBlock Text="■ 단계별 티칭 및 사용 방법" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding StepByStepGuide}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                        <TextBlock Text="■ 주요 파라미터 튜닝 가이드" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding ParameterTuningGuide}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                        <TextBlock Text="■ 현장 트러블슈팅 팁" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                        <TextBlock Text="{Binding TroubleshootingTips}" FontSize="10" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" LineHeight="14.5" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Border>
 
@@ -766,7 +796,63 @@
 
                             <!-- (B) CPU Line-2D / Sub-NCC Parameters (Full-Width 3-Column Rows) -->
                             <StackPanel Visibility="{Binding IsCpuMethod, Converter={StaticResource BoolVisibility}}">
-                                <TextBlock Text="회전 · 배율 · 피라미드 검색 (슬라이더 조절)" Style="{StaticResource SectionBadgeText}" Margin="0,0,0,4" />
+                                <StackPanel Visibility="{Binding IsCpuEdgeMethod, Converter={StaticResource BoolVisibility}}" Margin="0,0,0,6">
+                                    <TextBlock Text="Line-2D 희소 윤곽 방향 특징 설정 (방식 전용)" Style="{StaticResource SectionBadgeText}" Margin="0,0,0,4" />
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="134" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="축소 윤곽 특징 수 (16~512)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
+                                        <Slider Grid.Column="1" Minimum="16" Maximum="512" SmallChange="8" LargeChange="32" TickFrequency="8"
+                                                Value="{Binding CpuCoarseFeatures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
+                                                 Text="{Binding CpuCoarseFeatures, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="134" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="원본 윤곽 특징 수 (16~512)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
+                                        <Slider Grid.Column="1" Minimum="16" Maximum="512" SmallChange="8" LargeChange="32" TickFrequency="8"
+                                                Value="{Binding CpuFineFeatures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
+                                                 Text="{Binding CpuFineFeatures, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Visibility="{Binding IsCpuSubNcc, Converter={StaticResource BoolVisibility}}" Margin="0,0,0,6">
+                                    <TextBlock Text="Sub-NCC 명암 ZNCC 표본 설정 (방식 전용)" Style="{StaticResource SectionBadgeText}" Margin="0,0,0,4" />
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="134" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="축소 명암 표본 수 (16~512)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
+                                        <Slider Grid.Column="1" Minimum="16" Maximum="512" SmallChange="2" LargeChange="16" TickFrequency="2"
+                                                Value="{Binding CpuNccCoarseSamples, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
+                                                 Text="{Binding CpuNccCoarseSamples, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="134" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="학습 최소 명암차 (1~255)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
+                                        <Slider Grid.Column="1" Minimum="1" Maximum="255" SmallChange="1" LargeChange="10" TickFrequency="1"
+                                                Value="{Binding CpuNccMinimumContrast, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
+                                                 Text="{Binding CpuNccMinimumContrast, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <TextBlock Text="회전 · 배율 · 피라미드 검색 (공통 포즈 탐색 범위)" Style="{StaticResource SectionBadgeText}" Margin="0,0,0,4" />
                                 <Grid Margin="0,0,0,3">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="134" />
@@ -851,7 +937,7 @@
                                     <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
                                              Text="{Binding CpuPyramidLevels, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
                                 </Grid>
-                                <Grid Margin="0,0,0,6">
+                                <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="134" />
                                         <ColumnDefinition Width="*" />
@@ -863,61 +949,6 @@
                                     <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
                                              Text="{Binding CpuSuppressionRadius, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
                                 </Grid>
-
-                                <TextBlock Text="학습 특징 · 표본 수 (변경 후 재학습)" Style="{StaticResource SectionBadgeText}" Margin="0,0,0,4" />
-                                <StackPanel Visibility="{Binding IsCpuEdgeMethod, Converter={StaticResource BoolVisibility}}">
-                                    <Grid Margin="0,0,0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="134" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="56" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="축소 특징 수 (16~512)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
-                                        <Slider Grid.Column="1" Minimum="16" Maximum="512" SmallChange="8" LargeChange="32" TickFrequency="8"
-                                                Value="{Binding CpuCoarseFeatures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
-                                                 Text="{Binding CpuCoarseFeatures, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
-                                    </Grid>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="134" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="56" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="원본 특징 수 (16~512)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
-                                        <Slider Grid.Column="1" Minimum="16" Maximum="512" SmallChange="8" LargeChange="32" TickFrequency="8"
-                                                Value="{Binding CpuFineFeatures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
-                                                 Text="{Binding CpuFineFeatures, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
-                                    </Grid>
-                                </StackPanel>
-
-                                <StackPanel Visibility="{Binding IsCpuSubNcc, Converter={StaticResource BoolVisibility}}">
-                                    <Grid Margin="0,0,0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="134" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="56" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="축소 표본 수 (16~512)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
-                                        <Slider Grid.Column="1" Minimum="16" Maximum="512" SmallChange="2" LargeChange="16" TickFrequency="2"
-                                                Value="{Binding CpuNccCoarseSamples, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
-                                                 Text="{Binding CpuNccCoarseSamples, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
-                                    </Grid>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="134" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="56" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="학습 최소 명암차 (1~255)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
-                                        <Slider Grid.Column="1" Minimum="1" Maximum="255" SmallChange="1" LargeChange="10" TickFrequency="1"
-                                                Value="{Binding CpuNccMinimumContrast, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}"
-                                                 Text="{Binding CpuNccMinimumContrast, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True, UpdateSourceTrigger=PropertyChanged}" />
-                                    </Grid>
-                                </StackPanel>
                             </StackPanel>
 
                             <!-- (C) OpenCV Template Guidance -->

@@ -47,7 +47,16 @@ public sealed record RoiAlgorithmAssignment(
                 InspectionSuiteAlgorithmKind.FewShot => "스위트 · FewShot",
                 InspectionSuiteAlgorithmKind.PatchAnomaly => "스위트 · PaDiM",
                 InspectionSuiteAlgorithmKind.Calibration => "스위트 · 호모그래피",
-                _ => "7종 정밀 스위트"
+                InspectionSuiteAlgorithmKind.CornerAlignment => "스위트 · 코너정합",
+                InspectionSuiteAlgorithmKind.IndustrialOcrOcv => "스위트 · OCR/OCV",
+                InspectionSuiteAlgorithmKind.LightweightOcr => "스위트 · 경량OCR",
+                InspectionSuiteAlgorithmKind.AutoTeaching => "스위트 · 자동티칭",
+                InspectionSuiteAlgorithmKind.CpuDeepOcr => "스위트 · 신경망OCR",
+                InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => "전처리 · 조명/재구성",
+                InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => "스위트 · 타원/복합캘리퍼",
+                InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => "스위트 · 고급블롭/분리",
+                InspectionSuiteAlgorithmKind.DataMatrix2DReader => "스위트 · DataMatrix",
+                _ => "16종 정밀 스위트"
             },
             _ => "미지정"
         };

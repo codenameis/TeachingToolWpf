@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using IndustrialVision.Filters.Core;
+using OpenCvSharp;
 using VisionCanvas.Core.Editing;
 using VisionImaging.Abstractions;
 
@@ -26,7 +27,10 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
                 ObjectDisposedException.ThrowIf(_disposed, this);
                 foreach (var roi in request.Rois)
                 {
-                    request.Settings(roi).Validate();
+                    foreach (var step in request.Pipeline(roi))
+                    {
+                        step.Validate();
+                    }
                 }
 
                 var watch = Stopwatch.StartNew();
@@ -36,8 +40,17 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
                 var edge = Math.Min(MaximumEdge, Math.Max(1, (int)Math.Sqrt(PixelBudget / (double)Math.Max(1, request.Rois.Count))));
                 foreach (var roi in request.Rois)
                 {
-                    var settings = request.Settings(roi);
-                    if (settings.Kind == RoiFilterKind.None)
+                    var pipeline = request.Pipeline(roi);
+                    var activeSteps = new List<FilterSettings>(pipeline.Length);
+                    for (var i = 0; i < pipeline.Length; i++)
+                    {
+                        if (pipeline[i].IsEnabled && pipeline[i].Kind != RoiFilterKind.None)
+                        {
+                            activeSteps.Add(pipeline[i]);
+                        }
+                    }
+
+                    if (activeSteps.Count == 0)
                     {
                         continue;
                     }
@@ -51,20 +64,79 @@ public sealed class RoiFilterPreview(IImageLoader loader, Func<VideoFrame?> reta
                         : RoiPixelExtractor.FromFrame(frame!.Pixels, geometry, width, height);
                     var kind = source?.Info.Pixels ?? frame!.Pixels.Kind;
                     var mask = RoiFilterMask.Create(geometry, width, height, cancellationToken);
-                    if (settings.IsIndustrial)
+
+                    if (activeSteps.Count == 1)
                     {
-                        var filtered = _industrial.Apply(pixels, kind, settings, cancellationToken);
-                        output.Add(new(roi.Id, geometry, width, height, filtered.Pixels, mask)
+                        var settings = activeSteps[0];
+                        if (settings.IsIndustrial)
                         {
-                            Execution = ToFilterExecutionReport(filtered.Report),
-                            PreparationMilliseconds = filtered.PreparationMilliseconds,
-                            ReusedPlan = filtered.ReusedPlan
-                        });
+                            var filtered = _industrial.Apply(pixels, kind, settings, cancellationToken);
+                            output.Add(new(roi.Id, geometry, width, height, filtered.Pixels, mask)
+                            {
+                                Execution = ToFilterExecutionReport(filtered.Report),
+                                PreparationMilliseconds = filtered.PreparationMilliseconds,
+                                ReusedPlan = filtered.ReusedPlan
+                            });
+                        }
+                        else
+                        {
+                            var bytes = OpenCvRoiFilter.Apply(pixels, kind, settings);
+                            output.Add(new(roi.Id, geometry, width, height, bytes, mask));
+                        }
                     }
                     else
                     {
-                        var bytes = OpenCvRoiFilter.Apply(pixels, kind, settings);
-                        output.Add(new(roi.Id, geometry, width, height, bytes, mask));
+                        byte[]? currentBytes = null;
+                        FilterExecutionReport? lastReport = null;
+                        var totalPrepMs = 0.0;
+                        var reused = false;
+
+                        for (var stepIdx = 0; stepIdx < activeSteps.Count; stepIdx++)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            var stepSettings = activeSteps[stepIdx];
+                            if (stepIdx == 0)
+                            {
+                                if (stepSettings.IsIndustrial)
+                                {
+                                    var filtered = _industrial.Apply(pixels, kind, stepSettings, cancellationToken);
+                                    currentBytes = filtered.Pixels;
+                                    lastReport = ToFilterExecutionReport(filtered.Report);
+                                    totalPrepMs += filtered.PreparationMilliseconds;
+                                    reused |= filtered.ReusedPlan;
+                                }
+                                else
+                                {
+                                    currentBytes = OpenCvRoiFilter.Apply(pixels, kind, stepSettings);
+                                }
+                            }
+                            else
+                            {
+                                using var stepMat = Mat.FromPixelData(height, width, MatType.CV_8UC1, currentBytes!, width);
+                                if (stepSettings.IsIndustrial)
+                                {
+                                    var filtered = _industrial.Apply(stepMat, PixelKind.Gray8, stepSettings, cancellationToken);
+                                    currentBytes = filtered.Pixels;
+                                    lastReport = ToFilterExecutionReport(filtered.Report);
+                                    totalPrepMs += filtered.PreparationMilliseconds;
+                                    reused |= filtered.ReusedPlan;
+                                }
+                                else
+                                {
+                                    currentBytes = OpenCvRoiFilter.Apply(stepMat, PixelKind.Gray8, stepSettings);
+                                }
+                            }
+                        }
+
+                        if (currentBytes is not null)
+                        {
+                            output.Add(new(roi.Id, geometry, width, height, currentBytes, mask)
+                            {
+                                Execution = lastReport,
+                                PreparationMilliseconds = totalPrepMs,
+                                ReusedPlan = reused
+                            });
+                        }
                     }
                 }
                 cancellationToken.ThrowIfCancellationRequested();

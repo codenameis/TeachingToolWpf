@@ -38,6 +38,8 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
     private Guid? _lastSynchronizedSingleRoiId;
     private StructuredLogFilterKind _logFilter = StructuredLogFilterKind.All;
     private StructuredInspectionLogEntry? _selectedLogEntry;
+    private string _preFilterRuleStatusText = "전처리 규칙: 대기 (활성 필터 0단계 — 원본 직접 검사)";
+    private bool _hasActivePreFilterPipeline;
     private bool _updating;
     private bool _disposed;
 
@@ -58,18 +60,18 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         };
         var tools = new List<InspectionToolOption>
         {
-            new(InspectionToolKind.Pattern, "학습 패턴 찾기"),
-            new(InspectionToolKind.PrimitiveShapes, "일반 도형 찾기 · 학습 없음")
+            new(InspectionToolKind.Pattern, "[티칭 1] 패턴·형상 매칭 티칭 (학습 패턴 찾기)"),
+            new(InspectionToolKind.PrimitiveShapes, "[티칭 2] 기하 도형·마크 티칭 (일반 도형 찾기)")
         };
         if (fewShot is not null)
         {
             map[InspectionToolKind.EdgeFewShot] = fewShot;
-            tools.Add(new(InspectionToolKind.EdgeFewShot, "소량 샘플 분류 · 이상 탐지 (Few-Shot)"));
+            tools.Add(new(InspectionToolKind.EdgeFewShot, "[티칭 3] 소량 샘플(Few-Shot) 분류·이상 티칭"));
         }
         if (suite is not null)
         {
             map[InspectionToolKind.InspectionSuite] = suite;
-            tools.Add(new(InspectionToolKind.InspectionSuite, "상용 정밀 검사 스위트 7종 (Inspection Suite)"));
+            tools.Add(new(InspectionToolKind.InspectionSuite, "[티칭 4] 정밀 계측·외관·코드·전처리 스위트 (20종)"));
         }
         _previews = map;
         Tools = tools;
@@ -116,6 +118,15 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
                 }
             },
             () => _selectedLogEntry?.TargetBounds is not null);
+
+        SelectCategoryPattern = new RelayCommand(() => SelectUnifiedTeachingCategory(InspectionToolKind.Pattern, null), () => IsIdle);
+        SelectCategoryShapes = new RelayCommand(() => SelectUnifiedTeachingCategory(InspectionToolKind.PrimitiveShapes, null), () => IsIdle);
+        SelectCategoryFewShot = new RelayCommand(() => SelectUnifiedTeachingCategory(InspectionToolKind.EdgeFewShot, null), () => IsIdle && FewShot is not null);
+        SelectCategorySuiteMetrology = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.MetrologyAndGeometry, InspectionSuiteAlgorithmKind.Metrology), () => IsIdle && Suite is not null);
+        SelectCategorySuiteSurface = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.SurfaceBlobAnd3D, InspectionSuiteAlgorithmKind.BlobRle), () => IsIdle && Suite is not null);
+        SelectCategorySuiteCodeOcr = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.CodeAndOcr, InspectionSuiteAlgorithmKind.Barcode1DReader), () => IsIdle && Suite is not null);
+        SelectCategorySuiteAiAutoTeaching = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.AiAndAutoTeaching, InspectionSuiteAlgorithmKind.AutoTeaching), () => IsIdle && Suite is not null);
+        SelectCategorySuitePreprocess = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.PreprocessingAndFrequency, InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon), () => IsIdle && Suite is not null);
     }
 
     public event Action? Changed;
@@ -139,6 +150,71 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
     public RelayCommand FilterSelectedRoiLogs { get; }
     public RelayCommand ClearStructuredLogs { get; }
     public RelayCommand LocateSelectedLogEntry { get; }
+    public RelayCommand SelectCategoryPattern { get; }
+    public RelayCommand SelectCategoryShapes { get; }
+    public RelayCommand SelectCategoryFewShot { get; }
+    public RelayCommand SelectCategorySuiteMetrology { get; }
+    public RelayCommand SelectCategorySuiteSurface { get; }
+    public RelayCommand SelectCategorySuiteCodeOcr { get; }
+    public RelayCommand SelectCategorySuiteAiAutoTeaching { get; }
+    public RelayCommand SelectCategorySuitePreprocess { get; }
+
+    public string PreFilterRuleStatusText
+    {
+        get => _preFilterRuleStatusText;
+        private set => Set(ref _preFilterRuleStatusText, value);
+    }
+
+    public bool HasActivePreFilterPipeline
+    {
+        get => _hasActivePreFilterPipeline;
+        private set => Set(ref _hasActivePreFilterPipeline, value);
+    }
+
+    public void UpdatePreFilterStatus(string summaryText, bool hasEnabledSteps)
+    {
+        HasActivePreFilterPipeline = hasEnabledSteps;
+        PreFilterRuleStatusText = hasEnabledSteps
+            ? $"★ 선행 필터 규칙 ON: {summaryText}"
+            : "전처리 규칙: 대기 (활성 필터 0단계 — 원본 직접 검사)";
+    }
+
+    private void SelectUnifiedTeachingCategory(InspectionToolKind toolKind, InspectionSuiteAlgorithmKind? suiteAlgorithm)
+    {
+        if (!IsIdle)
+        {
+            return;
+        }
+
+        if (_previews.ContainsKey(toolKind))
+        {
+            Selected = toolKind;
+        }
+
+        if (suiteAlgorithm is { } alg && Suite is not null)
+        {
+            Suite.SelectedAlgorithm = alg;
+        }
+    }
+
+    private void SelectSuiteCategory(InspectionSuiteCategory category, InspectionSuiteAlgorithmKind fallbackAlgorithm)
+    {
+        if (!IsIdle || Suite is null)
+        {
+            return;
+        }
+
+        if (_previews.ContainsKey(InspectionToolKind.InspectionSuite))
+        {
+            Selected = InspectionToolKind.InspectionSuite;
+        }
+
+        Suite.SelectedCategory = category;
+        if (InspectionSuiteViewModel.ResolveCategoryForAlgorithm(Suite.SelectedAlgorithm) != category)
+        {
+            Suite.SelectedAlgorithm = fallbackAlgorithm;
+        }
+    }
 
     public bool IsIdle => _previews.Values.All(preview => preview.IsIdle);
     public bool ShowPatterns => Selected == InspectionToolKind.Pattern;
@@ -234,10 +310,10 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
                 return $"현재 범위: 선택 ROI 검색 영역 ({roiTitle} · {roi.Width:F0} × {roi.Height:F0} px)";
             }
 
-            var targets = InspectionSelection.ResolveTargetLeafRois(_state, _transformPreview);
-            if (targets.Length > 0)
+            var targetCount = InspectionSelection.CountTargetLeafRois(_state);
+            if (targetCount > 0)
             {
-                return $"현재 범위: 대상 리프 ROI {targets.Length}개 각자 개별 영역 검사";
+                return $"현재 범위: 대상 리프 ROI {targetCount}개 각자 개별 영역 검사";
             }
 
             return "현재 범위: ROI 영역 검사 (검사할 ROI를 선택하거나 상단 ‘전체 이미지 검사’를 켜세요)";
@@ -256,18 +332,18 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
             {
                 return "⚡ 전체 이미지 검사 실행";
             }
-            var targets = InspectionSelection.ResolveTargetLeafRois(_state, _transformPreview);
-            if (_state.Selection.Count == 1 && targets.Length == 1)
+            var targetCount = InspectionSelection.CountTargetLeafRois(_state);
+            if (_state.Selection.TryGetOnly(out var singleId) && targetCount == 1 && _state.Rois.TryGetValue(singleId, out var singleRoi))
             {
-                return $"⚡ 선택 ROI ({targets[0].RoiName}) 검사 실행";
+                return $"⚡ 선택 ROI ({singleRoi.Name}) 검사 실행";
             }
-            if (_state.Selection.Count > 1 && targets.Length > 0)
+            if (_state.Selection.Count > 1 && targetCount > 0)
             {
-                return $"⚡ 선택 ROI {targets.Length}개 각자 검사 실행";
+                return $"⚡ 선택 ROI {targetCount}개 각자 검사 실행";
             }
-            if (_state.Selection.Count == 0 && targets.Length > 0)
+            if (_state.Selection.Count == 0 && targetCount > 0)
             {
-                return $"⚡ 전체 ROI {targets.Length}개 각자 검사 실행";
+                return $"⚡ 전체 ROI {targetCount}개 각자 검사 실행";
             }
             return "⚡ 검사 실행";
         }
@@ -359,6 +435,36 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         }
     }
 
+    public void ReplaceMassiveModelAssignments(
+        DocumentState state,
+        IReadOnlyList<RoiAlgorithmAssignment> assignments)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(assignments);
+
+        _roiAssignments.Clear();
+        for (int i = 0; i < assignments.Count; i++)
+        {
+            RoiAlgorithmAssignment assignment = assignments[i];
+            _roiAssignments[assignment.RoiId] = assignment;
+        }
+
+        SynchronizeSelectedRoiInspectionState(state, selectionChanged: false);
+        AssignmentsChanged?.Invoke();
+    }
+
+    public void RecordSingleAssignment(
+        DocumentState state,
+        RoiAlgorithmAssignment assignment)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(assignment);
+
+        _roiAssignments[assignment.RoiId] = assignment;
+        SynchronizeSelectedRoiInspectionState(state, selectionChanged: true);
+        AssignmentsChanged?.Invoke();
+    }
+
     public string FormatLogsForClipboard()
     {
         if (FilteredLogs.Count == 0)
@@ -436,27 +542,27 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         {
             _lastSynchronizedSingleRoiId = null;
             SelectedRoiPatternThumbnail = null;
-            var targets = InspectionSelection.ResolveTargetLeafRois(state, _transformPreview);
-            int assignedCount = targets.Count(t => t.RoiId is { } id && _roiAssignments.ContainsKey(id));
+            var targetCount = InspectionSelection.CountTargetLeafRois(state);
+            int assignedCount = CountAssignedTargetLeafRois(state);
             if (state.Selection.Count > 1)
             {
-                SelectedRoiHeaderText = $"다중 선택 ROI: 리프 {targets.Length}개 (알고리즘 지정 {assignedCount}개)";
+                SelectedRoiHeaderText = $"다중 선택 ROI: 리프 {targetCount}개 (알고리즘 지정 {assignedCount}개)";
                 SelectedRoiHasAlgorithm = assignedCount > 0;
-                SelectedRoiAlgorithmBadge = $"다중 ROI {targets.Length}개 개별 검사 모드";
+                SelectedRoiAlgorithmBadge = $"다중 ROI {targetCount}개 개별 검사 모드";
                 SelectedRoiAlgorithmAccent = "#38BDF8";
                 SelectedRoiParameterSummary = "검사 실행 버튼을 누르면 선택된 각 리프 ROI마다 개별 검사를 수행하고 판정을 표시합니다.";
-                SelectedRoiVerdictBadge = assignedCount > 0 ? $"{assignedCount}/{targets.Length} 지정됨" : "";
+                SelectedRoiVerdictBadge = assignedCount > 0 ? $"{assignedCount}/{targetCount} 지정됨" : "";
                 SelectedRoiVerdictAccent = "#38BDF8";
                 SelectedRoiLastResultSummary = "";
             }
-            else if (targets.Length > 0)
+            else if (targetCount > 0)
             {
-                SelectedRoiHeaderText = $"선택된 ROI 없음 · 문서 리프 ROI {targets.Length}개 (알고리즘 지정 {assignedCount}개)";
+                SelectedRoiHeaderText = $"선택된 ROI 없음 · 문서 리프 ROI {targetCount}개 (알고리즘 지정 {assignedCount}개)";
                 SelectedRoiHasAlgorithm = assignedCount > 0;
-                SelectedRoiAlgorithmBadge = $"전체 ROI {targets.Length}개 개별 검사 대기";
+                SelectedRoiAlgorithmBadge = $"전체 ROI {targetCount}개 개별 검사 대기";
                 SelectedRoiAlgorithmAccent = "#2DD4BF";
                 SelectedRoiParameterSummary = "아무 ROI도 선택하지 않고 검사 실행을 누르면 문서의 모든 리프 ROI를 각자 검사합니다.";
-                SelectedRoiVerdictBadge = assignedCount > 0 ? $"{assignedCount}/{targets.Length} 지정됨" : "";
+                SelectedRoiVerdictBadge = assignedCount > 0 ? $"{assignedCount}/{targetCount} 지정됨" : "";
                 SelectedRoiVerdictAccent = "#2DD4BF";
                 SelectedRoiLastResultSummary = "";
             }
@@ -542,13 +648,50 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         AssignmentsChanged?.Invoke();
     }
 
+    private int CountAssignedTargetLeafRois(DocumentState state)
+    {
+        if (_roiAssignments.Count == 0 || state.Rois.IsEmpty)
+        {
+            return 0;
+        }
+
+        if (state.Selection.Count == 0)
+        {
+            int count = 0;
+            foreach (var id in _roiAssignments.Keys)
+            {
+                if (state.Rois.ContainsKey(id) && !state.IsGroupRoi(id))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        if (state.Snapshot.Children.IsEmpty && state.Snapshot.GroupLevels.IsEmpty)
+        {
+            int count = 0;
+            foreach (var id in _roiAssignments.Keys)
+            {
+                if (state.Selection.Contains(id))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        var targets = InspectionSelection.ResolveTargetLeafRois(state, _transformPreview);
+        return targets.Count(t => t.RoiId is { } id && _roiAssignments.ContainsKey(id));
+    }
+
     private bool HasAssignableTargetRois()
     {
         if (_state is null)
         {
             return false;
         }
-        return !InspectionSelection.ResolveTargetLeafRois(_state, _transformPreview).IsEmpty;
+        return InspectionSelection.CountTargetLeafRois(_state) > 0;
     }
 
     private bool CanExecuteActiveToolOnTargetRois()
@@ -557,9 +700,9 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         {
             return false;
         }
-        var targets = InspectionSelection.ResolveTargetLeafRois(_state, _transformPreview);
+        var targetCount = InspectionSelection.CountTargetLeafRois(_state);
         bool requiresRoiTargets = UseSelection || _selected is InspectionToolKind.EdgeFewShot or InspectionToolKind.InspectionSuite;
-        if (requiresRoiTargets && targets.IsEmpty)
+        if (requiresRoiTargets && targetCount == 0)
         {
             return false;
         }
@@ -740,6 +883,14 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
     {
         AssignCurrentAlgorithmToSelectedRois.Refresh();
         ExecuteActiveToolOnRois.Refresh();
+        SelectCategoryPattern.Refresh();
+        SelectCategoryShapes.Refresh();
+        SelectCategoryFewShot.Refresh();
+        SelectCategorySuiteMetrology.Refresh();
+        SelectCategorySuiteSurface.Refresh();
+        SelectCategorySuiteCodeOcr.Refresh();
+        SelectCategorySuiteAiAutoTeaching.Refresh();
+        SelectCategorySuitePreprocess.Refresh();
         Notify(nameof(QuickInspectLabel));
     }
 

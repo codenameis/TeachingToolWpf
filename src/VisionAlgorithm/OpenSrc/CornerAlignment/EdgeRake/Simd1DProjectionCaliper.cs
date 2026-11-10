@@ -21,6 +21,8 @@ public static class Simd1DProjectionCaliper
     private const float KernelRadiusSigmaMultiplier = 3.0f;
     private const float ParabolicDenominatorEpsilon = 1e-6f;
     private const float MaxSubpixelOffset = 0.5f;
+    private const float MinGradientOrientationAlignment = 0.9396926f; // cos(20 deg)
+    private const float SobelGradientNormEpsilon = 1e-6f;
     private const int MinProjectionStrips = 3;
     private const int MaxProjectionStrips = 65;
 
@@ -148,15 +150,70 @@ public static class Simd1DProjectionCaliper
 
         float worldX = alignedCenter.X + (localOffsetAlongScan * scanDir.X);
         float worldY = alignedCenter.Y + (localOffsetAlongScan * scanDir.Y);
+        float alignment = ComputeSobel2DGradientAlignment(image, width, height, stride, worldX, worldY, scanDir);
+        if (alignment < MinGradientOrientationAlignment)
+        {
+            // [Math Why]: 45° 모따기(Chamfer) 빗변이나 라운딩 구간의 에지는 2D Sobel 그래디언트가 스캔 방향과 20° 이상 틀어지므로
+            // 직선 피팅에 들어가지 못하도록 1D 검출 단계에서 즉시 Outlier(IsInlier = false)로 기각한다.
+            edgePoint = new SubpixelEdgePoint(
+                X: worldX,
+                Y: worldY,
+                Magnitude: peakAmplitude,
+                Score: alignment,
+                IsInlier: false);
+            return false;
+        }
+
         float normalizedScore = Math.Clamp(peakAmplitude / MathF.Max(minimumContrast * 2.0f, 1.0f), 0.0f, 1.0f);
 
         edgePoint = new SubpixelEdgePoint(
             X: worldX,
             Y: worldY,
             Magnitude: peakAmplitude,
-            Score: normalizedScore,
+            Score: normalizedScore * alignment,
             IsInlier: true);
         return true;
+    }
+
+    /// <summary>
+    /// 서브픽셀 에지 후보 위치 <c>(worldX, worldY)</c>에서 원본 영상의 3×3 Sobel 2D 그래디언트 <c>(Gx, Gy)</c>를 계산하고,
+    /// 캘리퍼 탐색 방향 단위 벡터 <paramref name="unitScanDir"/>와의 코사인 정렬도
+    /// <c>|Gx * dx + Gy * dy| / sqrt(Gx^2 + Gy^2 + eps)</c>를 반환한다.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float ComputeSobel2DGradientAlignment(
+        ReadOnlySpan<byte> image,
+        int width,
+        int height,
+        int stride,
+        float worldX,
+        float worldY,
+        Vector2 unitScanDir)
+    {
+        int cx = Math.Clamp((int)MathF.Round(worldX), 1, width - 2);
+        int cy = Math.Clamp((int)MathF.Round(worldY), 1, height - 2);
+
+        int rowPrev = (cy - 1) * stride;
+        int rowCurr = cy * stride;
+        int rowNext = (cy + 1) * stride;
+
+        float p00 = image[rowPrev + cx - 1];
+        float p10 = image[rowPrev + cx];
+        float p20 = image[rowPrev + cx + 1];
+
+        float p01 = image[rowCurr + cx - 1];
+        float p21 = image[rowCurr + cx + 1];
+
+        float p02 = image[rowNext + cx - 1];
+        float p12 = image[rowNext + cx];
+        float p22 = image[rowNext + cx + 1];
+
+        float gx = (p20 + (2.0f * p21) + p22) - (p00 + (2.0f * p01) + p02);
+        float gy = (p02 + (2.0f * p12) + p22) - (p00 + (2.0f * p10) + p20);
+
+        float gradNorm = MathF.Sqrt((gx * gx) + (gy * gy) + SobelGradientNormEpsilon);
+        float dot = MathF.Abs((gx * unitScanDir.X) + (gy * unitScanDir.Y));
+        return dot / gradNorm;
     }
 
     /// <summary>

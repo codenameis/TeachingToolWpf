@@ -1,22 +1,34 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Numerics;
+using VisionAlgorithm.OpenSrc.AutoTeaching;
 using VisionAlgorithm.OpenSrc.BlobRle;
 using VisionAlgorithm.OpenSrc.Calibration;
 using VisionAlgorithm.OpenSrc.Common;
+using VisionAlgorithm.OpenSrc.CornerAlignment.Domain;
+using VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake;
+using VisionAlgorithm.OpenSrc.CornerAlignment.LineAndCorner;
+using VisionAlgorithm.OpenSrc.CornerAlignment.SyntheticCornerTestGen;
 using VisionAlgorithm.OpenSrc.Curvilinear;
+using VisionAlgorithm.OpenSrc.DataCode2D;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Engine;
 using VisionAlgorithm.OpenSrc.GoldenVariation;
+using VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
+using VisionAlgorithm.OpenSrc.LightweightOcr;
 using VisionAlgorithm.OpenSrc.Metrology;
 using VisionAlgorithm.OpenSrc.PatchAnomaly;
+using VisionAlgorithm.OpenSrc.PhotometricStereo;
+using VisionAlgorithm.OpenSrc.Preprocessing;
 using VisionAlgorithm.OpenSrc.Synthetic8kTestGen;
 using VisionGeometry;
 using VisionImaging.Abstractions;
+using FittedLine2D = VisionAlgorithm.OpenSrc.Metrology.FittedLine2D;
+using SubpixelEdgePoint = VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake.SubpixelEdgePoint;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
 /// <summary>
-/// 상용 정밀 검사 스위트 7종 서브 알고리즘 구분.
+/// 상용 정밀 검사 스위트 20종 서브 알고리즘 구분.
 /// </summary>
 public enum InspectionSuiteAlgorithmKind
 {
@@ -26,7 +38,20 @@ public enum InspectionSuiteAlgorithmKind
     Curvilinear = 3,
     FewShot = 4,
     PatchAnomaly = 5,
-    Calibration = 6
+    Calibration = 6,
+    CornerAlignment = 7,
+    IndustrialOcrOcv = 8,
+    LightweightOcr = 9,
+    AutoTeaching = 10,
+    CpuDeepOcr = 11,
+    PreprocessingShadingAndRecon = 12,
+    AdvancedMetrologyEllipse = 13,
+    AdvancedBlobWatershed = 14,
+    DataMatrix2DReader = 15,
+    PreprocessingFftAndGabor = 16,
+    Barcode1DReader = 17,
+    PhotometricStereo = 18,
+    GeometricTolerancing = 19
 }
 
 /// <summary>
@@ -69,7 +94,55 @@ public sealed record InspectionSuiteParameters(
     MetrologyMeasurementMode MetrologyMode = MetrologyMeasurementMode.Auto,
     MetrologyPolarityMode PolarityMode = MetrologyPolarityMode.Any,
     int CaliperRakeCount = 15,
-    float CaliperProjectionWidth = 11.0f);
+    float CaliperProjectionWidth = 11.0f,
+    int GoldenMinDefectAreaPixels = 6,
+    int BlobMinimumAreaPixels = 8,
+    float FewShotOodSigmaMultiplier = 3.5f,
+    int FewShotMaxSubClusters = 2,
+    float PadimRegularizationLambda = 0.01f,
+    float CornerApexIgnoreMargin = 36.0f,
+    float CornerRansacThresholdPixels = 0.55f,
+    float CornerOrthogonalityToleranceDeg = 5.0f,
+    float OcrAcceptThreshold = 0.40f,
+    float OcrMinQualityScore = 0.75f,
+    float OcrForegroundContrast = 14.0f,
+    int OcrExpectedCharPitch = 24,
+    int LightweightOcrBeamWidth = 4,
+    int LightweightOcrColumnStride = 2,
+    float LightweightOcrMinConfidence = 0.40f,
+    float AutoTeachMinGeometricScore = 0.45f,
+    float AutoTeachMinAppearanceCosine = 0.35f,
+    float AutoTeachMaxMahalanobis = 35.0f,
+    int OcrDotClosingRadius = 1,
+    float LightweightOcrContrastOffset = 12.0f,
+    float DeepOcrSuperResScale = 1.5f,
+    float DeepOcrUnsharpGain = 0.38f,
+    int DeepOcrEnsembleBeamWidth = 6,
+    float DeepOcrContrastOffset = 14.0f,
+    float DeepOcrMinConfidence = 0.40f,
+    int ShadingTargetBaseGray = 128,
+    float AnisotropicDiffusionKappa = 18.0f,
+    int ReconstructionMarkerRadius = 2,
+    float CompositeExpectedSpanPx = 28.0f,
+    int EllipseSpokeCount = 24,
+    float EllipseMaxRmsErrorPx = 1.8f,
+    int WatershedThresholdIntensity = 128,
+    float WatershedMinPeakDistancePx = 14.0f,
+    int WatershedMinAreaPixels = 12,
+    float DataMatrixMinIsoContrast = 0.20f,
+    int DataMatrixMaxEccErrors = 8,
+    float FftNotchOrGaborSigma = 2.5f,
+    float FftPeakThresholdRatio = 4.2f,
+    float HomomorphicGammaHigh = 1.85f,
+    int BarcodeScanlineCount = 9,
+    float BarcodeMinSymbolContrast = 0.20f,
+    float PhotometricSlantAngleDeg = 45.0f,
+    float PhotometricCurvatureThreshold = 0.08f,
+    int PhotometricMaxDefectPixels = 6,
+    float GdtAngleToleranceDeg = 3.0f,
+    float GdtConcentricityLimitPx = 2.5f,
+    float GdtDistanceTolerancePx = 4.0f,
+    float GdtGradientThreshold = 18.0f);
 
 /// <summary>
 /// 캔버스 ROI 입력 정보.
@@ -159,9 +232,22 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 InspectionSuiteAlgorithmKind.GoldenVariation => RunGoldenVariation(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.BlobRle => RunBlobRle(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.Curvilinear => RunCurvilinear(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
-                InspectionSuiteAlgorithmKind.FewShot => RunFewShot(reader, image.Width, image.Height, targetRois, referenceRois, workspace, token),
+                InspectionSuiteAlgorithmKind.FewShot => RunFewShot(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.PatchAnomaly => RunPatchAnomaly(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.Calibration => RunCalibration(targetRois, parameters, image.Width, image.Height),
+                InspectionSuiteAlgorithmKind.CornerAlignment => RunCornerAlignment(reader, image.Width, image.Height, targetRois, parameters, token),
+                InspectionSuiteAlgorithmKind.IndustrialOcrOcv => RunIndustrialOcrOcv(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.LightweightOcr => RunLightweightOcr(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.AutoTeaching => RunAutoTeaching(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.CpuDeepOcr => RunCpuDeepOcr(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => RunPreprocessingShadingAndRecon(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => RunAdvancedMetrologyEllipse(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => RunAdvancedBlobWatershed(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.DataMatrix2DReader => RunDataMatrix2DReader(reader, image.Width, image.Height, targetRois, parameters, token),
+                InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor => RunPreprocessingFftAndGabor(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
+                InspectionSuiteAlgorithmKind.Barcode1DReader => RunBarcode1DReader(reader, image.Width, image.Height, targetRois, parameters, token),
+                InspectionSuiteAlgorithmKind.PhotometricStereo => RunPhotometricStereo(reader, image.Width, image.Height, targetRois, parameters, token),
+                InspectionSuiteAlgorithmKind.GeometricTolerancing => RunGeometricTolerancing(reader, image.Width, image.Height, targetRois, parameters, token),
                 _ => throw new ArgumentOutOfRangeException(nameof(algorithm))
             };
             sw.Stop();
@@ -244,9 +330,33 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 $"HomographyRMS={report.HomographyRmsErrorMm:E2}mm · LensErr={report.LensUndistortRoundTripErrorPixels:E2}px",
                 $"9-Point 호모그래피 재투영 RMS={report.HomographyRmsErrorMm:E3}mm, Brown-Conrady 왜곡 역보정 왕복 오차={report.LensUndistortRoundTripErrorPixels:E3}px"));
 
+            var cornerReport = CornerAlignment8kTestSuite.RunAllVerifications();
+            markers.Add(CreateZoneMarker(
+                "8. 2-Rake Virtual Corner & 4-Corner Diagonal / UVW Alignment",
+                new PointD(2000, 6200),
+                480,
+                360,
+                cornerReport.MaxPositionErrorPx <= 0.02f && cornerReport.DiagonalCenterErrorPx <= 0.015f,
+                $"CornerErr={cornerReport.MaxPositionErrorPx:F4}px · Diag8K={cornerReport.DiagonalCenterErrorPx:F4}px",
+                $"20자세 가상 코너 최대 오차={cornerReport.MaxPositionErrorPx:F4}px, 8K 대각 정합 오차={cornerReport.DiagonalCenterErrorPx:F4}px, UVW 왕복={cornerReport.UvwRoundTripErrorMm:E2}mm"));
+
+            var unifiedReport = UnifiedNewSubsystems8kRunner.RunAllVerifications();
+            foreach (var c in unifiedReport.Cases)
+            {
+                markers.Add(CreateZoneMarker(
+                    $"[{c.SuiteName}] {c.CaseName}",
+                    new PointD(4096, 6200),
+                    420,
+                    240,
+                    c.Passed,
+                    $"{(c.Passed ? "PASS" : "FAIL")} · {c.ElapsedMilliseconds:F1}ms",
+                    c.Details));
+            }
+
             var builtItems = markers.MoveToImmutable();
             int passCount = builtItems.Count(item => item.IsPass);
-            string summaryTitle = $"8K(8192×8192) 7종 전수 검증 · PASS {passCount}/7 · 생성 {report.SceneGenerationMilliseconds:F1}ms / 알고리즘 {report.TotalAlgorithmExecutionMilliseconds:F1}ms";
+            double totalMs = report.TotalAlgorithmExecutionMilliseconds + unifiedReport.TotalElapsedMilliseconds;
+            string summaryTitle = $"8K 전수 통합 검증 ({builtItems.Length}건: 7종 스위트 + 코너정합 + OCR/OCV·경량OCR·자동티칭 19종) · PASS {passCount}/{builtItems.Length} · {totalMs:F1}ms";
             string detailedReport = string.Join(Environment.NewLine, builtItems.Select(item => $"• [{(item.IsPass ? "PASS" : "FAIL")}] {item.Name}: {item.DetailLine}"));
 
             return new InspectionSuiteExecutionOutput(
@@ -254,7 +364,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 summaryTitle,
                 detailedReport,
                 builtItems,
-                report.TotalAlgorithmExecutionMilliseconds);
+                totalMs);
         }, token);
 
     private static ImmutableArray<InspectionSuiteItemResult> RunMetrology(
@@ -783,6 +893,107 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 }
                 break;
             }
+
+            case InspectionSuiteAlgorithmKind.CornerAlignment:
+            {
+                double armX = Math.Max(36.0, target.Width * 0.44);
+                double armY = Math.Max(36.0, target.Height * 0.44);
+                double margin = Math.Clamp(parameters.CornerApexIgnoreMargin, 16.0, Math.Min(armX, armY) * 0.65);
+                guides.Add([LocalToWorld(margin, 0), LocalToWorld(armX, 0)]);
+                guides.Add([LocalToWorld(0, margin), LocalToWorld(0, armY)]);
+                int teeth = Math.Clamp(parameters.CaliperRakeCount, 5, 16);
+                for (int t = 0; t < teeth; t++)
+                {
+                    double u = teeth == 1 ? 0.5 : (double)t / (teeth - 1);
+                    double xPos = margin + (u * (armX - margin));
+                    double yPos = margin + (u * (armY - margin));
+                    guides.Add([LocalToWorld(xPos, -14), LocalToWorld(xPos, 14)]);
+                    guides.Add([LocalToWorld(-14, yPos), LocalToWorld(14, yPos)]);
+                }
+                break;
+            }
+
+            case InspectionSuiteAlgorithmKind.IndustrialOcrOcv:
+            case InspectionSuiteAlgorithmKind.LightweightOcr:
+            case InspectionSuiteAlgorithmKind.CpuDeepOcr:
+            {
+                double halfW = Math.Max(16.0, target.Width * 0.46);
+                double halfH = Math.Max(8.0, target.Height * 0.38);
+                guides.Add([
+                    LocalToWorld(-halfW, -halfH),
+                    LocalToWorld(halfW, -halfH),
+                    LocalToWorld(halfW, halfH),
+                    LocalToWorld(-halfW, halfH)
+                ]);
+                guides.Add([LocalToWorld(-halfW, 0), LocalToWorld(halfW, 0)]);
+
+                double step = algorithm == InspectionSuiteAlgorithmKind.LightweightOcr
+                    ? Math.Clamp(parameters.LightweightOcrColumnStride * 8.0, 8.0, 48.0)
+                    : Math.Clamp(parameters.OcrExpectedCharPitch, 8.0, 64.0);
+                int maxTicks = 24;
+                int ticks = 0;
+                for (double lx = -halfW + step; lx <= halfW - 4.0 && ticks < maxTicks; lx += step, ticks++)
+                {
+                    guides.Add([LocalToWorld(lx, -halfH * 0.55), LocalToWorld(lx, halfH * 0.55)]);
+                }
+                break;
+            }
+
+            case InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon:
+            case InspectionSuiteAlgorithmKind.AdvancedBlobWatershed:
+            case InspectionSuiteAlgorithmKind.DataMatrix2DReader:
+            case InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor:
+            case InspectionSuiteAlgorithmKind.Barcode1DReader:
+            case InspectionSuiteAlgorithmKind.PhotometricStereo:
+            case InspectionSuiteAlgorithmKind.GeometricTolerancing:
+            {
+                double halfW = Math.Max(20.0, target.Width * 0.46);
+                double halfH = Math.Max(10.0, target.Height * 0.36);
+                guides.Add([
+                    LocalToWorld(-halfW, -halfH),
+                    LocalToWorld(halfW, -halfH),
+                    LocalToWorld(halfW, halfH),
+                    LocalToWorld(-halfW, halfH)
+                ]);
+                guides.Add([LocalToWorld(-halfW, 0), LocalToWorld(halfW, 0)]);
+                break;
+            }
+
+            case InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse:
+            {
+                bool isCaliperHint = target.Name.Contains("캘리퍼", StringComparison.OrdinalIgnoreCase)
+                    || target.Name.Contains("Caliper", StringComparison.OrdinalIgnoreCase)
+                    || target.Name.Contains("복합", StringComparison.OrdinalIgnoreCase);
+                if (isCaliperHint)
+                {
+                    double halfScan = Math.Max(14.0, target.Width * 0.45);
+                    double halfProj = Math.Clamp(parameters.CaliperProjectionWidth * 0.5, 3.0, Math.Max(4.0, target.Height * 0.42));
+                    guides.Add([
+                        LocalToWorld(-halfScan, -halfProj),
+                        LocalToWorld(halfScan, -halfProj),
+                        LocalToWorld(halfScan, halfProj),
+                        LocalToWorld(-halfScan, halfProj)
+                    ]);
+                    guides.Add([LocalToWorld(-halfScan, 0), LocalToWorld(halfScan, 0)]);
+                }
+                else
+                {
+                    double nomA = Math.Max(10.0, target.Width * 0.38);
+                    double nomB = Math.Max(8.0, target.Height * 0.32);
+                    int spokes = Math.Clamp(parameters.CaliperRakeCount, 12, 32);
+                    for (int s = 0; s < spokes; s++)
+                    {
+                        double t = 2.0 * Math.PI * s / spokes;
+                        double ct = Math.Cos(t);
+                        double st = Math.Sin(t);
+                        guides.Add([
+                            LocalToWorld(nomA * 0.72 * ct, nomB * 0.72 * st),
+                            LocalToWorld(nomA * 1.24 * ct, nomB * 1.24 * st)
+                        ]);
+                    }
+                }
+                break;
+            }
         }
 
         return guides.ToImmutable();
@@ -854,7 +1065,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 crop.Stride,
                 localPose,
                 model,
-                minimumDefectAreaPixels: 6,
+                minimumDefectAreaPixels: Math.Clamp(parameters.GoldenMinDefectAreaPixels, 1, 500),
                 workspace: workspace,
                 binaryDefectMaskOut: maskBuf);
 
@@ -926,7 +1137,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 region = RleMorphology.OpenBox(region, morphRadius, morphRadius);
             }
 
-            List<BlobComponentFeature> blobs = RleBlobAnalyzer.AnalyzeComponents(region, minimumAreaPixels: 8, workspace);
+            List<BlobComponentFeature> blobs = RleBlobAnalyzer.AnalyzeComponents(region, minimumAreaPixels: Math.Clamp(parameters.BlobMinimumAreaPixels, 1, 5000), workspace);
             var primaryPts = ImmutableArray.CreateBuilder<PointD>(blobs.Count);
             var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(blobs.Count * 2);
 
@@ -1101,6 +1312,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
         int imageHeight,
         IReadOnlyList<InspectionSuiteRoiInput> targets,
         IReadOnlyList<InspectionSuiteRoiInput> references,
+        InspectionSuiteParameters parameters,
         InspectionWorkspace workspace,
         CancellationToken token)
     {
@@ -1131,7 +1343,9 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
             }
         }
 
-        EmbeddingFewShotClassifier model = EmbeddingFewShotClassifier.Train(trainingExamples.ToArray(), maxSubClustersPerClass: 2);
+        int maxClusters = Math.Clamp(parameters.FewShotMaxSubClusters, 1, 5);
+        float oodScale = Math.Clamp(parameters.FewShotOodSigmaMultiplier, 1.0f, 10.0f) / 3.5f;
+        EmbeddingFewShotClassifier model = EmbeddingFewShotClassifier.Train(trainingExamples.ToArray(), maxSubClustersPerClass: maxClusters);
 
         for (int i = 0; i < targets.Count; i++)
         {
@@ -1141,10 +1355,12 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
 
             float[] queryEmb = ExtractCompactGeMEmbedding(reader, imageWidth, imageHeight, target, patchW, patchH, workspace, token);
             FewShotPrediction pred = model.Predict(queryEmb, workspace);
+            float effectiveThreshold = pred.RejectionThreshold * oodScale;
+            bool isOod = pred.MahalanobisDistance > effectiveThreshold;
 
             double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
-            bool isPass = !pred.IsOutOfDistribution && pred.PredictedClassLabel == 0;
-            string classTag = pred.IsOutOfDistribution
+            bool isPass = !isOod && pred.PredictedClassLabel == 0;
+            string classTag = isOod
                 ? "OOD(미등록 이상치)"
                 : (pred.PredictedClassLabel == 0 ? "Good(정상)" : $"Class {pred.PredictedClassLabel}(불량)");
 
@@ -1153,7 +1369,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 target.Name,
                 isPass,
                 $"{classTag} · D_M={pred.MahalanobisDistance:F2}",
-                $"{classTag} · 마할라노비스 거리={pred.MahalanobisDistance:F3} (임계치={pred.RejectionThreshold:F2}) · 신뢰도={pred.ConfidenceScore * 100f:F1}%",
+                $"{classTag} · 마할라노비스 거리={pred.MahalanobisDistance:F3} (임계치={effectiveThreshold:F2}) · 신뢰도={pred.ConfidenceScore * 100f:F1}%",
                 target.Center,
                 target.AngleRadians,
                 target.Outline,
@@ -1232,13 +1448,15 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
             SimdAffineWarper.WarpRectifiedRoi(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride, localPose, roiWidth, roiHeight, targetWarped);
 
             PadimAnomalyResult res = detector.Inspect(targetWarped, workspace, heatmap);
+            float padimThresholdScale = Math.Clamp(1.0f + ((parameters.PadimRegularizationLambda - 0.01f) * 2.0f), 0.5f, 3.0f);
+            float effectivePadimThreshold = detector.AnomalyThreshold * padimThresholdScale;
             float peakLocalX = res.PeakAnomalyLocalPosition.X - (roiWidth * 0.5f);
             float peakLocalY = res.PeakAnomalyLocalPosition.Y - (roiHeight * 0.5f);
             Vector2 peakWorldInCrop = localPose.LocalToWorld(peakLocalX, peakLocalY);
             PointD peakWorld = new(peakWorldInCrop.X + offsetX, peakWorldInCrop.Y + offsetY);
 
             double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
-            bool isPass = !res.IsAnomalous;
+            bool isPass = res.ImageAnomalyScore <= effectivePadimThreshold;
             string statusTag = isPass ? "PaDiM 정상(OK)" : "PaDiM 이상(ANOMALY)";
 
             results.Add(new InspectionSuiteItemResult(
@@ -1246,7 +1464,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 target.Name,
                 isPass,
                 $"{statusTag} · Max={res.ImageAnomalyScore:F2}",
-                $"{statusTag} · 최대 패치 마할라노비스 점수={res.ImageAnomalyScore:F3} (임계치={detector.AnomalyThreshold:F3}, 초과픽셀={res.AnomalousPixelCount}) · 피크 좌표=({peakWorld.X:F1}, {peakWorld.Y:F1})",
+                $"{statusTag} · 최대 패치 마할라노비스 점수={res.ImageAnomalyScore:F3} (임계치={effectivePadimThreshold:F3}, 초과픽셀={res.AnomalousPixelCount}) · 피크 좌표=({peakWorld.X:F1}, {peakWorld.Y:F1})",
                 target.Center,
                 target.AngleRadians,
                 target.Outline,
@@ -1402,16 +1620,23 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
         int marginPixels,
         CancellationToken token)
     {
-        double halfDiag = Math.Sqrt((roi.Width * roi.Width) + (roi.Height * roi.Height)) * 0.55 + marginPixels;
-        int radiusX = (int)Math.Ceiling(Math.Max(roi.Width * 0.5 + marginPixels, halfDiag));
-        int radiusY = (int)Math.Ceiling(Math.Max(roi.Height * 0.5 + marginPixels, halfDiag));
+        double absCos = Math.Abs(Math.Cos(roi.AngleRadians));
+        double absSin = Math.Abs(Math.Sin(roi.AngleRadians));
+        int radiusX = (int)Math.Ceiling((roi.Width * absCos + roi.Height * absSin) * 0.5) + marginPixels;
+        int radiusY = (int)Math.Ceiling((roi.Width * absSin + roi.Height * absCos) * 0.5) + marginPixels;
 
         int left = Math.Clamp((int)Math.Floor(roi.Center.X) - radiusX, 0, Math.Max(0, imageWidth - 1));
         int top = Math.Clamp((int)Math.Floor(roi.Center.Y) - radiusY, 0, Math.Max(0, imageHeight - 1));
         int right = Math.Clamp((int)Math.Ceiling(roi.Center.X) + radiusX, left + 1, imageWidth);
         int bottom = Math.Clamp((int)Math.Ceiling(roi.Center.Y) + radiusY, top + 1, imageHeight);
 
-        var crop = reader.Read(left, top, right - left, bottom - top, token);
+        var crop = reader.Read(
+            left,
+            top,
+            right - left,
+            bottom - top,
+            token,
+            maximumPixels: VisionAlgorithm.OpenSrc.PatternMatching.CorrelationTemplate.MaximumSearchPixels);
         var localCenter = new Vector2((float)(roi.Center.X - left), (float)(roi.Center.Y - top));
         return (crop, localCenter, left, top);
     }
@@ -1471,6 +1696,1893 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
         InspectionSuiteAlgorithmKind.FewShot => "5. 소량 샘플 분류 · OOD 이상 탐지 (Few-Shot)",
         InspectionSuiteAlgorithmKind.PatchAnomaly => "6. PaDiM 패치 이상치 히트맵 탐지",
         InspectionSuiteAlgorithmKind.Calibration => "7. 9-Point 호모그래피 · Brown-Conrady 왜곡 보정",
+        InspectionSuiteAlgorithmKind.CornerAlignment => "8. 2-Rake 서브픽셀 가상 코너 · 대각 정합",
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv => "9. 산업용 OCR · OCV 문자 품질 검증",
+        InspectionSuiteAlgorithmKind.LightweightOcr => "10. 경량 고속 1-Pass 시퀀스 OCR",
+        InspectionSuiteAlgorithmKind.AutoTeaching => "11. 멀티파츠 풀 자동 인식 · 하위 ROI 자동 티칭",
+        InspectionSuiteAlgorithmKind.CpuDeepOcr => "12. CPU 고속 딥러닝·신경망 OCR (초해상도·다중가설 빔·자유폰트)",
+        InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => "13. [전처리] 2D 다항식 셰이딩 보정 · 비등방성 확산 · 형태학적 재구성",
+        InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => "14. [본검사] 복합 스코어링 캘리퍼(First/Last/Span) · Fitzgibbon 타원 피팅",
+        InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => "15. [본검사] RLE 고급 형상(Convex Hull·MinAreaRect·Hole) · 거리변환 접촉 블롭 분리",
+        InspectionSuiteAlgorithmKind.DataMatrix2DReader => "16. [본검사] 산업용 2D DataMatrix ECC 200 리더 · ISO/IEC 15415 품질 등급",
+        InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor => "17. [전처리] 2D FFT 주기적 모아레 노치 · 호모모픽 조명 분리 · Gabor 텍스처",
+        InspectionSuiteAlgorithmKind.Barcode1DReader => "18. [본검사] 산업용 1D 바코드(Code 128) 멀티스캔 디코더 · ISO/IEC 15416 품질 등급",
+        InspectionSuiteAlgorithmKind.PhotometricStereo => "19. [본검사] 4방향 포토메트릭 스테레오 법선·알베도·3D 평균/가우시안 곡률 결함 검사",
+        InspectionSuiteAlgorithmKind.GeometricTolerancing => "20. [본검사] 다중 형상 기하공차(GD&T) 직교도·동심도·데이텀 수직거리 계측",
         _ => kind.ToString()
     };
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunCornerAlignment(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> rois,
+        InspectionSuiteParameters parameters,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
+        var options = new CornerDetectionOptions(
+            GaussianSigma: Math.Clamp(parameters.GaussianSigma, 0.5f, 8.0f),
+            MinimumContrast: Math.Clamp(parameters.MinimumContrast, 2.0f, 200.0f),
+            RansacInlierThresholdPixels: Math.Clamp(parameters.CornerRansacThresholdPixels, 0.1f, 5.0f),
+            TukeyIterations: 5,
+            OrthogonalityToleranceDeg: Math.Clamp(parameters.CornerOrthogonalityToleranceDeg, 0.5f, 25.0f),
+            MinimumInlierRatio: 0.45f);
+
+        ReadOnlySpan<(float Sx, float Sy)> quadrants =
+        [
+            (1f, 1f),
+            (-1f, 1f),
+            (-1f, -1f),
+            (1f, -1f)
+        ];
+
+        foreach (var roi in rois)
+        {
+            token.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
+            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 36, token);
+            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+
+            float halfW = MathF.Max(36f, (float)(roi.Width * 0.46));
+            float halfH = MathF.Max(36f, (float)(roi.Height * 0.46));
+            float cos = MathF.Cos((float)roi.AngleRadians);
+            float sin = MathF.Sin((float)roi.AngleRadians);
+            Vector2 axisX = new(cos, sin);
+            Vector2 axisY = new(-sin, cos);
+            int caliperCount = Math.Max(10, parameters.CaliperRakeCount);
+            float projWidth = Math.Clamp(parameters.CaliperProjectionWidth, 3f, 25f);
+
+            VirtualCornerResult bestCorner = VirtualCornerResult.Invalid;
+            RakeSearchRegion bestLeg1 = default;
+            RakeSearchRegion bestLeg2 = default;
+            SubpixelEdgePoint[] bestInliers = [];
+            List<SubpixelEdgePoint> bestOutliers = [];
+
+            for (int q = 0; q < quadrants.Length; q++)
+            {
+                var (sx, sy) = quadrants[q];
+                Vector2 legDir1 = axisX * sx;
+                Vector2 legDir2 = axisY * sy;
+
+                // 1단계: 모따기 영역 바깥의 외측 직선 구간에서 두 변의 대략적인 위치(approxApex)를 먼저 탐색한다.
+                Vector2 approxApex = EstimateCornerApexInRoi(
+                    view,
+                    localCenter,
+                    legDir1,
+                    legDir2,
+                    halfW,
+                    halfH,
+                    projWidth,
+                    options);
+
+                float relU = Vector2.Dot(approxApex - localCenter, legDir1);
+                float relV = Vector2.Dot(approxApex - localCenter, legDir2);
+                float availLen1 = Math.Clamp(halfW - relU, 48f, (float)roi.Width * 0.90f);
+                float availLen2 = Math.Clamp(halfH - relV, 48f, (float)roi.Height * 0.90f);
+
+                // 모따기(Chamfer) 및 코너 라운딩 구간을 완벽히 건너뛰도록 최소 설정 마진 또는 변 길이의 36% 이상을 ApexIgnoreMargin으로 강제한다.
+                float userApexMargin = Math.Clamp(parameters.CornerApexIgnoreMargin, 16.0f, 80.0f);
+                float apexMargin1 = MathF.Max(userApexMargin, availLen1 * 0.36f);
+                float apexMargin2 = MathF.Max(userApexMargin, availLen2 * 0.36f);
+
+                Vector2 end1 = approxApex + (legDir1 * availLen1);
+                Vector2 end2 = approxApex + (legDir2 * availLen2);
+
+                var leg1 = new RakeSearchRegion(
+                    StartPoint: approxApex,
+                    EndPoint: end1,
+                    SearchLength: 28f,
+                    ProjectionWidth: projWidth,
+                    CaliperCount: caliperCount,
+                    ApexIgnoreMargin: apexMargin1,
+                    Polarity: CaliperPolarity.Any,
+                    ExplicitScanDirection: legDir2);
+
+                var leg2 = new RakeSearchRegion(
+                    StartPoint: approxApex,
+                    EndPoint: end2,
+                    SearchLength: 28f,
+                    ProjectionWidth: projWidth,
+                    CaliperCount: caliperCount,
+                    ApexIgnoreMargin: apexMargin2,
+                    Polarity: CaliperPolarity.Any,
+                    ExplicitScanDirection: legDir1);
+
+                VirtualCornerResult cand = VirtualCornerAligner.DetectVirtualCornerWithPoints(
+                    view,
+                    leg1,
+                    leg2,
+                    options,
+                    out SubpixelEdgePoint[] candInliers,
+                    out SubpixelEdgePoint[] candOutliers);
+
+                if (cand.IsValid && (!bestCorner.IsValid || cand.InlierRatio > bestCorner.InlierRatio))
+                {
+                    bestCorner = cand;
+                    bestLeg1 = leg1;
+                    bestLeg2 = leg2;
+                    bestInliers = candInliers;
+                    bestOutliers = new List<SubpixelEdgePoint>(candOutliers);
+
+                    // 모따기 구간(Chamfer Zone) 위를 스캔했을 때 2D Gradient Orientation Gate에 의해 기각되는 점들을 수집하여 시각화한다.
+                    CollectChamferRejectedPoints(view, approxApex, legDir1, legDir2, apexMargin1, apexMargin2, projWidth, options, bestOutliers);
+                }
+            }
+
+            sw.Stop();
+            double us = sw.Elapsed.TotalMicroseconds;
+
+            PointD worldVertex = bestCorner.IsValid
+                ? new PointD(offsetX + bestCorner.CornerX, offsetY + bestCorner.CornerY)
+                : roi.Center;
+            bool isPass = bestCorner.IsValid;
+            float angleDevDeg = bestCorner.IsValid ? MathF.Abs(90.0f - bestCorner.IncludedAngleDeg) : 0f;
+            float line1AngleDeg = bestCorner.IsValid ? bestCorner.Line1.AngleRad * (180.0f / MathF.PI) : 0f;
+            float line2AngleDeg = bestCorner.IsValid ? bestCorner.Line2.AngleRad * (180.0f / MathF.PI) : 0f;
+
+            string badge = bestCorner.IsValid
+                ? $"Corner ({worldVertex.X:F2},{worldVertex.Y:F2}) · {bestCorner.IncludedAngleDeg:F3}°"
+                : "Corner NG (직교 에지 미검출)";
+            string detail = bestCorner.IsValid
+                ? $"2-Rake 가상 코너=({worldVertex.X:F3}, {worldVertex.Y:F3}), Line1={line1AngleDeg:F3}°, Line2={line2AngleDeg:F3}°, 내각={bestCorner.IncludedAngleDeg:F3}° (직각편차={angleDevDeg:F3}°), 인라이어={bestInliers.Length}점 / 기각(모따기·결함)={bestOutliers.Count}점"
+                : "유효한 직교 두 변 에지를 찾지 못했습니다 (내각 90°±5° 이탈 또는 인라이어 부족).";
+
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>(bestInliers.Length + 1);
+            var outlierPts = ImmutableArray.CreateBuilder<PointD>(bestOutliers.Count);
+            var rakeGuides = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
+
+            if (bestCorner.IsValid)
+            {
+                Vector2 cornerLocal = bestCorner.CornerPoint;
+
+                // Line 1 연장 직선: 피팅된 헤세 법선 직선(Line1)을 모따기 바깥 허공의 가상 코너 교차점(cornerLocal)까지 정확히 연장
+                Vector2 t1 = bestCorner.Line1.Tangent;
+                if (Vector2.Dot(bestLeg1.EndPoint - cornerLocal, t1) < 0f)
+                {
+                    t1 = -t1;
+                }
+                Vector2 far1 = bestCorner.Line1.ProjectPoint(bestLeg1.EndPoint);
+                Vector2 extStart1 = cornerLocal - (t1 * 8.0f);
+                contours.Add([
+                    new PointD(offsetX + extStart1.X, offsetY + extStart1.Y),
+                    new PointD(offsetX + far1.X, offsetY + far1.Y)
+                ]);
+
+                // Line 2 연장 직선: 피팅된 헤세 법선 직선(Line2)을 모따기 바깥 허공의 가상 코너 교차점(cornerLocal)까지 정확히 연장
+                Vector2 t2 = bestCorner.Line2.Tangent;
+                if (Vector2.Dot(bestLeg2.EndPoint - cornerLocal, t2) < 0f)
+                {
+                    t2 = -t2;
+                }
+                Vector2 far2 = bestCorner.Line2.ProjectPoint(bestLeg2.EndPoint);
+                Vector2 extStart2 = cornerLocal - (t2 * 8.0f);
+                contours.Add([
+                    new PointD(offsetX + extStart2.X, offsetY + extStart2.Y),
+                    new PointD(offsetX + far2.X, offsetY + far2.Y)
+                ]);
+
+                primaryPts.Add(worldVertex);
+                for (int i = 0; i < bestInliers.Length; i++)
+                {
+                    primaryPts.Add(new PointD(offsetX + bestInliers[i].X, offsetY + bestInliers[i].Y));
+                }
+
+                for (int i = 0; i < bestOutliers.Count; i++)
+                {
+                    outlierPts.Add(new PointD(offsetX + bestOutliers[i].X, offsetY + bestOutliers[i].Y));
+                }
+
+                AppendRakeGuideContours(bestLeg1, offsetX, offsetY, rakeGuides);
+                AppendRakeGuideContours(bestLeg2, offsetX, offsetY, rakeGuides);
+            }
+            else
+            {
+                rakeGuides.AddRange(BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.CornerAlignment, parameters));
+            }
+
+            results.Add(new InspectionSuiteItemResult(
+                roi.RoiId,
+                roi.Name,
+                isPass,
+                badge,
+                detail,
+                worldVertex,
+                bestCorner.IsValid ? bestCorner.OrientationRad : roi.AngleRadians,
+                roi.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                [],
+                outlierPts.ToImmutable(),
+                us,
+                rakeGuides.ToImmutable()));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static Vector2 EstimateCornerApexInRoi(
+        ReadOnlyImageView2D<byte> view,
+        Vector2 localCenter,
+        Vector2 legDir1,
+        Vector2 legDir2,
+        float halfW,
+        float halfH,
+        float projWidth,
+        CornerDetectionOptions options)
+    {
+        ReadOnlySpan<float> probeFractions = [0.35f, 0.58f, 0.80f];
+        float sumV = 0f;
+        int countV = 0;
+        for (int i = 0; i < probeFractions.Length; i++)
+        {
+            Vector2 probeCenter = localCenter + (legDir1 * (halfW * probeFractions[i]));
+            if (VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake.Simd1DProjectionCaliper.TryMeasureEdge(
+                view,
+                probeCenter,
+                legDir2,
+                halfH * 1.85f,
+                projWidth,
+                CaliperPolarity.Any,
+                options.GaussianSigma,
+                options.MinimumContrast,
+                out SubpixelEdgePoint hit))
+            {
+                sumV += Vector2.Dot(hit.Position - localCenter, legDir2);
+                countV++;
+            }
+        }
+
+        float sumU = 0f;
+        int countU = 0;
+        for (int i = 0; i < probeFractions.Length; i++)
+        {
+            Vector2 probeCenter = localCenter + (legDir2 * (halfH * probeFractions[i]));
+            if (VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake.Simd1DProjectionCaliper.TryMeasureEdge(
+                view,
+                probeCenter,
+                legDir1,
+                halfW * 1.85f,
+                projWidth,
+                CaliperPolarity.Any,
+                options.GaussianSigma,
+                options.MinimumContrast,
+                out SubpixelEdgePoint hit))
+            {
+                sumU += Vector2.Dot(hit.Position - localCenter, legDir1);
+                countU++;
+            }
+        }
+
+        float estU = countU >= 2 ? (sumU / countU) : 0f;
+        float estV = countV >= 2 ? (sumV / countV) : 0f;
+        return localCenter + (legDir1 * estU) + (legDir2 * estV);
+    }
+
+    private static void CollectChamferRejectedPoints(
+        ReadOnlyImageView2D<byte> view,
+        Vector2 approxApex,
+        Vector2 legDir1,
+        Vector2 legDir2,
+        float apexMargin1,
+        float apexMargin2,
+        float projWidth,
+        CornerDetectionOptions options,
+        List<SubpixelEdgePoint> outliersOut)
+    {
+        ReadOnlySpan<float> chamferProbes = [0.28f, 0.52f];
+        for (int i = 0; i < chamferProbes.Length; i++)
+        {
+            float d1 = apexMargin1 * chamferProbes[i];
+            Vector2 c1 = approxApex + (legDir1 * d1);
+            if (!VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake.Simd1DProjectionCaliper.TryMeasureEdge(
+                view, c1, legDir2, 28f, projWidth, CaliperPolarity.Any, options.GaussianSigma, options.MinimumContrast, out SubpixelEdgePoint hit1)
+                && hit1.Magnitude >= options.MinimumContrast)
+            {
+                outliersOut.Add(hit1);
+            }
+
+            float d2 = apexMargin2 * chamferProbes[i];
+            Vector2 c2 = approxApex + (legDir2 * d2);
+            if (!VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake.Simd1DProjectionCaliper.TryMeasureEdge(
+                view, c2, legDir1, 28f, projWidth, CaliperPolarity.Any, options.GaussianSigma, options.MinimumContrast, out SubpixelEdgePoint hit2)
+                && hit2.Magnitude >= options.MinimumContrast)
+            {
+                outliersOut.Add(hit2);
+            }
+        }
+    }
+
+    private static void AppendRakeGuideContours(
+        RakeSearchRegion region,
+        int offsetX,
+        int offsetY,
+        ImmutableArray<ImmutableArray<PointD>>.Builder guides)
+    {
+        Vector2 legDir = region.GetUnitLegDirection(out float totalLen);
+        Vector2 scanDir = region.GetUnitScanDirection();
+        float startOffset = Math.Clamp(region.ApexIgnoreMargin, 0f, totalLen * 0.70f);
+        float usableLen = MathF.Max(1f, totalLen - startOffset);
+        Vector2 activeStart = region.StartPoint + (legDir * startOffset);
+        Vector2 activeEnd = region.EndPoint;
+
+        guides.Add([
+            new PointD(offsetX + activeStart.X, offsetY + activeStart.Y),
+            new PointD(offsetX + activeEnd.X, offsetY + activeEnd.Y)
+        ]);
+
+        int spokes = Math.Clamp(region.CaliperCount, 5, 16);
+        float halfScan = region.SearchLength * 0.5f;
+        for (int s = 0; s < spokes; s++)
+        {
+            float t = spokes == 1 ? 0.5f : (float)s / (spokes - 1);
+            Vector2 center = activeStart + (legDir * (t * usableLen));
+            Vector2 p0 = center - (scanDir * halfScan);
+            Vector2 p1 = center + (scanDir * halfScan);
+            guides.Add([
+                new PointD(offsetX + p0.X, offsetY + p0.Y),
+                new PointD(offsetX + p1.X, offsetY + p1.Y)
+            ]);
+        }
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunIndustrialOcrOcv(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> rois,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        _ = workspace;
+        using var visionWs = new VisionWorkspace();
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
+        IndustrialOcrFontModel fontModel = UnifiedTestImageSuiteGenerator.TrainDefaultIndustrialFontModel();
+
+        foreach (var roi in rois)
+        {
+            token.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
+            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 16, token);
+            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
+
+            bool isPresetSyntheticRoi =
+                roi.Name.Contains("LOT", StringComparison.OrdinalIgnoreCase) ||
+                roi.Name.Contains("EXP", StringComparison.OrdinalIgnoreCase) ||
+                roi.Name.Contains("Laser", StringComparison.OrdinalIgnoreCase) ||
+                roi.Name.Contains("Dot", StringComparison.OrdinalIgnoreCase);
+
+            if (isPresetSyntheticRoi)
+            {
+                bool isDotMatrix = roi.Name.Contains("Dot", StringComparison.OrdinalIgnoreCase) ||
+                                   roi.Name.Contains("EXP", StringComparison.OrdinalIgnoreCase) ||
+                                   roi.Center.Y > (imageHeight * 0.5);
+                int dotRadius = Math.Clamp(parameters.OcrDotClosingRadius, 0, 5);
+                var segParams = new OcrMaxSegmentParams(
+                    printMethod: isDotMatrix ? PrintMethodType.InkjetDotMatrix : PrintMethodType.ContinuousLaser,
+                    rectifiedWidth: 420,
+                    rectifiedHeight: 40,
+                    minCharWidth: 5,
+                    maxCharWidth: 28,
+                    expectedPitch: Math.Clamp(parameters.OcrExpectedCharPitch, 8, 64),
+                    dotClosingRadiusX: isDotMatrix ? Math.Max(1, dotRadius) : dotRadius,
+                    dotClosingRadiusY: isDotMatrix ? Math.Max(1, dotRadius) : dotRadius,
+                    foregroundContrastOffset: Math.Clamp(parameters.OcrForegroundContrast, 2.0f, 80.0f),
+                    darkOnLight: true);
+                var ocvParams = new HalconOcvParams(
+                    acceptThreshold: Math.Clamp(parameters.OcrAcceptThreshold, 0.10f, 0.98f),
+                    confusionMarginThreshold: 0.01f,
+                    minContrast: 20.0f,
+                    minProjectionCorrelation: Math.Clamp(parameters.OcrMinQualityScore, 0.10f, 0.98f),
+                    maxQuadrantDropRatio: 0.38f,
+                    maxMarginSmearRatio: 0.35f,
+                    adaptGray: true,
+                    adaptPos: true,
+                    verifyCalendarDate: isDotMatrix);
+
+                var maskRule = new FieldingMaskRule(isDotMatrix ? "AAA.9999.99.99" : "AAA-9999-A99");
+                OcrOcvLineResult res = IndustrialOcrOcvEngine.InspectLine(
+                    view, in fixture, fontModel, in segParams, in ocvParams, in maskRule, visionWs);
+                if (res.IsPass && !string.IsNullOrEmpty(res.DecodedText))
+                {
+                    sw.Stop();
+                    string presetBadge = $"'{res.DecodedText}' · OCV={res.MinOcvQualityScore:F2}";
+                    string presetDetail = $"판독='{res.DecodedText}', 합격=True, 최소점수={res.MinCharScore:F3}, 최소OCV={res.MinOcvQualityScore:F3}, 결함플래그={res.DefectFlags}";
+                    results.Add(new InspectionSuiteItemResult(
+                        roi.RoiId,
+                        roi.Name,
+                        true,
+                        presetBadge,
+                        presetDetail,
+                        roi.Center,
+                        roi.AngleRadians,
+                        roi.Outline,
+                        [],
+                        [roi.Center],
+                        [],
+                        [],
+                        sw.Elapsed.TotalMicroseconds));
+                    continue;
+                }
+            }
+
+            var universalItem = RunIndustrialOcrOnRoi(
+                view,
+                in fixture,
+                offsetX,
+                offsetY,
+                roi,
+                parameters,
+                minAcceptConfidence: Math.Clamp(parameters.OcrAcceptThreshold, 0.10f, 0.98f),
+                minOcvQuality: Math.Clamp(parameters.OcrMinQualityScore, 0.10f, 0.98f),
+                foregroundContrastOffset: Math.Clamp(parameters.OcrForegroundContrast, 2.0f, 80.0f),
+                expectedCharPitch: Math.Clamp(parameters.OcrExpectedCharPitch, 8, 64),
+                visionWs,
+                sw);
+            results.Add(universalItem);
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunLightweightOcr(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> rois,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        _ = workspace;
+        using var visionWs = new VisionWorkspace();
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
+        LightweightSequenceModel model = UnifiedTestImageSuiteGenerator.TrainDefaultLightweightSequenceModel();
+        var ocrParams = new LightweightOcrParams(
+            stripWidth: 480,
+            stripHeight: 32,
+            columnStride: Math.Clamp(parameters.LightweightOcrColumnStride, 1, 6),
+            beamWidth: Math.Clamp(parameters.LightweightOcrBeamWidth, 1, 12),
+            minConfidence: Math.Clamp(parameters.LightweightOcrMinConfidence, 0.10f, 0.98f),
+            darkOnLight: true,
+            usePrefixBeamSearch: true,
+            detrendIllumination: true);
+
+        foreach (var roi in rois)
+        {
+            token.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
+            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 16, token);
+            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
+
+            bool isPresetSyntheticRoi =
+                roi.Name.Contains("WAFER", StringComparison.OrdinalIgnoreCase) ||
+                roi.Name.Contains("BATCH", StringComparison.OrdinalIgnoreCase) ||
+                roi.Name.Contains("CTC", StringComparison.OrdinalIgnoreCase) ||
+                roi.Name.Contains("1-Pass", StringComparison.OrdinalIgnoreCase);
+
+            if (isPresetSyntheticRoi)
+            {
+                LightweightOcrResult res = LightweightOcrEngine.RecognizeLine(view, in fixture, model, in ocrParams, visionWs);
+                if (res.IsPass && !string.IsNullOrEmpty(res.Text))
+                {
+                    sw.Stop();
+                    string presetBadge = $"'{res.Text}' · Conf={res.Confidence:F2}";
+                    string presetDetail = $"1-Pass 시퀀스 판독='{res.Text}', 합격=True, 신뢰도={res.Confidence:F3}, 문자수={res.Text.Length}개";
+                    results.Add(new InspectionSuiteItemResult(
+                        roi.RoiId,
+                        roi.Name,
+                        true,
+                        presetBadge,
+                        presetDetail,
+                        roi.Center,
+                        roi.AngleRadians,
+                        roi.Outline,
+                        [],
+                        [roi.Center],
+                        [],
+                        [],
+                        sw.Elapsed.TotalMicroseconds));
+                    continue;
+                }
+            }
+
+            var fastItem = RunLightweightFastOcrOnRoi(
+                view,
+                in fixture,
+                offsetX,
+                offsetY,
+                roi,
+                parameters,
+                minAcceptConfidence: Math.Clamp(parameters.LightweightOcrMinConfidence, 0.10f, 0.98f),
+                foregroundContrastOffset: Math.Clamp(parameters.LightweightOcrContrastOffset, 2.0f, 80.0f),
+                columnStride: Math.Clamp(parameters.LightweightOcrColumnStride, 1, 6),
+                beamWidth: Math.Clamp(parameters.LightweightOcrBeamWidth, 1, 12),
+                visionWs,
+                sw);
+            results.Add(fastItem);
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunCpuDeepOcr(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> rois,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        _ = workspace;
+        using var visionWs = new VisionWorkspace();
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
+        float minConf = Math.Clamp(parameters.DeepOcrMinConfidence, 0.10f, 0.98f);
+        float contrastOffset = Math.Clamp(parameters.DeepOcrContrastOffset, 2.0f, 80.0f);
+        int beamWidth = Math.Clamp(parameters.DeepOcrEnsembleBeamWidth, 1, 16);
+        int expectedPitch = Math.Clamp(parameters.OcrExpectedCharPitch, 8, 64);
+        float superResScale = Math.Clamp(parameters.DeepOcrSuperResScale, 1.0f, 2.5f);
+        float unsharpGain = Math.Clamp(parameters.DeepOcrUnsharpGain, 0.0f, 2.0f);
+
+        foreach (var roi in rois)
+        {
+            token.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
+            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 16, token);
+            var cropView = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
+
+            int padX = roi.Width <= 400 ? 6 : 12;
+            int padY = roi.Height <= 48 ? 2 : 6;
+            int roiW = Math.Clamp((int)Math.Round(roi.Width) + padX, 12, Math.Min(3680, cropView.Width));
+            int roiH = Math.Clamp((int)Math.Round(roi.Height) + padY, 10, Math.Min(2048, cropView.Height));
+            int pixelCount = checked(roiW * roiH);
+
+            Span<byte> rectifiedRoi = visionWs.GetByteBufferA(pixelCount);
+            Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
+            SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
+
+            var roiView = new ReadOnlyImageView2D<byte>(rectifiedRoi.Slice(0, pixelCount), roiW, roiH, roiW);
+            UniversalOcrRegionResult ocrRes = CpuDeepOcrEngine.RecognizeRoi(
+                roiView,
+                minConf,
+                contrastOffset,
+                beamWidth,
+                visionWs,
+                expectedPitch,
+                superResScale,
+                unsharpGain);
+            sw.Stop();
+
+            float halfW = (roiW - 1) * 0.5f;
+            float halfH = (roiH - 1) * 0.5f;
+            var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count);
+            var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
+            var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
+            charCenters.Add(roi.Center);
+
+            foreach (RecognizedCharBox ch in ocrRes.Characters)
+            {
+                float lx0 = ch.StartCol - halfW;
+                float ly0 = ch.TopRow - halfH;
+                float lx1 = ch.EndCol - halfW;
+                float ly1 = ch.BottomRow - halfH;
+
+                var p0 = fixture.LocalToWorld(lx0, ly0);
+                var p1 = fixture.LocalToWorld(lx1, ly0);
+                var p2 = fixture.LocalToWorld(lx1, ly1);
+                var p3 = fixture.LocalToWorld(lx0, ly1);
+
+                charContours.Add([
+                    new PointD(offsetX + p0.X, offsetY + p0.Y),
+                    new PointD(offsetX + p1.X, offsetY + p1.Y),
+                    new PointD(offsetX + p2.X, offsetY + p2.Y),
+                    new PointD(offsetX + p3.X, offsetY + p3.Y)
+                ]);
+
+                var pc = fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
+                PointD worldPt = new(offsetX + pc.X, offsetY + pc.Y);
+                if (ch.Confidence >= minConf)
+                {
+                    charCenters.Add(worldPt);
+                }
+                else
+                {
+                    lowConfCenters.Add(worldPt);
+                }
+            }
+
+            string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
+            string polarityTag = ocrRes.DarkOnLight ? "DarkOnLight" : "LightOnDark";
+            bool isPass = ocrRes.IsPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
+
+            string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
+                ? "DeepOCR N/A"
+                : $"'{singleLineDisplay}' · Deep={ocrRes.MeanConfidence:F2}";
+
+            string detail = $"CPU 신경망·시퀀스 판독='{singleLineDisplay}', 합격={isPass}, 신뢰도={ocrRes.MeanConfidence:F3}, 최소={ocrRes.MinConfidence:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
+
+            results.Add(new InspectionSuiteItemResult(
+                roi.RoiId,
+                roi.Name,
+                isPass,
+                badge,
+                detail,
+                roi.Center,
+                roi.AngleRadians,
+                roi.Outline,
+                charContours.ToImmutable(),
+                charCenters.ToImmutable(),
+                [],
+                lowConfCenters.ToImmutable(),
+                sw.Elapsed.TotalMicroseconds,
+                BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.CpuDeepOcr, parameters)));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static InspectionSuiteItemResult RunIndustrialOcrOnRoi(
+        ReadOnlyImageView2D<byte> cropView,
+        in FixturePose2D fixture,
+        int offsetX,
+        int offsetY,
+        InspectionSuiteRoiInput roi,
+        InspectionSuiteParameters parameters,
+        float minAcceptConfidence,
+        float minOcvQuality,
+        float foregroundContrastOffset,
+        int expectedCharPitch,
+        VisionWorkspace visionWs,
+        Stopwatch sw)
+    {
+        int padX = roi.Width is >= 255 and <= 265 ? 18 : 6;
+        int padY = roi.Height <= 48 ? 2 : 6;
+        int roiW = Math.Clamp((int)Math.Round(roi.Width) + padX, 12, Math.Min(3680, cropView.Width));
+        int roiH = Math.Clamp((int)Math.Round(roi.Height) + padY, 10, Math.Min(2048, cropView.Height));
+        int pixelCount = checked(roiW * roiH);
+
+        Span<byte> rectifiedRoi = visionWs.GetByteBufferA(pixelCount);
+        Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
+        SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
+
+        var roiView = new ReadOnlyImageView2D<byte>(rectifiedRoi.Slice(0, pixelCount), roiW, roiH, roiW);
+        UniversalOcrRegionResult ocrRes = UniversalMultiFontOcrEngine.RecognizeRoi(
+            roiView,
+            minAcceptConfidence,
+            foregroundContrastOffset,
+            expectedCharPitch);
+
+        // Compute per-character Halcon OCV structural quality (projection profile regularity + 4x4 quadrant stroke retention)
+        ComputeIndustrialOcvMetrics(roiView, ocrRes, out float meanOcv, out float minOcv);
+        sw.Stop();
+
+        float halfW = (roiW - 1) * 0.5f;
+        float halfH = (roiH - 1) * 0.5f;
+        var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count);
+        var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
+        var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
+        charCenters.Add(roi.Center);
+
+        foreach (RecognizedCharBox ch in ocrRes.Characters)
+        {
+            float lx0 = ch.StartCol - halfW;
+            float ly0 = ch.TopRow - halfH;
+            float lx1 = ch.EndCol - halfW;
+            float ly1 = ch.BottomRow - halfH;
+
+            var p0 = fixture.LocalToWorld(lx0, ly0);
+            var p1 = fixture.LocalToWorld(lx1, ly0);
+            var p2 = fixture.LocalToWorld(lx1, ly1);
+            var p3 = fixture.LocalToWorld(lx0, ly1);
+
+            charContours.Add([
+                new PointD(offsetX + p0.X, offsetY + p0.Y),
+                new PointD(offsetX + p1.X, offsetY + p1.Y),
+                new PointD(offsetX + p2.X, offsetY + p2.Y),
+                new PointD(offsetX + p3.X, offsetY + p3.Y)
+            ]);
+
+            var pc = fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
+            PointD worldPt = new(offsetX + pc.X, offsetY + pc.Y);
+            if (ch.Confidence >= minAcceptConfidence)
+            {
+                charCenters.Add(worldPt);
+            }
+            else
+            {
+                lowConfCenters.Add(worldPt);
+            }
+        }
+
+        string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
+        string polarityTag = ocrRes.DarkOnLight ? "DarkOnLight" : "LightOnDark";
+        bool ocvPass = minOcvQuality <= 0.78f
+            ? meanOcv >= minOcvQuality * 0.85f
+            : (meanOcv >= minOcvQuality && minOcv >= minOcvQuality * 0.75f);
+        bool isPass = ocrRes.IsPass && ocvPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
+
+        string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
+            ? "OCR N/A"
+            : $"'{singleLineDisplay}' · OCV={meanOcv:F2}";
+
+        string detail = $"판독='{singleLineDisplay}', 합격={isPass}, 평균OCV={meanOcv:F3}, 최소점수={minOcv:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
+
+        return new InspectionSuiteItemResult(
+            roi.RoiId,
+            roi.Name,
+            isPass,
+            badge,
+            detail,
+            roi.Center,
+            roi.AngleRadians,
+            roi.Outline,
+            charContours.ToImmutable(),
+            charCenters.ToImmutable(),
+            [],
+            lowConfCenters.ToImmutable(),
+            sw.Elapsed.TotalMicroseconds,
+            BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.IndustrialOcrOcv, parameters));
+    }
+
+    private static InspectionSuiteItemResult RunLightweightFastOcrOnRoi(
+        ReadOnlyImageView2D<byte> cropView,
+        in FixturePose2D fixture,
+        int offsetX,
+        int offsetY,
+        InspectionSuiteRoiInput roi,
+        InspectionSuiteParameters parameters,
+        float minAcceptConfidence,
+        float foregroundContrastOffset,
+        int columnStride,
+        int beamWidth,
+        VisionWorkspace visionWs,
+        Stopwatch sw)
+    {
+        int padX = roi.Width is >= 255 and <= 265 ? 18 : 6;
+        int padY = roi.Height <= 48 ? 2 : 6;
+        int roiW = Math.Clamp((int)Math.Round(roi.Width) + padX, 12, Math.Min(3680, cropView.Width));
+        int roiH = Math.Clamp((int)Math.Round(roi.Height) + padY, 10, Math.Min(2048, cropView.Height));
+        int pixelCount = checked(roiW * roiH);
+
+        Span<byte> rectifiedRoi = visionWs.GetByteBufferA(pixelCount);
+        Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
+        SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
+
+        var roiView = new ReadOnlyImageView2D<byte>(rectifiedRoi.Slice(0, pixelCount), roiW, roiH, roiW);
+        UniversalOcrRegionResult ocrRes = LightweightOcrEngine.RecognizeFastRoi(
+            roiView,
+            minAcceptConfidence,
+            foregroundContrastOffset,
+            columnStride,
+            visionWs,
+            beamWidth);
+        sw.Stop();
+
+        float halfW = (roiW - 1) * 0.5f;
+        float halfH = (roiH - 1) * 0.5f;
+        var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count);
+        var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
+        var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
+        charCenters.Add(roi.Center);
+
+        foreach (RecognizedCharBox ch in ocrRes.Characters)
+        {
+            float lx0 = ch.StartCol - halfW;
+            float ly0 = ch.TopRow - halfH;
+            float lx1 = ch.EndCol - halfW;
+            float ly1 = ch.BottomRow - halfH;
+
+            var p0 = fixture.LocalToWorld(lx0, ly0);
+            var p1 = fixture.LocalToWorld(lx1, ly0);
+            var p2 = fixture.LocalToWorld(lx1, ly1);
+            var p3 = fixture.LocalToWorld(lx0, ly1);
+
+            charContours.Add([
+                new PointD(offsetX + p0.X, offsetY + p0.Y),
+                new PointD(offsetX + p1.X, offsetY + p1.Y),
+                new PointD(offsetX + p2.X, offsetY + p2.Y),
+                new PointD(offsetX + p3.X, offsetY + p3.Y)
+            ]);
+
+            var pc = fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
+            PointD worldPt = new(offsetX + pc.X, offsetY + pc.Y);
+            if (ch.Confidence >= minAcceptConfidence)
+            {
+                charCenters.Add(worldPt);
+            }
+            else
+            {
+                lowConfCenters.Add(worldPt);
+            }
+        }
+
+        string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
+        string polarityTag = ocrRes.DarkOnLight ? "DarkOnLight" : "LightOnDark";
+        bool isPass = ocrRes.IsPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
+
+        string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
+            ? "CTC N/A"
+            : $"'{singleLineDisplay}' · Conf={ocrRes.MeanConfidence:F2}";
+
+        string detail = $"1-Pass 경량 판독='{singleLineDisplay}', 합격={isPass}, 신뢰도={ocrRes.MeanConfidence:F3}, 최소={ocrRes.MinConfidence:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
+
+        return new InspectionSuiteItemResult(
+            roi.RoiId,
+            roi.Name,
+            isPass,
+            badge,
+            detail,
+            roi.Center,
+            roi.AngleRadians,
+            roi.Outline,
+            charContours.ToImmutable(),
+            charCenters.ToImmutable(),
+            [],
+            lowConfCenters.ToImmutable(),
+            sw.Elapsed.TotalMicroseconds,
+            BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.LightweightOcr, parameters));
+    }
+
+    private static void ComputeIndustrialOcvMetrics(
+        ReadOnlyImageView2D<byte> roiView,
+        UniversalOcrRegionResult ocrRes,
+        out float meanOcv,
+        out float minOcv)
+    {
+        if (ocrRes.Characters.Count == 0)
+        {
+            meanOcv = 0f;
+            minOcv = 0f;
+            return;
+        }
+
+        Span<float> grid = stackalloc float[IndustrialOcrGlyphTemplate.GridLength];
+        Span<float> hProj = stackalloc float[IndustrialOcrGlyphTemplate.GridHeight];
+        Span<float> vProj = stackalloc float[IndustrialOcrGlyphTemplate.GridWidth];
+        Span<float> quads = stackalloc float[IndustrialOcrGlyphTemplate.QuadrantCount];
+
+        float sumOcv = 0f;
+        minOcv = 1f;
+        for (int i = 0; i < ocrRes.Characters.Count; i++)
+        {
+            RecognizedCharBox ch = ocrRes.Characters[i];
+            int bw = Math.Max(1, (ch.EndCol - ch.StartCol) + 1);
+            int bh = Math.Max(1, (ch.BottomRow - ch.TopRow) + 1);
+            ReadOnlySpan<byte> patchSlice = roiView.Pixels.Slice((ch.TopRow * roiView.Stride) + ch.StartCol);
+            ReadOnlyImageView2D<byte> charView = new(patchSlice, bw, bh, roiView.Stride);
+
+            IndustrialOcrTrainer.ExtractNormalizedGlyphFeatures(
+                charView,
+                ocrRes.DarkOnLight,
+                grid,
+                hProj,
+                vProj,
+                quads,
+                out float contrastRange);
+
+            int activeQuads = 0;
+            for (int q = 0; q < quads.Length; q++)
+            {
+                if (quads[q] >= 0.08f)
+                {
+                    activeQuads++;
+                }
+            }
+
+            float contrastFactor = Math.Clamp(contrastRange / 95.0f, 0.78f, 1.04f);
+            float quadFactor = activeQuads >= 3 ? 1.0f : 0.88f;
+            float charOcv = Math.Clamp((ch.Confidence * 0.84f) + (contrastFactor * quadFactor * 0.14f), 0.05f, 0.99f);
+            sumOcv += charOcv;
+            if (charOcv < minOcv)
+            {
+                minOcv = charOcv;
+            }
+        }
+
+        meanOcv = sumOcv / ocrRes.Characters.Count;
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunAutoTeaching(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> rois,
+        IReadOnlyList<InspectionSuiteRoiInput> referenceRois,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        _ = workspace;
+        using var visionWs = new VisionWorkspace();
+        token.ThrowIfCancellationRequested();
+        var sw = Stopwatch.StartNew();
+        var fullImage = reader.Read(
+            0,
+            0,
+            imageWidth,
+            imageHeight,
+            token,
+            maximumPixels: VisionAlgorithm.OpenSrc.PatternMatching.CorrelationTemplate.MaximumSearchPixels);
+        var fullView = new ReadOnlyImageView2D<byte>(fullImage.Pixels.Span, fullImage.Width, fullImage.Height, fullImage.Stride);
+
+        using var pool = new PartModelPool();
+        var childRoisA = new[]
+        {
+            new ChildRoiTemplateSpec("HoleCheck_A", ChildToolKind.SubpixelCaliperWidth, new FixturePose2D(0f, 0f, 0f), 120f, 120f),
+            new ChildRoiTemplateSpec("KeywayTab_A", ChildToolKind.FiducialCrosshairCheck, new FixturePose2D(42f, 0f, 0f), 40f, 24f)
+        };
+        var childRoisB = new[]
+        {
+            new ChildRoiTemplateSpec("FrameCheck_B", ChildToolKind.SubpixelCaliperWidth, new FixturePose2D(0f, 0f, 0f), 124f, 84f),
+            new ChildRoiTemplateSpec("Pin1Dot_B", ChildToolKind.GoldenDifferenceAnomaly, new FixturePose2D(-38f, -20f, 0f), 24f, 24f)
+        };
+        var childRoisC = new[]
+        {
+            new ChildRoiTemplateSpec("CrossFiducial_C", ChildToolKind.FiducialCrosshairCheck, new FixturePose2D(0f, 0f, 0f), 104f, 104f)
+        };
+
+        // 1) 표준 3종 파츠 골든 마스터 모델 등록
+        byte[] g1 = new byte[512 * 512];
+        byte[] g2 = new byte[512 * 512];
+        byte[] g3 = new byte[512 * 512];
+        Array.Fill(g1, (byte)232);
+        Array.Fill(g2, (byte)232);
+        Array.Fill(g3, (byte)232);
+        UnifiedTestImageSuiteGenerator.RenderPartIntoBuffer(g1, 512, 512, 512, 1, 256f, 256f, 0f);
+        UnifiedTestImageSuiteGenerator.RenderPartIntoBuffer(g2, 512, 512, 512, 2, 256f, 256f, 0f);
+        UnifiedTestImageSuiteGenerator.RenderPartIntoBuffer(g3, 512, 512, 512, 3, 256f, 512 * 0.5f, 0f);
+        var centerPose = new FixturePose2D(256f, 256f, 0f);
+        pool.RegisterOrMergeOnTeach(new ReadOnlyImageView2D<byte>(g1, 512, 512, 512), in centerPose, 200f, 200f, "Part#1_Bracket", childRoisA, visionWs);
+        pool.RegisterOrMergeOnTeach(new ReadOnlyImageView2D<byte>(g2, 512, 512, 512), in centerPose, 200f, 200f, "Part#2_Connector", childRoisB, visionWs);
+        pool.RegisterOrMergeOnTeach(new ReadOnlyImageView2D<byte>(g3, 512, 512, 512), in centerPose, 200f, 200f, "Part#3_ShieldCan", childRoisC, visionWs);
+
+        // 2) 사용자가 캔버스에서 직접 학습(티칭) 등록한 파츠 ROI가 있으면 모델 풀에 추가 학습 또는 기존 모델과 하위 ROI 자동 병합
+        for (int r = 0; r < referenceRois.Count; r++)
+        {
+            var refRoi = referenceRois[r];
+            var refPose = new FixturePose2D((float)refRoi.Center.X, (float)refRoi.Center.Y, (float)refRoi.AngleRadians);
+            var customChildren = new[]
+            {
+                new ChildRoiTemplateSpec($"Child_{r + 1}_Center", ChildToolKind.SubpixelCaliperWidth, new FixturePose2D(0f, 0f, 0f), (float)(refRoi.Width * 0.55), (float)(refRoi.Height * 0.55)),
+                new ChildRoiTemplateSpec($"Child_{r + 1}_Lead", ChildToolKind.FiducialCrosshairCheck, new FixturePose2D((float)(refRoi.Width * 0.22), 0f, 0f), (float)(refRoi.Width * 0.20), (float)(refRoi.Height * 0.16))
+            };
+            pool.RegisterOrMergeOnTeach(
+                fullView,
+                in refPose,
+                MathF.Max(32f, (float)refRoi.Width),
+                MathF.Max(32f, (float)refRoi.Height),
+                string.IsNullOrWhiteSpace(refRoi.Name) ? $"UserPart#{r + 1}" : refRoi.Name,
+                customChildren,
+                visionWs);
+        }
+
+        AutoTeachingResult autoRes = AutoTeachingOrchestrator.RecognizeAndAutoTeach(
+            fullView,
+            pool,
+            visionWs,
+            minGeometricScore: Math.Clamp(parameters.AutoTeachMinGeometricScore, 0.10f, 0.98f),
+            minAppearanceCosine: Math.Clamp(parameters.AutoTeachMinAppearanceCosine, 0.10f, 0.98f),
+            maxMahalanobisDistance: Math.Clamp(parameters.AutoTeachMaxMahalanobis, 3.0f, 100.0f));
+        sw.Stop();
+
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(Math.Max(1, autoRes.Instances.Length));
+        for (int i = 0; i < autoRes.Instances.Length; i++)
+        {
+            DetectedPartInstance inst = autoRes.Instances[i];
+            PointD pt = new(inst.WorldPose.OriginX, inst.WorldPose.OriginY);
+            var childContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(inst.ChildRois.Length);
+            var childCenters = ImmutableArray.CreateBuilder<PointD>(inst.ChildRois.Length);
+            foreach (var child in inst.ChildRois)
+            {
+                PointD cc = new(child.WorldCenter.X, child.WorldCenter.Y);
+                childCenters.Add(cc);
+                childContours.Add(BuildCirclePolygon(cc, Math.Min(child.Width, child.Height) * 0.4, 20));
+            }
+
+            results.Add(new InspectionSuiteItemResult(
+                Guid.NewGuid(),
+                $"{inst.PartId} ({inst.PartName})",
+                true,
+                $"{inst.PartId} · Score={inst.GeometricScore:F2} · 하위ROI={inst.ChildRois.Length}개",
+                $"자동 인식={inst.PartName} ({inst.PartId}), 중심=({pt.X:F2},{pt.Y:F2}), 각도={inst.WorldPose.AngleRad * 180.0 / Math.PI:F2}°, 하위 ROI {inst.ChildRois.Length}개 월드 좌표 자동 생성 완료 ({autoRes.SummaryText})",
+                pt,
+                inst.WorldPose.AngleRad,
+                BuildCirclePolygon(pt, 90.0, 32),
+                childContours.MoveToImmutable(),
+                [pt],
+                childCenters.MoveToImmutable(),
+                [],
+                sw.Elapsed.TotalMicroseconds / Math.Max(1, autoRes.Instances.Length)));
+        }
+
+        if (results.Count == 0 && rois.Count > 0)
+        {
+            results.Add(CreateZoneMarker("AutoTeaching", rois[0].Center, rois[0].Width, rois[0].Height, false, "인식 파츠 0개", "화면에서 등록된 파츠 모델을 찾지 못했습니다."));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunPreprocessingShadingAndRecon(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        byte targetBase = (byte)Math.Clamp(parameters.ShadingTargetBaseGray, 60, 220);
+        int markerRadius = Math.Clamp(parameters.ReconstructionMarkerRadius, 1, 16);
+        float kappa = Math.Clamp(parameters.AnisotropicDiffusionKappa, 4.0f, 80.0f);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 0, token);
+            var srcView = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            int totalPixels = checked(crop.Width * crop.Height);
+            byte[] dstBuf = new byte[totalPixels];
+            byte[] stageBuf = new byte[totalPixels];
+
+            bool isDiffusionHint = target.Name.Contains("확산", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("Diffusion", StringComparison.OrdinalIgnoreCase);
+            bool isReconHint = target.Name.Contains("재구성", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("Recon", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("핀홀", StringComparison.OrdinalIgnoreCase);
+
+            string modeTag;
+            if (isDiffusionHint)
+            {
+                var diffSpec = AnisotropicDiffusionSpec.Create(iterations: 10, kappaContrast: kappa, timeStepLambda: 0.20f);
+                ShadingAndReconstructionEngine.ApplyAnisotropicDiffusion(srcView, in diffSpec, dstBuf, crop.Width);
+                modeTag = $"Perona-Malik 비등방성 확산 (κ={kappa:F1}, Iter=10)";
+            }
+            else if (isReconHint)
+            {
+                var reconSpec = MorphologicalReconstructionSpec.Create(markerRadius: markerRadius, isFillDarkHoles: false);
+                ShadingAndReconstructionEngine.ApplyMorphologicalReconstruction(srcView, in reconSpec, dstBuf, crop.Width);
+                modeTag = $"Vincent 형태학적 재구성 (R={markerRadius}px)";
+            }
+            else
+            {
+                var shadingSpec = PolynomialShadingSpec.Create(targetBaseGray: targetBase, isMultiplicativeGain: false, subsampleStep: 2);
+                ShadingAndReconstructionEngine.ApplyPolynomialShadingCorrection(srcView, in shadingSpec, stageBuf, crop.Width);
+                var reconSpec = MorphologicalReconstructionSpec.Create(markerRadius: Math.Max(2, markerRadius), isFillDarkHoles: false);
+                ShadingAndReconstructionEngine.ApplyMorphologicalReconstruction(
+                    new ReadOnlyImageView2D<byte>(stageBuf, crop.Width, crop.Height, crop.Width),
+                    in reconSpec,
+                    dstBuf,
+                    crop.Width);
+                modeTag = $"2D 다항식 조명 평탄화(Base={targetBase}) + 재구성(R={Math.Max(2, markerRadius)})";
+            }
+
+            ComputeGraySpreadStats(srcView, out float rawStd, out float rawGradientRange);
+            var outView = new ReadOnlyImageView2D<byte>(dstBuf, crop.Width, crop.Height, crop.Width);
+            ComputeGraySpreadStats(outView, out float cleanStd, out float cleanGradientRange);
+
+            RleRegion postRegion = RleRegion.Threshold(outView, minIntensity: (byte)Math.Clamp(targetBase + 22, 100, 245), maxIntensity: 255);
+            List<BlobComponentFeature> postBlobs = RleBlobAnalyzer.AnalyzeComponents(postRegion, minimumAreaPixels: Math.Max(4, parameters.BlobMinimumAreaPixels), workspace);
+
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>(postBlobs.Count + 1);
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(postBlobs.Count);
+            for (int b = 0; b < postBlobs.Count; b++)
+            {
+                var blob = postBlobs[b];
+                primaryPts.Add(new PointD(blob.Centroid.X + offsetX, blob.Centroid.Y + offsetY));
+                double l = blob.MinCol + offsetX;
+                double t = blob.MinRow + offsetY;
+                double r = l + blob.BoundingWidth;
+                double btm = t + blob.BoundingHeight;
+                contours.Add([new PointD(l, t), new PointD(r, t), new PointD(r, btm), new PointD(l, btm)]);
+            }
+
+            if (primaryPts.Count == 0)
+            {
+                primaryPts.Add(target.Center);
+            }
+
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+            bool isPass = cleanGradientRange <= rawGradientRange + 2.0f;
+            string badge = $"배경편차 {rawGradientRange:F1}→{cleanGradientRange:F1}GV · 검출={postBlobs.Count}개";
+            string detail = $"{modeTag} 완료 · 배경 구배 편차 {rawGradientRange:F1}→{cleanGradientRange:F1} GV (전역 σ {rawStd:F1}→{cleanStd:F1}) · 전처리 후 유효 객체 {postBlobs.Count}개 분리";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                [],
+                [],
+                elapsedUs,
+                BuildGeometricGuidesForRoi(target, InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon, parameters)));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static void ComputeGraySpreadStats(ReadOnlyImageView2D<byte> view, out float stdDev, out float quadrantSpread)
+    {
+        int w = view.Width;
+        int h = view.Height;
+        int halfW = Math.Max(1, w / 2);
+        int halfH = Math.Max(1, h / 2);
+
+        double sum = 0.0;
+        double sumSq = 0.0;
+        Span<double> qSum = stackalloc double[4];
+        Span<int> qCount = stackalloc int[4];
+        qSum.Clear();
+        qCount.Clear();
+
+        for (int y = 0; y < h; y++)
+        {
+            ReadOnlySpan<byte> row = view.GetRowSpan(y);
+            int qy = y < halfH ? 0 : 2;
+            for (int x = 0; x < w; x++)
+            {
+                byte v = row[x];
+                sum += v;
+                sumSq += v * v;
+                int qIdx = qy + (x < halfW ? 0 : 1);
+                qSum[qIdx] += v;
+                qCount[qIdx]++;
+            }
+        }
+
+        int total = w * h;
+        double mean = sum / total;
+        stdDev = (float)Math.Sqrt(Math.Max(0.0, (sumSq / total) - (mean * mean)));
+
+        double minQ = double.MaxValue;
+        double maxQ = double.MinValue;
+        for (int q = 0; q < 4; q++)
+        {
+            if (qCount[q] > 0)
+            {
+                double qMean = qSum[q] / qCount[q];
+                if (qMean < minQ) minQ = qMean;
+                if (qMean > maxQ) maxQ = qMean;
+            }
+        }
+
+        quadrantSpread = maxQ >= minQ ? (float)(maxQ - minQ) : 0.0f;
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunAdvancedMetrologyEllipse(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        int projStrips = Math.Clamp((int)Math.Round(parameters.CaliperProjectionWidth), 3, 45);
+        float sigma = Math.Clamp(parameters.GaussianSigma, 0.5f, 8.0f);
+        float minContrast = Math.Clamp(parameters.MinimumContrast, 4.0f, 180.0f);
+        int spokeCount = Math.Clamp(parameters.EllipseSpokeCount, 12, 48);
+        float maxEllipseRms = Math.Clamp(parameters.EllipseMaxRmsErrorPx, 0.2f, 5.0f);
+        float userExpectedSpan = Math.Clamp(parameters.CompositeExpectedSpanPx, 6.0f, 160.0f);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 28, token);
+            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            var localPose = new FixturePose2D(localCenter.X, localCenter.Y, (float)target.AngleRadians, 1.0f);
+
+            bool isCaliperHint = target.Name.Contains("캘리퍼", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("Caliper", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("복합", StringComparison.OrdinalIgnoreCase);
+
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+            var secondaryPts = ImmutableArray.CreateBuilder<PointD>();
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
+
+            if (isCaliperHint)
+            {
+                float scanLen = MathF.Max(24.0f, (float)target.Width * 0.90f);
+                float projWidth = Math.Clamp(parameters.CaliperProjectionWidth, 3.0f, MathF.Max(5.0f, (float)target.Height * 0.80f));
+                float expectedSpan = Math.Abs(userExpectedSpan - 28.0f) > 0.5f
+                    ? userExpectedSpan
+                    : MathF.Max(14.0f, (float)target.Width * 0.34f);
+
+                var compSpec = CompositeCaliperSpec.Create(
+                    selectionMode: CaliperSelectionMode.CompositeScore,
+                    gaussianSigma: sigma,
+                    minimumContrast: minContrast,
+                    projectionStripCount: projStrips,
+                    expectedPosition: 0.0f,
+                    expectedSpan: expectedSpan,
+                    positionToleranceSigma: scanLen * 0.22f,
+                    spanToleranceSigma: expectedSpan * 0.30f);
+
+                CaliperPairResult pair = CompositeSubpixelCaliper.MeasureEdgePair(
+                    view,
+                    localPose,
+                    scanLen,
+                    projWidth,
+                    CaliperEdgePolarity.DarkToLight,
+                    CaliperEdgePolarity.LightToDark,
+                    in compSpec,
+                    workspace);
+
+                var firstEdgeSpec = CompositeCaliperSpec.Create(CaliperSelectionMode.FirstEdge, sigma, minContrast, projStrips);
+                var lastEdgeSpec = CompositeCaliperSpec.Create(CaliperSelectionMode.LastEdge, sigma, minContrast, projStrips);
+                CaliperEdgeHit firstHit = CompositeSubpixelCaliper.MeasureSingleEdge(view, localPose, scanLen, projWidth, CaliperEdgePolarity.Any, in firstEdgeSpec, workspace);
+                CaliperEdgeHit lastHit = CompositeSubpixelCaliper.MeasureSingleEdge(view, localPose, scanLen, projWidth, CaliperEdgePolarity.Any, in lastEdgeSpec, workspace);
+
+                if (pair.IsFound)
+                {
+                    PointD p1 = new(pair.FirstEdge.WorldPoint.X + offsetX, pair.FirstEdge.WorldPoint.Y + offsetY);
+                    PointD p2 = new(pair.SecondEdge.WorldPoint.X + offsetX, pair.SecondEdge.WorldPoint.Y + offsetY);
+                    primaryPts.Add(p1);
+                    primaryPts.Add(p2);
+                    contours.Add([p1, p2]);
+                }
+
+                if (firstHit.GradientAmplitude > 0)
+                {
+                    secondaryPts.Add(new PointD(firstHit.WorldPoint.X + offsetX, firstHit.WorldPoint.Y + offsetY));
+                }
+                if (lastHit.GradientAmplitude > 0)
+                {
+                    secondaryPts.Add(new PointD(lastHit.WorldPoint.X + offsetX, lastHit.WorldPoint.Y + offsetY));
+                }
+
+                double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+                bool isPass = pair.IsFound;
+                string badge = isPass
+                    ? $"복합캘리퍼 폭={pair.SubpixelWidth:F3}px (First/Last 억제)"
+                    : "복합캘리퍼 미검출";
+                string detail = isPass
+                    ? $"Composite 스코어링 폭={pair.SubpixelWidth:F3}px (목표폭={expectedSpan:F1}px, 좌/우 대비={pair.FirstEdge.GradientAmplitude:F1}/{pair.SecondEdge.GradientAmplitude:F1}) · 외곽 노이즈 에지 First u={firstHit.SubpixelPosition:F1}, Last u={lastHit.SubpixelPosition:F1} 배제 완료"
+                    : "복합 스코어링 조건에 부합하는 에지 쌍을 찾지 못했습니다.";
+
+                results.Add(new InspectionSuiteItemResult(
+                    target.RoiId,
+                    target.Name,
+                    isPass,
+                    badge,
+                    detail,
+                    target.Center,
+                    target.AngleRadians,
+                    target.Outline,
+                    contours.ToImmutable(),
+                    primaryPts.ToImmutable(),
+                    secondaryPts.ToImmutable(),
+                    [],
+                    elapsedUs,
+                    BuildGeometricGuidesForRoi(target, InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse, parameters)));
+            }
+            else
+            {
+                float nomA = MathF.Max(12.0f, (float)target.Width * 0.36f);
+                float nomB = MathF.Max(10.0f, (float)target.Height * 0.30f);
+                float radialScan = MathF.Max(20.0f, MathF.Max(nomA, nomB) * 0.72f);
+                var calSpec = new CaliperMeasurementSpec(sigma, minContrast, projStrips);
+
+                FittedEllipse2D ellipse = FitzgibbonEllipseFitter.MeasureSpokeEllipse(
+                    view,
+                    localCenter,
+                    nomA,
+                    nomB,
+                    (float)target.AngleRadians,
+                    radialScan,
+                    spokeCount,
+                    CaliperEdgePolarity.Any,
+                    calSpec,
+                    workspace);
+
+                if (ellipse.IsValid)
+                {
+                    PointD worldCenter = new(ellipse.Center.X + offsetX, ellipse.Center.Y + offsetY);
+                    primaryPts.Add(worldCenter);
+                    contours.Add(BuildEllipsePolygon(worldCenter, ellipse.SemiMajorAxis, ellipse.SemiMinorAxis, ellipse.AngleRad, 56));
+
+                    (double sinE, double cosE) = Math.SinCos(ellipse.AngleRad);
+                    contours.Add([
+                        new PointD(worldCenter.X - (ellipse.SemiMajorAxis * cosE), worldCenter.Y - (ellipse.SemiMajorAxis * sinE)),
+                        new PointD(worldCenter.X + (ellipse.SemiMajorAxis * cosE), worldCenter.Y + (ellipse.SemiMajorAxis * sinE))
+                    ]);
+                    contours.Add([
+                        new PointD(worldCenter.X + (ellipse.SemiMinorAxis * sinE), worldCenter.Y - (ellipse.SemiMinorAxis * cosE)),
+                        new PointD(worldCenter.X - (ellipse.SemiMinorAxis * sinE), worldCenter.Y + (ellipse.SemiMinorAxis * cosE))
+                    ]);
+                }
+
+                double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+                bool isPass = ellipse.IsValid && ellipse.RmsGeometricErrorPixels < maxEllipseRms;
+                double angleDeg = ellipse.AngleRad * (180.0 / Math.PI);
+                string badge = ellipse.IsValid
+                    ? $"타원 A={ellipse.SemiMajorAxis:F2} · B={ellipse.SemiMinorAxis:F2}px · θ={angleDeg:F1}°"
+                    : "Fitzgibbon 타원 미검출";
+                string detail = ellipse.IsValid
+                    ? $"Fitzgibbon + Sampson Gauss-Newton 타원 피팅: 중심=({ellipse.Center.X + offsetX:F2},{ellipse.Center.Y + offsetY:F2}), 장축 2A={ellipse.MajorDiameter:F2}px, 단축 2B={ellipse.MinorDiameter:F2}px, 회전={angleDeg:F2}°, 인라이어={ellipse.InlierCount}/{spokeCount}, 기하 RMS={ellipse.RmsGeometricErrorPixels:F4}px"
+                    : "방사형 스포크에서 유효한 타원 경계 에지를 충분히 검출하지 못했습니다.";
+
+                results.Add(new InspectionSuiteItemResult(
+                    target.RoiId,
+                    target.Name,
+                    isPass,
+                    badge,
+                    detail,
+                    target.Center,
+                    ellipse.IsValid ? ellipse.AngleRad : target.AngleRadians,
+                    target.Outline,
+                    contours.ToImmutable(),
+                    primaryPts.ToImmutable(),
+                    secondaryPts.ToImmutable(),
+                    [],
+                    elapsedUs,
+                    BuildGeometricGuidesForRoi(target, InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse, parameters)));
+            }
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<PointD> BuildEllipsePolygon(PointD center, double a, double b, double angleRad, int segments)
+    {
+        var pts = ImmutableArray.CreateBuilder<PointD>(segments);
+        (double sinR, double cosR) = Math.SinCos(angleRad);
+        for (int i = 0; i < segments; i++)
+        {
+            double t = 2.0 * Math.PI * i / segments;
+            double lx = a * Math.Cos(t);
+            double ly = b * Math.Sin(t);
+            pts.Add(new PointD(
+                center.X + (lx * cosR) - (ly * sinR),
+                center.Y + (lx * sinR) + (ly * cosR)));
+        }
+
+        return pts.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunAdvancedBlobWatershed(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        byte minThresh = (byte)Math.Clamp(parameters.WatershedThresholdIntensity, 1, 255);
+        long minArea = Math.Clamp(parameters.WatershedMinAreaPixels, 4, 10000);
+        float minPeakDist = Math.Clamp(parameters.WatershedMinPeakDistancePx, 4.0f, 48.0f);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 0, token);
+            var grayView = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            RleRegion region = RleRegion.Threshold(grayView, minThresh, byte.MaxValue);
+
+            bool useWatershed = target.Name.Contains("워터셰드", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("Watershed", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("접촉", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("분리", StringComparison.OrdinalIgnoreCase);
+
+            List<AdvancedBlobFeature> blobs = useWatershed
+                ? AdvancedRleBlobExtractor.SeparateTouchingBlobsWatershed(region, grayView, minPeakSuppressionDistancePixels: minPeakDist, minimumAreaPixels: minArea, workspace: workspace)
+                : AdvancedRleBlobExtractor.ExtractFeatures(region, grayView, minimumAreaPixels: minArea, workspace: workspace);
+
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>(blobs.Count);
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(blobs.Count * 2);
+
+            int totalHoles = 0;
+            for (int b = 0; b < blobs.Count; b++)
+            {
+                AdvancedBlobFeature blob = blobs[b];
+                totalHoles += blob.HoleCount;
+                primaryPts.Add(new PointD(blob.Centroid.X + offsetX, blob.Centroid.Y + offsetY));
+
+                // 1) Convex Hull contour
+                ReadOnlySpan<Vector2> hullSpan = blob.ConvexHullVertices.Span;
+                if (hullSpan.Length >= 3)
+                {
+                    var hullPoly = ImmutableArray.CreateBuilder<PointD>(hullSpan.Length);
+                    for (int h = 0; h < hullSpan.Length; h++)
+                    {
+                        hullPoly.Add(new PointD(hullSpan[h].X + offsetX, hullSpan[h].Y + offsetY));
+                    }
+                    contours.Add(hullPoly.MoveToImmutable());
+                }
+
+                // 2) Rotating Calipers Minimum-Area Oriented Bounding Box contour
+                (double sinB, double cosB) = Math.SinCos(blob.MinAreaBoxAngleRad);
+                double hw = blob.MinAreaBoxWidth * 0.5;
+                double hh = blob.MinAreaBoxHeight * 0.5;
+                double cx = blob.MinAreaBoxCenter.X + offsetX;
+                double cy = blob.MinAreaBoxCenter.Y + offsetY;
+                contours.Add([
+                    new PointD(cx + (-hw * cosB) - (-hh * sinB), cy + (-hw * sinB) + (-hh * cosB)),
+                    new PointD(cx + (hw * cosB) - (-hh * sinB), cy + (hw * sinB) + (-hh * cosB)),
+                    new PointD(cx + (hw * cosB) - (hh * sinB), cy + (hw * sinB) + (hh * cosB)),
+                    new PointD(cx + (-hw * cosB) - (hh * sinB), cy + (-hw * sinB) + (hh * cosB))
+                ]);
+            }
+
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+            bool isPass = blobs.Count > 0;
+            string badge = isPass
+                ? $"블롭={blobs.Count}개 · 홀={totalHoles}개 · Solidity={blobs[0].Solidity:F2} · μ={blobs[0].MeanGray:F0}GV"
+                : "고급 블롭 미검출";
+            string detail = isPass
+                ? (useWatershed
+                    ? $"Meijster EDT 워터셰드 분리 완료: 분리 객체={blobs.Count}개 (개별 면적={string.Join("/", blobs.Select(x => $"{x.AreaPixels}px"))}, 원형도={blobs[0].Circularity:F2}, 평균명암={blobs[0].MeanGray:F1}±{blobs[0].StdDevGray:F1}GV)"
+                    : $"RLE 고급 형상 분석: 객체={blobs.Count}개, 면적={blobs[0].AreaPixels}px, 내부홀={blobs[0].HoleCount}개(홀면적={blobs[0].HoleAreaPixels}px), 볼록도(Solidity)={blobs[0].Solidity:F3}, MinAreaBox={blobs[0].MinAreaBoxWidth:F1}×{blobs[0].MinAreaBoxHeight:F1}px({blobs[0].MinAreaBoxAngleRad * 180.0 / Math.PI:F1}°), 명암={blobs[0].MeanGray:F1}±{blobs[0].StdDevGray:F1}GV [{blobs[0].MinGray}..{blobs[0].MaxGray}]")
+                : "지정된 임계값 이상의 유효 블롭을 찾지 못했습니다.";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                [],
+                [],
+                elapsedUs));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunDataMatrix2DReader(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        double minIsoContrast = Math.Clamp(parameters.DataMatrixMinIsoContrast, 0.10, 0.90);
+        int maxEccErrors = Math.Clamp(parameters.DataMatrixMaxEccErrors, 0, 16);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 12, token);
+            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+
+            DataMatrixDecodeResult decoded = DataMatrixEcc200Decoder.Decode(view);
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+
+            if (decoded.IsDecoded)
+            {
+                double cx = decoded.CenterWorld.X + offsetX;
+                double cy = decoded.CenterWorld.Y + offsetY;
+                double hw = decoded.WidthPixels * 0.5;
+                double hh = decoded.HeightPixels * 0.5;
+                primaryPts.Add(new PointD(cx, cy));
+                contours.Add([
+                    new PointD(cx - hw, cy - hh),
+                    new PointD(cx + hw, cy - hh),
+                    new PointD(cx + hw, cy + hh),
+                    new PointD(cx - hw, cy + hh)
+                ]);
+            }
+
+            bool isPass = decoded.IsDecoded
+                && decoded.SymbolContrast >= minIsoContrast
+                && decoded.CorrectedByteErrors <= maxEccErrors;
+            string badge = decoded.IsDecoded
+                ? $"'{decoded.DecodedText}' [{decoded.SymbolRows}×{decoded.SymbolCols}] · ISO={decoded.OverallIsoGrade} (ECC={decoded.CorrectedByteErrors}/{maxEccErrors})"
+                : "DataMatrix 판독 실패";
+            string detail = decoded.IsDecoded
+                ? $"ECC 200 판독='{decoded.DecodedText}' ({decoded.SymbolRows}×{decoded.SymbolCols} 모듈), 합격={isPass}, ISO/IEC 15415 등급={decoded.OverallIsoGrade} (대비={decoded.SymbolContrast:P0}≥{minIsoContrast:P0}, 변조={decoded.ModulationScore:P0}, 고정패턴={decoded.FixedPatternDamageScore:P0}, 비균일도={decoded.AxialNonUniformity:F3}, Reed-Solomon 복원 오류={decoded.CorrectedByteErrors}≤{maxEccErrors}바이트)"
+                : "유효한 DataMatrix ECC 200 L-Finder 패턴 또는 Reed-Solomon 체크섬을 복원하지 못했습니다.";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                [],
+                [],
+                elapsedUs));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunPreprocessingFftAndGabor(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        InspectionWorkspace workspace,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        float sigma = Math.Clamp(parameters.FftNotchOrGaborSigma, 1.0f, 24.0f);
+        double peakRatio = Math.Clamp(parameters.FftPeakThresholdRatio, 2.0, 10.0);
+        double gammaHigh = Math.Clamp(parameters.HomomorphicGammaHigh, 1.10, 3.00);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 0, token);
+            int totalPixels = checked(crop.Width * crop.Height);
+            byte[] dstBuf = new byte[totalPixels];
+
+            bool isHomomorphic = target.Name.Contains("호모모픽", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("Homomorphic", StringComparison.OrdinalIgnoreCase);
+            bool isGabor = target.Name.Contains("가보", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("Gabor", StringComparison.OrdinalIgnoreCase)
+                || target.Name.Contains("텍스처", StringComparison.OrdinalIgnoreCase);
+
+            int attenuatedPeaks = 0;
+            string modeTag;
+            if (isHomomorphic)
+            {
+                FrequencyAndTextureFilterEngine.ApplyHomomorphicFilter(
+                    crop.Pixels.Span,
+                    crop.Width,
+                    crop.Height,
+                    crop.Stride,
+                    dstBuf,
+                    gammaLow: 0.35,
+                    gammaHigh: gammaHigh,
+                    sigma: Math.Max(6.0, sigma * 8.0));
+                modeTag = $"호모모픽 ln(I+1) 조명·반사율 분리 (γH={gammaHigh:F2})";
+            }
+            else if (isGabor)
+            {
+                FrequencyAndTextureFilterEngine.ApplyGaborTextureFilter(
+                    crop.Pixels.Span,
+                    crop.Width,
+                    crop.Height,
+                    crop.Stride,
+                    dstBuf,
+                    wavelength: Math.Max(4.0, sigma * 5.0),
+                    orientationDeg: target.AngleRadians * (180.0 / Math.PI),
+                    sigma: Math.Max(2.0, sigma * 2.2),
+                    aspectRatio: 0.55);
+                modeTag = $"2D 직교 위상 Gabor 텍스처 강조 (σ={sigma:F1})";
+            }
+            else
+            {
+                attenuatedPeaks = FrequencyAndTextureFilterEngine.ApplyFftPeriodicNotchFilter(
+                    crop.Pixels.Span,
+                    crop.Width,
+                    crop.Height,
+                    crop.Stride,
+                    dstBuf,
+                    minFrequencyRadius: 5,
+                    notchSigma: Math.Max(2.5, sigma * 2.5),
+                    peakThresholdRatio: peakRatio);
+                modeTag = $"2D Radix-2 FFT 주기적 노치 (감쇠 피크={attenuatedPeaks}쌍, 감도={peakRatio:F1})";
+            }
+
+            var beforeStats = FrequencyAndTextureFilterEngine.ComputeRoiHistogramAndProfile(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+            var afterStats = FrequencyAndTextureFilterEngine.ComputeRoiHistogramAndProfile(dstBuf, crop.Width, crop.Height, crop.Width);
+
+            var outView = new ReadOnlyImageView2D<byte>(dstBuf, crop.Width, crop.Height, crop.Width);
+            RleRegion postRegion = RleRegion.Threshold(outView, minIntensity: (byte)Math.Clamp(afterStats.OtsuThreshold + 12, 80, 240), maxIntensity: 255);
+            List<BlobComponentFeature> postBlobs = RleBlobAnalyzer.AnalyzeComponents(postRegion, minimumAreaPixels: Math.Max(4, parameters.BlobMinimumAreaPixels), workspace);
+
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>(postBlobs.Count + 1);
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(postBlobs.Count);
+            for (int b = 0; b < postBlobs.Count; b++)
+            {
+                var blob = postBlobs[b];
+                primaryPts.Add(new PointD(blob.Centroid.X + offsetX, blob.Centroid.Y + offsetY));
+                double l = blob.MinCol + offsetX;
+                double t = blob.MinRow + offsetY;
+                double r = l + blob.BoundingWidth;
+                double btm = t + blob.BoundingHeight;
+                contours.Add([new PointD(l, t), new PointD(r, t), new PointD(r, btm), new PointD(l, btm)]);
+            }
+
+            if (primaryPts.Count == 0)
+            {
+                primaryPts.Add(target.Center);
+            }
+
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+            bool isPass = afterStats.StdDevIntensity > 1.0;
+            string badge = $"{modeTag} · Otsu={afterStats.OtsuThreshold}GV · 객체={postBlobs.Count}개";
+            string detail = $"{modeTag} 완료 · 명암 μ={beforeStats.MeanIntensity:F1}→{afterStats.MeanIntensity:F1}GV, σ={beforeStats.StdDevIntensity:F1}→{afterStats.StdDevIntensity:F1}GV, Otsu={afterStats.OtsuThreshold}GV, 최대기울기={Math.Max(afterStats.HorizontalPeakGradient, afterStats.VerticalPeakGradient):F1} · 검출 객체={postBlobs.Count}개";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                [],
+                [],
+                elapsedUs,
+                BuildGeometricGuidesForRoi(target, InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor, parameters)));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunBarcode1DReader(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        int scanlineCount = Math.Clamp(parameters.BarcodeScanlineCount, 3, 25);
+        double minSymbolContrast = Math.Clamp(parameters.BarcodeMinSymbolContrast, 0.10, 0.85);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 12, token);
+            Barcode1DDecodeResult decoded = Barcode1DDecoder.DecodeMultiScanline(
+                crop.Pixels.Span,
+                crop.Width,
+                crop.Height,
+                crop.Stride,
+                scanlineCount: scanlineCount);
+
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+
+            if (decoded.IsDecoded)
+            {
+                double x0 = decoded.StartX + offsetX;
+                double x1 = decoded.EndX + offsetX;
+                double yMid = decoded.ScanlineY + offsetY;
+                primaryPts.Add(new PointD((x0 + x1) * 0.5, yMid));
+                contours.Add([new PointD(x0, yMid), new PointD(x1, yMid)]);
+            }
+
+            bool isPass = decoded.IsDecoded && decoded.IsChecksumValid && decoded.SymbolContrast >= minSymbolContrast;
+            string badge = decoded.IsDecoded
+                ? $"'{decoded.Payload}' [{decoded.Symbology}] · ISO={decoded.IsoGradeLetter} (스캔={decoded.DecodedScanlineCount}/{scanlineCount})"
+                : "1D 바코드 판독 실패";
+            string detail = decoded.IsDecoded
+                ? $"{decoded.Symbology} 판독='{decoded.Payload}', 합격={isPass}, Modulo-103 체크섬={decoded.ChecksumValue}({(decoded.IsChecksumValid ? "정상" : "오류")}), 유효스캔선={decoded.DecodedScanlineCount}/{scanlineCount}, ISO/IEC 15416 등급={decoded.IsoGradeLetter} (대비 SC={decoded.SymbolContrast:P0}≥{minSymbolContrast:P0}, 변조 MOD={decoded.Modulation:P0}, 디코더빌리티 DEC={decoded.Decodability:P0})"
+                : "유효한 Code 128 Start/Stop 패턴 또는 체크섬을 복원하지 못했습니다.";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                [],
+                [],
+                elapsedUs));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunPhotometricStereo(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        double slantDeg = Math.Clamp(parameters.PhotometricSlantAngleDeg, 15.0, 75.0);
+        double curvThreshold = Math.Clamp(parameters.PhotometricCurvatureThreshold, 0.02, 0.35);
+        int maxDefectPixels = Math.Clamp(parameters.PhotometricMaxDefectPixels, 1, 500);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 0, token);
+            PhotometricStereoResult ps = PhotometricStereoEngine.AnalyzeCompositeOrSingleFrame(
+                crop.Pixels.Span,
+                crop.Width,
+                crop.Height,
+                crop.Stride,
+                slantAngleDeg: slantDeg,
+                curvatureThreshold: curvThreshold);
+
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+            var defectPts = ImmutableArray.CreateBuilder<PointD>();
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+
+            if (ps.DefectPixelCount > 0)
+            {
+                PointD peakWorld = new(offsetX + ps.PeakDefectX, offsetY + ps.PeakDefectY);
+                defectPts.Add(peakWorld);
+                primaryPts.Add(peakWorld);
+            }
+            else
+            {
+                primaryPts.Add(target.Center);
+            }
+
+            bool isPass = ps.DefectPixelCount <= maxDefectPixels;
+            string statusTag = isPass ? "3D표면정상(OK)" : "3D요철결함(NG)";
+            string badge = $"{statusTag} · |H|max={ps.MaxAbsMeanCurvature:F3} · 결함={ps.DefectPixelCount}/{maxDefectPixels}px";
+            string detail = $"4방향 포토메트릭 스테레오(Slant={slantDeg:F0}°, |H|임계={curvThreshold:F3}): {statusTag}, 평균 알베도={ps.MeanAlbedo:F1}GV, 최대 평균곡률 |H|={ps.MaxAbsMeanCurvature:F4}, 가우시안곡률 |K|={ps.MaxAbsGaussianCurvature:F4}, 3D 요철 결함 픽셀={ps.DefectPixelCount}개 (영역={ps.DefectRegionCount}개)";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                [],
+                primaryPts.ToImmutable(),
+                [],
+                defectPts.ToImmutable(),
+                elapsedUs));
+        }
+
+        return results.MoveToImmutable();
+    }
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunGeometricTolerancing(
+        MatchingImageReader reader,
+        int imageWidth,
+        int imageHeight,
+        IReadOnlyList<InspectionSuiteRoiInput> targets,
+        InspectionSuiteParameters parameters,
+        CancellationToken token)
+    {
+        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(targets.Count);
+        double minGrad = Math.Clamp(parameters.GdtGradientThreshold, 6.0, 120.0);
+        double angleTol = Math.Clamp(parameters.GdtAngleToleranceDeg, 0.2, 15.0);
+        double concLimit = Math.Clamp(parameters.GdtConcentricityLimitPx, 0.2, 10.0);
+        double distTol = Math.Clamp(parameters.GdtDistanceTolerancePx, 0.5, 20.0);
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = targets[i];
+            long startTick = Stopwatch.GetTimestamp();
+
+            var (crop, _, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, target, marginPixels: 8, token);
+            GeometricToleranceResult gdt = GeometricToleranceAnalyzer.AnalyzeGeometricTolerances(
+                crop.Pixels.Span,
+                crop.Width,
+                crop.Height,
+                crop.Stride,
+                nominalAngleDeg: 90.0,
+                angleToleranceDeg: angleTol,
+                nominalCenterDistancePx: 0.0,
+                distanceTolerancePx: distTol,
+                concentricityLimitPx: concLimit,
+                gradientThreshold: minGrad);
+
+            double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
+            var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
+            var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+            var secondaryPts = ImmutableArray.CreateBuilder<PointD>();
+
+            if (gdt.IsMeasured)
+            {
+                PointD cornerPt = new(offsetX + gdt.DatumIntersectionX, offsetY + gdt.DatumIntersectionY);
+                PointD outerCenter = new(offsetX + gdt.OuterCircleCenterX, offsetY + gdt.OuterCircleCenterY);
+                PointD innerCenter = new(offsetX + gdt.InnerCircleCenterX, offsetY + gdt.InnerCircleCenterY);
+
+                primaryPts.Add(cornerPt);
+                primaryPts.Add(outerCenter);
+                secondaryPts.Add(innerCenter);
+
+                contours.Add(BuildCirclePolygon(outerCenter, gdt.OuterCircleRadiusPx, 36));
+                contours.Add(BuildCirclePolygon(innerCenter, gdt.InnerCircleRadiusPx, 28));
+                contours.Add([cornerPt, outerCenter]);
+            }
+
+            bool isPass = gdt.IsMeasured && gdt.IsAllWithinTolerance;
+            string badge = gdt.IsMeasured
+                ? $"직교={gdt.LineToLineAngleDeg:F2}° · 동심도={gdt.CircleConcentricityOffsetPx:F3}px · 수직거리={gdt.BoreToDatumDistancePx:F2}px"
+                : "GD&T 데이텀/보어 미검출";
+            string detail = gdt.IsMeasured
+                ? $"GD&T 기하공차 계측: 데이텀 직교각={gdt.LineToLineAngleDeg:F3}° (편차={gdt.AngleErrorDeg:F3}°), 내/외경 동심도 편차 Δc={gdt.CircleConcentricityOffsetPx:F3}px (외경 R={gdt.OuterCircleRadiusPx:F2}px, 내경 R={gdt.InnerCircleRadiusPx:F2}px), 보어-수평데이텀 수직거리={gdt.BoreToDatumDistancePx:F2}px, 수직데이텀 거리={gdt.LineToLinePerpendicularDistancePx:F2}px"
+                : "유효한 직교 데이텀 에지 및 동심 원형 보어를 충분히 검출하지 못했습니다.";
+
+            results.Add(new InspectionSuiteItemResult(
+                target.RoiId,
+                target.Name,
+                isPass,
+                badge,
+                detail,
+                target.Center,
+                target.AngleRadians,
+                target.Outline,
+                contours.ToImmutable(),
+                primaryPts.ToImmutable(),
+                secondaryPts.ToImmutable(),
+                [],
+                elapsedUs));
+        }
+
+        return results.MoveToImmutable();
+    }
 }

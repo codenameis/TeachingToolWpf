@@ -7,9 +7,16 @@ namespace VisionCanvas.Core.Editing;
 /// <summary>Derived immutable indexes shared by selection/view snapshots. No UI or GPU ownership.</summary>
 public sealed partial class RoiSnapshot
 {
+    private static readonly Lazy<ImmutableDictionary<Guid, ImmutableArray<Guid>>> EmptyChildrenLazy =
+        new(static () => ImmutableDictionary<Guid, ImmutableArray<Guid>>.Empty);
+    private static readonly Lazy<ImmutableDictionary<Guid, int>> EmptyGroupLevelsLazy =
+        new(static () => ImmutableDictionary<Guid, int>.Empty);
+
     private readonly Lazy<RoiSpatialIndex> _spatial;
     private readonly Lazy<ImmutableDictionary<Guid, ImmutableArray<Guid>>> _children;
     private readonly Lazy<ImmutableDictionary<Guid, int>> _groupLevels;
+    private readonly bool _hasParents;
+    private readonly bool _hasGroups;
 
     public ImmutableDictionary<Guid, Roi> Rois { get; }
 
@@ -37,10 +44,23 @@ public sealed partial class RoiSnapshot
     {
         Rois = rois;
         RowVersion = new();
-        _groupLevels = new(() => RoiHierarchy.BuildGroupLevels(rois));
+        if (rois.IsEmpty)
+        {
+            _hasParents = false;
+            _hasGroups = false;
+            _groupLevels = EmptyGroupLevelsLazy;
+            _children = EmptyChildrenLazy;
+        }
+        else
+        {
+            _hasParents = true;
+            _hasGroups = true;
+            _groupLevels = new(() => RoiHierarchy.BuildGroupLevels(rois));
+            _children = new(() => rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
+                .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
+        }
+
         _spatial = new(() => new(rois.Values));
-        _children = new(() => rois.Values.Where(r => r.ParentId.HasValue).GroupBy(r => r.ParentId!.Value)
-            .ToImmutableDictionary(g => g.Key, g => g.Select(r => r.Id).ToImmutableArray()));
         _search = new(BuildSearchIndex);
         _alignmentPartitions = new(BuildAlignmentPartitions);
     }
@@ -62,12 +82,16 @@ public sealed partial class RoiSnapshot
         var topologyChanged = false;
         var groupKindChanged = false;
         var rebuildSpatial = false;
+        var addedHasParent = false;
+        var addedHasGroup = false;
         foreach (var id in changedIds)
         {
             token.ThrowIfCancellationRequested();
             var old = oldRois.GetValueOrDefault(id);
             var next = rois.GetValueOrDefault(id);
-            groupKindChanged |= old?.IsGroup != next?.IsGroup;
+            addedHasParent |= next?.ParentId is not null;
+            addedHasGroup |= next?.IsGroup == true;
+            groupKindChanged |= (old?.IsGroup ?? false) != (next?.IsGroup ?? false);
             rowsChanged = rowsChanged || HasRowMetadataChanged(old, next);
             if (old?.ParentId != next?.ParentId)
             {
@@ -93,11 +117,22 @@ public sealed partial class RoiSnapshot
                 break;
             }
         }
+        _hasParents = rois.IsEmpty ? false : (previous._hasParents || topologyChanged || addedHasParent);
+        _hasGroups = rois.IsEmpty ? false : (previous._hasGroups || groupKindChanged || addedHasGroup);
         RowVersion = rowsChanged ? new() : previous.RowVersion;
-        _groupLevels = topologyChanged || groupKindChanged
-            ? new(() => RoiHierarchy.BuildGroupLevels(rois)) : previous._groupLevels;
+        if (!_hasParents && !_hasGroups)
+        {
+            _groupLevels = EmptyGroupLevelsLazy;
+        }
+        else
+        {
+            _groupLevels = topologyChanged || groupKindChanged
+                ? new(() => RoiHierarchy.BuildGroupLevels(rois)) : previous._groupLevels;
+        }
         _spatial = BuildOrUpdateSpatialIndex(seed, rois, geometryChanges, rebuildSpatial, refitSpatial, token);
-        _children = BuildOrUpdateChildrenIndex(previous, rois, parentChanges, topologyChanged, bulk);
+        _children = !_hasParents
+            ? EmptyChildrenLazy
+            : BuildOrUpdateChildrenIndex(previous, rois, parentChanges, topologyChanged, bulk);
         _search = CreateSearchIndex(previous);
         _alignmentPartitions = CreateAlignmentPartitions(previous, topologyChanged, groupKindChanged, rebuildSpatial, refitSpatial, geometryChanges);
     }

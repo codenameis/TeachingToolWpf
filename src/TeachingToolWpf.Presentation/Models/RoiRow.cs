@@ -58,6 +58,61 @@ public sealed record RoiRow(Guid Id, string Label, string Kind, int Depth)
         IReadOnlyDictionary<Guid, RoiAlgorithmAssignment>? assignments = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (state.Rois.IsEmpty)
+        {
+            return [];
+        }
+
+        if (state.Snapshot.Children.IsEmpty)
+        {
+            var flatRois = new Roi[state.Rois.Count];
+            var idx = 0;
+            foreach (var roi in state.Rois.Values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                flatRois[idx++] = roi;
+            }
+
+            Array.Sort(flatRois, static (a, b) => a.Order.CompareTo(b.Order));
+            var flatRows = new RoiRow[flatRois.Length];
+            var hasGroupLevels = !state.Snapshot.GroupLevels.IsEmpty;
+            var hasAssignments = assignments is not null && assignments.Count > 0;
+            for (var i = 0; i < flatRois.Length; i++)
+            {
+                if ((i & 511) == 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                var roi = flatRois[i];
+                var level = hasGroupLevels ? state.Snapshot.GroupLevels.GetValueOrDefault(roi.Id) : 0;
+                var row = new RoiRow(
+                    roi.Id,
+                    roi.Name,
+                    Describe(roi, 0, level),
+                    0)
+                {
+                    ShapeGlyph = ResolveShapeGlyph(roi, 0)
+                };
+
+                if (hasAssignments && assignments!.TryGetValue(roi.Id, out var assignment))
+                {
+                    row = row with
+                    {
+                        AlgorithmBadge = assignment.AlgorithmBadge,
+                        AlgorithmAccent = assignment.AlgorithmAccent,
+                        VerdictBadge = assignment.VerdictBadge,
+                        VerdictAccent = assignment.VerdictAccent,
+                        PatternThumbnail = assignment.PatternThumbnail
+                    };
+                }
+
+                flatRows[i] = row;
+            }
+
+            return flatRows;
+        }
+
         var children = state.Rois.Values.Where(r =>
         {
             cancellationToken.ThrowIfCancellationRequested();

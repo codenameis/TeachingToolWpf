@@ -53,6 +53,57 @@ public readonly struct InspectionSelection
     }
 
     /// <summary>
+    /// 전체 도형·변환 배열을 할당하지 않고 대상 리프 ROI 개수만 반환한다.
+    /// 그룹 계층이 없는 문서(반복 배치 포함)에서는 O(1)에 반환한다.
+    /// </summary>
+    public static int CountTargetLeafRois(DocumentState state)
+    {
+        if (state.Rois.IsEmpty)
+        {
+            return 0;
+        }
+
+        if (state.Selection.Count == 1)
+        {
+            return state.Selection.TryGetOnly(out var roiId)
+                && state.Rois.ContainsKey(roiId)
+                && !state.IsGroupRoi(roiId)
+                ? 1
+                : 0;
+        }
+
+        if (state.Snapshot.Children.IsEmpty && state.Snapshot.GroupLevels.IsEmpty)
+        {
+            return state.Selection.Count > 1 ? state.Selection.Count : state.Rois.Count;
+        }
+
+        if (state.Selection.Count > 1)
+        {
+            var selectedCount = 0;
+            foreach (var roiId in state.Selection)
+            {
+                if (state.Rois.ContainsKey(roiId) && !state.IsGroupRoi(roiId))
+                {
+                    selectedCount++;
+                }
+            }
+
+            return selectedCount;
+        }
+
+        var leafCount = 0;
+        foreach (var roiId in state.Rois.Keys)
+        {
+            if (!state.IsGroupRoi(roiId))
+            {
+                leafCount++;
+            }
+        }
+
+        return leafCount;
+    }
+
+    /// <summary>
     /// 다중 ROI 선택 시 선택된 모든 리프 ROI를, 아무것도 선택되지 않았을 때는 문서 내 모든 리프 ROI를 순서대로 반환한다.
     /// 단일 그룹 ROI만 선택된 경우에는 기존 계약을 유지하기 위해 빈 배열을 반환한다.
     /// </summary>
@@ -71,7 +122,28 @@ public readonly struct InspectionSelection
 
         if (state.Selection.Count > 1)
         {
-            var builder = ImmutableArray.CreateBuilder<InspectionSelection>();
+            if (state.Selection.Count * 8 < state.Rois.Count)
+            {
+                var selectedRois = new List<Roi>(state.Selection.Count);
+                foreach (var roiId in state.Selection)
+                {
+                    if (state.Rois.TryGetValue(roiId, out var roi) && !state.IsGroupRoi(roiId))
+                    {
+                        selectedRois.Add(roi);
+                    }
+                }
+
+                selectedRois.Sort(static (a, b) => a.Order.CompareTo(b.Order));
+                var smallBuilder = ImmutableArray.CreateBuilder<InspectionSelection>(selectedRois.Count);
+                for (var i = 0; i < selectedRois.Count; i++)
+                {
+                    smallBuilder.Add(CreateFromRoi(selectedRois[i], transformPreview));
+                }
+
+                return smallBuilder.MoveToImmutable();
+            }
+
+            var builder = ImmutableArray.CreateBuilder<InspectionSelection>(state.Selection.Count);
             foreach (var roi in state.Rois.Values.OrderBy(r => r.Order))
             {
                 if (state.Selection.Contains(roi.Id) && !state.IsGroupRoi(roi.Id))
@@ -83,7 +155,7 @@ public readonly struct InspectionSelection
             return builder.ToImmutable();
         }
 
-        var allLeaves = ImmutableArray.CreateBuilder<InspectionSelection>();
+        var allLeaves = ImmutableArray.CreateBuilder<InspectionSelection>(state.Rois.Count);
         foreach (var roi in state.Rois.Values.OrderBy(r => r.Order))
         {
             if (!state.IsGroupRoi(roi.Id))

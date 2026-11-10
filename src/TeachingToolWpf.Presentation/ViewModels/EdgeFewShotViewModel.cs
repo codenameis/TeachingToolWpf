@@ -41,6 +41,18 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
     private CancellationTokenSource? _cancellation;
     private ResultOverlay? _overlay;
     private ClassPrototypeModel? _model;
+    private bool _isHelpManualOpen;
+    private RelayCommand? _toggleHelpManualCommand;
+
+    public bool IsHelpManualOpen
+    {
+        get => _isHelpManualOpen;
+        set => Set(ref _isHelpManualOpen, value);
+    }
+
+    public RelayCommand ToggleHelpManual => _toggleHelpManualCommand ??= new(() => IsHelpManualOpen = !IsHelpManualOpen);
+
+    public AlgorithmHelpManual ActiveHelpManual => AlgorithmHelpCatalog.ForEdgeFewShot();
 
     public EdgeFewShotViewModel(IEdgeFewShotService service)
     {
@@ -48,19 +60,19 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         _service = service;
 
         RegisterGood = new(() => RegisterSelectedRois(GoodClass),
-            () => IsIdle && _canExecute && _image is not null && GetSelectedLeafRois().Count > 0);
+            () => IsIdle && _canExecute && _image is not null && HasSelectedLeafRoi());
         RegisterDefect = new(() => RegisterSelectedRois(DefectClass),
-            () => IsIdle && _canExecute && _image is not null && GetSelectedLeafRois().Count > 0);
+            () => IsIdle && _canExecute && _image is not null && HasSelectedLeafRoi());
         RegisterBoardPreset = new(RegisterSingleBoardPresetSamples,
-            () => IsIdle && _canExecute && _image is not null && GetAllLeafRois().Count >= 2);
+            () => IsIdle && _canExecute && _image is not null && HasLeafRoisAtLeast(2));
         ClearSamples = new(ClearAllSamples,
             () => IsIdle && (_samples.Count > 0 || _model is not null));
         Train = new(TrainAsync, error => PresentWarning(error.Message),
             () => IsIdle && _canExecute && _image is not null && _samples.Count >= 2 && OptionsError.Length == 0);
         ClassifySelected = new(() => ClassifyAsync(selectedOnly: true), error => PresentWarning(error.Message),
-            () => IsIdle && _canExecute && _image is not null && _model is not null && (GetSelectedLeafRois().Count > 0 || GetAllLeafRois().Count > 0));
+            () => IsIdle && _canExecute && _image is not null && _model is not null && (HasSelectedLeafRoi() || HasLeafRoisAtLeast(1)));
         ClassifyAll = new(() => ClassifyAsync(selectedOnly: false), error => PresentWarning(error.Message),
-            () => IsIdle && _canExecute && _image is not null && _model is not null && GetAllLeafRois().Count > 0);
+            () => IsIdle && _canExecute && _image is not null && _model is not null && HasLeafRoisAtLeast(1));
         Cancel = new(() => _cancellation?.Cancel(), () => IsBusy);
         Locate = new(() => LocateRequested?.Invoke(BoundsD.FromPoints(_overlay!.Matches.SelectMany(marker => marker.Bounds))),
             () => IsIdle && _canExecute && _overlay?.Matches.IsEmpty == false);
@@ -226,6 +238,7 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         var state = update.State;
         var canExecute = update.CanExecute && update.ToolAvailable;
         var imageChanged = _image != state.Image || _generation != update.Generation;
+        var wasCanExecute = _canExecute;
 
         _state = state;
         _image = state.Image;
@@ -236,6 +249,11 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         if (imageChanged)
         {
             ClearAllSamples();
+            return;
+        }
+
+        if (!canExecute && !wasCanExecute)
+        {
             return;
         }
 
@@ -634,6 +652,53 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         }
 
         _overlay = new ResultOverlay(SampleSummary, GoodOverlayColor, boundary, markers.MoveToImmutable());
+    }
+
+    private bool HasSelectedLeafRoi()
+    {
+        if (_state.Selection.Count == 0 || _state.Rois.IsEmpty)
+        {
+            return false;
+        }
+
+        if (_state.Snapshot.Children.IsEmpty && _state.Snapshot.GroupLevels.IsEmpty)
+        {
+            return true;
+        }
+
+        foreach (var id in _state.Selection)
+        {
+            if (_state.Rois.TryGetValue(id, out var roi) && !roi.IsGroup)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasLeafRoisAtLeast(int minCount)
+    {
+        if (_state.Rois.Count < minCount)
+        {
+            return false;
+        }
+
+        if (_state.Snapshot.Children.IsEmpty && _state.Snapshot.GroupLevels.IsEmpty)
+        {
+            return _state.Rois.Count >= minCount;
+        }
+
+        var count = 0;
+        foreach (var roi in _state.Rois.Values)
+        {
+            if (!roi.IsGroup && ++count >= minCount)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private List<Roi> GetSelectedLeafRois()

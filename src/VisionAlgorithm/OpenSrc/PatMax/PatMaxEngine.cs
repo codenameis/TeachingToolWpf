@@ -71,6 +71,116 @@ public sealed class PatMaxEngine : IDisposable
             cancellationToken);
     }
 
+    /// <summary>
+    /// Evaluates multiple registered template models (<paramref name="models"/>) against the runtime image without heap allocation
+    /// and returns the highest-scoring <see cref="PatMaxResult"/> annotated with the winning template index (<c>0..N-1</c>),
+    /// template ID, total template count, and 2nd-best (runner-up) template index and score.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public PatMaxResult FindBestAcrossModels(
+        ReadOnlySpan<PatMaxModel> models,
+        ReadOnlySpan<int> modelIds,
+        ReadOnlySpan<byte> runtimePixels,
+        int width,
+        int height,
+        int stride,
+        in PatMaxSearchParams searchParams,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (models.IsEmpty)
+        {
+            return PatMaxResult.Empty;
+        }
+
+        Span<PatMaxResult> singleScratch = stackalloc PatMaxResult[1];
+        PatMaxResult bestResult = PatMaxResult.Empty;
+        short bestIndex = -1;
+        int bestId = 0;
+        short runnerUpIndex = -1;
+        float runnerUpScore = 0.0f;
+        short totalTemplates = (short)Math.Min(short.MaxValue, models.Length);
+
+        float prevFineGranularity = -1.0f;
+        float prevCoarseGranularity = -1.0f;
+        int finePixelsTotal = checked(width * height);
+
+        for (int i = 0; i < models.Length; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            PatMaxModel? candidateModel = models[i];
+            if (candidateModel is null || !candidateModel.IsTrained)
+            {
+                continue;
+            }
+
+            PatMaxTrainParams tp = candidateModel.TrainParams;
+            if (MathF.Abs(tp.FineGranularity - prevFineGranularity) > 1e-4f ||
+                MathF.Abs(tp.CoarseGranularity - prevCoarseGranularity) > 1e-4f)
+            {
+                _runtimePyramid.Build(
+                    runtimePixels,
+                    width,
+                    height,
+                    stride,
+                    tp.FineGranularity,
+                    tp.CoarseGranularity,
+                    copyBaseLevel: finePixelsTotal <= FullImageFineExtractionPixelLimit);
+                prevFineGranularity = tp.FineGranularity;
+                prevCoarseGranularity = tp.CoarseGranularity;
+            }
+
+            int found = FindWithSharedPyramid(
+                candidateModel,
+                _runtimePyramid,
+                runtimePixels,
+                width,
+                height,
+                stride,
+                in searchParams,
+                singleScratch,
+                cancellationToken);
+
+            if (found <= 0 || !singleScratch[0].IsValid)
+            {
+                continue;
+            }
+
+            PatMaxResult current = singleScratch[0];
+            int currentId = i < modelIds.Length ? modelIds[i] : (i + 1);
+
+            if (bestIndex < 0 || current.Score > bestResult.Score)
+            {
+                if (bestIndex >= 0)
+                {
+                    runnerUpIndex = bestIndex;
+                    runnerUpScore = bestResult.Score;
+                }
+
+                bestResult = current;
+                bestIndex = (short)i;
+                bestId = currentId;
+            }
+            else if (runnerUpIndex < 0 || current.Score > runnerUpScore)
+            {
+                runnerUpIndex = (short)i;
+                runnerUpScore = current.Score;
+            }
+        }
+
+        if (bestIndex < 0)
+        {
+            return PatMaxResult.Empty with { TotalTemplateCount = totalTemplates };
+        }
+
+        return bestResult.WithTemplateProvenance(
+            matchedTemplateIndex: bestIndex,
+            matchedTemplateId: bestId,
+            totalTemplateCount: totalTemplates,
+            runnerUpTemplateIndex: runnerUpIndex,
+            runnerUpScore: runnerUpScore);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public int FindWithSharedPyramid(
         PatMaxModel model,

@@ -21,6 +21,18 @@ public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? Paren
         get;
         init;
     } = new(RoiFilterKind.None);
+
+    public ImmutableArray<FilterSettings> FilterPipeline { get; init; } = [];
+
+    public ImmutableArray<FilterSettings> EffectiveFilterPipeline =>
+        !FilterPipeline.IsDefaultOrEmpty
+            ? FilterPipeline
+            : (Filter.Kind != RoiFilterKind.None && Filter.IsEnabled ? [Filter] : []);
+
+    public bool HasActiveFilter =>
+        !FilterPipeline.IsDefaultOrEmpty
+            ? FilterPipeline.Any(static s => s.IsEnabled && s.Kind != RoiFilterKind.None)
+            : (Filter.IsEnabled && Filter.Kind != RoiFilterKind.None);
 }
 
 /// <summary>Immutable image-space geometry prevents precision drift during reparenting.</summary>

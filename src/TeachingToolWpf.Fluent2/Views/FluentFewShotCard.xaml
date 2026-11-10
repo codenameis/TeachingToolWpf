@@ -21,7 +21,36 @@
                 <StackPanel Grid.Column="0" IsEnabled="{Binding IsIdle}">
                     <Border Style="{StaticResource Fluent2SurfaceCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="1 · 소량 ROI 클래스 샘플 등록" Style="{StaticResource CardHeaderTitle}" Margin="0,0,0,4" />
+                            <DockPanel Margin="0,0,0,4">
+                                <Button DockPanel.Dock="Right" Content="? 매뉴얼" Command="{Binding ToggleHelpManual}"
+                                        Style="{StaticResource SecondaryButton}" Padding="8,2" Height="22" FontSize="10.5" FontWeight="Bold"
+                                        ToolTip="소량 샘플 분류 및 마할라노비스 OOD 이상 탐지 알고리즘의 상세 수식·티칭 방법·파라미터 튜닝 매뉴얼을 펼치거나 닫습니다." />
+                                <TextBlock Text="1 · 소량 ROI 클래스 샘플 등록" Style="{StaticResource CardHeaderTitle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Border Visibility="{Binding IsHelpManualOpen, Converter={StaticResource BoolVisibility}}"
+                                    BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                                    BorderThickness="3,1,1,1"
+                                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="6"
+                                    Padding="10,8"
+                                    Margin="0,2,0,6">
+                                <StackPanel DataContext="{Binding ActiveHelpManual}">
+                                    <DockPanel Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right" Content="닫기 ✕" Command="{Binding DataContext.Studio.Inspections.FewShot.ToggleHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Style="{StaticResource SecondaryButton}" Padding="6,1" Height="20" FontSize="9.5" />
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                                    <TextBlock Text="■ 핵심 원리 및 수식" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding PrincipleAndFormula}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                                    <TextBlock Text="■ 단계별 티칭 및 사용 방법" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding StepByStepGuide}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                                    <TextBlock Text="■ 주요 파라미터 튜닝 가이드" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding ParameterTuningGuide}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" LineHeight="14.5" Margin="0,0,0,6" />
+                                    <TextBlock Text="■ 현장 트러블슈팅 팁" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding TroubleshootingTips}" FontSize="10" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" TextWrapping="Wrap" LineHeight="14.5" />
+                                </StackPanel>
+                            </Border>
                             <TextBlock Text="클래스당 5~20장의 소량 ROI 샘플로 K-Means++ 다중 프로토타입과 Ledoit-Wolf 수축 공분산을 학습합니다."
                                        TextWrapping="Wrap" FontSize="10.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,6" />
 

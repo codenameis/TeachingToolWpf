@@ -27,15 +27,34 @@ public static class VirtualCornerAligner
         RakeSearchRegion leg1Region,
         RakeSearchRegion leg2Region,
         CornerDetectionOptions options)
+        => DetectVirtualCornerWithPoints(image, leg1Region, leg2Region, options, out _, out _);
+
+    /// <summary>
+    /// 영상과 두 변의 <see cref="RakeSearchRegion"/>으로부터 독립된 Dual-Rake 서브픽셀 에지 추출,
+    /// 2D 그래디언트 방향 게이트 기각, 독립 RANSAC + Tukey Biweight 직선 피팅, Cramer 교차점 계산을 수행하고
+    /// 채택된 인라이어 점군과 기각된 이상치(모따기·칩핑·버) 점군을 함께 반환한다.
+    /// </summary>
+    public static VirtualCornerResult DetectVirtualCornerWithPoints(
+        ReadOnlyImageView2D<byte> image,
+        RakeSearchRegion leg1Region,
+        RakeSearchRegion leg2Region,
+        CornerDetectionOptions options,
+        out SubpixelEdgePoint[] inlierPoints,
+        out SubpixelEdgePoint[] outlierPoints)
     {
+        inlierPoints = [];
+        outlierPoints = [];
+
         int cap1 = Math.Max(4, leg1Region.CaliperCount);
         int cap2 = Math.Max(4, leg2Region.CaliperCount);
 
         Span<SubpixelEdgePoint> pts1 = cap1 <= StackAllocPointLimit ? stackalloc SubpixelEdgePoint[cap1] : new SubpixelEdgePoint[cap1];
         Span<SubpixelEdgePoint> pts2 = cap2 <= StackAllocPointLimit ? stackalloc SubpixelEdgePoint[cap2] : new SubpixelEdgePoint[cap2];
+        Span<SubpixelEdgePoint> rej1 = cap1 <= StackAllocPointLimit ? stackalloc SubpixelEdgePoint[cap1] : new SubpixelEdgePoint[cap1];
+        Span<SubpixelEdgePoint> rej2 = cap2 <= StackAllocPointLimit ? stackalloc SubpixelEdgePoint[cap2] : new SubpixelEdgePoint[cap2];
 
-        int count1 = DualRakeCornerScanner.ScanSingleRake(image, leg1Region, options, pts1);
-        int count2 = DualRakeCornerScanner.ScanSingleRake(image, leg2Region, options, pts2);
+        int count1 = DualRakeCornerScanner.ScanSingleRake(image, leg1Region, options, pts1, rej1, out int rejCount1);
+        int count2 = DualRakeCornerScanner.ScanSingleRake(image, leg2Region, options, pts2, rej2, out int rejCount2);
 
         if (count1 < 3 || count2 < 3)
         {
@@ -45,8 +64,65 @@ public static class VirtualCornerAligner
         Vector2 dir1 = leg1Region.GetUnitLegDirection(out _);
         Vector2 dir2 = leg2Region.GetUnitLegDirection(out _);
 
-        FittedLine2D line1 = HessianNormalLineFitter.FitLine(pts1.Slice(0, count1), options, dir1);
-        FittedLine2D line2 = HessianNormalLineFitter.FitLine(pts2.Slice(0, count2), options, dir2);
+        Span<SubpixelEdgePoint> slice1 = pts1.Slice(0, count1);
+        Span<SubpixelEdgePoint> slice2 = pts2.Slice(0, count2);
+
+        // 두 변을 완전히 독립된 직교 거리 회귀(RANSAC + Tukey Biweight IRLS)로 각각 피팅한다.
+        FittedLine2D line1 = HessianNormalLineFitter.FitLine(slice1, options, dir1);
+        FittedLine2D line2 = HessianNormalLineFitter.FitLine(slice2, options, dir2);
+
+        int inlierTotal = 0;
+        for (int i = 0; i < count1; i++)
+        {
+            if (slice1[i].IsInlier)
+            {
+                inlierTotal++;
+            }
+        }
+        for (int i = 0; i < count2; i++)
+        {
+            if (slice2[i].IsInlier)
+            {
+                inlierTotal++;
+            }
+        }
+
+        int outlierTotal = (count1 + count2 - inlierTotal) + rejCount1 + rejCount2;
+        inlierPoints = new SubpixelEdgePoint[inlierTotal];
+        outlierPoints = new SubpixelEdgePoint[outlierTotal];
+
+        int inIdx = 0;
+        int outIdx = 0;
+        for (int i = 0; i < count1; i++)
+        {
+            if (slice1[i].IsInlier)
+            {
+                inlierPoints[inIdx++] = slice1[i];
+            }
+            else
+            {
+                outlierPoints[outIdx++] = slice1[i];
+            }
+        }
+        for (int i = 0; i < count2; i++)
+        {
+            if (slice2[i].IsInlier)
+            {
+                inlierPoints[inIdx++] = slice2[i];
+            }
+            else
+            {
+                outlierPoints[outIdx++] = slice2[i];
+            }
+        }
+        for (int i = 0; i < rejCount1; i++)
+        {
+            outlierPoints[outIdx++] = rej1[i];
+        }
+        for (int i = 0; i < rejCount2; i++)
+        {
+            outlierPoints[outIdx++] = rej2[i];
+        }
 
         int totalCalipers = Math.Max(1, leg1Region.CaliperCount + leg2Region.CaliperCount);
         return IntersectFittedLines(line1, line2, totalCalipers, options);
@@ -84,6 +160,7 @@ public static class VirtualCornerAligner
         double xc = ((rho1 * n2y) - (rho2 * n1y)) * invDet;
         double yc = ((n1x * rho2) - (n2x * rho1)) * invDet;
 
+        // 독립 피팅된 두 직선의 실제 법선 벡터(n1, n2)로부터 내각을 산출한다.
         double dotNormals = (n1x * n2x) + (n1y * n2y);
         float includedAngleDeg = (float)(Math.Atan2(Math.Abs(det), Math.Abs(dotNormals)) * RadiansToDegrees);
         float angleDeviationDeg = MathF.Abs(NominalOrthogonalAngleDeg - includedAngleDeg);

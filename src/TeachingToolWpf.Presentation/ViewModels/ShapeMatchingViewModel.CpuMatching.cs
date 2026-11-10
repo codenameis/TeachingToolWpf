@@ -110,11 +110,12 @@ public sealed partial class ShapeMatchingViewModel
             return;
         }
         var wasIdle = IsIdle;
+        bool canScheduleLivePreview = wasIdle && ShowFeatures && ShowOverlay && _toolAvailable && !_disposed && _image is not null;
         ActiveCpuState.Parameters = parameters;
         Notify(property);
         Notify(nameof(IsTrainingDirty));
         Notify(nameof(ModelSummary));
-        Invalidate();
+        Invalidate(keepLivePreview: canScheduleLivePreview);
         RefreshCommands();
         if (wasIdle)
         {
@@ -142,9 +143,10 @@ public sealed partial class ShapeMatchingViewModel
         }
         var wasIdle = IsIdle;
         var hadTrainingPreview = _result?.Summary.Contains("미리보기", StringComparison.Ordinal) == true || _livePreview is not null;
+        bool canScheduleLivePreview = wasIdle && (hadTrainingPreview || !HasModel) && ShowFeatures && ShowOverlay && _toolAvailable && !_disposed && _image is not null;
         ActiveCpuState.Options = options;
         Notify(property);
-        Invalidate();
+        Invalidate(keepLivePreview: canScheduleLivePreview);
         RefreshCommands();
         if (wasIdle && (hadTrainingPreview || !HasModel))
         {

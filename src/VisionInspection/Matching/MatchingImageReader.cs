@@ -81,6 +81,7 @@ internal sealed class MatchingImageReader : IDisposable
                 }
             }
         }
+        PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(bytes.AsSpan(0, length), width, height);
         return new(bytes.AsMemory(0, length), width, height, width, ReadExclusion(left, top, width, height, token));
     }
 
@@ -146,6 +147,7 @@ internal sealed class MatchingImageReader : IDisposable
             }
             y = bottom;
         }
+        PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(output.AsSpan(0, output.Length), outputWidth, outputHeight);
         return new(output, outputWidth, outputHeight, outputWidth);
     }
 
@@ -368,6 +370,7 @@ internal sealed class MatchingPreviewCache
                 }
             }
         }
+        PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(bytes.AsSpan(0, bytes.Length), width, height);
         result = new(bytes.AsMemory(0, bytes.Length), width, height, width, mask);
         return true;
     }

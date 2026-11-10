@@ -18,13 +18,15 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
     private readonly IPrimitiveShapeDetectionService _service;
     private PrimitiveDetectionOptions _options = new();
     private ImageReference? _image;
+    private DocumentState? _state;
+    private RoiTransformPreview? _lastTransformPreview;
     private object? _lastRois;
     private object? _lastSelection;
     private RoiGeometry? _selection;
     private RoiExclusion? _selectionExclusion;
     private Guid? _selectedRoiId;
     private string? _selectedRoiName;
-    private ImmutableArray<InspectionSelection> _targetRois = [];
+    private int _targetRoiCount;
     private bool _hasMultipleSelection;
     private long _generation;
     private long _epoch;
@@ -39,12 +41,24 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
     private CancellationTokenSource? _cancellation;
     private ResultOverlay? _overlay;
     private int _resultPage;
+    private bool _isHelpManualOpen;
+    private RelayCommand? _toggleHelpManualCommand;
+
+    public bool IsHelpManualOpen
+    {
+        get => _isHelpManualOpen;
+        set => Set(ref _isHelpManualOpen, value);
+    }
+
+    public RelayCommand ToggleHelpManual => _toggleHelpManualCommand ??= new(() => IsHelpManualOpen = !IsHelpManualOpen);
+
+    public AlgorithmHelpManual ActiveHelpManual => AlgorithmHelpCatalog.ForPrimitiveShapes();
 
     public PrimitiveShapeDetectionViewModel(IPrimitiveShapeDetectionService service)
     {
         _service = service;
         Detect = new(DetectAsync, error => PresentWarning(error.Message),
-            () => IsIdle && _canExecute && _image is not null && (!UseSelection || _selection is not null || _targetRois.Length > 0) && OptionsError.Length == 0);
+            () => IsIdle && _canExecute && _image is not null && (!UseSelection || _selection is not null || _targetRoiCount > 0) && OptionsError.Length == 0);
         Cancel = new(() => _cancellation?.Cancel(), () => IsBusy);
         Locate = new(() => LocateRequested?.Invoke(BoundsD.FromPoints(_overlay!.Matches.SelectMany(marker =>
             marker.Bounds.Concat(marker.AdditionalContours.SelectMany(component => component))))),
@@ -80,7 +94,7 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
             var thresholdText = AutomaticThreshold ? "창별 자동 Otsu 이진화" : $"수동 이진화 임계값 {Threshold}";
             var deviceText = UseGpu ? "CPU + CUDA" : "CPU 전용";
             var scopeText = UseSelection
-                ? (_selection is not null ? "선택 ROI 내부" : _targetRois.Length > 0 ? $"대상 리프 ROI {_targetRois.Length}개 개별 검출" : "선택 ROI 내부")
+                ? (_selection is not null ? "선택 ROI 내부" : _targetRoiCount > 0 ? $"대상 리프 ROI {_targetRoiCount}개 개별 검출" : "선택 ROI 내부")
                 : "전체 이미지";
             return $"[실시간 설정 미리보기] 크기 {MinimumSize:F0}~{MaximumSize:F0} px · {thresholdText} · 근사 허용 {ApproximationTolerance:F3} · 최소 점수 {MinimumScore:F2} · {scopeText} ({deviceText})";
         }
@@ -258,13 +272,15 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
         if (!update.CanExecute && !_live && !inputTransition && _image == state.Image && _generation == update.Generation)
         {
             var dragSelection = InspectionSelection.Resolve(state);
+            _state = state;
+            _lastTransformPreview = update.TransformPreview;
             _lastRois = state.Rois;
             _lastSelection = state.Selection;
             _selection = dragSelection.SearchSelection;
             _selectionExclusion = dragSelection.Exclusion;
             _selectedRoiId = dragSelection.RoiId;
             _selectedRoiName = dragSelection.RoiName;
-            _targetRois = InspectionSelection.ResolveTargetLeafRois(state, update.TransformPreview);
+            _targetRoiCount = InspectionSelection.CountTargetLeafRois(state);
             _hasMultipleSelection = state.Selection.Count > 1;
             if (UseSelection && (_overlay is not null || _cancellation is not null))
             {
@@ -274,10 +290,12 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
         }
 
         var selection = InspectionSelection.Resolve(state);
-        var targetRois = InspectionSelection.ResolveTargetLeafRois(state, update.TransformPreview);
+        var targetRoiCount = InspectionSelection.CountTargetLeafRois(state);
         var changed = _image != state.Image || _generation != update.Generation || _live != update.Live ||
             (UseSelection && (_selection != selection.SearchSelection || _selectionExclusion != selection.Exclusion || !ReferenceEquals(_lastSelection, state.Selection))) ||
             (_live && _inputAvailable && !update.CanExecute);
+        _state = state;
+        _lastTransformPreview = update.TransformPreview;
         _lastRois = state.Rois;
         _lastSelection = state.Selection;
         _image = state.Image;
@@ -286,7 +304,7 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
         _selectionExclusion = selection.Exclusion;
         _selectedRoiId = selection.RoiId;
         _selectedRoiName = selection.RoiName;
-        _targetRois = targetRois;
+        _targetRoiCount = targetRoiCount;
         _hasMultipleSelection = state.Selection.Count > 1;
         _live = update.Live;
         _inputAvailable = update.CanExecute;
@@ -303,8 +321,8 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
 
     private async Task DetectAsync()
     {
-        if ((UseSelection && _selection is null && _targetRois.Length > 0) ||
-            (!UseSelection && _hasMultipleSelection && _targetRois.Length > 1))
+        if ((UseSelection && _selection is null && _targetRoiCount > 0) ||
+            (!UseSelection && _hasMultipleSelection && _targetRoiCount > 1))
         {
             await DetectMultipleRoisAsync();
             return;
@@ -389,7 +407,9 @@ public sealed class PrimitiveShapeDetectionViewModel : ObservableObject, IVision
     private async Task DetectMultipleRoisAsync()
     {
         var image = _image!;
-        var targets = _targetRois;
+        var targets = _state is not null
+            ? InspectionSelection.ResolveTargetLeafRois(_state, _lastTransformPreview)
+            : [];
         var options = _options;
         var live = _live;
         using var cancellation = new CancellationTokenSource();

@@ -139,6 +139,67 @@ public sealed partial class EditorSession
         return added;
     }
 
+    public void ReplaceWithNamedRois(
+        string editName,
+        IReadOnlyList<Roi> namedRois,
+        bool selectAdded = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(editName);
+        ArgumentNullException.ThrowIfNull(namedRois);
+
+        var builder = ImmutableDictionary.CreateBuilder<Guid, Roi>();
+        var changedIds = new List<Guid>(State.Rois.Count + namedRois.Count);
+        foreach (var existingId in State.Rois.Keys)
+        {
+            changedIds.Add(existingId);
+        }
+
+        long maxOrder = _nextOrder;
+        for (int i = 0; i < namedRois.Count; i++)
+        {
+            var roi = namedRois[i];
+            var clipped = roi with
+            {
+                Geometry = RoiImageBounds.ClipNew(roi.Geometry, State.Image)
+            };
+            builder[clipped.Id] = clipped;
+            changedIds.Add(clipped.Id);
+            if (clipped.Order > maxOrder)
+            {
+                maxOrder = clipped.Order;
+            }
+        }
+
+        var next = State.WithRois(builder.ToImmutable(), changedIds);
+        next = selectAdded
+            ? next.WithSelection(RoiIdSet.CreateRange(namedRois.Select(static r => r.Id)))
+            : next.WithSelection([]);
+
+        Commit(editName, next);
+        _nextOrder = maxOrder;
+    }
+
+    public void EnsureNamedRoiPresent(Roi roi)
+    {
+        ArgumentNullException.ThrowIfNull(roi);
+        if (State.Rois.ContainsKey(roi.Id))
+        {
+            return;
+        }
+
+        var clipped = roi with
+        {
+            Geometry = RoiImageBounds.ClipNew(roi.Geometry, State.Image)
+        };
+        var next = State.WithRois(State.Rois.Add(clipped.Id, clipped), [clipped.Id]);
+        if (clipped.Order > _nextOrder)
+        {
+            _nextOrder = clipped.Order;
+        }
+
+        Publish(next);
+    }
+
     public void SelectAll()
         => Publish(SelectAllState(State, CancellationToken.None));
 
@@ -297,16 +358,46 @@ public sealed partial class EditorSession
     public void SetFilters(FilterSettings settings)
     {
         settings.Validate();
+        var pipeline = settings.Kind == RoiFilterKind.None
+            ? ImmutableArray<FilterSettings>.Empty
+            : [settings];
         var rois = State.Rois.ToBuilder();
         foreach (var id in State.Selection)
         {
             rois[id] = rois[id] with
             {
-                Filter = settings
+                Filter = settings,
+                FilterPipeline = pipeline
             };
         }
 
         Commit("ROI 필터 등록", State.WithRois(rois.ToImmutable(), State.Selection));
+    }
+
+    public void SetFilterPipeline(ImmutableArray<FilterSettings> pipeline)
+    {
+        var normalized = pipeline.IsDefault
+            ? ImmutableArray<FilterSettings>.Empty
+            : pipeline.Where(static s => s.Kind != RoiFilterKind.None).ToImmutableArray();
+        foreach (var step in normalized)
+        {
+            step.Validate();
+        }
+
+        var primary = normalized.LastOrDefault(static s => s.IsEnabled)
+                      ?? (normalized.IsEmpty ? new FilterSettings(RoiFilterKind.None) : normalized[^1]);
+
+        var rois = State.Rois.ToBuilder();
+        foreach (var id in State.Selection)
+        {
+            rois[id] = rois[id] with
+            {
+                Filter = primary,
+                FilterPipeline = normalized
+            };
+        }
+
+        Commit("ROI 전처리 파이프라인 등록", State.WithRois(rois.ToImmutable(), State.Selection));
     }
 
     public void TranslateSelection(PointD delta)

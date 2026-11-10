@@ -6,8 +6,31 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <StackPanel>
-            <TextBlock Text="매칭 방식" Style="{StaticResource Caption}"/>
-            <ComboBox ItemsSource="{Binding Methods}" DisplayMemberPath="Name" SelectedValuePath="Method" SelectedValue="{Binding Method}" IsEnabled="{Binding IsIdle}" AutomationProperties.Name="매칭 방식" Margin="0,4,0,8"/>
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="? 매뉴얼" Command="{Binding ToggleHelpManual}" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="10.5" FontWeight="Bold"
+                        ToolTip="현재 선택된 매칭 알고리즘의 상세 수식·티칭 단계·파라미터 튜닝 매뉴얼을 펼치거나 닫습니다." AutomationProperties.Name="패턴 매칭 알고리즘 매뉴얼 열기"/>
+                <TextBlock Text="매칭 방식" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+            </DockPanel>
+            <ComboBox ItemsSource="{Binding Methods}" DisplayMemberPath="Name" SelectedValuePath="Method" SelectedValue="{Binding Method}" IsEnabled="{Binding IsIdle}" AutomationProperties.Name="매칭 방식" Margin="0,4,0,6"/>
+            <Border Visibility="{Binding IsHelpManualOpen, Converter={StaticResource BoolVisibility}}"
+                    BorderBrush="#0284C7" BorderThickness="3,1,1,1" Background="#F0F9FF" CornerRadius="4" Padding="9,7" Margin="0,0,0,8">
+                <StackPanel DataContext="{Binding ActiveHelpManual}">
+                    <DockPanel Margin="0,0,0,4">
+                        <Button DockPanel.Dock="Right" Content="닫기 ✕" Command="{Binding DataContext.ToggleHelpManual, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                Style="{StaticResource SecondaryButton}" Padding="6,1" FontSize="9.5"/>
+                        <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="11" Foreground="#0369A1" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="10" FontWeight="SemiBold" Foreground="#0284C7" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 핵심 원리 및 수식" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding PrincipleAndFormula}" FontSize="10" Foreground="#334155" TextWrapping="Wrap" LineHeight="14" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 단계별 티칭 및 사용 방법" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding StepByStepGuide}" FontSize="10" Foreground="#334155" TextWrapping="Wrap" LineHeight="14" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 주요 파라미터 튜닝 가이드" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding ParameterTuningGuide}" FontSize="10" Foreground="#334155" TextWrapping="Wrap" LineHeight="14" Margin="0,0,0,5"/>
+                    <TextBlock Text="■ 현장 트러블슈팅 팁" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding TroubleshootingTips}" FontSize="10" Foreground="#0369A1" TextWrapping="Wrap" LineHeight="14"/>
+                </StackPanel>
+            </Border>
         </StackPanel>
         <TabControl x:Name="MatchingTabs" Grid.Row="1" Style="{StaticResource InspectorTabs}" ItemContainerStyle="{StaticResource InspectorTab}" AutomationProperties.Name="패턴 검사 작업">
             <TabItem Header="파라미터 설정">
