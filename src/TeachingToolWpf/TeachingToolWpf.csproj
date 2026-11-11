@@ -17,6 +17,7 @@
     <ProjectReference Include="..\VisionCanvas\VisionCanvas.csproj" />
     <ProjectReference Include="..\VisionCanvas.Filters.Wpf\VisionCanvas.Filters.Wpf.csproj" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
+    <ProjectReference Include="..\VisionOcr.PpOcr\VisionOcr.PpOcr.csproj" />
     <ProjectReference Include="..\VisionInspection\VisionInspection.csproj" />
     <ProjectReference Include="..\VisionCompute.ILGPU\VisionCompute.ILGPU.csproj" />
     <ProjectReference Include="..\..\IndustrialVision.Filters\src\IndustrialVision.Filters.Gpu.ILGPU\IndustrialVision.Filters.Gpu.ILGPU.csproj" />

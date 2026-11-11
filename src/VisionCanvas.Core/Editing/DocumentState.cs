@@ -14,6 +14,8 @@ public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? Paren
         get; init;
     }
 
+    public RoiOcvSettings Ocv { get; init; } = RoiOcvSettings.Empty;
+
     public bool IsNameVisible { get; init; } = true;
 
     public FilterSettings Filter

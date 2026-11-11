@@ -376,109 +376,14 @@
                             </Grid>
                         </StackPanel>
 
-                        <!-- 9. 산업용 OCR · OCV 문자 품질 검증 전용 설정 -->
-                        <StackPanel Visibility="{Binding IsIndustrialOcrOcvSelected, Converter={StaticResource BoolVisibility}}">
-                            <TextBlock Text="문자 인식 최소 수락 점수 (0.10 ~ 0.98 · 기본 0.40)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
-                                        Value="{Binding OcrAcceptThreshold, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding OcrAcceptThreshold, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="OCV 투영 상관 최소 품질 점수 (0.10 ~ 0.98 · 기본 0.75)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
-                                        Value="{Binding OcrMinQualityScore, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding OcrMinQualityScore, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="문자 전경 최소 대비 오프셋 (2 ~ 80 GV · 기본 14)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
-                                        Value="{Binding OcrForegroundContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding OcrForegroundContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="예상 문자 피치 간격 (8 ~ 64 px · 기본 24)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="8" Maximum="64" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding OcrExpectedCharPitch, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding OcrExpectedCharPitch, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="도트 브리징 모폴로지 반경 R (0 ~ 5 px · 기본 1)" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
-                            <Grid Margin="0,4,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding OcrDotClosingRadius, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding OcrDotClosingRadius, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-                        </StackPanel>
-
-                        <!-- 10. 경량 고속 1-Pass 시퀀스 OCR 전용 설정 -->
-                        <StackPanel Visibility="{Binding IsLightweightOcrSelected, Converter={StaticResource BoolVisibility}}">
-                            <TextBlock Text="CTC Prefix Beam 탐색 폭 (1 ~ 12 · 기본 4)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding LightweightOcrBeamWidth, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrBeamWidth, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="1D 열 특징 스트라이드 (1 ~ 6 px · 기본 2)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="1" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding LightweightOcrColumnStride, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrColumnStride, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="적응 이진화 대비 오프셋 (2 ~ 80 GV · 기본 12)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
-                                        Value="{Binding LightweightOcrContrastOffset, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrContrastOffset, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="시퀀스 최소 판독 신뢰도 (0.10 ~ 0.98 · 기본 0.40)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
-                                        Value="{Binding LightweightOcrMinConfidence, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding LightweightOcrMinConfidence, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
+                        <!-- 공통 OCR 허용 문자 집합 제한 -->
+                        <StackPanel Visibility="{Binding IsAnyOcrSelected, Converter={StaticResource BoolVisibility}}" Margin="0,0,0,10">
+                            <TextBlock Text="허용 문자 집합 제한 (오인식 억제)" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding AllowedCharacterSetOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Kind"
+                                      SelectedValue="{Binding OcrAllowedCharacters}"
+                                      Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <!-- 11. 멀티파츠 풀 자동 인식 · 하위 ROI 자동 티칭 전용 설정 -->
@@ -514,64 +419,6 @@
                                 <Slider Grid.Column="0" Minimum="3.0" Maximum="100.0" TickFrequency="1.0"
                                         Value="{Binding AutoTeachMaxMahalanobis, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <TextBox Grid.Column="1" Text="{Binding AutoTeachMaxMahalanobis, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-                        </StackPanel>
-
-                        <!-- 12. CPU 딥 시퀀스 OCR 전용 설정 -->
-                        <StackPanel Visibility="{Binding IsCpuDeepOcrSelected, Converter={StaticResource BoolVisibility}}">
-                            <TextBlock Text="초해상도 업스케일 배율 (1.0 ~ 2.5x · 기본 1.50)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="1.0" Maximum="2.5" TickFrequency="0.05"
-                                        Value="{Binding DeepOcrSuperResScale, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding DeepOcrSuperResScale, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="라플라시안 언샤프닝 이득 α (0.0 ~ 2.0 · 기본 0.38)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="0.0" Maximum="2.0" TickFrequency="0.02"
-                                        Value="{Binding DeepOcrUnsharpGain, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding DeepOcrUnsharpGain, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="다중 대비 앙상블 빔 폭 (1 ~ 12 · 기본 6)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="1" Maximum="12" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding DeepOcrEnsembleBeamWidth, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding DeepOcrEnsembleBeamWidth, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="앙상블 기준 대비 오프셋 (2 ~ 80 GV · 기본 14)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
-                                        Value="{Binding DeepOcrContrastOffset, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding DeepOcrContrastOffset, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
-                            </Grid>
-
-                            <TextBlock Text="합의 판독 최소 신뢰도 (0.10 ~ 0.98 · 기본 0.40)" Style="{StaticResource Caption}"/>
-                            <Grid Margin="0,4,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="68"/>
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" Minimum="0.10" Maximum="0.98" TickFrequency="0.02"
-                                        Value="{Binding DeepOcrMinConfidence, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox Grid.Column="1" Text="{Binding DeepOcrMinConfidence, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
                             </Grid>
                         </StackPanel>
 
@@ -851,6 +698,145 @@
                                 <TextBox Grid.Column="1" Text="{Binding GdtGradientThreshold, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
                             </Grid>
                         </StackPanel>
+
+                        <!-- 통합 OCR / OCV (PP-OCRv4 ONNX) 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsPpOcrOnnxSelected, Converter={StaticResource BoolVisibility}}" Margin="0,0,0,10">
+                            <Border Background="{StaticResource Shell}" CornerRadius="4" Padding="7,5" Margin="0,0,0,8">
+                                <TextBlock Text="{Binding PpOcrStatusBadge}" FontSize="10" FontWeight="SemiBold" Foreground="#0369A1" TextWrapping="Wrap"/>
+                            </Border>
+
+                            <TextBlock Text="운전 프리셋 (양산 택타임 최적화)" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding PpOcrSpeedPresetOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Preset"
+                                      SelectedValue="{Binding PpOcrPreset}"
+                                      Margin="0,4,0,8"/>
+
+                            <TextBlock Text="인식 언어 모델" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding PpOcrLanguageOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Language"
+                                      SelectedValue="{Binding PpOcrLanguageMode}"
+                                      Margin="0,4,0,8"/>
+
+                            <TextBlock Text="명암 극성 처리" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding PpOcrPolarityOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Polarity"
+                                      SelectedValue="{Binding PpOcrPolarity}"
+                                      Margin="0,4,0,8"/>
+
+                            <TextBlock Text="검출·인식 파이프라인" Style="{StaticResource Caption}"/>
+                            <ComboBox ItemsSource="{Binding PpOcrPipelineOptions}"
+                                      DisplayMemberPath="Name"
+                                      SelectedValuePath="Pipeline"
+                                      SelectedValue="{Binding PpOcrPipeline}"
+                                      Margin="0,4,0,8"/>
+
+                            <TextBlock Text="PP-OCR 합격 신뢰도 (0.05 ~ 1.00)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.05" Maximum="1.00" TickFrequency="0.01"
+                                        Value="{Binding PpOcrMinConfidence, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding PpOcrMinConfidence, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- 티칭 기반 OCV 인쇄 품질 검증 섹션 -->
+                        <Border Background="#F8FAFC" BorderBrush="{StaticResource Stroke}" BorderThickness="1" CornerRadius="6" Padding="9,8" Margin="0,4,0,10"
+                                Visibility="{Binding IsAnyOcrSelected, Converter={StaticResource BoolVisibility}}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,4">
+                                    <Border DockPanel.Dock="Right" Background="{Binding OcvLastVerdictAccent}" CornerRadius="3" Padding="6,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding OcvLastVerdictBadge}" Foreground="White" FontSize="9.5" FontWeight="Bold"/>
+                                    </Border>
+                                    <TextBlock Text="티칭 기반 OCV 인쇄 품질 검증" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <TextBlock Text="{Binding OcvFontStatusBadge}" FontSize="10" Foreground="#0369A1" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <TextBlock Text="선택 ROI 기대 문자열 (문서·Undo 보존)" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding SelectedRoiOcvExpectedText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas, Malgun Gothic" Margin="0,3,0,4"/>
+                                <Button Content="PP-OCR 판독값 → 기대 문자열 채우기"
+                                        Command="{Binding ApplyPpOcrTextToOcvExpectedText}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,0,6"
+                                        FontSize="9.8"/>
+
+                                <TextBlock Text="필드 형식 마스크 (선택 · 예: AAAA9999 또는 정규식)" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding SelectedRoiOcvFormatMask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas, Malgun Gothic" Margin="0,3,0,6"/>
+
+                                <TextBlock Text="OCV 전경 최소 대비 오프셋 (2 ~ 80 GV · 기본 14)" Style="{StaticResource Caption}"/>
+                                <Grid Margin="0,3,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="68"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Slider Grid.Column="0" Minimum="2" Maximum="80" TickFrequency="1"
+                                            Value="{Binding OcvForegroundContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox Grid.Column="1" Text="{Binding OcvForegroundContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                </Grid>
+
+                                <TextBlock Text="인쇄 명암 극성" Style="{StaticResource Caption}"/>
+                                <ComboBox ItemsSource="{Binding OcvPolarityOptions}"
+                                          DisplayMemberPath="Name"
+                                          SelectedValuePath="Polarity"
+                                          SelectedValue="{Binding SelectedOcvPolarity}"
+                                          Margin="0,3,0,6"/>
+
+                                <CheckBox Content="기존 골든 폰트에 문자 샘플 누적 추가" IsChecked="{Binding OcvAppendTeachMode}" Margin="0,0,0,6"/>
+
+                                <UniformGrid Columns="3" Margin="0,0,0,4">
+                                    <Button Content="폰트 티칭" Command="{Binding TeachSelectedRoiOcvFont}" Style="{StaticResource PrimaryButton}" Margin="0,0,3,0" FontSize="10"/>
+                                    <Button Content="선택 OCV 검증" Command="{Binding VerifySelectedRoiOcv}" Style="{StaticResource PrimaryButton}" Margin="1,0,2,0" FontSize="10"/>
+                                    <Button Content="전체 OCV 검증" Command="{Binding VerifyAllRoisOcv}" Style="{StaticResource SecondaryButton}" Margin="2,0,0,0" FontSize="10"/>
+                                </UniformGrid>
+
+                                <UniformGrid Columns="3" Margin="0,0,0,6">
+                                    <Button Content="폰트 저장…" Command="{Binding SaveOcvFontModel}" Style="{StaticResource SecondaryButton}" Margin="0,0,3,0" FontSize="9.8"/>
+                                    <Button Content="폰트 불러오기…" Command="{Binding LoadOcvFontModel}" Style="{StaticResource SecondaryButton}" Margin="1,0,2,0" FontSize="9.8"/>
+                                    <Button Content="초기화" Command="{Binding ClearOcvFontModel}" Style="{StaticResource SecondaryButton}" Margin="2,0,0,0" FontSize="9.8"/>
+                                </UniformGrid>
+
+                                <ListBox ItemsSource="{Binding OcvVerificationItems}"
+                                         SelectedItem="{Binding SelectedOcvVerificationItem}"
+                                         Visibility="{Binding HasOcvVerificationItems, Converter={StaticResource BoolVisibility}}"
+                                         MaxHeight="140"
+                                         Margin="0,0,0,4">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="2">
+                                                <DockPanel>
+                                                    <Border DockPanel.Dock="Right" Background="{Binding VerdictAccent}" CornerRadius="3" Padding="5,1" Margin="6,0,0,0">
+                                                        <TextBlock Text="{Binding VerdictBadge}" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding RoiName}" FontWeight="SemiBold" FontSize="10" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="{Binding DecodedText}" FontFamily="Consolas" FontSize="10" FontWeight="Bold"/>
+                                                </DockPanel>
+                                                <TextBlock Text="{Binding CauseSummary}" FontSize="9.2" Foreground="#B45309" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding RecommendedAction}" FontSize="9" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <ItemsControl ItemsSource="{Binding SelectedOcvCharacterItems}"
+                                              Visibility="{Binding HasSelectedOcvCharacterItems, Converter={StaticResource BoolVisibility}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,1">
+                                                <Border DockPanel.Dock="Left" Background="{Binding VerdictAccent}" CornerRadius="2" Padding="4,0" Margin="0,0,5,0">
+                                                    <TextBlock Text="{Binding VerdictBadge}" Foreground="White" FontSize="8.5" FontWeight="Bold"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding SummaryLine}" FontFamily="Consolas, Malgun Gothic" FontSize="9.2" TextWrapping="Wrap"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
 
                         <TextBlock Text="{Binding AlgorithmDescription}"
                                    FontSize="10" TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" Margin="0,6,0,0"/>

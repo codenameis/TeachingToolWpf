@@ -136,8 +136,7 @@
                     <ui:Button Content="Few-Shot" Command="{Binding Studio.FewShotSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" />
                     <ui:Button Content="캘리퍼·계측 샘플" Command="{Binding Studio.SuiteSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="캘리퍼·블롭·코너·OCR·자동티칭 등 카테고리별 알고리즘 샘플 열기" />
                     <ui:Button Content="코너정합" Command="{Binding Studio.Inspections.Suite.LoadCornerAlignmentSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="2-Rake 서브픽셀 가상 코너 및 4-코너 대각 정합 샘플" />
-                    <ui:Button Content="OCR/OCV" Command="{Binding Studio.Inspections.Suite.LoadIndustrialOcrOcvSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="산업용 레이저/잉크젯 도트 매트릭스 OCR 및 OCV 품질 검증 샘플" />
-                    <ui:Button Content="경량OCR" Command="{Binding Studio.Inspections.Suite.LoadLightweightOcrSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="1-Pass 열 특징 시퀀스 경량 고속 OCR 샘플" />
+                    <ui:Button Content="OCR / OCV" Command="{Binding Studio.Inspections.Suite.LoadOcrOcvSample}" Appearance="Primary" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="통합 OCR / OCV (PP-OCRv4 ONNX 범용 판독 + 티칭 기반 OCV 인쇄 품질 검증) 샘플" />
                     <ui:Button Content="자동티칭" Command="{Binding Studio.Inspections.Suite.LoadAutoTeachingSample}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="멀티파츠 풀 자동 인식 및 하위 검사 ROI 월드 좌표 자동 생성 샘플" />
                     <ui:Button Content="1억 ROI" Command="{Binding Studio.AddRepeatedTest}" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="100,020,001개 압축 반복 셀 배치 추가" />
                     <ui:Button Content="📂 1억 모델 열기(탐색기)" Command="{Binding OpenMassiveModelFromExplorer}" Appearance="Primary" Style="{StaticResource Fluent2UiButtonStyle}" Margin="0,0,4,0" ToolTip="파일 탐색기(OpenFileDialog)에서 1억 개 랜덤 ROI 모델(.vmodel 5종)을 사전 캐싱 없이 초고속으로 불러옵니다." />
@@ -843,9 +842,9 @@
                             </ui:NavigationView>
 
                             <StackPanel>
-                                <!-- Equal-Width 4x2 Direct Algorithm Category Selector Grid (Zero Catch-All Names, Fitted for 1920x1080) -->
-                                <UniformGrid Columns="4" Rows="2">
-                                    <Button Content="① 패턴 매칭 (5종)" Command="{Binding SelectPatternStage}" Margin="0,0,2,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="Shape(윤곽) / PatMax / CPU Line2D / CPU Sub-NCC / OpenCV 템플릿 매칭">
+                                <!-- Direct Algorithm Category Selector Grid (Dedicated OCR Category Separated from Barcodes, Fitted for 1920x1080) -->
+                                <UniformGrid Columns="5" Rows="1" Margin="0,0,0,2">
+                                    <Button Content="① 패턴 매칭 (5)" Command="{Binding SelectPatternStage}" Margin="0,0,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="Shape(윤곽) / PatMax / CPU Line2D / CPU Sub-NCC / OpenCV 템플릿 매칭">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
@@ -857,7 +856,7 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="② 도형·마크 검출 (11종)" Command="{Binding SelectPrimitiveStage}" Margin="2,0,2,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="원·사각형·십자·도넛·사각테두리·더블스퀘어·다이아몬드·별·# 등 11종 기본 도형·PCB 마크 검출">
+                                    <Button Content="② 도형·마크 (11)" Command="{Binding SelectPrimitiveStage}" Margin="2,0,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="원·사각형·십자·도넛·사각테두리·더블스퀘어·다이아몬드·별·# 등 11종 기본 도형·PCB 마크 검출">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
@@ -869,7 +868,7 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="③ 치수·기하계측 (5종)" Command="{Binding SelectMetrologyCategoryStage}" Margin="2,0,2,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="1D 캘리퍼·직선·원 / 복합캘리퍼·타원 / 2-Rake 가상 코너 / 다중형상 GD&amp;T / 9-Point 캘리브레이션">
+                                    <Button Content="③ 치수·기하계측 (5)" Command="{Binding SelectMetrologyCategoryStage}" Margin="2,0,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="1D 캘리퍼·직선·원 / 복합캘리퍼·타원 / 2-Rake 가상 코너 / 다중형상 GD&amp;T / 9-Point 캘리브레이션">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
@@ -881,7 +880,7 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="④ 블롭·표면·3D (6종)" Command="{Binding SelectSurface3DCategoryStage}" Margin="2,0,0,2" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="RLE 블롭·모폴로지 / 워터셰드 분리 / Steger 곡선비드 / 골든 마스터 변이 / PaDiM 패치 / 포토메트릭 3D 표면">
+                                    <Button Content="④ 블롭·표면·3D (6)" Command="{Binding SelectSurface3DCategoryStage}" Margin="2,0,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="RLE 블롭·모폴로지 / 워터셰드 분리 / Steger 곡선비드 / 골든 마스터 변이 / PaDiM 패치 / 포토메트릭 3D 표면">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
@@ -893,11 +892,11 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="⑤ 바코드·OCR (5종)" Command="{Binding SelectCodeOcrCategoryStage}" Margin="0,2,2,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="1D 바코드 / 2D DataMatrix / 산업용 OCR·OCV / 경량 고속 OCR / CPU 딥러닝 OCR">
+                                    <Button Content="⑤ OCR·문자인식 (3)" Command="{Binding SelectOcrCategoryStage}" Margin="2,0,0,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="산업용 도트·레이저 OCR·OCV (권장) / 경량 고속 1-Pass 조닝 OCR / 다중 대비 앙상블 OCR">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsCodeOcrCategoryStage}" Value="True">
+                                                    <DataTrigger Binding="{Binding IsOcrCategoryStage}" Value="True">
                                                         <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
                                                         <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                                                     </DataTrigger>
@@ -905,7 +904,21 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="⑥ AI·자동티칭 (2종)" Command="{Binding SelectAiAutoTeachingCategoryStage}" Margin="2,2,2,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="멀티파츠 자동 티칭(1회 티칭→N개 파츠 자동 생성) / 스위트 Few-Shot 이상 분류">
+                                </UniformGrid>
+                                <UniformGrid Columns="4" Rows="1">
+                                    <Button Content="⑥ 1D·2D 바코드 (2)" Command="{Binding SelectBarcodeCategoryStage}" Margin="0,2,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="1D 바코드 (Code 128 멀티스캔) / 2D DataMatrix (ECC 200 Reed-Solomon)">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsBarcodeCategoryStage}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="⑦ AI·자동티칭 (2)" Command="{Binding SelectAiAutoTeachingCategoryStage}" Margin="2,2,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="멀티파츠 자동 티칭(1회 티칭→N개 파츠 자동 생성) / 스위트 Few-Shot 이상 분류">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
@@ -917,7 +930,7 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="⑦ Few-Shot 분류" Command="{Binding SelectFewShotStage}" Margin="2,2,2,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="Edge Few-Shot 특징 추출 기반 정상/불량 프로토타입 분류">
+                                    <Button Content="⑧ Few-Shot 분류" Command="{Binding SelectFewShotStage}" Margin="2,2,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="Edge Few-Shot 특징 추출 기반 정상/불량 프로토타입 분류">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>
@@ -929,7 +942,7 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-                                    <Button Content="⑧ 선(先)필터·마스크" Command="{Binding SelectFilterMaskStage}" Margin="2,2,0,0" Padding="6,4" MinHeight="28" FontSize="11" ToolTip="전처리 필터 파이프라인 구성 및 ROI 마스크·스타일 설정">
+                                    <Button Content="⑨ 선(先)필터·마스크" Command="{Binding SelectFilterMaskStage}" Margin="2,2,0,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="전처리 필터 파이프라인 구성 및 ROI 마스크·스타일 설정">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>

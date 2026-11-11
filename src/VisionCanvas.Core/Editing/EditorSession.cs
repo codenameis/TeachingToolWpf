@@ -335,6 +335,34 @@ public sealed partial class EditorSession
         }), [id]));
     }
 
+    public void SetOcvSettings(IReadOnlyList<Guid> ids, RoiOcvSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var normalized = new RoiOcvSettings(
+            settings.ExpectedText ?? string.Empty,
+            settings.FormatMask ?? string.Empty);
+
+        var rois = State.Rois.ToBuilder();
+        var changedIds = new List<Guid>(ids.Count);
+        foreach (var id in ids)
+        {
+            if (!rois.TryGetValue(id, out var current) || State.IsGroupRoi(id) || current.Ocv == normalized)
+            {
+                continue;
+            }
+
+            rois[id] = current with { Ocv = normalized };
+            changedIds.Add(id);
+        }
+
+        if (changedIds.Count > 0)
+        {
+            Commit("ROI OCV 설정 변경", State.WithRois(rois.ToImmutable(), changedIds));
+        }
+    }
+
     public void DeleteSelection()
         => Commit("선택 ROI 삭제", DeleteSelectionState(State, CancellationToken.None));
 

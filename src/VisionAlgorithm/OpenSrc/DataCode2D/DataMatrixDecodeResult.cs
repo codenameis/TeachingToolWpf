@@ -95,7 +95,7 @@ public readonly record struct DataMatrixDecodeResult(
         Vector2 bottomRight = CenterWorld + halfU + halfV;
         Vector2 topLeft = CenterWorld - halfU - halfV;
 
-        string label = $"DataMatrix [{SymbolRows}x{SymbolCols}] \"{DecodedText}\" | ISO={OverallIsoGrade} (Contrast={SymbolContrast:P0}, Mod={ModulationScore:P0}, ECC={CorrectedByteErrors})";
+        string label = $"DataMatrix [{SymbolRows}x{SymbolCols}] \"{DecodedText}\" | θ={AngleRad * RadiansToDegrees:F2}° | ISO={OverallIsoGrade} (Contrast={SymbolContrast:P0}, Mod={ModulationScore:P0}, ECC={CorrectedByteErrors})";
         return new VisionReplayPayload(
             ShapeKind: ReplayShapeKind.OrientedBox,
             WorldPose: WorldPose,

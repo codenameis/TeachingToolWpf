@@ -11,7 +11,7 @@ namespace VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
 /// </summary>
 public static class OcrMaxSegmenter
 {
-    private const int MaxSegmentedChars = 64;
+    public const int MaxSupportedSegmentedChars = 256;
     private const float SpaceGapPitchMultiplier = 1.55f;
 
     /// <summary>
@@ -38,7 +38,7 @@ public static class OcrMaxSegmenter
         SimdAffineWarper.WarpAffineBilinear(image, in fixture, w, h, rectifiedStripOut, warpScratch);
 
         if (segmentParams.PrintMethod == PrintMethodType.InkjetDotMatrix &&
-            (segmentParams.DotClosingRadiusX > 0 || segmentParams.DotClosingRadiusY > 0))
+            (segmentParams.DotClosingRadiusX >= 2 || segmentParams.DotClosingRadiusY >= 2))
         {
             BridgeInkjetDotMatrixStrip(
                 rectifiedStripOut,
@@ -135,12 +135,13 @@ public static class OcrMaxSegmenter
         }
 
         // Stage 1: Initial interval extraction over bridged column projection
-        Span<int> rawStarts = stackalloc int[MaxSegmentedChars];
-        Span<int> rawEnds = stackalloc int[MaxSegmentedChars];
+        int internalCap = Math.Clamp(boxesOut.Length, 1, MaxSupportedSegmentedChars);
+        Span<int> rawStarts = stackalloc int[MaxSupportedSegmentedChars];
+        Span<int> rawEnds = stackalloc int[MaxSupportedSegmentedChars];
         int rawCount = 0;
 
         int col = 0;
-        while (col < w && rawCount < MaxSegmentedChars)
+        while (col < w && rawCount < MaxSupportedSegmentedChars)
         {
             while (col < w && colProjection[col] < minColHits)
             {
@@ -165,8 +166,8 @@ public static class OcrMaxSegmenter
         }
 
         // Stage 2: Merge narrow dot fragments (< MinCharWidth) into adjacent character intervals if within pitch
-        Span<int> mergedStarts = stackalloc int[MaxSegmentedChars];
-        Span<int> mergedEnds = stackalloc int[MaxSegmentedChars];
+        Span<int> mergedStarts = stackalloc int[MaxSupportedSegmentedChars];
+        Span<int> mergedEnds = stackalloc int[MaxSupportedSegmentedChars];
         int mergedCount = 0;
 
         for (int i = 0; i < rawCount; i++)
@@ -181,8 +182,14 @@ public static class OcrMaxSegmenter
                 int prevE = mergedEnds[mergedCount - 1];
                 int gap = s - prevE - 1;
                 int combinedW = (e - prevS) + 1;
-                if (gap <= 2 && combinedW <= segmentParams.MaxCharWidth &&
-                    (width < segmentParams.MinCharWidth || (prevE - prevS + 1) < segmentParams.MinCharWidth))
+                bool isNarrowFragmentMerge = gap <= 2 &&
+                    combinedW <= segmentParams.MaxCharWidth &&
+                    (width < segmentParams.MinCharWidth || (prevE - prevS + 1) < segmentParams.MinCharWidth);
+                bool isIntraCharDotMerge = segmentParams.PrintMethod == PrintMethodType.InkjetDotMatrix &&
+                    segmentParams.DotClosingRadiusX > 0 &&
+                    gap <= (segmentParams.DotClosingRadiusX * 2) &&
+                    combinedW <= Math.Min(segmentParams.MaxCharWidth, (int)(segmentParams.ExpectedPitch * 1.15f));
+                if (isNarrowFragmentMerge || isIntraCharDotMerge)
                 {
                     mergedEnds[mergedCount - 1] = e;
                     continue;
@@ -195,12 +202,12 @@ public static class OcrMaxSegmenter
         }
 
         // Stage 3: Pitch-guided Valley Split for wide touching/smeared boxes (> MaxCharWidth)
-        Span<int> finalStarts = stackalloc int[MaxSegmentedChars];
-        Span<int> finalEnds = stackalloc int[MaxSegmentedChars];
-        Span<float> bridgeDensities = stackalloc float[MaxSegmentedChars];
+        Span<int> finalStarts = stackalloc int[internalCap];
+        Span<int> finalEnds = stackalloc int[internalCap];
+        Span<float> bridgeDensities = stackalloc float[internalCap];
         int finalCount = 0;
 
-        for (int i = 0; i < mergedCount && finalCount < MaxSegmentedChars; i++)
+        for (int i = 0; i < mergedCount && finalCount < internalCap; i++)
         {
             int s = mergedStarts[i];
             int e = mergedEnds[i];

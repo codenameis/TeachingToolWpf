@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using CpuMatching.Cuda;
+using Microsoft.Win32;
 using TeachingToolWpf.Fluent2.TeachingReadiness;
 using TeachingToolWpf.Fluent2.ViewModels;
 using TeachingToolWpf.Fluent2.Views;
@@ -15,6 +16,7 @@ using VisionCanvas.Rendering;
 using VisionCompute.ILGPU;
 using VisionImaging;
 using VisionImaging.Abstractions;
+using VisionOcr.PpOcr;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -73,8 +75,15 @@ public partial class App : Application
         EdgeFewShotViewModel fewShot = new EdgeFewShotViewModel(
             new EdgeFewShotService(loader, window.Viewport.RetainFrame));
 
+        PpOcrInferenceService ppOcrService = new PpOcrInferenceService(
+            PpOcrModelOptions.FromDirectory(ResolvePpOcrModelDirectory()));
+        TaughtFontOcvService ocvService = new TaughtFontOcvService(loader, window.Viewport.RetainFrame);
+
         InspectionSuiteViewModel suite = new InspectionSuiteViewModel(
-            new InspectionSuiteService(loader, window.Viewport.RetainFrame));
+            new InspectionSuiteService(loader, window.Viewport.RetainFrame, ppOcrService),
+            ocvService,
+            selectOcvFontOpenPath: () => SelectOcvFontOpenPath(window),
+            selectOcvFontSavePath: () => SelectOcvFontSavePath(window));
 
         InspectionToolsViewModel inspections = new InspectionToolsViewModel(pattern, shapes, fewShot, suite);
         MainWindowViewModel studioModel = new MainWindowViewModel(
@@ -118,11 +127,57 @@ public partial class App : Application
         window.Closed += (_, _) =>
         {
             viewModel.Dispose();
-            ResourceCleanup.DisposeAll(studioModel, inspectionCompute, templateCompute);
+            ResourceCleanup.DisposeAll(studioModel, inspectionCompute, templateCompute, ppOcrService);
         };
 
         window.Loaded += (_, _) => studioModel.Initialize.Execute(null);
         window.Show();
+    }
+
+    private static string ResolvePpOcrModelDirectory()
+    {
+        string? envOverride = Environment.GetEnvironmentVariable("PPOCR_MODEL_DIR");
+        if (!string.IsNullOrWhiteSpace(envOverride))
+        {
+            return Path.GetFullPath(envOverride);
+        }
+
+        string current = AppContext.BaseDirectory;
+        for (int depth = 0; depth < 6 && !string.IsNullOrEmpty(current); depth++)
+        {
+            string candidate = Path.Combine(current, "models", "ppocr");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            current = Path.GetDirectoryName(current.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? string.Empty;
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, "models", "ppocr");
+    }
+
+    private static string? SelectOcvFontOpenPath(Window owner)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "티칭 골든 폰트 불러오기",
+            Filter = "Taught OCV Font (*.ocvfont.json)|*.ocvfont.json|JSON Files (*.json)|*.json",
+            DefaultExt = ".ocvfont.json"
+        };
+        return dialog.ShowDialog(owner) == true ? dialog.FileName : null;
+    }
+
+    private static string? SelectOcvFontSavePath(Window owner)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "티칭 골든 폰트 저장",
+            Filter = "Taught OCV Font (*.ocvfont.json)|*.ocvfont.json|JSON Files (*.json)|*.json",
+            DefaultExt = ".ocvfont.json",
+            FileName = "taught-font.ocvfont.json"
+        };
+        return dialog.ShowDialog(owner) == true ? dialog.FileName : null;
     }
 
     private static string GetImageCachePath()

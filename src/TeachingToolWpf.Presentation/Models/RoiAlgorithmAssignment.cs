@@ -48,10 +48,11 @@ public sealed record RoiAlgorithmAssignment(
                 InspectionSuiteAlgorithmKind.PatchAnomaly => "스위트 · PaDiM",
                 InspectionSuiteAlgorithmKind.Calibration => "스위트 · 호모그래피",
                 InspectionSuiteAlgorithmKind.CornerAlignment => "스위트 · 코너정합",
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv => "스위트 · OCR/OCV",
-                InspectionSuiteAlgorithmKind.LightweightOcr => "스위트 · 경량OCR",
                 InspectionSuiteAlgorithmKind.AutoTeaching => "스위트 · 자동티칭",
-                InspectionSuiteAlgorithmKind.CpuDeepOcr => "스위트 · 신경망OCR",
+                InspectionSuiteAlgorithmKind.IndustrialOcrOcv
+                    or InspectionSuiteAlgorithmKind.LightweightOcr
+                    or InspectionSuiteAlgorithmKind.CpuDeepOcr
+                    or InspectionSuiteAlgorithmKind.PpOcrOnnx => "스위트 · OCR/OCV",
                 InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => "전처리 · 조명/재구성",
                 InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => "스위트 · 타원/복합캘리퍼",
                 InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => "스위트 · 고급블롭/분리",

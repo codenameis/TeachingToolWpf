@@ -207,28 +207,6 @@ public static class AlgorithmHelpCatalog
             "• 직교 허용 공차 (0.5~25.0°): 두 변의 사잇각이 90°에서 이 값 이상 벗어나면 NG로 판정합니다.",
             "• 한쪽 변이 안 잡힐 때: ROI 크기를 키워 꼭짓점 배제 구간 바깥으로 충분한 직선 변 길이가 확보되게 하세요."),
 
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv => new(
-            "산업용 OCR / OCV 문자 판독 및 인쇄 품질 검증 (HALCON read_ocr + do_ocv 급)",
-            "도트 매트릭스 형태학 브리징 · 연결성분/피치 분할 · 다중 폰트 방향 특징 상관 · OCV 품질/날짜 검증",
-            "• 수식 원리: 레이저 연속 각인 및 끊어진 잉크젯 도트 매트릭스 문자를 이방성 모폴로지로 연결·정류하고, 수직 투영 계곡과 예상 피치로 개별 글리프를 분할합니다.\n" +
-            "• 4분면 획 에너지, 수평/수직 투영 프로파일, 오일러 홀 위상 특징을 다중 산업 폰트 템플릿과 대조하여 문자열을 읽고, 1순위-2순위 혼동 마진(Confusion Margin) 및 ISO/HALCON 스타일 OCV 인쇄 품질 점수(0~1)와 YYYY-MM-DD 달력 날짜 유효성을 동시 판정합니다.",
-            "① 영문/숫자/기호 각인 또는 영수증/라벨 텍스트 라인 위에 ROI를 배치합니다.\n" +
-            "② 글자 폭에 맞춰 [예상 문자 피치(px)]와 [최소 전경 대비]를 조절하면 판독된 문자열과 글자별 OCV 품질 점수가 표시됩니다.",
-            "• 최소 문자 인식 점수 (0.20~0.95): 문자 분류 최소 신뢰도입니다.\n" +
-            "• 최소 OCV 품질 점수 (0.40~0.98): 글자 획 일부가 지워진 인쇄 불량을 잡아내려면 0.75~0.85로 설정하세요.\n" +
-            "• 예상 문자 피치 (8~80 px): 한 글자의 대략적인 픽셀 폭입니다.",
-            "• 한글 번호판이나 소형 비례 폰트(Arial Bold 등) 다중 라인 판독이 필요할 때는 [CPU 딥 시퀀스 OCR]을 선택하세요."),
-
-        InspectionSuiteAlgorithmKind.LightweightOcr => new(
-            "초경량 무분할 시퀀스 OCR (1D Column Feature + CTC Prefix Beam Search)",
-            "개별 문자 분할 생략 · 열(Column) 단위 수직/경사 모멘트 시퀀스 · CTC Prefix Beam Search 디코딩",
-            "• 수식 원리: 글자 사이가 붙어 있어 개별 문자 분할(Segmentation)이 실패하기 쉬운 고밀도 마킹에 대해, ROI를 수평 스트라이드로 스캔하며 열(Column) 특징 벡터 시퀀스를 추출하고 CTC(Connectionist Temporal Classification) Blank 토큰 전이 확률과 Prefix Beam Search로 문자열 전체를 한 번에 디코딩합니다.",
-            "① 세미콘 웨이퍼 ID, 로트 번호, 타이어 DOT 등 문자열 라인에 ROI를 배치합니다.\n" +
-            "② [CTC 빔 탐색 폭]과 [열 스캔 스트라이드]를 설정하고 실행하면 분할 없이 빠르게 문자열을 판독합니다.",
-            "• 빔 탐색 폭 (Beam Width, 1~16): 4~8로 설정하면 유사 문자열 후보 중 최적 경로를 안정적으로 선택합니다.\n" +
-            "• 열 스캔 스트라이드 (1~4 px): 미세 글자는 1 px, 큰 글자는 2~3 px이 빠릅니다.",
-            "• 여러 줄로 된 문서나 한글 포함 텍스트는 12번 [CPU 딥 시퀀스 OCR]을 권장합니다."),
-
         InspectionSuiteAlgorithmKind.AutoTeaching => new(
             "원클릭 멀티파츠 자동 티칭 & 하위 검사 ROI 자동 생성",
             "1단계 에지 블롭 후보 → 2단계 64-Byte 회전불변 방사/푸리에 서명 → 3단계 PatMax + ICGN 서브픽셀 보정",
@@ -241,15 +219,16 @@ public static class AlgorithmHelpCatalog
             "• 최대 마할라노비스 거리 (5~100): ICGN 정밀 정합 후 정상 외관 분포 허용 한계입니다.",
             "• 등록된 파츠 목록에서 개별 파츠 모델을 언제든 삭제하거나 추가 등록할 수 있습니다."),
 
-        InspectionSuiteAlgorithmKind.CpuDeepOcr => new(
-            "CPU 딥 시퀀스 OCR (1.5x 적응형 초해상도 + 다중 대비 앙상블 + 한글/영문/숫자 판독)",
-            "Bicubic + 언샤프닝 1.5x 초해상도 · 수평 테이블 구분선(<hr>) 자동 제거 · 다중 대비 빔 탐색 앙상블",
-            "• 수식 원리: GPU 없이 순수 CPU SIMD만으로 저해상도 비례 폰트(영수증 Arial Bold 등)와 한글 음절(번호판 '가~하' 등)을 판독하기 위해, 1.5배 적응형 초해상도 언샤프닝 필터링 후 다중 임계·대비 가설에서 문자 시퀀스 그래프를 구축하고 형태소/어휘 정합 점수가 가장 높은 시퀀스를 선택합니다.\n" +
-            "• 영수증의 긴 가로 구분선(<hr>)이나 테두리 박스가 글자와 겹쳐도 가로 런-렝스 프로파일로 자동 소거합니다.",
-            "① 영수증(ocr2.png, ocr4.png), 한글 번호판(ocr5.png), 레이저 마킹(ocr1.png, ocr3.png)의 한 줄 또는 반쪽/전체 다중 줄 영역에 ROI를 그립니다.\n" +
-            "② [선택 ROI 실행]을 누르면 다중 라인 문자열과 신뢰도를 즉시 출력합니다.",
-            "• 최소 신뢰도 및 전경 대비: 흐릿한 감열지 영수증은 전경 대비를 10~14로 낮추면 작은 글자까지 잘 살아납니다.",
-            "• 다중 줄 ROI를 한 번에 잡으면 줄바꿈(Line Break)을 자동 분리하여 순서대로 읽어 냅니다."),
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv or InspectionSuiteAlgorithmKind.LightweightOcr or InspectionSuiteAlgorithmKind.CpuDeepOcr or InspectionSuiteAlgorithmKind.PpOcrOnnx => new(
+            "통합 OCR / OCV (PP-OCRv4 ONNX 범용 문자 판독 · 티칭 기반 OCV 인쇄 품질 검증)",
+            "PP-OCRv4 DBNet(det) + SVTR-LCNet CTC(rec) 동적 폭 버킷 배치 추론 · 티칭 골든 폰트 OCV 검증",
+            "• OCR(범용 문자 판독): 단일 줄 ROI는 H=48 비율 유지 리사이즈 + SIMD 평면 정규화 및 32px 동적 폭 버킷 다중 ROI 일괄(Batch) 추론으로 SVTR-LCNet CTC 확률을 고속 디코딩하며, 다중 줄·회전·투시 ROI는 DBNet 검출 후 폴리곤 정류 일괄 인식을 수행합니다.\n" +
+            "• OCV(인쇄 품질 검증): 동일 인쇄 공정의 기준 ROI에서 골든 폰트를 티칭한 뒤 글자별 획 결손·번짐·유사 문자 치환·누락을 초저지연으로 검증하며 OK / REVIEW(경계 경고) / NG(제품 불량)를 분리합니다.",
+            "① 범용 문자 판독(OCR): 텍스트 영역에 ROI를 지정하고 운전 프리셋(범용 자동 / 고속 양산)·언어·극성을 선택한 뒤 [선택/전체 ROI 실행]을 누릅니다.\n" +
+            "② 인쇄 품질 검증(OCV): [PP-OCR 판독값 → 기대 문자열 채우기]로 기대 문자열을 입력하고 기준 ROI에서 [폰트 티칭] 후 [선택/전체 ROI OCV 검증]을 실행합니다.",
+            "• 운전 프리셋: 단줄 정방향 트레이 양산 검사는 [고속 양산]으로 설정 시 검출기·역방향 재시도를 생략하고 다중 ROI 폭 버킷 배치 추론만 수행합니다.\n" +
+            "• 수락 확률 임계값: tuning 분할 오인식 통과율 ≤ 5% 기준으로 보정된 기본값을 사용합니다.",
+            "• 허용 문자 집합(AllowedCharacterSet)은 CTC 디코딩 토큰 마스크로만 동작하며 결과 치환을 수행하지 않습니다."),
 
         InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => new(
             "[전처리] 2D 쌍이차 다항식 조명 평탄화 · Perona-Malik 비등방성 확산 · Vincent 형태학 재구성",

@@ -86,9 +86,14 @@ public sealed class DocumentEdit
         var maskCount = (old?.Masks.Length ?? 0) + (next?.Masks.Length ?? 0);
         var oldPolygonVertices = old?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? old.Geometry.Shape.Vertices.Length : 0;
         var nextPolygonVertices = next?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? next.Geometry.Shape.Vertices.Length : 0;
+        var ocvChars = (old?.Ocv.ExpectedText.Length ?? 0)
+            + (old?.Ocv.FormatMask.Length ?? 0)
+            + (next?.Ocv.ExpectedText.Length ?? 0)
+            + (next?.Ocv.FormatMask.Length ?? 0);
 
         return 352L
             + (nameChars * 2L)
+            + (ocvChars * 2L)
             + searchBytes
             + (maskCount * 64L)
             + ((oldPolygonVertices + nextPolygonVertices) * 16L);

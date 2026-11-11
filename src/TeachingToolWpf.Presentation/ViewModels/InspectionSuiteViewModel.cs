@@ -1,15 +1,21 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Numerics;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using TeachingToolWpf.Commands;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Infrastructure;
 using TeachingToolWpf.Models;
+using VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionCanvas.Rendering;
 using VisionGeometry;
 using VisionImaging.Abstractions;
+using VisionOcr.PpOcr;
 
 namespace TeachingToolWpf.ViewModels;
 
@@ -18,9 +24,11 @@ public enum InspectionSuiteCategory
     All = 0,
     MetrologyAndGeometry = 1,
     SurfaceBlobAnd3D = 2,
-    CodeAndOcr = 3,
+    Ocr = 3,
     AiAndAutoTeaching = 4,
-    PreprocessingAndFrequency = 5
+    PreprocessingAndFrequency = 5,
+    Barcode1D2D = 6,
+    CodeAndOcr = Ocr
 }
 
 public sealed record InspectionSuiteAlgorithmOption(
@@ -43,6 +51,15 @@ public sealed record SuiteRegisteredReferenceItem(
     string ChildTargetSummary,
     RelayCommand RemoveCommand);
 
+public sealed record OcrLiveRoiSummaryItem(
+    Guid RoiId,
+    string RoiName,
+    string DecodedText,
+    string ConfidenceBadge,
+    string VerdictBadge,
+    string VerdictAccent,
+    string CharacterCountBadge);
+
 /// <summary>
 /// 상용 정밀 검사 스위트 7종 통합 뷰모델.
 /// 선택된 ROI 또는 문서 전체 ROI에 대해 7종 알고리즘을 실행하고 결과를 캔버스 오버레이로 시각화하며,
@@ -51,6 +68,7 @@ public sealed record SuiteRegisteredReferenceItem(
 public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorithmPreview
 {
     private static readonly Vector4 PassColor = new(0.06f, 0.72f, 0.51f, 1.0f);
+    private static readonly Vector4 ReviewColor = new(0.96f, 0.62f, 0.04f, 1.0f);
     private static readonly Vector4 FailColor = new(0.94f, 0.27f, 0.27f, 1.0f);
     private static readonly Vector4 GuideBoundsColor = new(0.22f, 0.74f, 0.97f, 0.88f);
     private static readonly Vector4 GuideInnerColor = new(0.38f, 0.80f, 0.98f, 0.78f);
@@ -59,7 +77,11 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private static readonly Vector4 DefectFeatureColor = new(1.0f, 0.23f, 0.19f, 1.0f);
 
     private readonly IInspectionSuiteService _service;
+    private readonly ITaughtFontOcvService? _ocvService;
+    private readonly Func<string?>? _selectOcvFontOpenPath;
+    private readonly Func<string?>? _selectOcvFontSavePath;
     private readonly List<InspectionSuiteRoiInput> _referenceRois = [];
+    private readonly object _previewPumpGate = new();
     private InspectionSuiteCategory _selectedCategory = InspectionSuiteCategory.MetrologyAndGeometry;
     private InspectionSuiteAlgorithmKind _selectedAlgorithm = InspectionSuiteAlgorithmKind.Metrology;
     private MetrologyMeasurementMode _metrologyMode = MetrologyMeasurementMode.Auto;
@@ -81,23 +103,26 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private float _fewShotOodSigmaMultiplier = 3.5f;
     private int _fewShotMaxSubClusters = 2;
     private float _padimRegularizationLambda = 0.01f;
+    private const float DefaultOcvForegroundContrast = 14.0f;
+    private const float MinOcvForegroundContrast = 2.0f;
+    private const float MaxOcvForegroundContrast = 80.0f;
+
     private float _cornerApexIgnoreMargin = 36.0f;
     private float _cornerRansacThresholdPixels = 0.55f;
     private float _cornerOrthogonalityToleranceDeg = 5.0f;
-    private float _ocrAcceptThreshold = 0.40f;
-    private float _ocrMinQualityScore = 0.75f;
-    private float _ocrForegroundContrast = 14.0f;
-    private int _ocrExpectedCharPitch = 24;
-    private int _ocrDotClosingRadius = 1;
-    private int _lightweightOcrBeamWidth = 4;
-    private int _lightweightOcrColumnStride = 2;
-    private float _lightweightOcrMinConfidence = 0.40f;
-    private float _lightweightOcrContrastOffset = 12.0f;
-    private float _deepOcrSuperResScale = 1.5f;
-    private float _deepOcrUnsharpGain = 0.38f;
-    private int _deepOcrEnsembleBeamWidth = 6;
-    private float _deepOcrContrastOffset = 14.0f;
-    private float _deepOcrMinConfidence = 0.40f;
+    private OcrAllowedCharacterSet _ocrAllowedCharacters = InspectionSuiteParameters.DefaultOcrAllowedCharacters;
+    private PpOcrSpeedPreset _ppOcrPreset = InspectionSuiteParameters.DefaultPpOcrPreset;
+    private float _ppOcrMinConfidence = InspectionSuiteParameters.DefaultPpOcrMinConfidence;
+    private PpOcrLanguage _ppOcrLanguageMode = InspectionSuiteParameters.DefaultPpOcrLanguageMode;
+    private PpOcrPolarityMode _ppOcrPolarity = InspectionSuiteParameters.DefaultPpOcrPolarity;
+    private PpOcrPipelineMode _ppOcrPipeline = InspectionSuiteParameters.DefaultPpOcrPipeline;
+    private OcvPolaritySelection _selectedOcvPolarity = OcvPolaritySelection.Auto;
+    private float _ocvForegroundContrast = DefaultOcvForegroundContrast;
+    private bool _ocvAppendTeachMode = true;
+    private string _selectedRoiOcvExpectedText = string.Empty;
+    private string _selectedRoiOcvFormatMask = string.Empty;
+    private bool _syncingRoiOcvFields;
+    private OcvRoiInspectionItem? _selectedOcvVerificationItem;
     private float _autoTeachMinGeometricScore = 0.45f;
     private float _autoTeachMinAppearanceCosine = 0.35f;
     private float _autoTeachMaxMahalanobis = 35.0f;
@@ -128,6 +153,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private object? _lastRoisRef;
     private object? _lastSelectionRef;
     private RoiTransformPreview? _transformPreview;
+    private bool _isInteractiveEditing;
     private ImageReference? _image;
     private long _generation;
     private long _epoch;
@@ -146,6 +172,15 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private long _lastPublishedPreviewEpoch;
     private ResultOverlay? _overlay;
     private ResultOverlay? _livePreview;
+    private InspectionSuiteRoiInput[] _livePreviewRois = [];
+    private Guid? _lastOcrPrimaryRoiId;
+    private InspectionSuiteExecutionOutput? _lastOcrRenderedOutput;
+    private ImmutableArray<byte> _lastEnhancedGrayPixels;
+    private int _lastEnhancedPreviewW;
+    private int _lastEnhancedPreviewH;
+    private ImmutableArray<byte> _lastBinarizedRgbaPixels;
+    private int _lastBinarizedPreviewW;
+    private int _lastBinarizedPreviewH;
     private bool _isHelpManualOpen;
     private RelayCommand? _toggleHelpManualCommand;
 
@@ -170,10 +205,17 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         long Epoch,
         long Generation);
 
-    public InspectionSuiteViewModel(IInspectionSuiteService service)
+    public InspectionSuiteViewModel(
+        IInspectionSuiteService service,
+        ITaughtFontOcvService? ocvService = null,
+        Func<string?>? selectOcvFontOpenPath = null,
+        Func<string?>? selectOcvFontSavePath = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         _service = service;
+        _ocvService = ocvService;
+        _selectOcvFontOpenPath = selectOcvFontOpenPath;
+        _selectOcvFontSavePath = selectOcvFontSavePath;
 
         InspectionSuiteAlgorithmOption CreateOption(
             InspectionSuiteAlgorithmKind kind,
@@ -184,8 +226,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 SelectCommand = new RelayCommand(() => SelectedAlgorithm = kind, () => IsIdle)
             };
 
-        Algorithms =
-        [
+        var algorithmOptions = new List<InspectionSuiteAlgorithmOption>
+        {
             CreateOption(InspectionSuiteAlgorithmKind.Metrology, InspectionSuiteCategory.MetrologyAndGeometry, "1D 캘리퍼·직선·원"),
             CreateOption(InspectionSuiteAlgorithmKind.GoldenVariation, InspectionSuiteCategory.SurfaceBlobAnd3D, "골든 마스터 변이"),
             CreateOption(InspectionSuiteAlgorithmKind.BlobRle, InspectionSuiteCategory.SurfaceBlobAnd3D, "RLE 블롭·모폴로지"),
@@ -194,23 +236,25 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             CreateOption(InspectionSuiteAlgorithmKind.PatchAnomaly, InspectionSuiteCategory.SurfaceBlobAnd3D, "PaDiM 패치 이상"),
             CreateOption(InspectionSuiteAlgorithmKind.Calibration, InspectionSuiteCategory.MetrologyAndGeometry, "9-Point 캘리브레이션"),
             CreateOption(InspectionSuiteAlgorithmKind.CornerAlignment, InspectionSuiteCategory.MetrologyAndGeometry, "2-Rake 가상 코너"),
-            CreateOption(InspectionSuiteAlgorithmKind.IndustrialOcrOcv, InspectionSuiteCategory.CodeAndOcr, "산업용 OCR/OCV"),
-            CreateOption(InspectionSuiteAlgorithmKind.LightweightOcr, InspectionSuiteCategory.CodeAndOcr, "경량 고속 OCR"),
+            CreateOption(InspectionSuiteAlgorithmKind.PpOcrOnnx, InspectionSuiteCategory.Ocr, "OCR / OCV (PP-OCRv4 · 티칭 OCV)"),
             CreateOption(InspectionSuiteAlgorithmKind.AutoTeaching, InspectionSuiteCategory.AiAndAutoTeaching, "멀티파츠 자동 티칭"),
-            CreateOption(InspectionSuiteAlgorithmKind.CpuDeepOcr, InspectionSuiteCategory.CodeAndOcr, "CPU 딥러닝 OCR"),
             CreateOption(InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon, InspectionSuiteCategory.PreprocessingAndFrequency, "조명보정·확산·재구성"),
             CreateOption(InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse, InspectionSuiteCategory.MetrologyAndGeometry, "복합캘리퍼·타원 피팅"),
             CreateOption(InspectionSuiteAlgorithmKind.AdvancedBlobWatershed, InspectionSuiteCategory.SurfaceBlobAnd3D, "워터셰드 블롭 분리"),
-            CreateOption(InspectionSuiteAlgorithmKind.DataMatrix2DReader, InspectionSuiteCategory.CodeAndOcr, "2D DataMatrix"),
+            CreateOption(InspectionSuiteAlgorithmKind.DataMatrix2DReader, InspectionSuiteCategory.Barcode1D2D, "2D DataMatrix"),
             CreateOption(InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor, InspectionSuiteCategory.PreprocessingAndFrequency, "2D FFT·호모모픽·Gabor"),
-            CreateOption(InspectionSuiteAlgorithmKind.Barcode1DReader, InspectionSuiteCategory.CodeAndOcr, "1D 바코드 리더"),
+            CreateOption(InspectionSuiteAlgorithmKind.Barcode1DReader, InspectionSuiteCategory.Barcode1D2D, "1D 바코드 리더"),
             CreateOption(InspectionSuiteAlgorithmKind.PhotometricStereo, InspectionSuiteCategory.SurfaceBlobAnd3D, "포토메트릭 3D 표면"),
             CreateOption(InspectionSuiteAlgorithmKind.GeometricTolerancing, InspectionSuiteCategory.MetrologyAndGeometry, "다중형상 GD&T 공차")
-        ];
+        };
+
+        Algorithms = algorithmOptions;
 
         SelectMetrologyCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.MetrologyAndGeometry), () => IsIdle);
         SelectSurface3DCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.SurfaceBlobAnd3D), () => IsIdle);
-        SelectCodeOcrCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.CodeAndOcr), () => IsIdle);
+        SelectOcrCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.Ocr), () => IsIdle);
+        SelectBarcodeCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.Barcode1D2D), () => IsIdle);
+        SelectCodeOcrCategory = SelectOcrCategory;
         SelectAiAutoTeachingCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.AiAndAutoTeaching), () => IsIdle);
         SelectPreprocessingCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.PreprocessingAndFrequency), () => IsIdle);
         SelectAllCategories = new RelayCommand(() => SelectedCategory = InspectionSuiteCategory.All, () => IsIdle);
@@ -230,6 +274,50 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             new(MetrologyPolarityMode.DarkSlot, "어두운 홈/슬롯 (좌: 밝음→어두움 / 우: 어두움→밝음)"),
             new(MetrologyPolarityMode.DarkToLight, "어두움 → 밝음 (상승 에지 +g 전용)"),
             new(MetrologyPolarityMode.LightToDark, "밝음 → 어두움 (하강 에지 -g 전용)")
+        ];
+
+        AllowedCharacterSetOptions =
+        [
+            new(OcrAllowedCharacterSet.All, "전체 허용 (영문 대소문자·숫자·기호·한글)"),
+            new(OcrAllowedCharacterSet.UpperAlphaNumericAndSymbols, "대문자 + 숫자 + 기호 (A-Z, 0-9, / - : .)"),
+            new(OcrAllowedCharacterSet.UpperAlphaNumeric, "대문자 + 숫자 (A-Z, 0-9)"),
+            new(OcrAllowedCharacterSet.DigitsAndSeparators, "숫자 + 날짜 구분자 (0-9, / - : .)"),
+            new(OcrAllowedCharacterSet.DigitsOnly, "숫자 전용 (0-9)"),
+            new(OcrAllowedCharacterSet.UpperAlphaOnly, "영문 대문자 전용 (A-Z)")
+        ];
+
+        OcvPolarityOptions =
+        [
+            new(OcvPolaritySelection.Auto, "자동 판별 (배경·글자 명암 자동)"),
+            new(OcvPolaritySelection.DarkOnLight, "밝은 배경 위 어두운 글자 (Dark-on-Light)"),
+            new(OcvPolaritySelection.LightOnDark, "어두운 배경 위 밝은 글자 (Light-on-Dark)")
+        ];
+
+        PpOcrSpeedPresetOptions =
+        [
+            new(PpOcrSpeedPreset.UniversalAuto, "범용 자동 모드 (다국어 단락회로 · 양극성 · DBNet 자동)"),
+            new(PpOcrSpeedPreset.HighSpeedProduction, "고속 양산 모드 (RecOnly · 단일 패스 · 멀티 ROI 배치)")
+        ];
+
+        PpOcrLanguageOptions =
+        [
+            new(PpOcrLanguage.MultilingualConfidenceSelect, "다국어 자동 선택 (영문·한글 최고 신뢰도)"),
+            new(PpOcrLanguage.English, "영문·숫자·기호 전용 (en_PP-OCRv4)"),
+            new(PpOcrLanguage.Korean, "한글·영문·숫자 (korean_PP-OCRv4)")
+        ];
+
+        PpOcrPolarityOptions =
+        [
+            new(PpOcrPolarityMode.Auto, "자동 양극성 (원본 + 반전 최고 신뢰도)"),
+            new(PpOcrPolarityMode.NormalOnly, "원본 극성만 (어두운 글자 우선)"),
+            new(PpOcrPolarityMode.InvertedOnly, "명암 반전 (어두운 배경 위 밝은 각인)")
+        ];
+
+        PpOcrPipelineOptions =
+        [
+            new(PpOcrPipelineMode.Auto, "자동 (단일 줄 직접 인식 → 다중 줄 DBNet 검출)"),
+            new(PpOcrPipelineMode.RecOnly, "단일 줄 직접 인식 (Rec Only · 고속)"),
+            new(PpOcrPipelineMode.DetAndRec, "영역 검출 후 인식 (DBNet Det + Rec · 기울임/다중 줄)")
         ];
 
         RegisterNormalReference = new(() => RegisterSelectedRois(classLabel: 0),
@@ -253,9 +341,22 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         LoadPatchAnomalySample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.PatchAnomaly), () => IsIdle);
         LoadCalibrationSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.Calibration), () => IsIdle);
         LoadCornerAlignmentSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.CornerAlignment), () => IsIdle);
-        LoadIndustrialOcrOcvSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.IndustrialOcrOcv), () => IsIdle);
-        LoadLightweightOcrSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.LightweightOcr), () => IsIdle);
+        LoadOcrOcvSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.PpOcrOnnx), () => IsIdle);
         LoadAutoTeachingSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.AutoTeaching), () => IsIdle);
+        ApplyPpOcrTextToOcvExpectedText = new(CopyRecognizedPpOcrTextToOcvExpectedText,
+            () => IsIdle && HasSelectedLeafRoi() && TryGetSelectedOrPrimaryPpOcrText(out _));
+        TeachSelectedRoiOcvFont = new(TeachSelectedRoiOcvFontAsync, error => PresentWarning(error.Message),
+            () => IsIdle && _canExecute && _ocvService is not null && _image is not null && HasSelectedLeafRoi() && !string.IsNullOrWhiteSpace(_selectedRoiOcvExpectedText));
+        VerifySelectedRoiOcv = new(() => VerifyRoisOcvAsync(selectedOnly: true), error => PresentWarning(error.Message),
+            () => IsIdle && _canExecute && _ocvService is { HasGoldenFont: true } && _image is not null && (HasSelectedLeafRoi() || HasAnyLeafRoi()));
+        VerifyAllRoisOcv = new(() => VerifyRoisOcvAsync(selectedOnly: false), error => PresentWarning(error.Message),
+            () => IsIdle && _canExecute && _ocvService is { HasGoldenFont: true } && _image is not null && HasAnyLeafRoi());
+        SaveOcvFontModel = new(SaveOcvFontModelFromDialog,
+            () => IsIdle && _ocvService is { HasGoldenFont: true } && _selectOcvFontSavePath is not null);
+        LoadOcvFontModel = new(LoadOcvFontModelFromDialog,
+            () => IsIdle && _ocvService is not null && _selectOcvFontOpenPath is not null);
+        ClearOcvFontModel = new(ClearOcvFontModelState,
+            () => IsIdle && _ocvService is { HasGoldenFont: true });
         Cancel = new(() => _cancellation?.Cancel(), () => IsBusy);
         Locate = new(() => LocateRequested?.Invoke(BoundsD.FromPoints((Overlay ?? _overlay)!.Matches.SelectMany(marker => marker.Bounds))),
             () => IsIdle && _canExecute && (Overlay ?? _overlay)?.Matches.IsEmpty == false);
@@ -266,6 +367,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     public event Action<InspectionSuiteAlgorithmKind>? SampleLoadRequested;
     public event Action<RoiAlgorithmAssignment>? RoiAssignmentRecorded;
     public event Action<StructuredInspectionLogEntry>? StructuredLogRecorded;
+    public event Action<IReadOnlyList<Guid>, RoiOcvSettings>? RoiOcvSettingsChangeRequested;
 
     public IReadOnlyList<InspectionSuiteAlgorithmOption> Algorithms { get; }
     public IReadOnlyList<InspectionSuiteAlgorithmOption> CategoryAlgorithms => _selectedCategory == InspectionSuiteCategory.All
@@ -286,30 +388,85 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
     public bool IsMetrologyCategorySelected => _selectedCategory == InspectionSuiteCategory.MetrologyAndGeometry;
     public bool IsSurface3DCategorySelected => _selectedCategory == InspectionSuiteCategory.SurfaceBlobAnd3D;
-    public bool IsCodeOcrCategorySelected => _selectedCategory == InspectionSuiteCategory.CodeAndOcr;
+    public bool IsOcrCategorySelected => _selectedCategory == InspectionSuiteCategory.Ocr;
+    public bool IsBarcodeCategorySelected => _selectedCategory == InspectionSuiteCategory.Barcode1D2D;
+    public bool IsCodeOcrCategorySelected => _selectedCategory == InspectionSuiteCategory.Ocr;
     public bool IsAiAutoTeachingCategorySelected => _selectedCategory == InspectionSuiteCategory.AiAndAutoTeaching;
     public bool IsPreprocessingCategorySelected => _selectedCategory == InspectionSuiteCategory.PreprocessingAndFrequency;
     public bool IsAllCategoriesSelected => _selectedCategory == InspectionSuiteCategory.All;
+    public bool IsAnyOcrSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.PpOcrOnnx;
+    public bool IsPpOcrOnnxSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.PpOcrOnnx;
+    public bool IsPpOcrWired => _service.IsPpOcrWired;
+    public string PpOcrStatusBadge => _service.PpOcrStatusSummary;
 
     public string ActiveCategoryTitle => _selectedCategory switch
     {
         InspectionSuiteCategory.MetrologyAndGeometry => "치수·기하계측 카테고리 (5종: 1D 캘리퍼·직선·원 / 복합캘리퍼·타원 / 2-Rake 코너 / 다중형상 GD&T / 9-Point 캘리브레이션)",
         InspectionSuiteCategory.SurfaceBlobAnd3D => "블롭·표면·3D 카테고리 (6종: RLE 블롭 / 워터셰드 분리 / Steger 곡선비드 / 골든 마스터 / PaDiM 패치 / 포토메트릭 3D)",
-        InspectionSuiteCategory.CodeAndOcr => "바코드·OCR 카테고리 (5종: 1D 바코드 / 2D DataMatrix / 산업용 OCR·OCV / 경량 고속 OCR / CPU 딥러닝 OCR)",
+        InspectionSuiteCategory.Ocr => "OCR / OCV 카테고리 (1종 통합: PP-OCRv4 범용 판독 + 티칭 기반 OCV 인쇄 품질 검증)",
+        InspectionSuiteCategory.Barcode1D2D => "1D·2D 바코드 카테고리 (2종: 1D Code 128 멀티스캔 리더 / 2D DataMatrix ECC 200 리더)",
         InspectionSuiteCategory.AiAndAutoTeaching => "AI·자동티칭 카테고리 (2종: 멀티파츠 자동 티칭 / Few-Shot 이상 분류)",
         InspectionSuiteCategory.PreprocessingAndFrequency => "조명·주파수 전처리 카테고리 (2종: 2D 다항식 조명·비등방성 확산·재구성 / 2D FFT 노치·호모모픽·Gabor)",
-        _ => "전체 검사 알고리즘 보기 (20종 전체 목록)"
+        _ => $"전체 검사 알고리즘 보기 ({Algorithms.Count}종 전체 목록)"
     };
 
     public RelayCommand SelectMetrologyCategory { get; }
     public RelayCommand SelectSurface3DCategory { get; }
+    public RelayCommand SelectOcrCategory { get; }
+    public RelayCommand SelectBarcodeCategory { get; }
     public RelayCommand SelectCodeOcrCategory { get; }
     public RelayCommand SelectAiAutoTeachingCategory { get; }
     public RelayCommand SelectPreprocessingCategory { get; }
     public RelayCommand SelectAllCategories { get; }
     public IReadOnlyList<MetrologyModeOption> MetrologyModes { get; }
     public IReadOnlyList<MetrologyPolarityOption> PolarityModes { get; }
+    public IReadOnlyList<OcrAllowedCharacterOption> AllowedCharacterSetOptions { get; }
+    public IReadOnlyList<OcvPolarityOption> OcvPolarityOptions { get; }
+    public IReadOnlyList<PpOcrSpeedPresetOption> PpOcrSpeedPresetOptions { get; }
+    public IReadOnlyList<PpOcrLanguageOption> PpOcrLanguageOptions { get; }
+    public IReadOnlyList<PpOcrPolarityOption> PpOcrPolarityOptions { get; }
+    public IReadOnlyList<PpOcrPipelineOption> PpOcrPipelineOptions { get; }
     public ObservableCollection<SuiteRegisteredReferenceItem> RegisteredReferenceItems { get; } = [];
+    public ObservableCollection<OcrLiveRoiSummaryItem> OcrLiveRoiItems { get; } = [];
+    public ObservableCollection<OcvRoiInspectionItem> OcvVerificationItems { get; } = [];
+    public bool IsOcvServiceWired => _ocvService is not null;
+    public bool HasGoldenOcvFont => _ocvService?.HasGoldenFont == true;
+    public string OcvFontStatusBadge => _ocvService?.RegisteredCharactersSummary ?? "골든 폰트 미등록 (정상 ROI 선택 후 '폰트 티칭' 실행)";
+    public string OcvLastVerdictBadge { get; private set; } = "READY";
+    public string OcvLastVerdictAccent { get; private set; } = "#38BDF8";
+    public bool HasOcvVerificationItems => OcvVerificationItems.Count > 0;
+    public OcvRoiInspectionItem? SelectedOcvVerificationItem
+    {
+        get => _selectedOcvVerificationItem;
+        set
+        {
+            if (Set(ref _selectedOcvVerificationItem, value))
+            {
+                Notify(nameof(SelectedOcvCharacterItems));
+                Notify(nameof(HasSelectedOcvCharacterItems));
+            }
+        }
+    }
+    public ImmutableArray<OcvCharacterInspectionItem> SelectedOcvCharacterItems =>
+        _selectedOcvVerificationItem?.Characters is { IsDefault: false } chars ? chars : ImmutableArray<OcvCharacterInspectionItem>.Empty;
+    public bool HasSelectedOcvCharacterItems => !SelectedOcvCharacterItems.IsEmpty;
+    public RelayCommand ApplyPpOcrTextToOcvExpectedText { get; }
+    public AsyncCommand TeachSelectedRoiOcvFont { get; }
+    public AsyncCommand VerifySelectedRoiOcv { get; }
+    public AsyncCommand VerifyAllRoisOcv { get; }
+    public RelayCommand SaveOcvFontModel { get; }
+    public RelayCommand LoadOcvFontModel { get; }
+    public RelayCommand ClearOcvFontModel { get; }
+    public ImageSource? OcrEnhancedPreviewImage { get; private set; }
+    public ImageSource? OcrBinarizedPreviewImage { get; private set; }
+    public bool HasOcrLivePreviewImages => OcrEnhancedPreviewImage is not null && OcrBinarizedPreviewImage is not null;
+    public string OcrLiveRecognizedText { get; private set; } = "ROI 선택 또는 샘플 열기 대기 중";
+    public string OcrLiveVerdictBadge { get; private set; } = "READY";
+    public string OcrLiveVerdictAccent { get; private set; } = "#38BDF8";
+    public string OcrLiveConfidenceBadge { get; private set; } = "신뢰도 —";
+    public double OcrLiveConfidencePercent { get; private set; }
+    public string OcrLivePolarityAndCharSummary { get; private set; } = "옵션 조절 시 정류 패치·이진화 진단·문자 박스가 실시간 갱신됩니다.";
+    public string OcrLivePreprocessingBadge { get; private set; } = "PP-OCRv4 ONNX + 티칭 OCV 실시간 진단";
     public RelayCommand RegisterNormalReference { get; }
     public RelayCommand RegisterDefectReference { get; }
     public RelayCommand ClearReferences { get; }
@@ -325,8 +482,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     public RelayCommand LoadPatchAnomalySample { get; }
     public RelayCommand LoadCalibrationSample { get; }
     public RelayCommand LoadCornerAlignmentSample { get; }
-    public RelayCommand LoadIndustrialOcrOcvSample { get; }
-    public RelayCommand LoadLightweightOcrSample { get; }
+    public RelayCommand LoadOcrOcvSample { get; }
     public RelayCommand LoadAutoTeachingSample { get; }
     public RelayCommand Cancel { get; }
     public RelayCommand Locate { get; }
@@ -344,10 +500,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     public bool IsPatchAnomalySelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.PatchAnomaly;
     public bool IsCalibrationSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.Calibration;
     public bool IsCornerAlignmentSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.CornerAlignment;
-    public bool IsIndustrialOcrOcvSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.IndustrialOcrOcv;
-    public bool IsLightweightOcrSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.LightweightOcr;
     public bool IsAutoTeachingSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.AutoTeaching;
-    public bool IsCpuDeepOcrSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.CpuDeepOcr;
     public bool IsPreprocessingShadingSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon;
     public bool IsAdvancedMetrologyEllipseSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse;
     public bool IsAdvancedBlobWatershedSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.AdvancedBlobWatershed;
@@ -382,9 +535,10 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         get => _selectedAlgorithm;
         set
         {
-            if (Set(ref _selectedAlgorithm, value))
+            var normalized = InspectionSuiteService.NormalizeAlgorithmKind(value);
+            if (Set(ref _selectedAlgorithm, normalized))
             {
-                var mappedCategory = ResolveCategoryForAlgorithm(value);
+                var mappedCategory = ResolveCategoryForAlgorithm(normalized);
                 if (_selectedCategory != InspectionSuiteCategory.All && _selectedCategory != mappedCategory)
                 {
                     _selectedCategory = mappedCategory;
@@ -393,6 +547,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
                 _overlay = null;
                 _livePreview = null;
+                _livePreviewRois = [];
                 NotifyAlgorithmSelectionChanged();
                 UpdateGeometricGuideAndSchedulePreview();
                 RefreshCommands();
@@ -413,11 +568,12 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             or InspectionSuiteAlgorithmKind.GoldenVariation
             or InspectionSuiteAlgorithmKind.PatchAnomaly
             or InspectionSuiteAlgorithmKind.PhotometricStereo => InspectionSuiteCategory.SurfaceBlobAnd3D,
-        InspectionSuiteAlgorithmKind.Barcode1DReader
-            or InspectionSuiteAlgorithmKind.DataMatrix2DReader
-            or InspectionSuiteAlgorithmKind.IndustrialOcrOcv
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
             or InspectionSuiteAlgorithmKind.LightweightOcr
-            or InspectionSuiteAlgorithmKind.CpuDeepOcr => InspectionSuiteCategory.CodeAndOcr,
+            or InspectionSuiteAlgorithmKind.CpuDeepOcr
+            or InspectionSuiteAlgorithmKind.PpOcrOnnx => InspectionSuiteCategory.Ocr,
+        InspectionSuiteAlgorithmKind.Barcode1DReader
+            or InspectionSuiteAlgorithmKind.DataMatrix2DReader => InspectionSuiteCategory.Barcode1D2D,
         InspectionSuiteAlgorithmKind.AutoTeaching
             or InspectionSuiteAlgorithmKind.FewShot => InspectionSuiteCategory.AiAndAutoTeaching,
         InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon
@@ -447,6 +603,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         Notify(nameof(ActiveCategoryTitle));
         Notify(nameof(IsMetrologyCategorySelected));
         Notify(nameof(IsSurface3DCategorySelected));
+        Notify(nameof(IsOcrCategorySelected));
+        Notify(nameof(IsBarcodeCategorySelected));
         Notify(nameof(IsCodeOcrCategorySelected));
         Notify(nameof(IsAiAutoTeachingCategorySelected));
         Notify(nameof(IsPreprocessingCategorySelected));
@@ -541,14 +699,13 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             "Hartley 정규화 DLT + 9×9 야코비안 SVD 기반 9-Point 평면 호모그래피(픽셀 ↔ 물리 mm) 보정과 Brown-Conrady 렌즈 왜곡 역보정 정밀도를 검증합니다.",
         InspectionSuiteAlgorithmKind.CornerAlignment =>
             "모따기·라운딩·칩핑·버를 회피하는 2-Rake 다중 1D 서브픽셀 캘리퍼와 RANSAC + Tukey Biweight 직선 교차로 가상 코너 꼭짓점 및 4-코너 대각 정합을 수행합니다.",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv =>
-            "레이저 연속 각인 및 도트 매트릭스 잉크젯 문자를 정류·분할하고, 투영 프로파일 상관·4분면 획 에너지·혼동 마진·달력 날짜 유효성까지 OCV 품질을 검증합니다.",
-        InspectionSuiteAlgorithmKind.LightweightOcr =>
-            "문자 개별 분할 없이 1D 열 특징 시퀀스와 CTC Prefix Beam Search로 접촉·고밀도 산업 문자열을 1-Pass로 고속 판독합니다.",
         InspectionSuiteAlgorithmKind.AutoTeaching =>
             "단일 샘플 티칭만으로 화면 내 다중 회전 부품을 자동 인식(Coarse Edge Proposal + 64B Signature + PatMax + ICGN)하고 하위 검사 ROI 월드 좌표를 즉시 생성합니다.",
-        InspectionSuiteAlgorithmKind.CpuDeepOcr =>
-            "GPU 없이 CPU SIMD만으로 1.5x 적응형 초해상도 언샤프닝 + 다중 대비 앙상블 + 무분할 시퀀스 빔 탐색을 결합하여 소형 비례 폰트(Arial Bold 영수증), 한글 음절, 접촉 문자열을 고속 판독합니다.",
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
+            or InspectionSuiteAlgorithmKind.LightweightOcr
+            or InspectionSuiteAlgorithmKind.CpuDeepOcr
+            or InspectionSuiteAlgorithmKind.PpOcrOnnx =>
+            "PP-OCRv4 ONNX(DBNet 검출 + SVTR-LCNet CTC 시퀀스 배치 인식) 범용 문자 판독과 동일 인쇄 골든 폰트 기반 고속 OCV(Optical Character Verification) 품질 검증을 통합 제공합니다.",
         InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon =>
             "HALCON estimate_background_illumination / anisotropic_diffusion / opening_by_reconstruction 급 전처리: 2D 6-기저 쌍이차 다항식 조명 평탄화, Perona-Malik 비등방성 확산, Vincent(1993) 하이브리드 형태학적 재구성을 수행합니다.",
         InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse =>
@@ -595,14 +752,13 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             "① 교정 타깃 ROI를 선택하고 실제 격자 피치(mm)와 렌즈 방사 왜곡 계수(k1)를 조절하세요.\n② 9-Point 호모그래피 물리 좌표 변환 오차(mm)와 왜곡 역보정 왕복 오차(px)가 실시간 계산됩니다.",
         InspectionSuiteAlgorithmKind.CornerAlignment =>
             "① 기판이나 부품의 코너(모따기·라운딩 포함) 부근에 ROI 중심을 배치하세요 (샘플 열기 시 4개 모따기 코너 ROI 자동 배치).\n② 코너 꼭짓점 여유 구간을 건너뛰는 2-Rake 서브픽셀 에지 스캔으로 두 직선의 정밀 가상 교차점(청록 점)과 내각(°)을 즉시 산출합니다.",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv =>
-            "① 레이저 연속 각인 또는 도트 매트릭스 잉크젯 문자열 위에 수평/회전 ROI를 배치하세요.\n② 도트 브리징 정류 및 문자 분할 후, 혼동 마진과 Halcon 스타일 투영 상관 OCV 점수(≥0.80) 및 달력 날짜 유효성을 동시 검증합니다.",
-        InspectionSuiteAlgorithmKind.LightweightOcr =>
-            "① 웨이퍼·배치 ID 등 고밀도 문자열 라인에 ROI를 배치하세요.\n② 개별 문자 분할 없이 1D 열 특징 시퀀스와 CTC Prefix Beam Search로 빠르게 문자열과 신뢰도를 판독합니다.",
         InspectionSuiteAlgorithmKind.AutoTeaching =>
             "① 캔버스에서 학습할 부품 ROI를 선택하고 '＋ 선택 ROI 파츠 학습 등록'을 누르면 모델 풀에 64B 회전불변 서명과 하위 검사 ROI 오프셋(핀A/핀B/바디)이 즉시 티칭·등록됩니다 (샘플 열기 시 3종 파츠 자동 등록).\n② '전체 ROI 실행'을 누르면 1단계 에지 블롭 후보 추출 → 2단계 64B 서명 필터링 → 3단계 국소 PatMax + ICGN 정밀 보정으로 각 부품의 포즈와 하위 검사 ROI 월드 좌표를 자동 생성합니다.",
-        InspectionSuiteAlgorithmKind.CpuDeepOcr =>
-            "① 영수증(ocr2.png 좌측 소형 비례 폰트, ocr4.png), 한글 번호판(ocr5.png), 산업 마킹 위에 ROI를 그리세요.\n② 1.5x 초해상도 언샤프닝 + 다중 대비 빔 앙상블 + 수평 구분선(<hr>) 자동 소거로 저해상도·접촉 문자열과 한글 음절을 정확히 판독합니다.",
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
+            or InspectionSuiteAlgorithmKind.LightweightOcr
+            or InspectionSuiteAlgorithmKind.CpuDeepOcr
+            or InspectionSuiteAlgorithmKind.PpOcrOnnx =>
+            "① [OCR 문자 판독] 인쇄·레이저 각인·도트매트릭스·영수증 문자열 위에 ROI를 배치하고 운전 프리셋(범용 자동 / 고속 양산)과 허용 문자 집합을 선택하세요.\n② [OCV 품질 검증] 'PP-OCR 판독값 → 기대 문자열 채우기' 또는 직접 기대 문자열을 입력한 뒤 '선택 ROI 폰트 티칭' → 'OCV 검증'으로 인쇄 결손·번짐·오인쇄를 초고속 검증합니다.",
         InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon =>
             "① 불균일 조명/비네팅, 표면 그레인 노이즈, 핀홀/스패터가 있는 영역에 ROI를 배치하세요.\n② 기준 밝기(Threshold)와 마커 반경(R), 확산 대비(κ)를 조절하면 다항식 조명 평탄화·비등방성 확산·Vincent 재구성 전후 배경 편차 감소량과 분리된 객체가 즉시 표시됩니다.",
         InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse =>
@@ -848,184 +1004,133 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
-    public float OcrAcceptThreshold
+    public OcrAllowedCharacterSet OcrAllowedCharacters
     {
-        get => _ocrAcceptThreshold;
+        get => _ocrAllowedCharacters;
         set
         {
-            float clamped = Math.Clamp(value, 0.10f, 0.98f);
-            if (Set(ref _ocrAcceptThreshold, clamped))
+            if (Set(ref _ocrAllowedCharacters, value))
             {
                 NotifyOptionValidationChanged();
             }
         }
     }
 
-    public float OcrMinQualityScore
+    public PpOcrSpeedPreset PpOcrPreset
     {
-        get => _ocrMinQualityScore;
+        get => _ppOcrPreset;
         set
         {
-            float clamped = Math.Clamp(value, 0.10f, 0.98f);
-            if (Set(ref _ocrMinQualityScore, clamped))
+            if (Set(ref _ppOcrPreset, value))
             {
                 NotifyOptionValidationChanged();
             }
         }
     }
 
-    public float OcrForegroundContrast
+    public float PpOcrMinConfidence
     {
-        get => _ocrForegroundContrast;
+        get => _ppOcrMinConfidence;
         set
         {
-            float clamped = Math.Clamp(value, 2.0f, 80.0f);
-            if (Set(ref _ocrForegroundContrast, clamped))
+            float clamped = Math.Clamp(value, 0.05f, 1.0f);
+            if (Set(ref _ppOcrMinConfidence, clamped))
             {
                 NotifyOptionValidationChanged();
             }
         }
     }
 
-    public int OcrExpectedCharPitch
+    public PpOcrLanguage PpOcrLanguageMode
     {
-        get => _ocrExpectedCharPitch;
+        get => _ppOcrLanguageMode;
         set
         {
-            int clamped = Math.Clamp(value, 8, 64);
-            if (Set(ref _ocrExpectedCharPitch, clamped))
+            if (Set(ref _ppOcrLanguageMode, value))
             {
                 NotifyOptionValidationChanged();
             }
         }
     }
 
-    public int OcrDotClosingRadius
+    public PpOcrPolarityMode PpOcrPolarity
     {
-        get => _ocrDotClosingRadius;
+        get => _ppOcrPolarity;
         set
         {
-            int clamped = Math.Clamp(value, 0, 5);
-            if (Set(ref _ocrDotClosingRadius, clamped))
+            if (Set(ref _ppOcrPolarity, value))
             {
                 NotifyOptionValidationChanged();
             }
         }
     }
 
-    public int LightweightOcrBeamWidth
+    public PpOcrPipelineMode PpOcrPipeline
     {
-        get => _lightweightOcrBeamWidth;
+        get => _ppOcrPipeline;
         set
         {
-            int clamped = Math.Clamp(value, 1, 12);
-            if (Set(ref _lightweightOcrBeamWidth, clamped))
+            if (Set(ref _ppOcrPipeline, value))
             {
                 NotifyOptionValidationChanged();
             }
         }
     }
 
-    public int LightweightOcrColumnStride
+    public OcvPolaritySelection SelectedOcvPolarity
     {
-        get => _lightweightOcrColumnStride;
+        get => _selectedOcvPolarity;
+        set => Set(ref _selectedOcvPolarity, value);
+    }
+
+    public float OcvForegroundContrast
+    {
+        get => _ocvForegroundContrast;
         set
         {
-            int clamped = Math.Clamp(value, 1, 6);
-            if (Set(ref _lightweightOcrColumnStride, clamped))
+            float clamped = Math.Clamp(value, MinOcvForegroundContrast, MaxOcvForegroundContrast);
+            Set(ref _ocvForegroundContrast, clamped);
+        }
+    }
+
+    public bool OcvAppendTeachMode
+    {
+        get => _ocvAppendTeachMode;
+        set => Set(ref _ocvAppendTeachMode, value);
+    }
+
+    public string SelectedRoiOcvExpectedText
+    {
+        get => _selectedRoiOcvExpectedText;
+        set
+        {
+            string normalized = value ?? string.Empty;
+            if (Set(ref _selectedRoiOcvExpectedText, normalized))
             {
-                NotifyOptionValidationChanged();
+                if (!_syncingRoiOcvFields)
+                {
+                    CommitSelectedRoiOcvSettings();
+                }
+
+                TeachSelectedRoiOcvFont.Refresh();
+                VerifySelectedRoiOcv.Refresh();
+                VerifyAllRoisOcv.Refresh();
             }
         }
     }
 
-    public float LightweightOcrMinConfidence
+    public string SelectedRoiOcvFormatMask
     {
-        get => _lightweightOcrMinConfidence;
+        get => _selectedRoiOcvFormatMask;
         set
         {
-            float clamped = Math.Clamp(value, 0.10f, 0.98f);
-            if (Set(ref _lightweightOcrMinConfidence, clamped))
+            string normalized = value ?? string.Empty;
+            if (Set(ref _selectedRoiOcvFormatMask, normalized))
             {
-                NotifyOptionValidationChanged();
-            }
-        }
-    }
-
-    public float LightweightOcrContrastOffset
-    {
-        get => _lightweightOcrContrastOffset;
-        set
-        {
-            float clamped = Math.Clamp(value, 2.0f, 80.0f);
-            if (Set(ref _lightweightOcrContrastOffset, clamped))
-            {
-                NotifyOptionValidationChanged();
-            }
-        }
-    }
-
-    public float DeepOcrSuperResScale
-    {
-        get => _deepOcrSuperResScale;
-        set
-        {
-            float clamped = Math.Clamp(value, 1.0f, 2.5f);
-            if (Set(ref _deepOcrSuperResScale, clamped))
-            {
-                NotifyOptionValidationChanged();
-            }
-        }
-    }
-
-    public float DeepOcrUnsharpGain
-    {
-        get => _deepOcrUnsharpGain;
-        set
-        {
-            float clamped = Math.Clamp(value, 0.0f, 2.0f);
-            if (Set(ref _deepOcrUnsharpGain, clamped))
-            {
-                NotifyOptionValidationChanged();
-            }
-        }
-    }
-
-    public int DeepOcrEnsembleBeamWidth
-    {
-        get => _deepOcrEnsembleBeamWidth;
-        set
-        {
-            int clamped = Math.Clamp(value, 1, 12);
-            if (Set(ref _deepOcrEnsembleBeamWidth, clamped))
-            {
-                NotifyOptionValidationChanged();
-            }
-        }
-    }
-
-    public float DeepOcrContrastOffset
-    {
-        get => _deepOcrContrastOffset;
-        set
-        {
-            float clamped = Math.Clamp(value, 2.0f, 80.0f);
-            if (Set(ref _deepOcrContrastOffset, clamped))
-            {
-                NotifyOptionValidationChanged();
-            }
-        }
-    }
-
-    public float DeepOcrMinConfidence
-    {
-        get => _deepOcrMinConfidence;
-        set
-        {
-            float clamped = Math.Clamp(value, 0.10f, 0.98f);
-            if (Set(ref _deepOcrMinConfidence, clamped))
-            {
-                NotifyOptionValidationChanged();
+                if (!_syncingRoiOcvFields)
+                {
+                    CommitSelectedRoiOcvSettings();
+                }
             }
         }
     }
@@ -1399,14 +1504,10 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             $"격자 피치={_gridPitchMm:F2} mm · 방사 왜곡 k1={_lensK1:F4}",
         InspectionSuiteAlgorithmKind.CornerAlignment =>
             $"σ={_gaussianSigma:F2} · 대비≥{_minimumContrast:F1} · 레이크={_caliperRakeCount}개 · 모따기 회피={_cornerApexIgnoreMargin:F0}px · 직각허용=±{_cornerOrthogonalityToleranceDeg:F1}° · RANSAC={_cornerRansacThresholdPixels:F2}px",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv =>
-            $"문자인식 임계={_ocrAcceptThreshold:F2} · OCV 품질임계={_ocrMinQualityScore:F2} · 전경대비={_ocrForegroundContrast:F1} GV · 예상피치={_ocrExpectedCharPitch}px · 도트연결 R={_ocrDotClosingRadius}px",
-        InspectionSuiteAlgorithmKind.LightweightOcr =>
-            $"CTC Beam 폭={_lightweightOcrBeamWidth} · 열 스트라이드={_lightweightOcrColumnStride}px · 적응 대비 오프셋={_lightweightOcrContrastOffset:F1} GV · 최소 신뢰도={_lightweightOcrMinConfidence:F2}",
         InspectionSuiteAlgorithmKind.AutoTeaching =>
             $"기하 매칭 최소점수={_autoTeachMinGeometricScore:F2} · 64B 서명 코사인={_autoTeachMinAppearanceCosine:F2} · 마할라노비스 상한={_autoTeachMaxMahalanobis:F1}",
-        InspectionSuiteAlgorithmKind.CpuDeepOcr =>
-            $"초해상도={_deepOcrSuperResScale:F2}x · 언샤프닝 α={_deepOcrUnsharpGain:F2} · 앙상블 빔 폭={_deepOcrEnsembleBeamWidth} · 대비 오프셋={_deepOcrContrastOffset:F1} GV · 신뢰도≥{_deepOcrMinConfidence:F2}",
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv or InspectionSuiteAlgorithmKind.LightweightOcr or InspectionSuiteAlgorithmKind.CpuDeepOcr or InspectionSuiteAlgorithmKind.PpOcrOnnx =>
+            $"PP-OCRv4 ONNX ({(_ppOcrPreset == PpOcrSpeedPreset.HighSpeedProduction ? "고속 양산" : "범용 자동")}) · 언어={_ppOcrLanguageMode} · 극성={_ppOcrPolarity} · 파이프라인={_ppOcrPipeline} · 신뢰도≥{_ppOcrMinConfidence:F2} · 문자집합={OcrCharacterSetFilter.GetDisplayName(_ocrAllowedCharacters)} · OCV 대비={_ocvForegroundContrast:F1}GV",
         InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon =>
             $"다항식 목표 배경={_shadingTargetBaseGray} GV · 비등방성 확산 κ={_anisotropicDiffusionKappa:F1} · 재구성 마커 R={_reconstructionMarkerRadius} px",
         InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse =>
@@ -1469,11 +1570,29 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             return;
         }
 
+        Update(update, triggerAsyncMeasurement: SynchronizationContext.Current is not null);
+    }
+
+    internal void UpdateForTest(InspectionUpdate update, bool triggerAsyncMeasurement)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        Update(update, triggerAsyncMeasurement);
+    }
+
+    private void Update(InspectionUpdate update, bool triggerAsyncMeasurement)
+    {
         var state = update.State;
         bool imageChanged = _generation != update.Generation || !Equals(_image, state.Image);
-        bool roisOrSelectionChanged = !ReferenceEquals(_lastRoisRef, state.Rois)
-            || !ReferenceEquals(_lastSelectionRef, state.Selection)
-            || _transformPreview != update.TransformPreview;
+        bool roisChanged = !ReferenceEquals(_lastRoisRef, state.Rois);
+        bool selectionChanged = !ReferenceEquals(_lastSelectionRef, state.Selection);
+        bool transformChanged = _transformPreview != update.TransformPreview;
+        bool interactiveEditActive = update.TransformPreview is not null || (roisChanged && !update.CanExecute);
+        bool wasInteractiveEditActive = _isInteractiveEditing;
+        bool roisOrSelectionChanged = roisChanged || selectionChanged || transformChanged || (wasInteractiveEditActive != interactiveEditActive);
         bool toolBecameAvailable = !_toolAvailable && update.ToolAvailable;
         bool wasCanExecute = _canExecute;
 
@@ -1481,11 +1600,17 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         _lastRoisRef = state.Rois;
         _lastSelectionRef = state.Selection;
         _transformPreview = update.TransformPreview;
+        _isInteractiveEditing = interactiveEditActive;
         _image = state.Image;
         _generation = update.Generation;
         _live = update.Live;
         _toolAvailable = update.ToolAvailable;
         _canExecute = update.CanExecute && update.ToolAvailable;
+
+        if (imageChanged || roisChanged || selectionChanged)
+        {
+            SyncSelectedRoiOcvSettingsFromState();
+        }
 
         if (!update.ToolAvailable && !imageChanged)
         {
@@ -1503,9 +1628,18 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             CancelLivePreview();
             _referenceRois.Clear();
             RegisteredReferenceItems.Clear();
+            OcvVerificationItems.Clear();
+            SelectedOcvVerificationItem = null;
+            OcvLastVerdictBadge = "READY";
+            OcvLastVerdictAccent = "#38BDF8";
+            Notify(nameof(HasOcvVerificationItems));
+            Notify(nameof(OcvLastVerdictBadge));
+            Notify(nameof(OcvLastVerdictAccent));
             _overlay = null;
             _livePreview = null;
+            _livePreviewRois = [];
             LastOutput = null;
+            UpdateOcrDiagnosticViewState(null);
             ReferenceSummary = "등록된 기준 ROI 없음 (미등록 시 첫 번째 대상 ROI를 기준으로 자동 학습)";
             Results = "실행 결과 없음";
             Status = _image is null
@@ -1517,7 +1651,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             Notify(nameof(Status));
             if (_image is not null)
             {
-                UpdateGeometricGuideAndSchedulePreview(triggerAsyncMeasurement: SynchronizationContext.Current is not null);
+                UpdateGeometricGuideAndSchedulePreview(triggerAsyncMeasurement);
             }
             else
             {
@@ -1527,12 +1661,18 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
         else if (roisOrSelectionChanged || toolBecameAvailable)
         {
-            if (_transformPreview is not null)
+            if (_overlay is not null && (roisChanged || transformChanged))
             {
-                // ROI 드래그/회전/크기 조절 중에는 기존 고정 결과를 지우고 실시간 기하 가이드로 즉시 전환
+                // ROI 편집(드래그/크기/회전/키보드 이동) 시작 시 기존 결과를 빈 가이드로 지우지 않고
+                // 실시간 프리뷰 오버레이로 승격해 0ms 포즈 추적과 백그라운드 재추론으로 깜빡임을 원천 차단한다.
+                _livePreview = _overlay;
                 _overlay = null;
             }
-            UpdateGeometricGuideAndSchedulePreview(triggerAsyncMeasurement: SynchronizationContext.Current is not null);
+            if ((selectionChanged || toolBecameAvailable) && IsAnyOcrSelected && LastOutput is { } lastOut && lastOut.Algorithm == _selectedAlgorithm)
+            {
+                UpdateOcrDiagnosticViewState(lastOut);
+            }
+            UpdateGeometricGuideAndSchedulePreview(triggerAsyncMeasurement);
         }
 
         RefreshCommands();
@@ -1674,6 +1814,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         RegisteredReferenceItems.Clear();
         _overlay = null;
         _livePreview = null;
+        _livePreviewRois = [];
         LastOutput = null;
         ReferenceSummary = _selectedAlgorithm == InspectionSuiteAlgorithmKind.AutoTeaching
             ? "등록된 파츠 모델 없음 (캔버스 ROI 선택 후 '＋ 선택 ROI 파츠 학습 등록' 클릭 시 모델 풀에 추가됨)"
@@ -1769,9 +1910,11 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     {
         LastOutput = output;
         _overlay = BuildResultOverlayFromOutput(output, isLivePreview: false);
+        _livePreviewRois = BuildTargetSnapshotsFromOutput(output);
 
         Status = output.SummaryTitle;
         Results = output.DetailedReport;
+        UpdateOcrDiagnosticViewState(output);
         double perItemMs = output.Items.Length > 0 ? output.TotalMilliseconds / output.Items.Length : output.TotalMilliseconds;
         foreach (var item in output.Items)
         {
@@ -1852,22 +1995,29 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             if (_livePreview is not null)
             {
                 _livePreview = null;
+                _livePreviewRois = [];
                 Notify(nameof(Overlay));
                 Changed?.Invoke();
             }
             return;
         }
 
-        var parameters = BuildParameters();
+        var parameters = BuildParameters() with { IsInteractivePreview = _isInteractiveEditing };
         var targets = previewRois.Select(roi => ToRoiInput(roi, classLabel: 0)).ToArray();
         bool canScheduleAsyncMeasurement = triggerAsyncMeasurement && _autoPreview && _showOverlay && IsIdle && _image is not null && OptionsError.Length == 0;
 
-        // 1. 0ms 동기 기하 가이드 오버레이 생성 (ROI 드래그·회전 중이거나 최초 프리뷰 대기 시 60FPS로 캘리퍼 스캔선/레이크/스포크 표시)
-        //    단, 파라미터 슬라이더 조절 중 이미 실시간 프리뷰 결과가 화면에 떠 있는 경우에는
-        //    중간에 빈 가이드 오버레이로 덮어써서 ROI 내부가 깜빡이는 현상(Flickering)을 원천 차단하고,
-        //    백그라운드 계측이 완료될 때 새 결과 오버레이로 원자적(Atomic) 교체한다.
-        bool showGuideImmediately = _overlay is null && (_livePreview is null || _transformPreview is not null || !canScheduleAsyncMeasurement);
-        if (showGuideImmediately)
+        // 1. 이미 실시간 프리뷰 결과가 존재하는 상태에서 ROI를 이동/회전/크기 조절할 때는
+        //    빈 청록색 가이드 미리보기로 덮어써서 발생하는 스트로브(깜빡임)를 원천 차단하고,
+        //    기존 마커·윤곽·특징점을 현재 ROI 포즈로 0ms 동기 변환해 60FPS 추적을 보장한다.
+        if (_overlay is null && _livePreview is not null && TryProjectLivePreviewOntoTargets(_livePreview, _livePreviewRois, targets, parameters, out var projectedPreview))
+        {
+            _livePreview = projectedPreview;
+            _livePreviewRois = targets;
+            Notify(nameof(Overlay));
+            Locate.Refresh();
+            Changed?.Invoke();
+        }
+        else if (_overlay is null && (_livePreview is null || !HasMatchingTargetIds(_livePreviewRois, targets) || !canScheduleAsyncMeasurement))
         {
             var guideMarkers = ImmutableArray.CreateBuilder<MatchMarker>(targets.Length);
             foreach (var target in targets)
@@ -1899,6 +2049,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 SearchBoundary: [],
                 Matches: guideMarkers.MoveToImmutable(),
                 ShowFeatures: true);
+            _livePreviewRois = targets;
             Notify(nameof(Overlay));
             Locate.Refresh();
             Changed?.Invoke();
@@ -1911,6 +2062,206 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
+    private static InspectionSuiteRoiInput[] BuildTargetSnapshotsFromOutput(InspectionSuiteExecutionOutput output)
+    {
+        if (output.Items.IsDefaultOrEmpty)
+        {
+            return [];
+        }
+
+        var snapshots = new InspectionSuiteRoiInput[output.Items.Length];
+        for (int i = 0; i < output.Items.Length; i++)
+        {
+            var item = output.Items[i];
+            BoundsD bounds = item.Bounds.IsDefaultOrEmpty
+                ? new BoundsD(item.ReferencePoint.X - 4.0, item.ReferencePoint.Y - 4.0, item.ReferencePoint.X + 4.0, item.ReferencePoint.Y + 4.0)
+                : BoundsD.FromPoints(item.Bounds);
+            snapshots[i] = new InspectionSuiteRoiInput(
+                item.RoiId,
+                item.Name,
+                item.ReferencePoint,
+                Math.Max(8.0, bounds.Width),
+                Math.Max(8.0, bounds.Height),
+                item.AngleRadians,
+                item.Bounds);
+        }
+
+        return snapshots;
+    }
+
+    private bool TryProjectLivePreviewOntoTargets(
+        ResultOverlay existingOverlay,
+        InspectionSuiteRoiInput[] previousTargets,
+        InspectionSuiteRoiInput[] currentTargets,
+        InspectionSuiteParameters parameters,
+        out ResultOverlay projectedOverlay)
+    {
+        projectedOverlay = existingOverlay;
+        if (existingOverlay.Matches.Length != currentTargets.Length || previousTargets.Length != currentTargets.Length)
+        {
+            return false;
+        }
+
+        bool anyPoseChanged = false;
+        for (int i = 0; i < currentTargets.Length; i++)
+        {
+            if (previousTargets[i].RoiId != currentTargets[i].RoiId)
+            {
+                return false;
+            }
+
+            if (HasMeaningfulPoseDelta(previousTargets[i], currentTargets[i]))
+            {
+                anyPoseChanged = true;
+            }
+        }
+
+        if (!anyPoseChanged)
+        {
+            return false;
+        }
+
+        bool isGuideOverlay = existingOverlay.Summary.StartsWith("[가이드 미리보기]", StringComparison.Ordinal);
+        var updatedMarkers = ImmutableArray.CreateBuilder<MatchMarker>(currentTargets.Length);
+
+        for (int i = 0; i < currentTargets.Length; i++)
+        {
+            var prev = previousTargets[i];
+            var curr = currentTargets[i];
+            var marker = existingOverlay.Matches[i];
+
+            if (!HasMeaningfulPoseDelta(prev, curr))
+            {
+                updatedMarkers.Add(marker);
+                continue;
+            }
+
+            var updatedGuides = _selectedAlgorithm == InspectionSuiteAlgorithmKind.PpOcrOnnx && !isGuideOverlay
+                ? ImmutableArray<ImmutableArray<PointD>>.Empty
+                : InspectionSuiteService.BuildGeometricGuidesForRoi(curr, _selectedAlgorithm, parameters);
+
+            updatedMarkers.Add(marker with
+            {
+                Bounds = curr.Outline,
+                ReferencePoint = curr.Center,
+                AngleRadians = curr.AngleRadians,
+                InnerContours = updatedGuides,
+                AdditionalContours = TransformContoursRelativeToRoi(marker.AdditionalContours, prev, curr),
+                Features = TransformPointsRelativeToRoi(marker.Features, prev, curr),
+                KeyFeatures = TransformPointsRelativeToRoi(marker.KeyFeatures, prev, curr),
+                UnmatchedFeatures = TransformPointsRelativeToRoi(marker.UnmatchedFeatures, prev, curr),
+                DiagnosticGroups = TransformDiagnosticGroupsRelativeToRoi(marker.DiagnosticGroups, prev, curr)
+            });
+        }
+
+        projectedOverlay = existingOverlay with
+        {
+            Matches = updatedMarkers.MoveToImmutable(),
+            PresentationId = Guid.NewGuid()
+        };
+        return true;
+    }
+
+    private static bool HasMatchingTargetIds(InspectionSuiteRoiInput[] previousTargets, InspectionSuiteRoiInput[] currentTargets)
+    {
+        if (previousTargets.Length != currentTargets.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < currentTargets.Length; i++)
+        {
+            if (previousTargets[i].RoiId != currentTargets[i].RoiId)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HasMeaningfulPoseDelta(InspectionSuiteRoiInput previous, InspectionSuiteRoiInput current)
+    {
+        const double PositionEpsilonPx = 1e-3;
+        const double AngleEpsilonRad = 1e-5;
+        return Math.Abs(previous.Center.X - current.Center.X) > PositionEpsilonPx
+            || Math.Abs(previous.Center.Y - current.Center.Y) > PositionEpsilonPx
+            || Math.Abs(previous.Width - current.Width) > PositionEpsilonPx
+            || Math.Abs(previous.Height - current.Height) > PositionEpsilonPx
+            || Math.Abs(previous.AngleRadians - current.AngleRadians) > AngleEpsilonRad;
+    }
+
+    private static ImmutableArray<ImmutableArray<PointD>> TransformContoursRelativeToRoi(
+        ImmutableArray<ImmutableArray<PointD>> contours,
+        InspectionSuiteRoiInput previous,
+        InspectionSuiteRoiInput current)
+    {
+        if (contours.IsDefaultOrEmpty)
+        {
+            return contours;
+        }
+
+        var builder = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(contours.Length);
+        for (int i = 0; i < contours.Length; i++)
+        {
+            builder.Add(TransformPointsRelativeToRoi(contours[i], previous, current));
+        }
+
+        return builder.MoveToImmutable();
+    }
+
+    private static ImmutableArray<DiagnosticPointGroup> TransformDiagnosticGroupsRelativeToRoi(
+        ImmutableArray<DiagnosticPointGroup> groups,
+        InspectionSuiteRoiInput previous,
+        InspectionSuiteRoiInput current)
+    {
+        if (groups.IsDefaultOrEmpty)
+        {
+            return groups;
+        }
+
+        var builder = ImmutableArray.CreateBuilder<DiagnosticPointGroup>(groups.Length);
+        for (int i = 0; i < groups.Length; i++)
+        {
+            var g = groups[i];
+            builder.Add(new DiagnosticPointGroup(g.Color, TransformPointsRelativeToRoi(g.Points, previous, current), g.HalfSize));
+        }
+
+        return builder.MoveToImmutable();
+    }
+
+    private static ImmutableArray<PointD> TransformPointsRelativeToRoi(
+        ImmutableArray<PointD> points,
+        InspectionSuiteRoiInput previous,
+        InspectionSuiteRoiInput current)
+    {
+        if (points.IsDefaultOrEmpty)
+        {
+            return points;
+        }
+
+        double cosPrev = Math.Cos(previous.AngleRadians);
+        double sinPrev = Math.Sin(previous.AngleRadians);
+        double cosCurr = Math.Cos(current.AngleRadians);
+        double sinCurr = Math.Sin(current.AngleRadians);
+        double scaleX = previous.Width > 1.0 ? current.Width / previous.Width : 1.0;
+        double scaleY = previous.Height > 1.0 ? current.Height / previous.Height : 1.0;
+
+        var builder = ImmutableArray.CreateBuilder<PointD>(points.Length);
+        for (int i = 0; i < points.Length; i++)
+        {
+            double dx = points[i].X - previous.Center.X;
+            double dy = points[i].Y - previous.Center.Y;
+            double localX = ((dx * cosPrev) + (dy * sinPrev)) * scaleX;
+            double localY = ((-dx * sinPrev) + (dy * cosPrev)) * scaleY;
+            double worldX = current.Center.X + (localX * cosCurr) - (localY * sinCurr);
+            double worldY = current.Center.Y + (localX * sinCurr) + (localY * cosCurr);
+            builder.Add(new PointD(worldX, worldY));
+        }
+
+        return builder.MoveToImmutable();
+    }
+
     private void ScheduleLivePreview(InspectionSuiteRoiInput[] targets, InspectionSuiteParameters parameters)
     {
         if (_image is not { } image || targets.Length == 0)
@@ -1920,34 +2271,43 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
         long epoch = Interlocked.Increment(ref _previewEpoch);
         var refs = _referenceRois.ToArray();
-        Volatile.Write(
-            ref _pendingPreview,
-            new LivePreviewRequest(
-                image,
-                _live,
-                _selectedAlgorithm,
-                targets,
-                refs,
-                parameters,
-                SynchronizationContext.Current,
-                epoch,
-                _generation));
+        var request = new LivePreviewRequest(
+            image,
+            _live,
+            _selectedAlgorithm,
+            targets,
+            refs,
+            parameters,
+            SynchronizationContext.Current,
+            epoch,
+            _generation);
 
-        if (_previewPump is null || _previewPump.IsCompleted)
+        lock (_previewPumpGate)
         {
-            _previewPump = RunLivePreviewPumpAsync();
+            Volatile.Write(ref _pendingPreview, request);
+            if (_previewPump is null || _previewPump.IsCompleted)
+            {
+                _previewPump = Task.Run(RunLivePreviewPumpAsync);
+            }
         }
     }
 
     private async Task RunLivePreviewPumpAsync()
     {
-        while (!_disposed)
+        try
         {
-            var request = Interlocked.Exchange(ref _pendingPreview, null);
-            if (request is null)
+            while (!_disposed)
             {
-                break;
-            }
+                LivePreviewRequest? request;
+                lock (_previewPumpGate)
+                {
+                    request = Interlocked.Exchange(ref _pendingPreview, null);
+                    if (request is null)
+                    {
+                        _previewPump = null;
+                        return;
+                    }
+                }
 
             if (_disposed || !IsIdle || !_autoPreview || !_showOverlay || !_toolAvailable ||
                 request.Generation != _generation || request.Algorithm != _selectedAlgorithm)
@@ -1975,17 +2335,32 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 }
 
                 var overlay = BuildResultOverlayFromOutput(output, isLivePreview: true);
-                PublishLivePreview(request.UiContext, request.Epoch, request.Generation, request.Algorithm, output, overlay);
+                PublishLivePreview(request.UiContext, request.Epoch, request.Generation, request.Algorithm, request.Targets, request.Parameters, output, overlay);
             }
             catch
             {
                 // 실시간 프리뷰 중 일시적인 경계/취소 예외는 무시하고 기하 가이드를 유지한다.
             }
-            finally
-            {
-                if (ReferenceEquals(_previewCancellation, cts))
+                finally
                 {
-                    _previewCancellation = null;
+                    if (ReferenceEquals(_previewCancellation, cts))
+                    {
+                        _previewCancellation = null;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            lock (_previewPumpGate)
+            {
+                if (_disposed || _pendingPreview is null)
+                {
+                    _previewPump = null;
+                }
+                else
+                {
+                    _previewPump = Task.Run(RunLivePreviewPumpAsync);
                 }
             }
         }
@@ -1996,6 +2371,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         long previewEpoch,
         long previewGeneration,
         InspectionSuiteAlgorithmKind algorithm,
+        InspectionSuiteRoiInput[] requestTargets,
+        InspectionSuiteParameters requestParameters,
         InspectionSuiteExecutionOutput output,
         ResultOverlay overlay)
     {
@@ -2009,10 +2386,26 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             }
 
             _lastPublishedPreviewEpoch = previewEpoch;
-            _livePreview = overlay;
+            var currentRois = GetPreviewTargetRois();
+            var currentTargets = currentRois.Count > 0
+                ? currentRois.Select(roi => ToRoiInput(roi, classLabel: 0)).ToArray()
+                : requestTargets;
+
+            if (TryProjectLivePreviewOntoTargets(overlay, requestTargets, currentTargets, requestParameters, out var syncedOverlay))
+            {
+                _livePreview = syncedOverlay;
+                _livePreviewRois = currentTargets;
+            }
+            else
+            {
+                _livePreview = overlay;
+                _livePreviewRois = requestTargets;
+            }
+
             LastOutput = output;
             Status = $"[실시간 프리뷰] {output.SummaryTitle}";
             Results = output.DetailedReport;
+            UpdateOcrDiagnosticViewState(output);
             Notify(nameof(LastOutput));
             Notify(nameof(Status));
             Notify(nameof(Results));
@@ -2029,6 +2422,295 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         {
             Apply();
         }
+    }
+
+    private void UpdateOcrDiagnosticViewState(InspectionSuiteExecutionOutput? output)
+    {
+        if (output is null || output.Items.IsEmpty || !IsAnyOcrSelected)
+        {
+            if (OcrLiveRoiItems.Count > 0)
+            {
+                OcrLiveRoiItems.Clear();
+            }
+
+            _lastOcrRenderedOutput = null;
+            _lastOcrPrimaryRoiId = null;
+            _lastEnhancedGrayPixels = default;
+            _lastBinarizedRgbaPixels = default;
+            _lastEnhancedPreviewW = 0;
+            _lastEnhancedPreviewH = 0;
+            _lastBinarizedPreviewW = 0;
+            _lastBinarizedPreviewH = 0;
+
+            bool hadImages = HasOcrLivePreviewImages;
+            OcrEnhancedPreviewImage = null;
+            OcrBinarizedPreviewImage = null;
+            string emptyText = _image is null
+                ? "상단 '현재 알고리즘 샘플 열기' 또는 OCR 벤치마크(1~7)를 열어 주세요"
+                : "ROI 선택 또는 슬라이더 조절 시 실시간 판독 결과가 표시됩니다";
+            ApplyOcrLiveScalarState(
+                recognizedText: emptyText,
+                verdictBadge: "READY",
+                verdictAccent: "#38BDF8",
+                confidencePercent: 0.0,
+                confidenceBadge: "신뢰도 —",
+                polaritySummary: "슬라이더 조절 시 전처리·적응 이진화·문자 분할 박스가 실시간 갱신됩니다.",
+                preprocessingBadge: ParameterPreviewSummary,
+                imagesChanged: hadImages);
+            ApplyPpOcrTextToOcvExpectedText.Refresh();
+            return;
+        }
+
+        var selectedIds = _state.Selection;
+        InspectionSuiteItemResult? primaryItem = null;
+        foreach (var item in output.Items)
+        {
+            if (item.OcrDiagnostic is not null && selectedIds.Contains(item.RoiId))
+            {
+                primaryItem = item;
+                break;
+            }
+        }
+        primaryItem ??= output.Items.FirstOrDefault(i => i.OcrDiagnostic is not null) ?? output.Items[0];
+
+        if (ReferenceEquals(_lastOcrRenderedOutput, output) && _lastOcrPrimaryRoiId == primaryItem.RoiId)
+        {
+            return;
+        }
+
+        _lastOcrRenderedOutput = output;
+        _lastOcrPrimaryRoiId = primaryItem.RoiId;
+        SyncOcrLiveRoiItemsInPlace(output.Items);
+
+        bool bitmapsChanged = false;
+        if (primaryItem.OcrDiagnostic is { } primaryDiag)
+        {
+            if (!ArePixelBuffersEqual(_lastEnhancedPreviewW, _lastEnhancedPreviewH, _lastEnhancedGrayPixels, primaryDiag.PreviewWidth, primaryDiag.PreviewHeight, primaryDiag.EnhancedGrayPixels))
+            {
+                OcrEnhancedPreviewImage = CreateGrayWriteableBitmap(
+                    primaryDiag.PreviewWidth,
+                    primaryDiag.PreviewHeight,
+                    primaryDiag.EnhancedGrayPixels);
+                _lastEnhancedPreviewW = primaryDiag.PreviewWidth;
+                _lastEnhancedPreviewH = primaryDiag.PreviewHeight;
+                _lastEnhancedGrayPixels = primaryDiag.EnhancedGrayPixels;
+                bitmapsChanged = true;
+            }
+
+            if (!ArePixelBuffersEqual(_lastBinarizedPreviewW, _lastBinarizedPreviewH, _lastBinarizedRgbaPixels, primaryDiag.PreviewWidth, primaryDiag.PreviewHeight, primaryDiag.BinarizedRgbaPixels))
+            {
+                OcrBinarizedPreviewImage = CreateBgraWriteableBitmap(
+                    primaryDiag.PreviewWidth,
+                    primaryDiag.PreviewHeight,
+                    primaryDiag.BinarizedRgbaPixels);
+                _lastBinarizedPreviewW = primaryDiag.PreviewWidth;
+                _lastBinarizedPreviewH = primaryDiag.PreviewHeight;
+                _lastBinarizedRgbaPixels = primaryDiag.BinarizedRgbaPixels;
+                bitmapsChanged = true;
+            }
+
+            string display = string.IsNullOrWhiteSpace(primaryDiag.RecognizedText)
+                ? (_selectedAlgorithm == InspectionSuiteAlgorithmKind.PpOcrOnnx
+                    ? "(문자를 찾지 못했습니다 — ROI 위치·크기 또는 극성/파이프라인 옵션을 확인해 보세요)"
+                    : "(문자를 찾지 못했습니다 — 대비 오프셋·초해상도 슬라이더를 조절해 보세요)")
+                : primaryDiag.RecognizedText.Replace("\n", "  /  ", StringComparison.Ordinal);
+            string polText = primaryDiag.DarkOnLight ? "밝은 배경 위 어두운 글자 (Dark-on-Light)" : "어두운 배경 위 밝은 글자 (Light-on-Dark)";
+            ApplyOcrLiveScalarState(
+                recognizedText: display,
+                verdictBadge: primaryItem.IsPass ? "PASS" : "REVIEW / NG",
+                verdictAccent: primaryItem.IsPass ? "#34D399" : "#F87171",
+                confidencePercent: Math.Clamp(primaryDiag.MeanConfidence * 100.0, 0.0, 100.0),
+                confidenceBadge: $"평균 {primaryDiag.MeanConfidence * 100.0f:F1}% · 최소 {primaryDiag.MinConfidence * 100.0f:F1}% (기준 ≥{primaryDiag.AcceptThreshold * 100.0f:F0}%)",
+                polaritySummary: $"[{primaryItem.Name}] 검출 문자 {primaryDiag.Characters.Length}개 ({primaryDiag.Lines.Length}줄) · 극성: {polText}",
+                preprocessingBadge: primaryDiag.PreprocessingBadge,
+                imagesChanged: bitmapsChanged);
+        }
+        else
+        {
+            bitmapsChanged = HasOcrLivePreviewImages;
+            OcrEnhancedPreviewImage = null;
+            OcrBinarizedPreviewImage = null;
+            _lastEnhancedGrayPixels = default;
+            _lastBinarizedRgbaPixels = default;
+            _lastEnhancedPreviewW = 0;
+            _lastEnhancedPreviewH = 0;
+            _lastBinarizedPreviewW = 0;
+            _lastBinarizedPreviewH = 0;
+            ApplyOcrLiveScalarState(
+                recognizedText: primaryItem.BadgeLabel,
+                verdictBadge: primaryItem.IsPass ? "PASS" : "NG",
+                verdictAccent: primaryItem.IsPass ? "#34D399" : "#F87171",
+                confidencePercent: primaryItem.IsPass ? 90.0 : 25.0,
+                confidenceBadge: primaryItem.BadgeLabel,
+                polaritySummary: primaryItem.DetailLine,
+                preprocessingBadge: ParameterPreviewSummary,
+                imagesChanged: bitmapsChanged);
+        }
+
+        ApplyPpOcrTextToOcvExpectedText.Refresh();
+    }
+
+    private void SyncOcrLiveRoiItemsInPlace(ImmutableArray<InspectionSuiteItemResult> items)
+    {
+        for (int i = 0; i < items.Length; i++)
+        {
+            var item = items[i];
+            var diag = item.OcrDiagnostic;
+            string decoded = diag is not null && !string.IsNullOrWhiteSpace(diag.RecognizedText)
+                ? diag.RecognizedText.Replace("\n", " / ", StringComparison.Ordinal)
+                : item.BadgeLabel;
+            string confStr = diag is not null
+                ? $"{diag.MeanConfidence * 100.0f:F1}% (최소 {diag.MinConfidence * 100.0f:F0}%)"
+                : item.BadgeLabel;
+            string charCountStr = diag is not null
+                ? $"{diag.Characters.Length}글자 · {diag.Lines.Length}줄"
+                : "1줄";
+
+            var nextSummary = new OcrLiveRoiSummaryItem(
+                RoiId: item.RoiId,
+                RoiName: item.Name,
+                DecodedText: string.IsNullOrWhiteSpace(decoded) ? "(미검출)" : decoded,
+                ConfidenceBadge: confStr,
+                VerdictBadge: item.IsPass ? "PASS" : "NG",
+                VerdictAccent: item.IsPass ? "#34D399" : "#F87171",
+                CharacterCountBadge: charCountStr);
+
+            if (i < OcrLiveRoiItems.Count)
+            {
+                if (OcrLiveRoiItems[i] != nextSummary)
+                {
+                    OcrLiveRoiItems[i] = nextSummary;
+                }
+            }
+            else
+            {
+                OcrLiveRoiItems.Add(nextSummary);
+            }
+        }
+
+        while (OcrLiveRoiItems.Count > items.Length)
+        {
+            OcrLiveRoiItems.RemoveAt(OcrLiveRoiItems.Count - 1);
+        }
+    }
+
+    private static bool ArePixelBuffersEqual(
+        int prevW,
+        int prevH,
+        ImmutableArray<byte> prevPixels,
+        int nextW,
+        int nextH,
+        ImmutableArray<byte> nextPixels)
+    {
+        if (prevW != nextW || prevH != nextH || prevPixels.IsDefault || nextPixels.IsDefault || prevPixels.Length != nextPixels.Length)
+        {
+            return false;
+        }
+
+        return prevPixels.AsSpan().SequenceEqual(nextPixels.AsSpan());
+    }
+
+    private void ApplyOcrLiveScalarState(
+        string recognizedText,
+        string verdictBadge,
+        string verdictAccent,
+        double confidencePercent,
+        string confidenceBadge,
+        string polaritySummary,
+        string preprocessingBadge,
+        bool imagesChanged)
+    {
+        if (imagesChanged)
+        {
+            Notify(nameof(OcrEnhancedPreviewImage));
+            Notify(nameof(OcrBinarizedPreviewImage));
+            Notify(nameof(HasOcrLivePreviewImages));
+        }
+
+        if (!string.Equals(OcrLiveRecognizedText, recognizedText, StringComparison.Ordinal))
+        {
+            OcrLiveRecognizedText = recognizedText;
+            Notify(nameof(OcrLiveRecognizedText));
+        }
+
+        if (!string.Equals(OcrLiveVerdictBadge, verdictBadge, StringComparison.Ordinal))
+        {
+            OcrLiveVerdictBadge = verdictBadge;
+            Notify(nameof(OcrLiveVerdictBadge));
+        }
+
+        if (!string.Equals(OcrLiveVerdictAccent, verdictAccent, StringComparison.Ordinal))
+        {
+            OcrLiveVerdictAccent = verdictAccent;
+            Notify(nameof(OcrLiveVerdictAccent));
+        }
+
+        if (Math.Abs(OcrLiveConfidencePercent - confidencePercent) > 1e-4)
+        {
+            OcrLiveConfidencePercent = confidencePercent;
+            Notify(nameof(OcrLiveConfidencePercent));
+        }
+
+        if (!string.Equals(OcrLiveConfidenceBadge, confidenceBadge, StringComparison.Ordinal))
+        {
+            OcrLiveConfidenceBadge = confidenceBadge;
+            Notify(nameof(OcrLiveConfidenceBadge));
+        }
+
+        if (!string.Equals(OcrLivePolarityAndCharSummary, polaritySummary, StringComparison.Ordinal))
+        {
+            OcrLivePolarityAndCharSummary = polaritySummary;
+            Notify(nameof(OcrLivePolarityAndCharSummary));
+        }
+
+        if (!string.Equals(OcrLivePreprocessingBadge, preprocessingBadge, StringComparison.Ordinal))
+        {
+            OcrLivePreprocessingBadge = preprocessingBadge;
+            Notify(nameof(OcrLivePreprocessingBadge));
+        }
+    }
+
+    private static BitmapSource? CreateGrayWriteableBitmap(int width, int height, ImmutableArray<byte> pixels)
+    {
+        if (width <= 0 || height <= 0 || pixels.IsDefaultOrEmpty || pixels.Length < width * height)
+        {
+            return null;
+        }
+
+        byte[] raw = pixels.ToArray();
+        var bmp = BitmapSource.Create(
+            width,
+            height,
+            96.0,
+            96.0,
+            PixelFormats.Gray8,
+            null,
+            raw,
+            width);
+        bmp.Freeze();
+        return bmp;
+    }
+
+    private static BitmapSource? CreateBgraWriteableBitmap(int width, int height, ImmutableArray<byte> pixels)
+    {
+        int stride = width * 4;
+        if (width <= 0 || height <= 0 || pixels.IsDefaultOrEmpty || pixels.Length < stride * height)
+        {
+            return null;
+        }
+
+        byte[] raw = pixels.ToArray();
+        var bmp = BitmapSource.Create(
+            width,
+            height,
+            96.0,
+            96.0,
+            PixelFormats.Bgra32,
+            null,
+            raw,
+            stride);
+        bmp.Freeze();
+        return bmp;
     }
 
     private void CancelLivePreview()
@@ -2066,7 +2748,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         string verdictBadge = item.IsPass ? "PASS" : "NG";
         string verdictAccent = item.IsPass ? "#34D399" : "#F87171";
         string scoreSummary = item.BadgeLabel;
-        string poseSummary = $"X={item.ReferencePoint.X:F1}, Y={item.ReferencePoint.Y:F1} · {item.DetailLine}";
+        double angleDeg = item.AngleRadians * (180.0 / Math.PI);
+        string poseSummary = $"X={item.ReferencePoint.X:F1}, Y={item.ReferencePoint.Y:F1}, θ={angleDeg:F2}° · {item.DetailLine}";
         BoundsD? bounds = item.Bounds.IsEmpty ? null : BoundsD.FromPoints(item.Bounds);
 
         if (item.RoiId != Guid.Empty)
@@ -2124,23 +2807,9 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         CornerApexIgnoreMargin: _cornerApexIgnoreMargin,
         CornerRansacThresholdPixels: _cornerRansacThresholdPixels,
         CornerOrthogonalityToleranceDeg: _cornerOrthogonalityToleranceDeg,
-        OcrAcceptThreshold: _ocrAcceptThreshold,
-        OcrMinQualityScore: _ocrMinQualityScore,
-        OcrForegroundContrast: _ocrForegroundContrast,
-        OcrExpectedCharPitch: _ocrExpectedCharPitch,
-        LightweightOcrBeamWidth: _lightweightOcrBeamWidth,
-        LightweightOcrColumnStride: _lightweightOcrColumnStride,
-        LightweightOcrMinConfidence: _lightweightOcrMinConfidence,
         AutoTeachMinGeometricScore: _autoTeachMinGeometricScore,
         AutoTeachMinAppearanceCosine: _autoTeachMinAppearanceCosine,
         AutoTeachMaxMahalanobis: _autoTeachMaxMahalanobis,
-        OcrDotClosingRadius: _ocrDotClosingRadius,
-        LightweightOcrContrastOffset: _lightweightOcrContrastOffset,
-        DeepOcrSuperResScale: _deepOcrSuperResScale,
-        DeepOcrUnsharpGain: _deepOcrUnsharpGain,
-        DeepOcrEnsembleBeamWidth: _deepOcrEnsembleBeamWidth,
-        DeepOcrContrastOffset: _deepOcrContrastOffset,
-        DeepOcrMinConfidence: _deepOcrMinConfidence,
         ShadingTargetBaseGray: _shadingTargetBaseGray,
         AnisotropicDiffusionKappa: _anisotropicDiffusionKappa,
         ReconstructionMarkerRadius: _reconstructionMarkerRadius,
@@ -2163,7 +2832,490 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         GdtAngleToleranceDeg: _gdtAngleToleranceDeg,
         GdtConcentricityLimitPx: _gdtConcentricityLimitPx,
         GdtDistanceTolerancePx: _gdtDistanceTolerancePx,
-        GdtGradientThreshold: _gdtGradientThreshold);
+        GdtGradientThreshold: _gdtGradientThreshold,
+        OcrAllowedCharacters: _ocrAllowedCharacters,
+        PpOcrMinConfidence: _ppOcrMinConfidence,
+        PpOcrLanguageMode: _ppOcrLanguageMode,
+        PpOcrPolarity: _ppOcrPolarity,
+        PpOcrPipeline: _ppOcrPipeline,
+        PpOcrPreset: _ppOcrPreset);
+
+    private bool TryGetSelectedOrPrimaryPpOcrText(out string text)
+    {
+        text = string.Empty;
+        if (LastOutput is not { } output || output.Items.IsDefaultOrEmpty)
+        {
+            return false;
+        }
+
+        var selectedIds = _state.Selection;
+        foreach (var item in output.Items)
+        {
+            if (selectedIds.Contains(item.RoiId)
+                && item.OcrDiagnostic is { } diag
+                && !string.IsNullOrWhiteSpace(diag.RecognizedText))
+            {
+                text = NormalizeRecognizedTextForOcv(diag.RecognizedText);
+                return text.Length > 0;
+            }
+        }
+
+        foreach (var item in output.Items)
+        {
+            if (item.OcrDiagnostic is { } diag && !string.IsNullOrWhiteSpace(diag.RecognizedText))
+            {
+                text = NormalizeRecognizedTextForOcv(diag.RecognizedText);
+                return text.Length > 0;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeRecognizedTextForOcv(string raw)
+    {
+        string singleLine = raw.Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Replace("\n", " ", StringComparison.Ordinal)
+            .Trim();
+        return singleLine;
+    }
+
+    private void CopyRecognizedPpOcrTextToOcvExpectedText()
+    {
+        if (!TryGetSelectedOrPrimaryPpOcrText(out string recognized))
+        {
+            return;
+        }
+
+        SelectedRoiOcvExpectedText = recognized;
+        Status = $"PP-OCRv4 판독 문자열 '{recognized}'을(를) 선택 ROI의 OCV 기대 문자열로 채웠습니다.";
+        Notify(nameof(Status));
+    }
+
+    private void SyncSelectedRoiOcvSettingsFromState()
+    {
+        var selectedLeaves = GetSelectedLeafRois();
+        string expected = selectedLeaves.Count > 0 ? selectedLeaves[0].Ocv.ExpectedText : string.Empty;
+        string mask = selectedLeaves.Count > 0 ? selectedLeaves[0].Ocv.FormatMask : string.Empty;
+        _syncingRoiOcvFields = true;
+        try
+        {
+            Set(ref _selectedRoiOcvExpectedText, expected, nameof(SelectedRoiOcvExpectedText));
+            Set(ref _selectedRoiOcvFormatMask, mask, nameof(SelectedRoiOcvFormatMask));
+        }
+        finally
+        {
+            _syncingRoiOcvFields = false;
+        }
+    }
+
+    private void CommitSelectedRoiOcvSettings()
+    {
+        var ids = GetSelectedLeafRois().Select(static roi => roi.Id).ToArray();
+        if (ids.Length > 0)
+        {
+            RoiOcvSettingsChangeRequested?.Invoke(ids, new RoiOcvSettings(_selectedRoiOcvExpectedText, _selectedRoiOcvFormatMask));
+        }
+    }
+
+    private async Task TeachSelectedRoiOcvFontAsync()
+    {
+        if (_ocvService is null || _image is not { } image)
+        {
+            return;
+        }
+
+        var selectedRois = GetSelectedLeafRois();
+        if (selectedRois.Count == 0)
+        {
+            PresentWarning("골든 폰트를 티칭할 기준 리프 ROI를 먼저 선택해 주세요.");
+            return;
+        }
+
+        string expectedText = _selectedRoiOcvExpectedText;
+        if (string.IsNullOrWhiteSpace(expectedText))
+        {
+            expectedText = selectedRois[0].Ocv.ExpectedText;
+        }
+
+        var targetInput = ToRoiInput(selectedRois[0], classLabel: 0);
+        long epoch = ++_epoch;
+        CancelLivePreview();
+        using var cts = BeginBusy($"골든 폰트 티칭 중… ({targetInput.Name})");
+        try
+        {
+            OcvTeachingOutcome outcome = await _ocvService.TeachFromRoiAsync(
+                image,
+                _live,
+                targetInput,
+                expectedText,
+                _selectedOcvPolarity,
+                _ocvForegroundContrast,
+                _ocvAppendTeachMode,
+                cts.Token);
+
+            if (epoch != _epoch || _disposed)
+            {
+                return;
+            }
+
+            if (outcome.IsSuccess)
+            {
+                OcvLastVerdictBadge = "TEACH OK";
+                OcvLastVerdictAccent = TaughtFontOcvService.AccentOk;
+                Status = outcome.StatusSummary;
+                Results = $"{outcome.StatusSummary}\n극성={outcome.PolarityTag} · 조치 안내: {outcome.RecommendedAction}";
+            }
+            else
+            {
+                OcvLastVerdictBadge = "TEACH 거부";
+                OcvLastVerdictAccent = TaughtFontOcvService.AccentReview;
+                Status = outcome.StatusSummary;
+                Results = $"{outcome.StatusSummary}\n원인: {outcome.FailureCause}\n권장 조치: {outcome.RecommendedAction}";
+            }
+
+            NotifyOcvStateChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            if (epoch == _epoch)
+            {
+                Status = "골든 폰트 티칭이 취소되었습니다.";
+                Notify(nameof(Status));
+            }
+        }
+        finally
+        {
+            EndBusy(cts);
+        }
+    }
+
+    private async Task VerifyRoisOcvAsync(bool selectedOnly)
+    {
+        if (_ocvService is null || _image is not { } image)
+        {
+            return;
+        }
+
+        if (!_ocvService.HasGoldenFont)
+        {
+            PresentWarning("등록된 골든 폰트가 없습니다. 먼저 기준 ROI에서 '폰트 티칭'을 실행하거나 폰트 파일을 불러오세요.");
+            return;
+        }
+
+        var selectedRois = selectedOnly ? GetSelectedLeafRois() : [];
+        var targetRois = selectedRois.Count > 0 ? selectedRois : GetAllLeafRois();
+        if (targetRois.Count == 0)
+        {
+            PresentWarning("OCV 검증할 리프 ROI가 없습니다.");
+            return;
+        }
+
+        var requests = new List<OcvRoiVerifyRequest>(targetRois.Count);
+        for (int i = 0; i < targetRois.Count; i++)
+        {
+            Roi roi = targetRois[i];
+            InspectionSuiteRoiInput input = ToRoiInput(roi, classLabel: 0);
+            string expected = !string.IsNullOrWhiteSpace(roi.Ocv.ExpectedText)
+                ? roi.Ocv.ExpectedText
+                : (selectedOnly ? _selectedRoiOcvExpectedText : string.Empty);
+            string mask = !string.IsNullOrWhiteSpace(roi.Ocv.FormatMask)
+                ? roi.Ocv.FormatMask
+                : (selectedOnly ? _selectedRoiOcvFormatMask : string.Empty);
+            requests.Add(new OcvRoiVerifyRequest(
+                input.RoiId,
+                input.Name,
+                input.Center,
+                input.Width,
+                input.Height,
+                input.AngleRadians,
+                input.Outline,
+                expected,
+                mask));
+        }
+
+        long epoch = ++_epoch;
+        CancelLivePreview();
+        using var cts = BeginBusy($"티칭 기반 OCV 인쇄 품질 검증 중… (ROI {requests.Count}개)");
+        try
+        {
+            ImmutableArray<OcvRoiInspectionItem> items = await _ocvService.VerifyRoisAsync(
+                image,
+                _live,
+                requests,
+                _selectedOcvPolarity,
+                _ocvForegroundContrast,
+                cts.Token);
+
+            if (epoch != _epoch || _disposed)
+            {
+                return;
+            }
+
+            ApplyOcvVerificationOutput(items);
+        }
+        catch (OperationCanceledException)
+        {
+            if (epoch == _epoch)
+            {
+                Status = "OCV 인쇄 품질 검증이 취소되었습니다.";
+                Notify(nameof(Status));
+            }
+        }
+        finally
+        {
+            EndBusy(cts);
+        }
+    }
+
+    private void ApplyOcvVerificationOutput(ImmutableArray<OcvRoiInspectionItem> items)
+    {
+        OcvVerificationItems.Clear();
+        int okCount = 0;
+        int reviewCount = 0;
+        int ngCount = 0;
+
+        foreach (var item in items)
+        {
+            OcvVerificationItems.Add(item);
+            switch (item.Verdict)
+            {
+                case OcvVerdictKind.Ok:
+                    okCount++;
+                    break;
+                case OcvVerdictKind.Review:
+                    reviewCount++;
+                    break;
+                default:
+                    ngCount++;
+                    break;
+            }
+
+            EmitOcvExecutionResult(item);
+        }
+
+        SelectedOcvVerificationItem = OcvVerificationItems.FirstOrDefault();
+
+        if (ngCount > 0)
+        {
+            OcvLastVerdictBadge = $"NG {ngCount}건";
+            OcvLastVerdictAccent = TaughtFontOcvService.AccentNg;
+        }
+        else if (reviewCount > 0)
+        {
+            OcvLastVerdictBadge = $"REVIEW {reviewCount}건 (경계 경고)";
+            OcvLastVerdictAccent = TaughtFontOcvService.AccentReview;
+        }
+        else
+        {
+            OcvLastVerdictBadge = $"OK {okCount}/{items.Length}";
+            OcvLastVerdictAccent = TaughtFontOcvService.AccentOk;
+        }
+
+        string summaryTitle = $"티칭 OCV 완료 · OK {okCount} / REVIEW(경고) {reviewCount} / NG(불량) {ngCount} (총 {items.Length}개)";
+        _overlay = BuildOcvResultOverlay(items, summaryTitle);
+        Status = summaryTitle;
+        Results = string.Join(
+            Environment.NewLine,
+            items.Select((item, idx) =>
+                $"[{idx + 1}] {item.RoiName} [{item.VerdictBadge}] 기대='{item.ExpectedText}' 관측='{item.DecodedText}' 평균={item.MeanScore:F3} 최소={item.MinScore:F3} · 원인={item.CauseSummary} · 조치={item.RecommendedAction}"));
+
+        NotifyOcvStateChanged();
+        Notify(nameof(Status));
+        Notify(nameof(Results));
+        Notify(nameof(Overlay));
+        Locate.Refresh();
+        Changed?.Invoke();
+    }
+
+    private static ResultOverlay BuildOcvResultOverlay(ImmutableArray<OcvRoiInspectionItem> items, string summaryTitle)
+    {
+        var markers = ImmutableArray.CreateBuilder<MatchMarker>(items.Length);
+        bool anyNg = false;
+        bool anyReview = false;
+
+        foreach (var item in items)
+        {
+            Vector4 markerColor = item.Verdict switch
+            {
+                OcvVerdictKind.Ok => PassColor,
+                OcvVerdictKind.Review => ReviewColor,
+                _ => FailColor
+            };
+            anyNg |= item.IsNg;
+            anyReview |= item.IsReview;
+
+            var diagGroups = ImmutableArray.CreateBuilder<DiagnosticPointGroup>();
+            if (!item.OkCharCenters.IsEmpty)
+            {
+                diagGroups.Add(new DiagnosticPointGroup(PassColor, item.OkCharCenters, HalfSize: 2.6));
+            }
+            if (!item.ReviewCharCenters.IsEmpty)
+            {
+                diagGroups.Add(new DiagnosticPointGroup(SecondaryFeatureColor, item.ReviewCharCenters, HalfSize: 2.8));
+            }
+            if (!item.NgCharCenters.IsEmpty)
+            {
+                diagGroups.Add(new DiagnosticPointGroup(DefectFeatureColor, item.NgCharCenters, HalfSize: 3.0));
+            }
+
+            markers.Add(new MatchMarker(
+                Bounds: item.Bounds,
+                ReferencePoint: item.ReferencePoint,
+                AngleRadians: item.AngleRadians,
+                Label: $"{item.RoiName}: {item.VerdictBadge} (min={item.MinScore:F2})",
+                Color: markerColor,
+                Features: item.OkCharCenters)
+            {
+                AdditionalContours = item.CharContours,
+                DiagnosticGroups = diagGroups.ToImmutable(),
+                KeyFeatures = item.OkCharCenters,
+                UnmatchedFeatures = item.NgCharCenters,
+                BoundsColor = markerColor,
+                BoundsThickness = 2.3
+            });
+        }
+
+        Vector4 summaryColor = anyNg ? FailColor : (anyReview ? ReviewColor : PassColor);
+        return new ResultOverlay(
+            Summary: summaryTitle,
+            Color: summaryColor,
+            SearchBoundary: [],
+            Matches: markers.MoveToImmutable(),
+            ShowFeatures: true);
+    }
+
+    private void EmitOcvExecutionResult(OcvRoiInspectionItem item)
+    {
+        InspectionVerdict verdict = item.Verdict switch
+        {
+            OcvVerdictKind.Ok => InspectionVerdict.Pass,
+            OcvVerdictKind.Review => InspectionVerdict.Review,
+            _ => InspectionVerdict.Fail
+        };
+
+        string badge = "티칭 OCV";
+        string accent = "#818CF8";
+        string scoreSummary = $"평균 {item.MeanScore:F3} / 최소 {item.MinScore:F3}";
+        double angleDeg = item.AngleRadians * (180.0 / Math.PI);
+        string poseSummary = $"기대='{item.ExpectedText}' 관측='{item.DecodedText}' · 원인={item.CauseSummary} · 조치={item.RecommendedAction} (X={item.ReferencePoint.X:F1}, Y={item.ReferencePoint.Y:F1}, θ={angleDeg:F1}°)";
+        BoundsD? bounds = item.Bounds.IsEmpty ? null : BoundsD.FromPoints(item.Bounds);
+
+        if (item.RoiId != Guid.Empty)
+        {
+            RoiAssignmentRecorded?.Invoke(new RoiAlgorithmAssignment(
+                RoiId: item.RoiId,
+                RoiName: item.RoiName,
+                Tool: InspectionToolKind.InspectionSuite,
+                PatternMethod: null,
+                SuiteAlgorithm: InspectionSuiteAlgorithmKind.PpOcrOnnx,
+                AlgorithmBadge: badge,
+                AlgorithmAccent: accent,
+                ParameterSummary: $"기대='{item.ExpectedText}' · 형식='{item.FormatMask}'",
+                VerdictBadge: item.VerdictBadge,
+                VerdictAccent: item.VerdictAccent,
+                LastResultSummary: $"{item.VerdictBadge} · {scoreSummary} · {item.CauseSummary}"));
+        }
+
+        StructuredLogRecorded?.Invoke(new StructuredInspectionLogEntry(
+            EntryId: Guid.NewGuid(),
+            Timestamp: DateTimeOffset.Now,
+            RoiId: item.RoiId == Guid.Empty ? null : item.RoiId,
+            RoiName: item.RoiName,
+            Tool: InspectionToolKind.InspectionSuite,
+            AlgorithmBadge: badge,
+            Verdict: verdict,
+            VerdictBadge: item.VerdictBadge,
+            VerdictAccent: item.VerdictAccent,
+            ScoreSummary: scoreSummary,
+            PoseSummary: poseSummary,
+            ElapsedMilliseconds: item.ElapsedMicroseconds / 1000.0,
+            TargetBounds: bounds));
+    }
+
+    private void SaveOcvFontModelFromDialog()
+    {
+        if (_ocvService is null || !_ocvService.HasGoldenFont || _selectOcvFontSavePath is null)
+        {
+            return;
+        }
+
+        string? savePath = _selectOcvFontSavePath.Invoke();
+        if (string.IsNullOrWhiteSpace(savePath))
+        {
+            return;
+        }
+
+        try
+        {
+            using var stream = File.Create(savePath);
+            _ocvService.SaveFontModel(stream);
+            Status = $"골든 폰트 저장 완료: {Path.GetFileName(savePath)} ({_ocvService.RegisteredCharactersSummary})";
+            Notify(nameof(Status));
+        }
+        catch (Exception ex)
+        {
+            PresentWarning($"골든 폰트 저장 실패: {ex.Message}");
+        }
+    }
+
+    private void LoadOcvFontModelFromDialog()
+    {
+        if (_ocvService is null || _selectOcvFontOpenPath is null)
+        {
+            return;
+        }
+
+        string? openPath = _selectOcvFontOpenPath.Invoke();
+        if (string.IsNullOrWhiteSpace(openPath))
+        {
+            return;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(openPath);
+            _ocvService.LoadFontModel(stream);
+            OcvLastVerdictBadge = "FONT LOADED";
+            OcvLastVerdictAccent = TaughtFontOcvService.AccentOk;
+            Status = $"골든 폰트 불러오기 완료: {Path.GetFileName(openPath)} ({_ocvService.RegisteredCharactersSummary})";
+            NotifyOcvStateChanged();
+            Notify(nameof(Status));
+        }
+        catch (Exception ex)
+        {
+            PresentWarning($"골든 폰트 불러오기 실패: {ex.Message}");
+        }
+    }
+
+    private void ClearOcvFontModelState()
+    {
+        if (_ocvService is null)
+        {
+            return;
+        }
+
+        _ocvService.ClearFontModel();
+        OcvVerificationItems.Clear();
+        SelectedOcvVerificationItem = null;
+        OcvLastVerdictBadge = "READY";
+        OcvLastVerdictAccent = "#38BDF8";
+        Status = "등록된 골든 폰트와 OCV 검증 결과를 초기화했습니다.";
+        NotifyOcvStateChanged();
+        Notify(nameof(Status));
+    }
+
+    private void NotifyOcvStateChanged()
+    {
+        Notify(nameof(HasGoldenOcvFont));
+        Notify(nameof(OcvFontStatusBadge));
+        Notify(nameof(OcvLastVerdictBadge));
+        Notify(nameof(OcvLastVerdictAccent));
+        Notify(nameof(HasOcvVerificationItems));
+        Notify(nameof(SelectedOcvCharacterItems));
+        Notify(nameof(HasSelectedOcvCharacterItems));
+        RefreshCommands();
+    }
 
     private bool HasSelectedLeafRoi()
     {
@@ -2331,6 +3483,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private void NotifyAlgorithmSelectionChanged()
     {
         RebuildRegisteredReferenceItems();
+        UpdateOcrDiagnosticViewState(LastOutput is { } outRes && outRes.Algorithm == _selectedAlgorithm ? outRes : null);
         Notify(nameof(SelectedAlgorithmHeaderTitle));
         Notify(nameof(AlgorithmDescription));
         Notify(nameof(AlgorithmUsageGuide));
@@ -2346,10 +3499,11 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         Notify(nameof(IsPatchAnomalySelected));
         Notify(nameof(IsCalibrationSelected));
         Notify(nameof(IsCornerAlignmentSelected));
-        Notify(nameof(IsIndustrialOcrOcvSelected));
-        Notify(nameof(IsLightweightOcrSelected));
         Notify(nameof(IsAutoTeachingSelected));
-        Notify(nameof(IsCpuDeepOcrSelected));
+        Notify(nameof(IsPpOcrOnnxSelected));
+        Notify(nameof(IsPpOcrWired));
+        Notify(nameof(PpOcrStatusBadge));
+        Notify(nameof(IsAnyOcrSelected));
         Notify(nameof(IsPreprocessingShadingSelected));
         Notify(nameof(IsAdvancedMetrologyEllipseSelected));
         Notify(nameof(IsAdvancedBlobWatershedSelected));
@@ -2393,11 +3547,13 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         LoadPatchAnomalySample.Refresh();
         LoadCalibrationSample.Refresh();
         LoadCornerAlignmentSample.Refresh();
-        LoadIndustrialOcrOcvSample.Refresh();
-        LoadLightweightOcrSample.Refresh();
+        LoadOcrOcvSample.Refresh();
         LoadAutoTeachingSample.Refresh();
+        ApplyPpOcrTextToOcvExpectedText.Refresh();
         SelectMetrologyCategory.Refresh();
         SelectSurface3DCategory.Refresh();
+        SelectOcrCategory.Refresh();
+        SelectBarcodeCategory.Refresh();
         SelectCodeOcrCategory.Refresh();
         SelectAiAutoTeachingCategory.Refresh();
         SelectPreprocessingCategory.Refresh();
@@ -2406,6 +3562,12 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         {
             option.SelectCommand?.Refresh();
         }
+        TeachSelectedRoiOcvFont.Refresh();
+        VerifySelectedRoiOcv.Refresh();
+        VerifyAllRoisOcv.Refresh();
+        SaveOcvFontModel.Refresh();
+        LoadOcvFontModel.Refresh();
+        ClearOcvFontModel.Refresh();
         Cancel.Refresh();
         Locate.Refresh();
     }

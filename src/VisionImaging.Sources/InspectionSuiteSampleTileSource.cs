@@ -994,14 +994,28 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
     {
         canvas.Fill(230);
 
-        // Render 2 exact ISO/IEC 16022 ECC 200 12x12 DataMatrix symbols (Data=5, ECC=7)
-        // Symbol 1 (Left, origin=240, 300, moduleSize=14 -> 168x168 px): Payload = "LOT26A" (encoded as L, O, T, 26, A -> 5 data codewords)
-        ReadOnlySpan<byte> symbol1Codewords = [77, 80, 85, 156, 66, 224, 157, 250, 129, 255, 29, 136];
-        RenderPrecomputedEcc200Matrix12x12(canvas, width, height, originX: 240, originY: 300, moduleSize: 14, symbol1Codewords, darkGray: 24, lightGray: 230);
+        // Render exact ISO/IEC 16022 ECC 200 12x12 DataMatrix symbols (Data=5, ECC=7)
+        // Symbol 1 (Left, origin=240, 300, moduleSize=14 -> 168x168 px, 0.0 deg): Payload = "LOT26A"
+        ReadOnlySpan<byte> symbol1Data = [77, 80, 85, 156, 66];
+        RenderPrecomputedEcc200Matrix12x12(canvas, width, height, originX: 240, originY: 300, moduleSize: 14, symbol1Data, darkGray: 24, lightGray: 230);
 
-        // Symbol 2 (Right, origin=760, 300, moduleSize=14 -> 168x168 px): Payload = "OK9912" (encoded as O, K, 99, 12, PAD -> 5 data codewords)
-        ReadOnlySpan<byte> symbol2Codewords = [80, 76, 229, 142, 129, 240, 146, 54, 179, 211, 211, 149];
-        RenderPrecomputedEcc200Matrix12x12(canvas, width, height, originX: 760, originY: 300, moduleSize: 14, symbol2Codewords, darkGray: 28, lightGray: 230);
+        // Symbol 2 (Right, origin=760, 300, moduleSize=14 -> 168x168 px, 0.0 deg): Payload = "OK9912"
+        ReadOnlySpan<byte> symbol2Data = [80, 76, 229, 142, 129];
+        RenderPrecomputedEcc200Matrix12x12(canvas, width, height, originX: 760, originY: 300, moduleSize: 14, symbol2Data, darkGray: 28, lightGray: 230);
+
+        // Symbol 3 (Bottom-Center, center=584, 656, moduleSize=10 -> 120x120 px, +22.5 deg): Payload = "ROT23" (R=83, O=80, T=85, 23=153, PAD=129)
+        ReadOnlySpan<byte> symbol3Data = [83, 80, 85, 153, 129];
+        RenderRotatedPrecomputedEcc200Matrix12x12(
+            canvas,
+            width,
+            height,
+            centerX: 584.0f,
+            centerY: 656.0f,
+            moduleSize: 10.0f,
+            angleRad: 22.5f * (MathF.PI / 180.0f),
+            symbol3Data,
+            darkGray: 26,
+            lightGray: 230);
     }
 
     private static void RenderPrecomputedEcc200Matrix12x12(
@@ -1011,12 +1025,19 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
         int originX,
         int originY,
         int moduleSize,
-        ReadOnlySpan<byte> codewords12,
+        ReadOnlySpan<byte> dataCodewords5,
         byte darkGray,
         byte lightGray)
     {
         const int symbolSize = 12;
         const int mapSize = 10;
+        const int dataCount = 5;
+        const int eccCount = 7;
+
+        Span<byte> codewords12 = stackalloc byte[dataCount + eccCount];
+        dataCodewords5.Slice(0, dataCount).CopyTo(codewords12);
+        ComputeEcc200ReedSolomon7(dataCodewords5.Slice(0, dataCount), codewords12.Slice(dataCount, eccCount));
+
         Span<int> bitMap = stackalloc int[mapSize * mapSize];
         BuildUtahMap10x10(bitMap);
 
@@ -1024,27 +1045,7 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
         {
             for (int c = 0; c < symbolSize; c++)
             {
-                bool isDark;
-                if (r == symbolSize - 1 || c == 0)
-                {
-                    isDark = true;
-                }
-                else if (r == 0)
-                {
-                    isDark = (c & 1) == 0;
-                }
-                else if (c == symbolSize - 1)
-                {
-                    isDark = ((symbolSize - 1 - r) & 1) == 0;
-                }
-                else
-                {
-                    int bitIdx = bitMap[((r - 1) * mapSize) + (c - 1)];
-                    int cwIdx = (bitIdx - 1) / 8;
-                    int bitPos = 7 - ((bitIdx - 1) % 8);
-                    isDark = cwIdx < codewords12.Length && ((codewords12[cwIdx] >> bitPos) & 1) != 0;
-                }
-
+                bool isDark = IsEcc200DarkModule12x12(r, c, bitMap, codewords12);
                 byte val = isDark ? darkGray : lightGray;
                 int py0 = originY + (r * moduleSize);
                 int px0 = originX + (c * moduleSize);
@@ -1060,6 +1061,174 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
                     }
                 }
             }
+        }
+    }
+
+    private static void RenderRotatedPrecomputedEcc200Matrix12x12(
+        Span<byte> canvas,
+        int width,
+        int height,
+        float centerX,
+        float centerY,
+        float moduleSize,
+        float angleRad,
+        ReadOnlySpan<byte> dataCodewords5,
+        byte darkGray,
+        byte lightGray)
+    {
+        const int symbolSize = 12;
+        const int mapSize = 10;
+        const int dataCount = 5;
+        const int eccCount = 7;
+
+        Span<byte> codewords12 = stackalloc byte[dataCount + eccCount];
+        dataCodewords5.Slice(0, dataCount).CopyTo(codewords12);
+        ComputeEcc200ReedSolomon7(dataCodewords5.Slice(0, dataCount), codewords12.Slice(dataCount, eccCount));
+
+        Span<int> bitMap = stackalloc int[mapSize * mapSize];
+        BuildUtahMap10x10(bitMap);
+
+        Span<bool> darkGrid = stackalloc bool[symbolSize * symbolSize];
+        for (int r = 0; r < symbolSize; r++)
+        {
+            for (int c = 0; c < symbolSize; c++)
+            {
+                darkGrid[(r * symbolSize) + c] = IsEcc200DarkModule12x12(r, c, bitMap, codewords12);
+            }
+        }
+
+        float symSpan = symbolSize * moduleSize;
+        float halfSpan = symSpan * 0.5f;
+        float quiet = moduleSize * 1.4f;
+        float radius = MathF.Sqrt(2.0f * (halfSpan + quiet) * (halfSpan + quiet)) + 2.0f;
+        int minX = Math.Max(0, (int)MathF.Floor(centerX - radius));
+        int maxX = Math.Min(width - 1, (int)MathF.Ceiling(centerX + radius));
+        int minY = Math.Max(0, (int)MathF.Floor(centerY - radius));
+        int maxY = Math.Min(height - 1, (int)MathF.Ceiling(centerY + radius));
+
+        (float sinA, float cosA) = MathF.SinCos(angleRad);
+        const int subDiv = 4;
+        const float subStep = 1.0f / subDiv;
+        const float invSamples = 1.0f / (subDiv * subDiv);
+
+        for (int py = minY; py <= maxY; py++)
+        {
+            Span<byte> row = canvas.Slice(py * width, width);
+            for (int px = minX; px <= maxX; px++)
+            {
+                byte bg = row[px];
+                float sum = 0.0f;
+                bool touched = false;
+                for (int sy = 0; sy < subDiv; sy++)
+                {
+                    float wy = py + ((sy + 0.5f) * subStep);
+                    float dy = wy - centerY;
+                    for (int sx = 0; sx < subDiv; sx++)
+                    {
+                        float wx = px + ((sx + 0.5f) * subStep);
+                        float dx = wx - centerX;
+                        float lu = (dx * cosA) + (dy * sinA) + halfSpan;
+                        float lv = (-dx * sinA) + (dy * cosA) + halfSpan;
+                        if (lu >= 0.0f && lu < symSpan && lv >= 0.0f && lv < symSpan)
+                        {
+                            touched = true;
+                            int col = Math.Clamp((int)(lu / moduleSize), 0, symbolSize - 1);
+                            int rIdx = Math.Clamp((int)(lv / moduleSize), 0, symbolSize - 1);
+                            sum += darkGrid[(rIdx * symbolSize) + col] ? darkGray : lightGray;
+                        }
+                        else if (lu >= -quiet && lu <= symSpan + quiet && lv >= -quiet && lv <= symSpan + quiet)
+                        {
+                            touched = true;
+                            sum += lightGray;
+                        }
+                        else
+                        {
+                            sum += bg;
+                        }
+                    }
+                }
+
+                if (touched)
+                {
+                    row[px] = (byte)Math.Clamp((int)MathF.Round(sum * invSamples), 0, 255);
+                }
+            }
+        }
+    }
+
+    private static bool IsEcc200DarkModule12x12(int r, int c, ReadOnlySpan<int> bitMap, ReadOnlySpan<byte> codewords12)
+    {
+        const int symbolSize = 12;
+        const int mapSize = 10;
+        if (r == symbolSize - 1 || c == 0)
+        {
+            return true;
+        }
+        if (r == 0)
+        {
+            return (c & 1) == 0;
+        }
+        if (c == symbolSize - 1)
+        {
+            return ((symbolSize - 1 - r) & 1) == 0;
+        }
+
+        int bitIdx = bitMap[((r - 1) * mapSize) + (c - 1)];
+        if (bitIdx <= 0)
+        {
+            return false;
+        }
+
+        int cwIdx = (bitIdx - 1) / 8;
+        int bitPos = 7 - ((bitIdx - 1) % 8);
+        return cwIdx < codewords12.Length && ((codewords12[cwIdx] >> bitPos) & 1) != 0;
+    }
+
+    private static void ComputeEcc200ReedSolomon7(ReadOnlySpan<byte> data, Span<byte> eccOut)
+    {
+        const int gfPoly = 301;
+        Span<byte> exp = stackalloc byte[512];
+        Span<byte> log = stackalloc byte[256];
+        int val = 1;
+        for (int i = 0; i < 255; i++)
+        {
+            exp[i] = (byte)val;
+            exp[i + 255] = (byte)val;
+            log[val] = (byte)i;
+            val <<= 1;
+            if (val >= 256)
+            {
+                val ^= gfPoly;
+            }
+        }
+        log[0] = 0;
+
+        static byte GfMul(byte a, byte b, ReadOnlySpan<byte> expTbl, ReadOnlySpan<byte> logTbl)
+            => (a == 0 || b == 0) ? (byte)0 : expTbl[logTbl[a] + logTbl[b]];
+
+        int eccCount = eccOut.Length;
+        Span<byte> gen = stackalloc byte[eccCount + 1];
+        gen.Clear();
+        gen[0] = 1;
+        for (int i = 1; i <= eccCount; i++)
+        {
+            byte root = exp[i];
+            for (int j = i; j >= 1; j--)
+            {
+                gen[j] = (byte)(gen[j - 1] ^ GfMul(gen[j], root, exp, log));
+            }
+            gen[0] = GfMul(gen[0], root, exp, log);
+        }
+
+        eccOut.Clear();
+        for (int i = 0; i < data.Length; i++)
+        {
+            byte feedback = (byte)(data[i] ^ eccOut[0]);
+            for (int j = 0; j < eccCount - 1; j++)
+            {
+                eccOut[j] = (byte)(eccOut[j + 1] ^ GfMul(feedback, gen[eccCount - 1 - j], exp, log));
+            }
+            eccOut[eccCount - 1] = GfMul(feedback, gen[0], exp, log);
         }
     }
 
@@ -1202,6 +1371,16 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
         canvas.Fill(236);
         RenderCode128SymbolInScene(canvas, width, height, "LOT26A", barLeftX: 110, barTopY: 290, barHeight: 190, moduleWidthPx: 3);
         RenderCode128SymbolInScene(canvas, width, height, "OK99", barLeftX: 690, barTopY: 290, barHeight: 190, moduleWidthPx: 3);
+        RenderRotatedCode128SymbolInScene(
+            canvas,
+            width,
+            height,
+            payload: "ANG18",
+            centerX: 600.0f,
+            centerY: 648.0f,
+            barHeight: 108.0f,
+            moduleWidthPx: 3.0f,
+            angleRad: -18.0f * (MathF.PI / 180.0f));
     }
 
     private static void RenderCode128SymbolInScene(
@@ -1269,6 +1448,130 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
                     }
                 }
                 cursorX += pxW;
+            }
+        }
+    }
+
+    private static void RenderRotatedCode128SymbolInScene(
+        Span<byte> canvas,
+        int width,
+        int height,
+        string payload,
+        float centerX,
+        float centerY,
+        float barHeight,
+        float moduleWidthPx,
+        float angleRad)
+    {
+        ReadOnlySpan<int> patterns =
+        [
+            212222, 222122, 222221, 121223, 121322, 131222, 122213, 122312, 132212, 221213,
+            221312, 231212, 112232, 122132, 122231, 113222, 123122, 123221, 223211, 221132,
+            221231, 213212, 223112, 312131, 311222, 321122, 321221, 312212, 322112, 322211,
+            212123, 212321, 232121, 111323, 131123, 131321, 112313, 132113, 132311, 211313,
+            231113, 231311, 112133, 112331, 132131, 113123, 113321, 133121, 313121, 211331,
+            231131, 213113, 213311, 213131, 311123, 311321, 331121, 312113, 312311, 332111,
+            314111, 221411, 431111, 111224, 111422, 121124, 121421, 141122, 141221, 112214,
+            112412, 122114, 122411, 142112, 142211, 241211, 221114, 413111, 241112, 134111,
+            111242, 121142, 121241, 114212, 124112, 124211, 411212, 421112, 421211, 212141,
+            214121, 412121, 111143, 111341, 131141, 114113, 114311, 411113, 411311, 113141,
+            114131, 311141, 411131, 211412, 211214, 211232, 233111
+        ];
+
+        Span<int> codes = stackalloc int[payload.Length + 3];
+        codes[0] = 104;
+        int checksum = 104;
+        for (int i = 0; i < payload.Length; i++)
+        {
+            int val = Math.Clamp(payload[i] - 32, 0, 94);
+            codes[i + 1] = val;
+            checksum += val * (i + 1);
+        }
+        codes[payload.Length + 1] = checksum % 103;
+        codes[payload.Length + 2] = 106;
+
+        int totalModules = ((codes.Length - 1) * 11) + 13;
+        Span<bool> moduleDark = stackalloc bool[totalModules];
+        Span<int> widths = stackalloc int[7];
+        int modCursor = 0;
+        for (int c = 0; c < codes.Length; c++)
+        {
+            int pat = patterns[codes[c]];
+            for (int e = 5; e >= 0; e--)
+            {
+                widths[e] = pat % 10;
+                pat /= 10;
+            }
+            int elemCount = c == codes.Length - 1 ? 7 : 6;
+            if (elemCount == 7) widths[6] = 2;
+
+            for (int e = 0; e < elemCount; e++)
+            {
+                bool isBar = (e & 1) == 0;
+                for (int m = 0; m < widths[e]; m++)
+                {
+                    moduleDark[modCursor++] = isBar;
+                }
+            }
+        }
+
+        float symW = totalModules * moduleWidthPx;
+        float halfW = symW * 0.5f;
+        float halfH = barHeight * 0.5f;
+        float quietU = moduleWidthPx * 11.0f;
+        float quietV = 8.0f;
+        float radius = MathF.Sqrt(((halfW + quietU) * (halfW + quietU)) + ((halfH + quietV) * (halfH + quietV))) + 2.0f;
+
+        int minX = Math.Max(0, (int)MathF.Floor(centerX - radius));
+        int maxX = Math.Min(width - 1, (int)MathF.Ceiling(centerX + radius));
+        int minY = Math.Max(0, (int)MathF.Floor(centerY - radius));
+        int maxY = Math.Min(height - 1, (int)MathF.Ceiling(centerY + radius));
+
+        (float sinA, float cosA) = MathF.SinCos(angleRad);
+        const int subDiv = 4;
+        const float subStep = 1.0f / subDiv;
+        const float invSamples = 1.0f / (subDiv * subDiv);
+
+        for (int py = minY; py <= maxY; py++)
+        {
+            Span<byte> row = canvas.Slice(py * width, width);
+            for (int px = minX; px <= maxX; px++)
+            {
+                byte bg = row[px];
+                float sum = 0.0f;
+                bool touched = false;
+                for (int sy = 0; sy < subDiv; sy++)
+                {
+                    float wy = py + ((sy + 0.5f) * subStep);
+                    float dy = wy - centerY;
+                    for (int sx = 0; sx < subDiv; sx++)
+                    {
+                        float wx = px + ((sx + 0.5f) * subStep);
+                        float dx = wx - centerX;
+                        float lu = (dx * cosA) + (dy * sinA) + halfW;
+                        float lv = (-dx * sinA) + (dy * cosA) + halfH;
+                        if (lu >= 0.0f && lu < symW && lv >= 0.0f && lv < barHeight)
+                        {
+                            touched = true;
+                            int mIdx = Math.Clamp((int)(lu / moduleWidthPx), 0, totalModules - 1);
+                            sum += moduleDark[mIdx] ? 22.0f : 236.0f;
+                        }
+                        else if (lu >= -quietU && lu <= symW + quietU && lv >= -quietV && lv <= barHeight + quietV)
+                        {
+                            touched = true;
+                            sum += 236.0f;
+                        }
+                        else
+                        {
+                            sum += bg;
+                        }
+                    }
+                }
+
+                if (touched)
+                {
+                    row[px] = (byte)Math.Clamp((int)MathF.Round(sum * invSamples), 0, 255);
+                }
             }
         }
     }

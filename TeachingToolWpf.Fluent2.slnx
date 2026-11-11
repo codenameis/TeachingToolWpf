@@ -7,6 +7,7 @@
     <Project Path="src/VisionCanvas.Core/VisionCanvas.Core.csproj" />
     <Project Path="src/VisionCanvas.Filters.Wpf/VisionCanvas.Filters.Wpf.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
+    <Project Path="src/VisionOcr.PpOcr/VisionOcr.PpOcr.csproj" />
     <Project Path="src/VisionCompute.ILGPU/VisionCompute.ILGPU.csproj" />
     <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />

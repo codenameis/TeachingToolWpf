@@ -278,5 +278,55 @@ public sealed class HalconCognexExpansionSuiteTests
         Assert.Equal(12, cleanResult.SymbolCols);
         Assert.Equal('A', cleanResult.OverallIsoGrade);
         Assert.Equal(0, cleanResult.CorrectedByteErrors);
+        Assert.InRange(MathF.Abs(cleanResult.AngleRad), 0.0f, 0.01f);
+    }
+
+    [Theory]
+    [InlineData(0.0f)]
+    [InlineData(22.5f)]
+    [InlineData(-18.0f)]
+    [InlineData(90.0f)]
+    [InlineData(180.0f)]
+    public void DataMatrixEcc200Decoder_DecodesRotatedSymbol_AndRecoversTrueWorldAngle(float expectedAngleDeg)
+    {
+        const int dmWidth = 220;
+        const int dmHeight = 220;
+        const int dmStride = dmWidth + 3;
+        byte[] img = new byte[dmHeight * dmStride];
+        Array.Fill(img, (byte)232);
+
+        float expectedRad = expectedAngleDeg * (MathF.PI / 180.0f);
+        DataMatrixEcc200Decoder.RenderRotatedEcc200Symbol(
+            "ROT23",
+            img,
+            dmWidth,
+            dmHeight,
+            dmStride,
+            centerX: 110.0f,
+            centerY: 110.0f,
+            moduleSizePixels: 9.0f,
+            angleRad: expectedRad,
+            darkLevel: 24,
+            lightLevel: 232);
+
+        ReadOnlyImageView2D<byte> view = new(img, dmWidth, dmHeight, dmStride);
+        DataMatrixDecodeResult decoded = DataMatrixEcc200Decoder.Decode(view);
+
+        Assert.True(decoded.IsDecoded, $"Failed to decode rotated DataMatrix at {expectedAngleDeg:F1} deg");
+        Assert.Equal("ROT23", decoded.DecodedText);
+        Assert.InRange(MathF.Abs(decoded.CenterWorld.X - 110.0f), 0.0f, 2.5f);
+        Assert.InRange(MathF.Abs(decoded.CenterWorld.Y - 110.0f), 0.0f, 2.5f);
+
+        float actualDeg = decoded.AngleRad * (180.0f / MathF.PI);
+        float errDeg = MathF.Abs(WrapAngleDiffDeg(actualDeg, expectedAngleDeg));
+        Assert.True(errDeg <= 1.2f, $"Expected DataMatrix angle {expectedAngleDeg:F2} deg, actual {actualDeg:F2} deg (err={errDeg:F2} deg)");
+    }
+
+    private static float WrapAngleDiffDeg(float a, float b)
+    {
+        float d = (a - b) % 360.0f;
+        if (d > 180.0f) d -= 360.0f;
+        if (d <= -180.0f) d += 360.0f;
+        return d;
     }
 }

@@ -64,9 +64,21 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
 
         SelectMetrologyCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.MetrologyAndGeometry, InspectionSuiteAlgorithmKind.Metrology));
         SelectSurface3DCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.SurfaceBlobAnd3D, InspectionSuiteAlgorithmKind.BlobRle));
-        SelectCodeOcrCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.CodeAndOcr, InspectionSuiteAlgorithmKind.Barcode1DReader));
+        SelectOcrCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.Ocr, InspectionSuiteAlgorithmKind.PpOcrOnnx));
+        SelectBarcodeCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.Barcode1D2D, InspectionSuiteAlgorithmKind.Barcode1DReader));
+        SelectCodeOcrCategoryStage = SelectOcrCategoryStage;
         SelectAiAutoTeachingCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.AiAndAutoTeaching, InspectionSuiteAlgorithmKind.AutoTeaching));
         SelectPreprocessingCategoryStage = new RelayCommand(() => SelectSuiteCategoryStage(InspectionSuiteCategory.PreprocessingAndFrequency, InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon));
+
+        LoadOcrTest01 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(1), Studio.ReportError);
+        LoadOcrTest02 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(2), Studio.ReportError);
+        LoadOcrTest03 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(3), Studio.ReportError);
+        LoadOcrTest04 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(4), Studio.ReportError);
+        LoadOcrTest05 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(5), Studio.ReportError);
+        LoadOcrTest06 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(6), Studio.ReportError);
+        LoadOcrTest07 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(7), Studio.ReportError);
+        LoadOcrTest08 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(8), Studio.ReportError);
+        LoadOcrTest09 = new AsyncCommand(() => LoadOcrBenchmarkImageAsync(9), Studio.ReportError);
 
         SelectRectangleShape = new RelayCommand(() => SetDrawShape(RoiShapeKind.Rectangle));
         SelectCircleShape = new RelayCommand(() => SetDrawShape(RoiShapeKind.Circle));
@@ -162,7 +174,11 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
 
     public bool IsSurface3DCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.SurfaceBlobAnd3D;
 
-    public bool IsCodeOcrCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.CodeAndOcr;
+    public bool IsOcrCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.Ocr;
+
+    public bool IsBarcodeCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.Barcode1D2D;
+
+    public bool IsCodeOcrCategoryStage => IsOcrCategoryStage;
 
     public bool IsAiAutoTeachingCategoryStage => IsSuiteStage && Studio.Inspections.Suite?.SelectedCategory == InspectionSuiteCategory.AiAndAutoTeaching;
 
@@ -224,11 +240,33 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
 
     public RelayCommand SelectSurface3DCategoryStage { get; }
 
+    public RelayCommand SelectOcrCategoryStage { get; }
+
+    public RelayCommand SelectBarcodeCategoryStage { get; }
+
     public RelayCommand SelectCodeOcrCategoryStage { get; }
 
     public RelayCommand SelectAiAutoTeachingCategoryStage { get; }
 
     public RelayCommand SelectPreprocessingCategoryStage { get; }
+
+    public AsyncCommand LoadOcrTest01 { get; }
+
+    public AsyncCommand LoadOcrTest02 { get; }
+
+    public AsyncCommand LoadOcrTest03 { get; }
+
+    public AsyncCommand LoadOcrTest04 { get; }
+
+    public AsyncCommand LoadOcrTest05 { get; }
+
+    public AsyncCommand LoadOcrTest06 { get; }
+
+    public AsyncCommand LoadOcrTest07 { get; }
+
+    public AsyncCommand LoadOcrTest08 { get; }
+
+    public AsyncCommand LoadOcrTest09 { get; }
 
     public RelayCommand SelectRectangleShape { get; }
 
@@ -382,6 +420,215 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         MassiveRoiModelFile loaded = await Studio.LoadMassiveModelFromFileAsync(filePath);
         MassiveModelTelemetryBadge = $"로드됨: M{loaded.Header.ModelNumber:00} ({loaded.LoadElapsedMilliseconds:F1}ms · 1억 ROI)";
         return loaded;
+    }
+
+    public async Task LoadOcrBenchmarkImageAsync(int ocrNumber)
+    {
+        string fileName;
+        string title;
+        int width;
+        int height;
+        (double X, double Y, double W, double H, string Name)[] presetRois;
+
+        switch (ocrNumber)
+        {
+            case 1:
+                fileName = "ocr1.png";
+                title = "OCR1 · 영문 다중라인 (286×184)";
+                width = 286;
+                height = 184;
+                presetRois =
+                [
+                    (143, 92, 276, 176, "OCR1-전체(4줄)"),
+                    (143, 27, 260, 42, "OCR1-1행"),
+                    (143, 162, 260, 36, "OCR1-4행숫자")
+                ];
+                break;
+
+            case 2:
+                fileName = "ocr2.png";
+                title = "OCR2 · 영수증/청구서 비교 (3680×1352)";
+                width = 3680;
+                height = 1352;
+                presetRois =
+                [
+                    (790, 188, 740, 92, "OCR2-좌측제목"),
+                    (450, 476, 560, 48, "OCR2-좌측고객명"),
+                    (1264, 1072, 320, 56, "OCR2-좌측합계"),
+                    (785, 610, 1300, 1060, "OCR2-좌측전체영수증")
+                ];
+                break;
+
+            case 3:
+                fileName = "ocr3.png";
+                title = "OCR3 · 금속 캡 레이저 각인 (705×727)";
+                width = 705;
+                height = 727;
+                presetRois =
+                [
+                    (353, 375, 390, 130, "OCR3-레이저각인(2줄)"),
+                    (353, 342, 380, 52, "OCR3-상단영문"),
+                    (353, 405, 280, 52, "OCR3-하단일련번호")
+                ];
+                break;
+
+            case 4:
+                fileName = "ocr4.png";
+                title = "OCR4 · 감열식 영수증 (1085×1292)";
+                width = 1085;
+                height = 1292;
+                presetRois =
+                [
+                    (180, 52, 340, 56, "OCR4-매장번호"),
+                    (285, 156, 550, 56, "OCR4-주소행")
+                ];
+                break;
+
+            case 5:
+                fileName = "ocr5.png";
+                title = "OCR5 · 한글 자동차 번호판 (496×403)";
+                width = 496;
+                height = 403;
+                presetRois =
+                [
+                    (255, 191, 410, 84, "OCR5-한글번호판")
+                ];
+                break;
+
+            case 6:
+                fileName = "ocr6.jpg";
+                title = "OCR6 · 실전 마트 영수증 전체 19줄 (346×578)";
+                width = 346;
+                height = 578;
+                presetRois =
+                [
+                    (162, 250, 290, 490, "OCR6-영수증전체(19줄)"),
+                    (90, 319, 148, 124, "OCR6-합계블록"),
+                    (116, 455, 116, 56, "OCR6-하단승인블록")
+                ];
+                break;
+
+            case 8:
+                fileName = "expire.jpg";
+                title = "expire · 금속 캔 하단 도트매트릭스 유통기한 (526×701)";
+                width = 526;
+                height = 701;
+                presetRois =
+                [
+                    (258, 398, 240, 86, "expire-유통기한전체(2줄)"),
+                    (258, 382, 234, 44, "expire-1행날짜"),
+                    (263, 416, 194, 42, "expire-2행시간코드")
+                ];
+                break;
+
+            case 9:
+                fileName = "dotocr.jpg";
+                title = "dotocr · 5×7 도트매트릭스 유통기한 시편 (463×612)";
+                width = 463;
+                height = 612;
+                presetRois =
+                [
+                    (231, 68, 404, 52, "dotocr-1행영문"),
+                    (231, 211, 404, 52, "dotocr-제조일자행"),
+                    (231, 274, 404, 52, "dotocr-유통기한행"),
+                    (232, 352, 404, 50, "dotocr-하단문구행")
+                ];
+                break;
+
+            default:
+                fileName = "OCR7.jpg";
+                title = "OCR7 · 산업용 종합 테스트 타깃 (1024×572)";
+                width = 1024;
+                height = 572;
+                presetRois =
+                [
+                    (318, 51, 536, 26, "OCR7-상단타이틀"),
+                    (689, 151, 328, 22, "OCR7-도트매트릭스행"),
+                    (616, 360, 180, 22, "OCR7-저대비행"),
+                    (643, 468, 234, 20, "OCR7-손상문자행"),
+                    (645, 520, 236, 30, "OCR7-반전극성행"),
+                    (878, 516, 192, 46, "OCR7-물류라벨블록")
+                ];
+                break;
+        }
+
+        string? resolvedPath = ResolveWorkspaceFilePath(fileName);
+        if (resolvedPath is null)
+        {
+            SelectSuiteCategoryStage(InspectionSuiteCategory.Ocr, InspectionSuiteAlgorithmKind.PpOcrOnnx);
+            await Studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.PpOcrOnnx, placePresetRois: true);
+            return;
+        }
+
+        SelectSuiteCategoryStage(InspectionSuiteCategory.Ocr, InspectionSuiteAlgorithmKind.PpOcrOnnx);
+        await Studio.Images.ReplaceAsync(new VisionImaging.Abstractions.ImageReference(
+            resolvedPath,
+            title,
+            width,
+            height));
+
+        if (Studio.Session.State.Image?.Key != resolvedPath)
+        {
+            return;
+        }
+
+        List<Guid> targetIds = new List<Guid>(presetRois.Length);
+        foreach (var spec in presetRois)
+        {
+            Guid id = Studio.Session.Add(new RoiGeometry(new PointD(spec.X, spec.Y), spec.W, spec.H, 0.0));
+            Roi roi = Studio.Session.State.Rois[id];
+            Studio.Session.SetProperties(id, spec.Name, roi.Geometry, roi.SearchRange, true);
+            targetIds.Add(id);
+        }
+
+        if (targetIds.Count > 0)
+        {
+            Studio.Session.Select(targetIds);
+        }
+
+        Studio.Fit.Execute(null);
+
+        if (Studio.Inspections.Suite is { } suite)
+        {
+            InspectionSuiteAlgorithmKind activeOcrKind = suite.IsAnyOcrSelected
+                ? suite.SelectedAlgorithm
+                : InspectionSuiteAlgorithmKind.PpOcrOnnx;
+            suite.SelectedCategory = InspectionSuiteCategory.Ocr;
+            suite.SelectedAlgorithm = activeOcrKind;
+            Studio.Inspections.Selected = InspectionToolKind.InspectionSuite;
+            Studio.Inspections.Update(Studio.Session.State, Studio.Images.Generation, false, true);
+            Studio.Inspections.RecordPresetSuiteAssignments(Studio.Session.State, targetIds, activeOcrKind);
+
+            if (suite.ExecuteAllRois.CanExecute(null))
+            {
+                await suite.ExecuteAllRois.ExecuteAsync();
+            }
+        }
+
+        Studio.Status = $"{title} 이미지와 테스트 ROI {targetIds.Count}개를 불러와 OCR 판독을 실행했습니다.";
+    }
+
+    private static string? ResolveWorkspaceFilePath(string fileName)
+    {
+        DirectoryInfo? dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            string candidate = Path.Combine(dir.FullName, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            string assetsCandidate = Path.Combine(dir.FullName, "Assets", fileName);
+            if (File.Exists(assetsCandidate))
+            {
+                return assetsCandidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return null;
     }
 
     private void CopyLogsToClipboard()
@@ -605,6 +852,8 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         Notify(nameof(IsFilterMaskStage));
         Notify(nameof(IsMetrologyCategoryStage));
         Notify(nameof(IsSurface3DCategoryStage));
+        Notify(nameof(IsOcrCategoryStage));
+        Notify(nameof(IsBarcodeCategoryStage));
         Notify(nameof(IsCodeOcrCategoryStage));
         Notify(nameof(IsAiAutoTeachingCategoryStage));
         Notify(nameof(IsPreprocessingCategoryStage));

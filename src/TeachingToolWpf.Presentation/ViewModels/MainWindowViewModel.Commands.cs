@@ -187,6 +187,7 @@ public sealed partial class MainWindowViewModel
 
     public async Task LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind kind, bool placePresetRois = false)
     {
+        kind = InspectionSuiteService.NormalizeAlgorithmKind(kind);
         (string sceneSlug, string sampleTitle) = kind switch
         {
             InspectionSuiteAlgorithmKind.Metrology => ("metrology", "1. 서브픽셀 캘리퍼·직선·원 계측 합성 샘플 (1200×800)"),
@@ -197,10 +198,8 @@ public sealed partial class MainWindowViewModel
             InspectionSuiteAlgorithmKind.PatchAnomaly => ("padim", "6. PaDiM 공간 패치 이상 히트맵 합성 샘플 (1200×800)"),
             InspectionSuiteAlgorithmKind.Calibration => ("calibration", "7. 9-Point 핸드아이 호모그래피·왜곡 보정 샘플 (1200×800)"),
             InspectionSuiteAlgorithmKind.CornerAlignment => ("corner", "8. 2-Rake 서브픽셀 가상 코너·4코너 대각 정합 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.IndustrialOcrOcv => ("ocrocv", "9. 산업용 OCR·OCV 문자 품질 검증 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.LightweightOcr => ("lightocr", "10. 경량 고속 1-Pass 시퀀스 OCR 샘플 (1200×800)"),
             InspectionSuiteAlgorithmKind.AutoTeaching => ("autoteach", "11. 멀티파츠 풀 자동 인식·하위 ROI 자동 티칭 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.CpuDeepOcr => ("lightocr", "12. CPU 고속 딥러닝·신경망 OCR 샘플 (1200×800)"),
+            InspectionSuiteAlgorithmKind.PpOcrOnnx => ("ocrocv", "9. 통합 OCR / OCV (PP-OCRv4 범용 판독 · 티칭 OCV 품질 검증) 샘플 (1200×800)"),
             InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => ("preprocessing", "13. [전처리] 2D 다항식 조명 평탄화·비등방성 확산·재구성 샘플 (1200×800)"),
             InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => ("ellipse", "14. [본검사] 복합 스코어링 캘리퍼·Fitzgibbon 타원 피팅 샘플 (1200×800)"),
             InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => ("watershed", "15. [본검사] RLE 고급 형상·접촉 블롭 EDT 워터셰드 분리 샘플 (1200×800)"),
@@ -312,15 +311,9 @@ public sealed partial class MainWindowViewModel
                 targetIds.Add(AddNamedRoi(312.0, 548.0, 220, 220, -90.0, "코너 4 · 좌하단(BL) 모따기 가상코너"));
                 break;
 
-            case InspectionSuiteAlgorithmKind.IndustrialOcrOcv:
+            case InspectionSuiteAlgorithmKind.PpOcrOnnx:
                 targetIds.Add(AddNamedRoi(600.0, 260.0, 420, 64, 0.0, "레이저 연속 각인 (LOT-2026-A09)"));
                 targetIds.Add(AddNamedRoi(600.0, 520.0, 460, 64, 0.0, "도트 매트릭스 잉크젯 (EXP.2027.11.24)"));
-                break;
-
-            case InspectionSuiteAlgorithmKind.LightweightOcr:
-            case InspectionSuiteAlgorithmKind.CpuDeepOcr:
-                targetIds.Add(AddNamedRoi(600.0, 260.0, 480, 60, 0.0, "시퀀스 라인 1 (WAFER-094817-A2)"));
-                targetIds.Add(AddNamedRoi(600.0, 520.0, 440, 60, 0.0, "시퀀스 라인 2 (BATCH-7731-X9)"));
                 break;
 
             case InspectionSuiteAlgorithmKind.AutoTeaching:
@@ -356,8 +349,9 @@ public sealed partial class MainWindowViewModel
                 break;
 
             case InspectionSuiteAlgorithmKind.DataMatrix2DReader:
-                targetIds.Add(AddNamedRoi(324.0, 384.0, 210, 210, 0.0, "DataMatrix 1 (LOT26A · ECC 200)"));
-                targetIds.Add(AddNamedRoi(844.0, 384.0, 210, 210, 0.0, "DataMatrix 2 (OK9912 · ECC 200)"));
+                targetIds.Add(AddNamedRoi(324.0, 384.0, 210, 210, 0.0, "DataMatrix 1 (LOT26A · 0°)"));
+                targetIds.Add(AddNamedRoi(844.0, 384.0, 210, 210, 0.0, "DataMatrix 2 (OK9912 · 0°)"));
+                targetIds.Add(AddNamedRoi(584.0, 656.0, 196, 196, 0.0, "DataMatrix 3 (ROT23 · +22.5° 회전)"));
                 break;
 
             case InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor:
@@ -367,8 +361,9 @@ public sealed partial class MainWindowViewModel
                 break;
 
             case InspectionSuiteAlgorithmKind.Barcode1DReader:
-                targetIds.Add(AddNamedRoi(310.0, 385.0, 460, 220, 0.0, "1D 바코드 1 (LOT26A · Code 128B)"));
-                targetIds.Add(AddNamedRoi(855.0, 385.0, 390, 220, 0.0, "1D 바코드 2 (OK99 · Code 128B)"));
+                targetIds.Add(AddNamedRoi(310.0, 385.0, 460, 220, 0.0, "1D 바코드 1 (LOT26A · 0°)"));
+                targetIds.Add(AddNamedRoi(855.0, 385.0, 390, 220, 0.0, "1D 바코드 2 (OK99 · 0°)"));
+                targetIds.Add(AddNamedRoi(600.0, 648.0, 360, 210, 0.0, "1D 바코드 3 (ANG18 · -18.0° 회전)"));
                 break;
 
             case InspectionSuiteAlgorithmKind.PhotometricStereo:

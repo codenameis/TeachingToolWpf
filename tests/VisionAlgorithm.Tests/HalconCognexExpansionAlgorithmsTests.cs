@@ -115,6 +115,55 @@ public sealed class HalconCognexExpansionAlgorithmsTests
         Assert.Equal("Code 128B", result.Symbology);
         Assert.True(result.OverallGradeScore >= 3.0);
         Assert.StartsWith("A", result.IsoGradeLetter, StringComparison.Ordinal);
+        Assert.InRange(Math.Abs(result.AngleDeg), 0.0, 0.25);
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-18.0)]
+    [InlineData(22.5)]
+    [InlineData(90.0)]
+    [InlineData(180.0)]
+    public void Barcode1DDecoder_Code128B_MeasuresTrueRotationAngleAcrossQuadrants(double expectedAngleDeg)
+    {
+        const int width = 380;
+        const int height = 380;
+        byte[] canvas = new byte[width * height];
+        Array.Fill(canvas, (byte)238);
+
+        float expectedRad = (float)(expectedAngleDeg * (Math.PI / 180.0));
+        Barcode1DDecoder.RenderRotatedCode128Symbol(
+            canvas,
+            width,
+            height,
+            width,
+            payload: "ANG18",
+            centerX: 190.0f,
+            centerY: 190.0f,
+            barHeight: 112,
+            moduleWidthPx: 3.0f,
+            angleRad: expectedRad,
+            backgroundIntensity: 238,
+            barIntensity: 20);
+
+        Barcode1DDecodeResult result = Barcode1DDecoder.DecodeMultiScanline(canvas, width, height, width, scanlineCount: 9);
+
+        Assert.True(result.IsDecoded, $"Failed to decode rotated 1D barcode at {expectedAngleDeg:F1} deg");
+        Assert.True(result.IsChecksumValid);
+        Assert.Equal("ANG18", result.Payload);
+        Assert.InRange(Math.Abs(result.CenterX - 190.0), 0.0, 3.0);
+        Assert.InRange(Math.Abs(result.CenterY - 190.0), 0.0, 3.0);
+
+        double angleErrorDeg = Math.Abs(WrapAngleDiffDegrees(result.AngleDeg, expectedAngleDeg));
+        Assert.True(angleErrorDeg <= 1.2, $"Expected 1D barcode angle {expectedAngleDeg:F2} deg, actual {result.AngleDeg:F2} deg (err={angleErrorDeg:F2} deg)");
+    }
+
+    private static double WrapAngleDiffDegrees(double a, double b)
+    {
+        double d = (a - b) % 360.0;
+        if (d > 180.0) d -= 360.0;
+        if (d <= -180.0) d += 360.0;
+        return d;
     }
 
     [Fact]

@@ -12,7 +12,9 @@
 # 실행 / 배포 / 벤치마크 / 대용량 이미지 및 캐시 생성물
 # 재현용 소스, scripts/, docs/, licenses/는 추적합니다.
 artifacts/
+.artifacts_ocr_tmp/
 BenchmarkDotNet.Artifacts/
+models/
 
 # 161MB 현장 테스트 이미지는 로컬에만 보관 (2026-10-16 사용자 승인)
 /ken32.png

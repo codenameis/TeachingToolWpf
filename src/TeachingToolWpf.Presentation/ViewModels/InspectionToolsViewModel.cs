@@ -71,7 +71,7 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         if (suite is not null)
         {
             map[InspectionToolKind.InspectionSuite] = suite;
-            tools.Add(new(InspectionToolKind.InspectionSuite, "[티칭 4] 정밀 계측·외관·코드·전처리 스위트 (20종)"));
+            tools.Add(new(InspectionToolKind.InspectionSuite, "[티칭 4] 정밀 계측·외관·코드·전처리 스위트 (18종)"));
         }
         _previews = map;
         Tools = tools;
@@ -123,10 +123,12 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         SelectCategoryShapes = new RelayCommand(() => SelectUnifiedTeachingCategory(InspectionToolKind.PrimitiveShapes, null), () => IsIdle);
         SelectCategoryFewShot = new RelayCommand(() => SelectUnifiedTeachingCategory(InspectionToolKind.EdgeFewShot, null), () => IsIdle && FewShot is not null);
         SelectCategorySuiteMetrology = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.MetrologyAndGeometry, InspectionSuiteAlgorithmKind.Metrology), () => IsIdle && Suite is not null);
-        SelectCategorySuiteSurface = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.SurfaceBlobAnd3D, InspectionSuiteAlgorithmKind.BlobRle), () => IsIdle && Suite is not null);
-        SelectCategorySuiteCodeOcr = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.CodeAndOcr, InspectionSuiteAlgorithmKind.Barcode1DReader), () => IsIdle && Suite is not null);
+        SelectCategorySuiteSurface = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.SurfaceBlobAnd3D, InspectionSuiteAlgorithmKind.PhotometricStereo), () => IsIdle && Suite is not null);
+        SelectCategorySuiteOcr = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.Ocr, InspectionSuiteAlgorithmKind.PpOcrOnnx), () => IsIdle && Suite is not null);
+        SelectCategorySuiteBarcode = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.Barcode1D2D, InspectionSuiteAlgorithmKind.Barcode1DReader), () => IsIdle && Suite is not null);
+        SelectCategorySuiteCodeOcr = SelectCategorySuiteOcr;
         SelectCategorySuiteAiAutoTeaching = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.AiAndAutoTeaching, InspectionSuiteAlgorithmKind.AutoTeaching), () => IsIdle && Suite is not null);
-        SelectCategorySuitePreprocess = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.PreprocessingAndFrequency, InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon), () => IsIdle && Suite is not null);
+        SelectCategorySuitePreprocess = new RelayCommand(() => SelectSuiteCategory(InspectionSuiteCategory.PreprocessingAndFrequency, InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor), () => IsIdle && Suite is not null);
     }
 
     public event Action? Changed;
@@ -155,6 +157,8 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
     public RelayCommand SelectCategoryFewShot { get; }
     public RelayCommand SelectCategorySuiteMetrology { get; }
     public RelayCommand SelectCategorySuiteSurface { get; }
+    public RelayCommand SelectCategorySuiteOcr { get; }
+    public RelayCommand SelectCategorySuiteBarcode { get; }
     public RelayCommand SelectCategorySuiteCodeOcr { get; }
     public RelayCommand SelectCategorySuiteAiAutoTeaching { get; }
     public RelayCommand SelectCategorySuitePreprocess { get; }
@@ -888,6 +892,8 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         SelectCategoryFewShot.Refresh();
         SelectCategorySuiteMetrology.Refresh();
         SelectCategorySuiteSurface.Refresh();
+        SelectCategorySuiteOcr.Refresh();
+        SelectCategorySuiteBarcode.Refresh();
         SelectCategorySuiteCodeOcr.Refresh();
         SelectCategorySuiteAiAutoTeaching.Refresh();
         SelectCategorySuitePreprocess.Refresh();

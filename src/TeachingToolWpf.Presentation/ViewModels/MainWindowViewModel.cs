@@ -398,6 +398,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             suite.LocateRequested += LocateInspection;
             suite.SampleLoadRequested += RequestSuiteSampleLoad;
+            suite.RoiOcvSettingsChangeRequested += ApplyRoiOcvSettings;
         }
         Properties = new(Session);
         WireCommands(display);
@@ -1118,6 +1119,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Inspections.UpdatePreFilterStatus(Filters.PipelineSummaryText, hasEnabledSteps: !mapped.IsEmpty);
     }
 
+    private void ApplyRoiOcvSettings(IReadOnlyList<Guid> roiIds, RoiOcvSettings settings)
+    {
+        if (_disposed || roiIds.Count == 0)
+        {
+            return;
+        }
+
+        RunGuarded(() => Session.SetOcvSettings(roiIds, settings));
+    }
+
     public void SaveTeachingRecipeToDefaultFile()
     {
         var rois = new List<TeachingRecipeRoiEntry>();
@@ -1138,7 +1149,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 AngleDegrees: roi.Geometry.Angle,
                 SearchMarginPixels: roi.SearchRange?.Horizontal ?? 0.0,
                 PrimaryFilter: roi.Filter,
-                FilterPipeline: [.. roi.FilterPipeline]));
+                FilterPipeline: [.. roi.FilterPipeline],
+                OcvExpectedText: roi.Ocv.ExpectedText,
+                OcvFormatMask: roi.Ocv.FormatMask));
         }
 
         var doc = new TeachingRecipeDocument
@@ -1206,6 +1219,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             suite.LocateRequested -= LocateInspection;
             suite.SampleLoadRequested -= RequestSuiteSampleLoad;
+            suite.RoiOcvSettingsChangeRequested -= ApplyRoiOcvSettings;
         }
         Live.Changed -= Refresh;
         Images.Changed -= Refresh;

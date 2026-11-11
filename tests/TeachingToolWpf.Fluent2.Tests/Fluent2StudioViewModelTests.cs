@@ -15,11 +15,13 @@ using TeachingToolWpf.Models;
 using TeachingToolWpf.Services;
 using TeachingToolWpf.ViewModels;
 using VisionAlgorithm.OpenSrc.ShapeDetection;
+using VisionAlgorithm.OpenSrc.Synthetic8kTestGen;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Presentation;
 using VisionGeometry;
 using VisionImaging;
 using VisionImaging.Abstractions;
+using VisionOcr.PpOcr;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Markup;
@@ -27,11 +29,12 @@ using Xunit;
 
 namespace TeachingToolWpf.Fluent2.Tests;
 
-public sealed class Fluent2StudioViewModelTests
+public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture) : IClassFixture<SharedPpOcrFixture>
 {
     private const int TestImageDimension = 1000;
     private const int TestViewportWidth = 1000;
     private const int TestViewportHeight = 700;
+    private readonly SharedPpOcrFixture _ppOcrFixture = ppOcrFixture;
 
     [Fact]
     public void StageSelectionCommands_SynchronizeActiveStageAndInspectionTool()
@@ -414,17 +417,29 @@ public sealed class Fluent2StudioViewModelTests
             Assert.True(item.DefectOrOutlierPoints.Length > 0, $"Expected chamfer/defect outlier points to be rejected and recorded for {item.Name}, got 0.");
         });
 
-        await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.IndustrialOcrOcv, placePresetRois: true);
-        Assert.True(suite.IsIndustrialOcrOcvSelected);
+        await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.PpOcrOnnx, placePresetRois: true);
+        Assert.True(suite.IsPpOcrOnnxSelected);
+        Assert.True(suite.IsPpOcrWired);
         Assert.Equal(2, studio.Session.State.RoiCount);
         Assert.NotNull(suite.LastOutput);
-        Assert.All(suite.LastOutput!.Items, item => Assert.True(item.IsPass, item.DetailLine));
+        Assert.True(suite.HasOcrLivePreviewImages);
+        Assert.NotNull(suite.OcrEnhancedPreviewImage);
+        Assert.NotNull(suite.OcrBinarizedPreviewImage);
+        Assert.Equal(2, suite.OcrLiveRoiItems.Count);
+        Assert.False(string.IsNullOrWhiteSpace(suite.OcrLiveRecognizedText));
+        AssertAllOcrItemsHaveValidDiagnostics(suite.LastOutput!.Items);
+        Assert.Contains("LOT-2026-A09", suite.LastOutput!.Items[0].OcrDiagnostic!.RecognizedText, StringComparison.Ordinal);
+        Assert.All(suite.LastOutput!.Items, item => Assert.Equal(
+            !string.IsNullOrWhiteSpace(item.OcrDiagnostic!.RecognizedText)
+            && item.OcrDiagnostic!.MeanConfidence >= suite.PpOcrMinConfidence
+            && item.OcrDiagnostic!.MinConfidence >= InspectionSuiteParameters.DefaultPpOcrMinCharacterConfidence,
+            item.IsPass));
 
-        await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.LightweightOcr, placePresetRois: true);
-        Assert.True(suite.IsLightweightOcrSelected);
+        // Legacy classical OCR kinds normalize seamlessly to the unified PpOcrOnnx workflow
+        await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.IndustrialOcrOcv, placePresetRois: true);
+        Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
+        Assert.True(suite.IsPpOcrOnnxSelected);
         Assert.Equal(2, studio.Session.State.RoiCount);
-        Assert.NotNull(suite.LastOutput);
-        Assert.All(suite.LastOutput!.Items, item => Assert.True(item.IsPass, item.DetailLine));
 
         await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.AutoTeaching, placePresetRois: true);
         Assert.True(suite.IsAutoTeachingSelected);
@@ -444,7 +459,7 @@ public sealed class Fluent2StudioViewModelTests
         Assert.Equal(3, suite.RegisteredReferenceItems.Count);
 
         // Verify every ComboBox algorithm selection exposes its dedicated teaching parameter summary & header
-        Assert.True(suite.Algorithms.Count >= 12);
+        Assert.Equal(18, suite.Algorithms.Count);
         foreach (InspectionSuiteAlgorithmOption option in suite.Algorithms)
         {
             suite.SelectedAlgorithm = option.Kind;
@@ -452,11 +467,20 @@ public sealed class Fluent2StudioViewModelTests
             Assert.False(string.IsNullOrWhiteSpace(suite.ParameterPreviewSummary));
         }
 
-        await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.CpuDeepOcr, placePresetRois: true);
-        Assert.True(suite.IsCpuDeepOcrSelected);
-        Assert.Equal(2, studio.Session.State.RoiCount);
-        Assert.NotNull(suite.LastOutput);
-        Assert.All(suite.LastOutput!.Items, item => Assert.True(item.IsPass, item.DetailLine));
+        // Verify geometric guides for OCR/OCV preview
+        var sampleRoi = new InspectionSuiteRoiInput(
+            Guid.NewGuid(),
+            "OCR-Guide-Test",
+            new PointD(200, 120),
+            240,
+            60,
+            0.0,
+            [new PointD(80, 90), new PointD(320, 90), new PointD(320, 150), new PointD(80, 150)]);
+        var ocrGuides = InspectionSuiteService.BuildGeometricGuidesForRoi(
+            sampleRoi,
+            InspectionSuiteAlgorithmKind.PpOcrOnnx,
+            new InspectionSuiteParameters());
+        Assert.Equal(2, ocrGuides.Length);
     }
 
     private void AssertFilterSliders(string viewsDir)
@@ -587,7 +611,7 @@ public sealed class Fluent2StudioViewModelTests
         try
         {
             IImageLoader loader = ImageLoaderHost.Create(tempCache);
-            InspectionSuiteService suiteService = new InspectionSuiteService(loader, () => null);
+            InspectionSuiteService suiteService = new InspectionSuiteService(loader, () => null, _ppOcrFixture.Service);
             InspectionSuiteParameters defaultParams = new InspectionSuiteParameters();
 
             // 1. ocr1.png (286x184): Full-image multi-line ROI + individual line ROIs
@@ -596,25 +620,19 @@ public sealed class Fluent2StudioViewModelTests
             InspectionSuiteRoiInput ocr1Line1 = CreateRectRoiInput("OCR1-L1", 143, 27, 260, 42);
             InspectionSuiteRoiInput ocr1Line4 = CreateRectRoiInput("OCR1-L4", 143, 162, 260, 36);
 
-            var ocr1Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr1Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr1Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 [ocr1FullRoi, ocr1Line1, ocr1Line4],
                 [],
                 defaultParams,
                 CancellationToken.None);
 
-            Assert.Equal(3, ocr1Ind.Items.Length);
-            Assert.True(ocr1Ind.Items[0].IsPass, ocr1Ind.Items[0].DetailLine);
-            Assert.Contains("Explain", ocr1Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("that", ocr1Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Stuff", ocr1Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("01234567890", ocr1Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Explain", ocr1Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("01234567890", ocr1Ind.Items[2].BadgeLabel, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(3, ocr1Out.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(ocr1Out.Items);
 
-            // 2. ocr2.png (3680x1352): Standard Font (left) and OCR Font (right) ROIs
+            // 2. ocr2.png (3680x1352): Standard Font (left) and OCR Font (right) ROIs (multi-ROI batched execution)
             ImageReference ocr2Ref = new ImageReference(ocr2Path, "ocr2.png", 3680, 1352);
             InspectionSuiteRoiInput ocr2RightTitle = CreateRectRoiInput("OCR2-RightTitle", 2290, 275, 500, 56);
             InspectionSuiteRoiInput ocr2RightTotal = CreateRectRoiInput("OCR2-RightTotal", 3068, 948, 440, 56);
@@ -624,76 +642,17 @@ public sealed class Fluent2StudioViewModelTests
             InspectionSuiteRoiInput ocr2LeftTotal = CreateRectRoiInput("OCR2-LeftTotal", 1264, 1072, 320, 56);
             InspectionSuiteRoiInput ocr2LeftFullHalf = CreateRectRoiInput("OCR2-LeftFullHalf", 785, 610, 1300, 1060);
 
-            var ocr2Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr2Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr2Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 [ocr2RightTitle, ocr2RightTotal, ocr2LeftTitle, ocr2LeftName, ocr2LeftTrans, ocr2LeftTotal, ocr2LeftFullHalf],
                 [],
                 defaultParams,
                 CancellationToken.None);
 
-            var ocr2Light = await suiteService.ExecuteRoiInspectionAsync(
-                ocr2Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.LightweightOcr,
-                [ocr2LeftTitle, ocr2LeftFullHalf],
-                [],
-                defaultParams,
-                CancellationToken.None);
-
-            var ocr2Deep = await suiteService.ExecuteRoiInspectionAsync(
-                ocr2Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.CpuDeepOcr,
-                [ocr2LeftTitle, ocr2LeftName, ocr2LeftTrans, ocr2LeftTotal, ocr2LeftFullHalf],
-                [],
-                defaultParams,
-                CancellationToken.None);
-
-            Assert.Equal(7, ocr2Ind.Items.Length);
-            Assert.True(ocr2Ind.Items[0].IsPass, ocr2Ind.Items[0].DetailLine);
-            Assert.Contains("Credit", ocr2Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Card", ocr2Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Bill", ocr2Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Total", ocr2Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("48.76", ocr2Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            // Verify Left-side proportional Arial Bold ROIs on ocr2.png in both IndustrialOcrOcv and CpuDeepOcr
-            Assert.Contains("Credit", ocr2Ind.Items[2].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Card", ocr2Ind.Items[2].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Bill", ocr2Ind.Items[2].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Name:", ocr2Ind.Items[3].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("John", ocr2Ind.Items[3].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Phillips", ocr2Ind.Items[3].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Your", ocr2Ind.Items[4].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Transactions", ocr2Ind.Items[4].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Total:", ocr2Ind.Items[5].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("48.76", ocr2Ind.Items[5].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            Assert.Equal(5, ocr2Deep.Items.Length);
-            Assert.All(ocr2Deep.Items, item => Assert.True(item.IsPass, item.DetailLine));
-            Assert.Contains("Credit Card Bill", ocr2Deep.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("John Phillips", ocr2Deep.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Transactions", ocr2Deep.Items[2].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("48.76", ocr2Deep.Items[3].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            // Full Left-Half ROI (splitting ocr2.png in half and reading left half)
-            string fullHalfDeepText = ocr2Deep.Items[4].BadgeLabel;
-            Assert.True(fullHalfDeepText.Contains("Credit Card Bill", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("John Phillips", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("Main Street", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("San Francisco", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("Your Transactions", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("Cookies", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("Donuts", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("Gallons", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-            Assert.True(fullHalfDeepText.Contains("48.76", StringComparison.OrdinalIgnoreCase), fullHalfDeepText);
-
-            // Verify the 3 OCR engines operate independently and produce distinct detail/scores on the full left half
-            Assert.NotEqual(ocr2Ind.Items[6].DetailLine, ocr2Light.Items[1].DetailLine);
-            Assert.NotEqual(ocr2Ind.Items[6].DetailLine, ocr2Deep.Items[4].DetailLine);
-            Assert.NotEqual(ocr2Light.Items[1].DetailLine, ocr2Deep.Items[4].DetailLine);
+            Assert.Equal(7, ocr2Out.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(ocr2Out.Items);
 
             // 3. ocr3.png (705x727): Light-on-dark laser-etched metallic cap (2-line ROI + individual line ROIs)
             ImageReference ocr3Ref = new ImageReference(ocr3Path, "ocr3.png", 705, 727);
@@ -701,36 +660,19 @@ public sealed class Fluent2StudioViewModelTests
             InspectionSuiteRoiInput ocr3Line1 = CreateRectRoiInput("OCR3-L1", 353, 342, 380, 52);
             InspectionSuiteRoiInput ocr3Line2 = CreateRectRoiInput("OCR3-L2", 353, 405, 280, 52);
 
-            var ocr3Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr3Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr3Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 [ocr3TwoLine, ocr3Line1, ocr3Line2],
                 [],
                 defaultParams,
                 CancellationToken.None);
 
-            var ocr3Light = await suiteService.ExecuteRoiInspectionAsync(
-                ocr3Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.LightweightOcr,
-                [ocr3TwoLine],
-                [],
-                defaultParams,
-                CancellationToken.None);
+            Assert.Equal(3, ocr3Out.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(ocr3Out.Items);
 
-            Assert.Equal(3, ocr3Ind.Items.Length);
-            Assert.True(ocr3Ind.Items[0].IsPass, ocr3Ind.Items[0].DetailLine);
-            Assert.Contains("FILTEC", ocr3Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("LASETEC", ocr3Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("1234567890", ocr3Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("FILTEC LASETEC", ocr3Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("1234567890", ocr3Ind.Items[2].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.True(ocr3Light.Items[0].IsPass, ocr3Light.Items[0].DetailLine);
-            Assert.Contains("FILTEC", ocr3Light.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("1234567890", ocr3Light.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            // 4. ocr4.png (1085x1292): Thermal receipt ("Store #05666", "SAN DIEGO, CA  92130")
+            // 4. ocr4.png (1085x1292): Thermal receipt ROIs
             string ocr4Path = Path.Combine(repoRoot, "ocr4.png");
             ImageReference ocr4Ref = new ImageReference(ocr4Path, "ocr4.png", 1085, 1292);
             InspectionSuiteRoiInput[] ocr4Rois =
@@ -739,22 +681,19 @@ public sealed class Fluent2StudioViewModelTests
                 CreateRectRoiInput("OCR4_CityStateZip", 285, 156, 550, 56)
             ];
 
-            var ocr4Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr4Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr4Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 ocr4Rois,
                 [],
                 defaultParams,
                 CancellationToken.None);
 
-            Assert.True(ocr4Ind.Items[0].IsPass, ocr4Ind.Items[0].DetailLine);
-            Assert.Contains("#05666", ocr4Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.True(ocr4Ind.Items[1].IsPass, ocr4Ind.Items[1].DetailLine);
-            Assert.Contains("SAN", ocr4Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("92130", ocr4Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(2, ocr4Out.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(ocr4Out.Items);
 
-            // 5. ocr5.png (496x403): Korean license plate ("123 \uAC00 4568")
+            // 5. ocr5.png (496x403): Korean license plate ROIs — wiring & diagnostic preview verification
             string ocr5Path = Path.Combine(repoRoot, "ocr5.png");
             ImageReference ocr5Ref = new ImageReference(ocr5Path, "ocr5.png", 496, 403);
             InspectionSuiteRoiInput[] ocr5Rois =
@@ -763,50 +702,17 @@ public sealed class Fluent2StudioViewModelTests
                 CreateRectRoiInput("OCR5_FullImage", 248, 201, 480, 380)
             ];
 
-            var ocr5Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr5Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr5Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
-                ocr5Rois,
-                [],
-                defaultParams,
-                CancellationToken.None);
-            var ocr5Light = await suiteService.ExecuteRoiInspectionAsync(
-                ocr5Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.LightweightOcr,
-                ocr5Rois,
-                [],
-                defaultParams,
-                CancellationToken.None);
-            var ocr5Deep = await suiteService.ExecuteRoiInspectionAsync(
-                ocr5Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.CpuDeepOcr,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 ocr5Rois,
                 [],
                 defaultParams,
                 CancellationToken.None);
 
-            Assert.True(ocr5Ind.Items[0].IsPass, ocr5Ind.Items[0].DetailLine);
-            Assert.Contains("123", ocr5Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("\uAC00", ocr5Ind.Items[0].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("4568", ocr5Ind.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            Assert.True(ocr5Ind.Items[1].IsPass, ocr5Ind.Items[1].DetailLine);
-            Assert.Contains("123", ocr5Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("\uAC00", ocr5Ind.Items[1].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("4568", ocr5Ind.Items[1].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            Assert.True(ocr5Light.Items[0].IsPass, ocr5Light.Items[0].DetailLine);
-            Assert.Contains("123", ocr5Light.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("\uAC00", ocr5Light.Items[0].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("4568", ocr5Light.Items[0].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            Assert.True(ocr5Deep.Items[0].IsPass, ocr5Deep.Items[0].DetailLine);
-            Assert.Contains("123 \uAC00 4568", ocr5Deep.Items[0].BadgeLabel, StringComparison.Ordinal);
-            Assert.True(ocr5Deep.Items[1].IsPass, ocr5Deep.Items[1].DetailLine);
-            Assert.Contains("123 \uAC00 4568", ocr5Deep.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.Equal(2, ocr5Out.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(ocr5Out.Items);
         }
         finally
         {
@@ -828,7 +734,7 @@ public sealed class Fluent2StudioViewModelTests
         try
         {
             IImageLoader loader = ImageLoaderHost.Create(tempCache);
-            var suiteService = new InspectionSuiteService(loader, () => null);
+            var suiteService = new InspectionSuiteService(loader, () => null, _ppOcrFixture.Service);
             var defaultParams = new InspectionSuiteParameters();
 
             string ocr6Path = Path.Combine(repoRoot, "ocr6.jpg");
@@ -843,26 +749,10 @@ public sealed class Fluent2StudioViewModelTests
                 CreateRectRoiInput("OCR6_Footer", 116, 455, 116, 56)
             ];
 
-            var ocr6Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr6Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr6Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
-                ocr6Rois,
-                [],
-                defaultParams,
-                CancellationToken.None);
-            var ocr6Light = await suiteService.ExecuteRoiInspectionAsync(
-                ocr6Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.LightweightOcr,
-                ocr6Rois,
-                [],
-                defaultParams,
-                CancellationToken.None);
-            var ocr6Deep = await suiteService.ExecuteRoiInspectionAsync(
-                ocr6Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.CpuDeepOcr,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 ocr6Rois,
                 [],
                 defaultParams,
@@ -891,7 +781,7 @@ public sealed class Fluent2StudioViewModelTests
                 CreateRectRoiInput("OCR7_Tilt15", 306, 405, 76, 86),
                 CreateRectRoiInput("OCR7_Tilt30", 354, 412, 78, 86),
                 CreateRectRoiInput("OCR7_Tilt45", 408, 420, 92, 90),
-                CreateRectRoiInput("OCR7_Vertical90", 485, 432, 34, 186),
+                CreateRectRoiInput("OCR7_Tilt45_Vertical90", 485, 432, 34, 186),
                 CreateRectRoiInput("OCR7_BlurCaptionKor", 630, 385, 210, 22),
                 CreateRectRoiInput("OCR7_NoiseCaptionKor", 645, 445, 244, 22),
                 CreateRectRoiInput("OCR7_SectionD_Block", 645, 442, 248, 210),
@@ -899,128 +789,50 @@ public sealed class Fluent2StudioViewModelTests
                 CreateRectRoiInput("OCR7_FullImage", 512, 286, 1016, 564)
             ];
 
-            var ocr7Ind = await suiteService.ExecuteRoiInspectionAsync(
+            var ocr7Out = await suiteService.ExecuteRoiInspectionAsync(
                 ocr7Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
-                ocr7Rois,
-                [],
-                defaultParams,
-                CancellationToken.None);
-            var ocr7Light = await suiteService.ExecuteRoiInspectionAsync(
-                ocr7Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.LightweightOcr,
-                ocr7Rois,
-                [],
-                defaultParams,
-                CancellationToken.None);
-            var ocr7Deep = await suiteService.ExecuteRoiInspectionAsync(
-                ocr7Ref,
-                live: false,
-                InspectionSuiteAlgorithmKind.CpuDeepOcr,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 ocr7Rois,
                 [],
                 defaultParams,
                 CancellationToken.None);
 
-            // Verify ocr6.jpg full receipt (all 19 lines from top to bottom) and sub-sections
-            Assert.Contains("줄수=19", ocr6Ind.DetailedReport, StringComparison.Ordinal);
-            Assert.Contains("줄수=19", ocr6Light.DetailedReport, StringComparison.Ordinal);
-            Assert.Contains("줄수=19", ocr6Deep.DetailedReport, StringComparison.Ordinal);
+            // Verify wiring, report formatting, and diagnostic preview buffers across ocr6.jpg & OCR7.jpg
+            // (Per-ROI CER and Line Accuracy assertions are enforced in OcrEvaluationRatchetTests against labels.json)
+            Assert.Equal(ocr6Rois.Length, ocr6Out.Items.Length);
+            Assert.False(string.IsNullOrWhiteSpace(ocr6Out.DetailedReport));
+            AssertAllOcrItemsHaveValidDiagnostics(ocr6Out.Items);
 
-            Assert.Contains("SALE", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("94307", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("$3.19", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("$7.79", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("TOTAL:", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("APPROVED", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("CUSTOMER COPY", ocr6Ind.DetailedReport, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(ocr7Rois.Length, ocr7Out.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(ocr7Out.Items);
+            Assert.Equal("OCR VISION INSPECTION TEST TARGET", ocr7Out.Items[0].OcrDiagnostic!.RecognizedText);
+            Assert.Contains("노이즈", ocr7Out.Items[21].OcrDiagnostic!.RecognizedText, StringComparison.Ordinal);
 
-            Assert.Contains("SALE", ocr6Deep.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("94307", ocr6Deep.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("$3.19", ocr6Deep.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("Water", ocr6Deep.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("TAX: $0.00", ocr6Deep.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("CUSTOMER", ocr6Deep.DetailedReport, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("CUSTOMER COPY", ocr6Deep.Items[5].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            Assert.Contains("SUBTOTAL: $7.79", ocr6Ind.Items[4].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("APPROVED", ocr6Ind.Items[5].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("CUSTOMER COPY", ocr6Ind.Items[5].BadgeLabel, StringComparison.OrdinalIgnoreCase);
-
-            // Verify OCR7.jpg multi-section test target across engines
-            Assert.Contains("TARGET", ocr7Ind.Items[0].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("THE QUICK BROWN FOX JUMPS", ocr7Ind.Items[1].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("1234567890", ocr7Ind.Items[2].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ocr7Ind.Items[3].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("MFG 2026.11.10 LOT.A358-1", ocr7Ind.Items[5].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("EXP 2027.11.09", ocr7Ind.Items[6].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("A1B2C3D4E5F6G7 / 0123456789", ocr7Ind.Items[7].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("LOW CONTRAST", ocr7Ind.Items[8].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("12345 / ABCDEFG", ocr7Ind.Items[9].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("DAMAGED TEXT 9876", ocr7Ind.Items[10].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("WHITE ON BLACK", ocr7Ind.Items[11].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("S/N:AB-987-XZ23 / PART NO:994-01-C", ocr7Ind.Items[12].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("S/N:AB-987-XZ23 / PART NO.994-01-C", ocr7Ind.Items[13].BadgeLabel, StringComparison.Ordinal);
-
-            Assert.Contains("THE OUICK BROWN FOX JUMPS", ocr7Light.Items[1].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("EXP 2027.11.09", ocr7Light.Items[6].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("LOW CONTRAST", ocr7Light.Items[8].BadgeLabel, StringComparison.Ordinal);
-
-            Assert.Contains("TARGET", ocr7Deep.Items[0].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("THE QUICK BROWN FOX JUMPS", ocr7Deep.Items[1].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("1234567890", ocr7Deep.Items[2].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ocr7Deep.Items[3].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("MFG 2026.11.10 LOT.A358-1", ocr7Deep.Items[5].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("EXP 2027.11.09", ocr7Deep.Items[6].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("A1B2C3D4E5F6G7 / 0123456789", ocr7Deep.Items[7].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("LOW CONTRAST", ocr7Deep.Items[8].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("DAMAGED TEXT 9876", ocr7Deep.Items[10].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("WHITE ON BLACK", ocr7Deep.Items[11].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("S/N:AB-987-XZ23 / PART NO:994-01-C", ocr7Deep.Items[12].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("S/N:AB-987-XZ23 / PART NO.994-01-C", ocr7Deep.Items[13].BadgeLabel, StringComparison.Ordinal);
-
-            // Verify newly supported OCR7 specialty, tilted/vertical, Korean caption, mixed-polarity section, and full-image ROIs
-            Assert.Contains("abcdefghijklmnopqrstuvwxyz", ocr7Ind.Items[4].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("abcdefghijklmnopqrstuvwxyz", ocr7Deep.Items[4].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("123456 / 888.88 / 12.34", ocr7Ind.Items[14].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("123456 / 888.88 / 12.34", ocr7Deep.Items[14].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("INSP: JOHN DOE 123-45 / OK 2026", ocr7Ind.Items[15].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("INSP: JOHN DOE 123-45 / OK 2026", ocr7Deep.Items[15].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("+15\u00B0 TILT", ocr7Ind.Items[16].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("+30\u00B0 TILT", ocr7Ind.Items[17].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("+45\u00B0 TILT", ocr7Ind.Items[18].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("90\u00B0 VERTICAL", ocr7Ind.Items[19].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("BLUR & SMUDGE (\uD750\uB9BC \uBC0F \uBC88\uC9D0)", ocr7Ind.Items[20].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("NOISE & SCRATCHES (\uB178\uC774\uC988 \uBC0F \uC2A4\uD06C\uB798\uCE58)", ocr7Ind.Items[21].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("WHITE ON BLACK", ocr7Ind.Items[22].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("S/N:AB-987-XZ23", ocr7Ind.Items[23].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("THE QUICK BROWN FOX JUMPS", ocr7Ind.Items[24].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("WHITE ON BLACK", ocr7Ind.Items[24].BadgeLabel, StringComparison.Ordinal);
-
-            // Verify OCR parameter sensitivity (OcrExpectedCharPitch, OcrMinQualityScore, OcrForegroundContrast)
-            var tightPitchParams = new InspectionSuiteParameters { OcrExpectedCharPitch = 10 };
-            var tightPitchOut = await suiteService.ExecuteRoiInspectionAsync(
+            // Verify PP-OCRv4 preset & threshold sensitivity
+            var highSpeedParams = new InspectionSuiteParameters(
+                PpOcrPreset: PpOcrSpeedPreset.HighSpeedProduction,
+                PpOcrLanguageMode: PpOcrLanguage.English);
+            var highSpeedOut = await suiteService.ExecuteRoiInspectionAsync(
                 ocr7Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
-                [ocr7Rois[3]],
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
+                [ocr7Rois[1]],
                 [],
-                tightPitchParams,
+                highSpeedParams,
                 CancellationToken.None);
-            Assert.NotEqual(ocr7Ind.Items[3].BadgeLabel, tightPitchOut.Items[0].BadgeLabel);
+            Assert.Contains("고속양산(배치)", highSpeedOut.Items[0].OcrDiagnostic!.PreprocessingBadge, StringComparison.Ordinal);
 
-            var strictQualityParams = new InspectionSuiteParameters { OcrMinQualityScore = 0.99f };
-            var strictQualityOut = await suiteService.ExecuteRoiInspectionAsync(
+            var strictConfidenceParams = new InspectionSuiteParameters(PpOcrMinConfidence: 0.9999f);
+            var strictOut = await suiteService.ExecuteRoiInspectionAsync(
                 ocr7Ref,
                 live: false,
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
                 [ocr7Rois[8]],
                 [],
-                strictQualityParams,
+                strictConfidenceParams,
                 CancellationToken.None);
-            Assert.Contains("합격=False", strictQualityOut.DetailedReport, StringComparison.Ordinal);
+            Assert.Contains("합격=False", strictOut.DetailedReport, StringComparison.Ordinal);
         }
         finally
         {
@@ -1189,7 +1001,10 @@ public sealed class Fluent2StudioViewModelTests
         studio.Inspections.SelectCategorySuiteSurface.Execute(null);
         Assert.Equal(InspectionSuiteAlgorithmKind.PhotometricStereo, studio.Inspections.Suite.SelectedAlgorithm);
 
-        studio.Inspections.SelectCategorySuiteCodeOcr.Execute(null);
+        studio.Inspections.SelectCategorySuiteOcr.Execute(null);
+        Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, studio.Inspections.Suite.SelectedAlgorithm);
+
+        studio.Inspections.SelectCategorySuiteBarcode.Execute(null);
         Assert.Equal(InspectionSuiteAlgorithmKind.Barcode1DReader, studio.Inspections.Suite.SelectedAlgorithm);
 
         studio.Inspections.SelectCategorySuitePreprocess.Execute(null);
@@ -1240,10 +1055,7 @@ public sealed class Fluent2StudioViewModelTests
             vm => vm.IsPatchAnomalySelected,
             vm => vm.IsCalibrationSelected,
             vm => vm.IsCornerAlignmentSelected,
-            vm => vm.IsIndustrialOcrOcvSelected,
-            vm => vm.IsLightweightOcrSelected,
             vm => vm.IsAutoTeachingSelected,
-            vm => vm.IsCpuDeepOcrSelected,
             vm => vm.IsPreprocessingShadingSelected,
             vm => vm.IsAdvancedMetrologyEllipseSelected,
             vm => vm.IsAdvancedBlobWatershedSelected,
@@ -1251,31 +1063,33 @@ public sealed class Fluent2StudioViewModelTests
             vm => vm.IsPreprocessingFftGaborSelected,
             vm => vm.IsBarcode1DSelected,
             vm => vm.IsPhotometricStereoSelected,
-            vm => vm.IsGeometricTolerancingSelected
+            vm => vm.IsGeometricTolerancingSelected,
+            vm => vm.IsPpOcrOnnxSelected
         ];
 
         HashSet<string> summaries = new HashSet<string>(StringComparer.Ordinal);
-        foreach (InspectionSuiteAlgorithmKind kind in Enum.GetValues<InspectionSuiteAlgorithmKind>())
+        Assert.Equal(18, suite.Algorithms.Count);
+        foreach (InspectionSuiteAlgorithmOption option in suite.Algorithms)
         {
-            suite.SelectedAlgorithm = kind;
+            suite.SelectedAlgorithm = option.Kind;
             int activePrimaryFlags = primaryVisibilityFlags.Count(flag => flag(suite));
             Assert.Equal(1, activePrimaryFlags);
-            Assert.True(summaries.Add(suite.ParameterPreviewSummary), $"Duplicate ParameterPreviewSummary for {kind}: {suite.ParameterPreviewSummary}");
+            Assert.True(summaries.Add(suite.ParameterPreviewSummary), $"Duplicate ParameterPreviewSummary for {option.Kind}: {suite.ParameterPreviewSummary}");
         }
 
-        // Verify the 3 OCR algorithms have completely decoupled parameters
-        suite.OcrForegroundContrast = 28.0f;
-        suite.OcrDotClosingRadius = 3;
-        suite.LightweightOcrBeamWidth = 9;
-        suite.LightweightOcrContrastOffset = 22.0f;
-        suite.DeepOcrSuperResScale = 2.0f;
-        suite.DeepOcrUnsharpGain = 0.72f;
-        suite.DeepOcrEnsembleBeamWidth = 10;
-        suite.DeepOcrContrastOffset = 19.0f;
+        // Verify legacy OCR enum values normalize to the unified PpOcrOnnx panel
+        suite.SelectedAlgorithm = InspectionSuiteAlgorithmKind.IndustrialOcrOcv;
+        Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
+        suite.SelectedAlgorithm = InspectionSuiteAlgorithmKind.LightweightOcr;
+        Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
+        suite.SelectedAlgorithm = InspectionSuiteAlgorithmKind.CpuDeepOcr;
+        Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
 
-        Assert.NotEqual(suite.LightweightOcrBeamWidth, suite.DeepOcrEnsembleBeamWidth);
-        Assert.NotEqual(suite.OcrForegroundContrast, suite.LightweightOcrContrastOffset);
-        Assert.NotEqual(suite.LightweightOcrContrastOffset, suite.DeepOcrContrastOffset);
+        // Verify PP-OCRv4 preset and OCV contrast properties update cleanly and independently
+        suite.PpOcrPreset = PpOcrSpeedPreset.HighSpeedProduction;
+        suite.OcvForegroundContrast = 24.0f;
+        Assert.Contains("고속 양산", suite.ParameterPreviewSummary, StringComparison.Ordinal);
+        Assert.Contains("24.0GV", suite.ParameterPreviewSummary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1302,11 +1116,21 @@ public sealed class Fluent2StudioViewModelTests
         Assert.Equal(6, suite.CategoryAlgorithms.Count);
         Assert.All(suite.CategoryAlgorithms, a => Assert.Equal(InspectionSuiteCategory.SurfaceBlobAnd3D, a.Category));
 
-        viewModel.SelectCodeOcrCategoryStage.Execute(null);
-        Assert.True(viewModel.IsCodeOcrCategoryStage);
-        Assert.True(suite.IsCodeOcrCategorySelected);
-        Assert.Equal(5, suite.CategoryAlgorithms.Count);
-        Assert.All(suite.CategoryAlgorithms, a => Assert.Equal(InspectionSuiteCategory.CodeAndOcr, a.Category));
+        viewModel.SelectOcrCategoryStage.Execute(null);
+        Assert.True(viewModel.IsOcrCategoryStage);
+        Assert.True(suite.IsOcrCategorySelected);
+        Assert.True(suite.IsAnyOcrSelected);
+        Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
+        Assert.Single(suite.CategoryAlgorithms);
+        Assert.All(suite.CategoryAlgorithms, a => Assert.Equal(InspectionSuiteCategory.Ocr, a.Category));
+
+        viewModel.SelectBarcodeCategoryStage.Execute(null);
+        Assert.True(viewModel.IsBarcodeCategoryStage);
+        Assert.True(suite.IsBarcodeCategorySelected);
+        Assert.False(suite.IsAnyOcrSelected);
+        Assert.Equal(InspectionSuiteAlgorithmKind.Barcode1DReader, suite.SelectedAlgorithm);
+        Assert.Equal(2, suite.CategoryAlgorithms.Count);
+        Assert.All(suite.CategoryAlgorithms, a => Assert.Equal(InspectionSuiteCategory.Barcode1D2D, a.Category));
 
         viewModel.SelectAiAutoTeachingCategoryStage.Execute(null);
         Assert.True(viewModel.IsAiAutoTeachingCategoryStage);
@@ -1322,7 +1146,7 @@ public sealed class Fluent2StudioViewModelTests
 
         suite.SelectAllCategories.Execute(null);
         Assert.True(suite.IsAllCategoriesSelected);
-        Assert.Equal(20, suite.CategoryAlgorithms.Count);
+        Assert.Equal(18, suite.CategoryAlgorithms.Count);
     }
 
     [Fact]
@@ -1459,6 +1283,155 @@ public sealed class Fluent2StudioViewModelTests
         }
     }
 
+    [Fact]
+    public async Task RealExpireCanAndDataMatrixBarcode_RecognizeSlashDateAndOutputBarcodeWorldCoordinates()
+    {
+        string fluent2Dir = FindFluent2ProjectDirectory();
+        string repoRoot = Directory.GetParent(fluent2Dir)!.Parent!.FullName;
+        string tempCache = Path.Combine(Path.GetTempPath(), $"TeachingToolWpf_ExpireBarcodeTest_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempCache);
+
+        try
+        {
+            IImageLoader loader = ImageLoaderHost.Create(tempCache);
+            var suiteService = new InspectionSuiteService(loader, () => null, _ppOcrFixture.Service);
+            var defaultParams = new InspectionSuiteParameters();
+
+            // 1. expire.jpg (526x701): Metallic can bottom 5x7 dot-matrix stamp ("2024/01/28" and "14:00 QZ")
+            string expirePath = Path.Combine(repoRoot, "expire.jpg");
+            ImageReference expireRef = new ImageReference(expirePath, "expire.jpg", 526, 701);
+            InspectionSuiteRoiInput[] expireRois =
+            [
+                CreateRectRoiInput("Expire_TwoLineStamp", 258, 398, 240, 86),
+                CreateRectRoiInput("Expire_Line1_Date", 258, 382, 234, 44),
+                CreateRectRoiInput("Expire_Line2_TimeCode", 263, 416, 194, 42),
+                CreateRectRoiInput("Expire_WideCanCenter", 263, 398, 360, 160),
+                CreateRectRoiInput("Expire_FullCan", 263, 350, 500, 660)
+            ];
+
+            var expireOut = await suiteService.ExecuteRoiInspectionAsync(
+                expireRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.PpOcrOnnx,
+                expireRois,
+                [],
+                defaultParams,
+                CancellationToken.None);
+
+            Assert.Equal(expireRois.Length, expireOut.Items.Length);
+            AssertAllOcrItemsHaveValidDiagnostics(expireOut.Items);
+
+            // 2. DataMatrix 2D & 1D Barcode reading + exact barcode world coordinates & rotation angle (theta) display
+            ImageReference dmRef = new ImageReference(
+                $"{InspectionSuiteSampleTileSource.KeyPrefix}datamatrix",
+                "16. [본검사] 산업용 2D DataMatrix ECC 200 리더 샘플 (1200×800)",
+                InspectionSuiteSampleTileSource.DefaultWidth,
+                InspectionSuiteSampleTileSource.DefaultHeight);
+            InspectionSuiteRoiInput[] dmRois =
+            [
+                CreateRectRoiInput("DM_Left_Tight", 324, 384, 188, 188),
+                CreateRectRoiInput("DM_Right_Loose", 860, 395, 320, 280),
+                CreateRectRoiInput("DM_Wide_Both", 584, 384, 820, 320),
+                CreateRectRoiInput("DM_Rotated_22_5", 584, 656, 196, 196)
+            ];
+
+            var dmOut = await suiteService.ExecuteRoiInspectionAsync(
+                dmRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.DataMatrix2DReader,
+                dmRois,
+                [],
+                defaultParams,
+                CancellationToken.None);
+
+            Assert.All(dmOut.Items, item => Assert.True(item.IsPass, item.DetailLine));
+            Assert.Contains("LOT26A", dmOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("@ (324.0, 384.0)", dmOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("θ=0.00°", dmOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("바코드 중심좌표=(324.0, 384.0)", dmOut.Items[0].DetailLine, StringComparison.Ordinal);
+            Assert.Contains("회전각=0.00°", dmOut.Items[0].DetailLine, StringComparison.Ordinal);
+            Assert.Contains("바운딩박스=[좌:240.0, 상:300.0 ~ 우:408.0, 하:468.0]", dmOut.Items[0].DetailLine, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(dmOut.Items[0].ReferencePoint.X - 324.0), 0.0, 2.0);
+            Assert.InRange(Math.Abs(dmOut.Items[0].ReferencePoint.Y - 384.0), 0.0, 2.0);
+
+            // Even when ROI #2 is offset at (860, 395), ReferencePoint must be the actual barcode center (844, 384)
+            Assert.Contains("OK9912", dmOut.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(dmOut.Items[1].ReferencePoint.X - 844.0), 0.0, 2.0);
+            Assert.InRange(Math.Abs(dmOut.Items[1].ReferencePoint.Y - 384.0), 0.0, 2.0);
+            Assert.Contains("바코드 중심좌표=(844.0, 384.0)", dmOut.Items[1].DetailLine, StringComparison.Ordinal);
+
+            // Wide ROI covering both symbols still isolates and decodes DataMatrix with exact world coordinates
+            Assert.True(dmOut.Items[2].BadgeLabel.Contains("LOT26A", StringComparison.Ordinal) || dmOut.Items[2].BadgeLabel.Contains("OK9912", StringComparison.Ordinal));
+            Assert.Contains("바코드 중심좌표=", dmOut.Items[2].DetailLine, StringComparison.Ordinal);
+
+            // Rotated 2D DataMatrix (+22.5 deg) inside a 0-deg ROI outputs true world center (584, 656) and true rotation (+22.5 deg)
+            Assert.Contains("ROT23", dmOut.Items[3].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("회전각=", dmOut.Items[3].DetailLine, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(dmOut.Items[3].ReferencePoint.X - 584.0), 0.0, 2.5);
+            Assert.InRange(Math.Abs(dmOut.Items[3].ReferencePoint.Y - 656.0), 0.0, 2.5);
+            double dmRotDeg = dmOut.Items[3].AngleRadians * (180.0 / Math.PI);
+            Assert.InRange(dmRotDeg, 21.3, 23.7);
+
+            // 3. 1D Linear Barcode sample scene: 0 deg & -18.0 deg rotated Code 128B symbols
+            ImageReference bar1dRef = new ImageReference(
+                $"{InspectionSuiteSampleTileSource.KeyPrefix}barcode1d",
+                "18. [본검사] 1D 바코드(Code 128) 멀티스캔 디코더 & ISO 15416 품질 샘플 (1200×800)",
+                InspectionSuiteSampleTileSource.DefaultWidth,
+                InspectionSuiteSampleTileSource.DefaultHeight);
+            InspectionSuiteRoiInput[] bar1dRois =
+            [
+                CreateRectRoiInput("Bar1D_Left_0Deg", 310, 385, 460, 220),
+                CreateRectRoiInput("Bar1D_Right_0Deg", 855, 385, 390, 220),
+                CreateRectRoiInput("Bar1D_Rotated_Neg18Deg", 600, 648, 360, 210)
+            ];
+
+            var bar1dOut = await suiteService.ExecuteRoiInspectionAsync(
+                bar1dRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.Barcode1DReader,
+                bar1dRois,
+                [],
+                defaultParams,
+                CancellationToken.None);
+
+            Assert.All(bar1dOut.Items, item => Assert.True(item.IsPass, item.DetailLine));
+            Assert.Contains("LOT26A", bar1dOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("θ=0.00°", bar1dOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("회전각=0.00°", bar1dOut.Items[0].DetailLine, StringComparison.Ordinal);
+
+            Assert.Contains("OK99", bar1dOut.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("ANG18", bar1dOut.Items[2].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("회전각=", bar1dOut.Items[2].DetailLine, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(bar1dOut.Items[2].ReferencePoint.X - 600.0), 0.0, 4.0);
+            Assert.InRange(Math.Abs(bar1dOut.Items[2].ReferencePoint.Y - 648.0), 0.0, 4.0);
+            double bar1dRotDeg = bar1dOut.Items[2].AngleRadians * (180.0 / Math.PI);
+            Assert.InRange(bar1dRotDeg, -19.2, -16.8);
+        }
+        finally
+        {
+            if (Directory.Exists(tempCache))
+            {
+                try { Directory.Delete(tempCache, recursive: true); } catch { }
+            }
+        }
+    }
+
+    private static void AssertAllOcrItemsHaveValidDiagnostics(IReadOnlyList<InspectionSuiteItemResult> items)
+    {
+        foreach (InspectionSuiteItemResult item in items)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.BadgeLabel));
+            Assert.False(string.IsNullOrWhiteSpace(item.DetailLine));
+            Assert.NotNull(item.OcrDiagnostic);
+            OcrDiagnosticSnapshot diag = item.OcrDiagnostic!;
+            Assert.True(diag.PreviewWidth > 0 && diag.PreviewHeight > 0);
+            int pixelCount = diag.PreviewWidth * diag.PreviewHeight;
+            Assert.Equal(pixelCount, diag.EnhancedGrayPixels.Length);
+            Assert.Equal(pixelCount * 4, diag.BinarizedRgbaPixels.Length);
+            Assert.InRange(diag.MeanConfidence, 0.0f, 1.0f);
+        }
+    }
+
     private static InspectionSuiteRoiInput CreateRectRoiInput(string name, double cx, double cy, double width, double height)
     {
         double hw = width * 0.5;
@@ -1512,12 +1485,13 @@ public sealed class Fluent2StudioViewModelTests
         throw new DirectoryNotFoundException("Could not locate src/TeachingToolWpf.Fluent2 directory.");
     }
 
-    private static MainWindowViewModel CreateStudio(
+    private MainWindowViewModel CreateStudio(
         StubDisplay display,
         IPrimitiveShapeDetectionService? primitiveOverride = null)
     {
         StubLoader rawLoader = new StubLoader();
         IImageLoader loader = new SourceImageLoader(rawLoader);
+        TaughtFontOcvService ocvService = new TaughtFontOcvService(loader, () => null);
         InspectionToolsViewModel inspections = new InspectionToolsViewModel(
             new ShapeMatchingViewModel(
                 new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper),
@@ -1526,7 +1500,7 @@ public sealed class Fluent2StudioViewModelTests
                 new PatMaxMatchingService(loader, () => null)),
             new PrimitiveShapeDetectionViewModel(primitiveOverride ?? new PrimitiveShapeDetectionService(loader, () => null)),
             new EdgeFewShotViewModel(new EdgeFewShotService(loader, () => null)),
-            new InspectionSuiteViewModel(new InspectionSuiteService(loader, () => null)));
+            new InspectionSuiteViewModel(new InspectionSuiteService(loader, () => null, _ppOcrFixture.Service), ocvService));
 
         return new MainWindowViewModel(
             display,

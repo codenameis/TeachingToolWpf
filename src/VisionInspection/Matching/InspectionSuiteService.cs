@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Numerics;
@@ -14,7 +15,6 @@ using VisionAlgorithm.OpenSrc.DataCode2D;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Engine;
 using VisionAlgorithm.OpenSrc.GoldenVariation;
 using VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
-using VisionAlgorithm.OpenSrc.LightweightOcr;
 using VisionAlgorithm.OpenSrc.Metrology;
 using VisionAlgorithm.OpenSrc.PatchAnomaly;
 using VisionAlgorithm.OpenSrc.PhotometricStereo;
@@ -22,6 +22,7 @@ using VisionAlgorithm.OpenSrc.Preprocessing;
 using VisionAlgorithm.OpenSrc.Synthetic8kTestGen;
 using VisionGeometry;
 using VisionImaging.Abstractions;
+using VisionOcr.PpOcr;
 using FittedLine2D = VisionAlgorithm.OpenSrc.Metrology.FittedLine2D;
 using SubpixelEdgePoint = VisionAlgorithm.OpenSrc.CornerAlignment.EdgeRake.SubpixelEdgePoint;
 
@@ -51,7 +52,8 @@ public enum InspectionSuiteAlgorithmKind
     PreprocessingFftAndGabor = 16,
     Barcode1DReader = 17,
     PhotometricStereo = 18,
-    GeometricTolerancing = 19
+    GeometricTolerancing = 19,
+    PpOcrOnnx = 20
 }
 
 /// <summary>
@@ -103,23 +105,9 @@ public sealed record InspectionSuiteParameters(
     float CornerApexIgnoreMargin = 36.0f,
     float CornerRansacThresholdPixels = 0.55f,
     float CornerOrthogonalityToleranceDeg = 5.0f,
-    float OcrAcceptThreshold = 0.40f,
-    float OcrMinQualityScore = 0.75f,
-    float OcrForegroundContrast = 14.0f,
-    int OcrExpectedCharPitch = 24,
-    int LightweightOcrBeamWidth = 4,
-    int LightweightOcrColumnStride = 2,
-    float LightweightOcrMinConfidence = 0.40f,
     float AutoTeachMinGeometricScore = 0.45f,
     float AutoTeachMinAppearanceCosine = 0.35f,
     float AutoTeachMaxMahalanobis = 35.0f,
-    int OcrDotClosingRadius = 1,
-    float LightweightOcrContrastOffset = 12.0f,
-    float DeepOcrSuperResScale = 1.5f,
-    float DeepOcrUnsharpGain = 0.38f,
-    int DeepOcrEnsembleBeamWidth = 6,
-    float DeepOcrContrastOffset = 14.0f,
-    float DeepOcrMinConfidence = 0.40f,
     int ShadingTargetBaseGray = 128,
     float AnisotropicDiffusionKappa = 18.0f,
     int ReconstructionMarkerRadius = 2,
@@ -142,7 +130,25 @@ public sealed record InspectionSuiteParameters(
     float GdtAngleToleranceDeg = 3.0f,
     float GdtConcentricityLimitPx = 2.5f,
     float GdtDistanceTolerancePx = 4.0f,
-    float GdtGradientThreshold = 18.0f);
+    float GdtGradientThreshold = 18.0f,
+    OcrAllowedCharacterSet OcrAllowedCharacters = InspectionSuiteParameters.DefaultOcrAllowedCharacters,
+    float PpOcrMinConfidence = InspectionSuiteParameters.DefaultPpOcrMinConfidence,
+    float PpOcrMinCharacterConfidence = InspectionSuiteParameters.DefaultPpOcrMinCharacterConfidence,
+    PpOcrLanguage PpOcrLanguageMode = InspectionSuiteParameters.DefaultPpOcrLanguageMode,
+    PpOcrPolarityMode PpOcrPolarity = InspectionSuiteParameters.DefaultPpOcrPolarity,
+    PpOcrPipelineMode PpOcrPipeline = InspectionSuiteParameters.DefaultPpOcrPipeline,
+    PpOcrSpeedPreset PpOcrPreset = InspectionSuiteParameters.DefaultPpOcrPreset,
+    bool IsInteractivePreview = InspectionSuiteParameters.DefaultIsInteractivePreview)
+{
+    public const OcrAllowedCharacterSet DefaultOcrAllowedCharacters = PpOcrRunOptions.DefaultAllowedCharacterSet;
+    public const float DefaultPpOcrMinConfidence = PpOcrRunOptions.DefaultMinAcceptConfidence;
+    public const float DefaultPpOcrMinCharacterConfidence = PpOcrRunOptions.DefaultMinCharacterConfidence;
+    public const PpOcrLanguage DefaultPpOcrLanguageMode = PpOcrRunOptions.DefaultLanguage;
+    public const PpOcrPolarityMode DefaultPpOcrPolarity = PpOcrRunOptions.DefaultPolarityMode;
+    public const PpOcrPipelineMode DefaultPpOcrPipeline = PpOcrRunOptions.DefaultPipelineMode;
+    public const PpOcrSpeedPreset DefaultPpOcrPreset = PpOcrSpeedPreset.UniversalAuto;
+    public const bool DefaultIsInteractivePreview = PpOcrRunOptions.DefaultFastInteractivePreview;
+}
 
 /// <summary>
 /// 캔버스 ROI 입력 정보.
@@ -174,7 +180,8 @@ public sealed record InspectionSuiteItemResult(
     ImmutableArray<PointD> SecondaryPoints,
     ImmutableArray<PointD> DefectOrOutlierPoints,
     double ElapsedMicroseconds,
-    ImmutableArray<ImmutableArray<PointD>> GuideContours = default);
+    ImmutableArray<ImmutableArray<PointD>> GuideContours = default,
+    OcrDiagnosticSnapshot? OcrDiagnostic = null);
 
 /// <summary>
 /// 검사 스위트 실행 종합 결과.
@@ -188,6 +195,10 @@ public sealed record InspectionSuiteExecutionOutput(
 
 public interface IInspectionSuiteService
 {
+    bool IsPpOcrWired => false;
+
+    string PpOcrStatusSummary => "PP-OCR 미연결";
+
     Task<InspectionSuiteExecutionOutput> ExecuteRoiInspectionAsync(
         ImageReference image,
         bool live,
@@ -201,10 +212,24 @@ public interface IInspectionSuiteService
 }
 
 /// <summary>
-/// <c>VisionAlgorithm.OpenSrc.InspectionSuite</c> 7종 알고리즘을 캔버스 ROI 및 8K 마스터 검증과 연결하는 서비스.
+/// <c>VisionAlgorithm.OpenSrc.InspectionSuite</c> 알고리즘을 캔버스 ROI 및 8K 마스터 검증과 연결하는 서비스.
 /// </summary>
-public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?> retainFrame) : IInspectionSuiteService
+public sealed class InspectionSuiteService(
+    IImageLoader loader,
+    Func<VideoFrame?> retainFrame,
+    IPpOcrInferenceService? ppOcrService = null) : IInspectionSuiteService
 {
+    public bool IsPpOcrWired => ppOcrService is not null;
+
+    public string PpOcrStatusSummary => ppOcrService?.StatusMessage ?? "PP-OCR 미연결";
+    public static InspectionSuiteAlgorithmKind NormalizeAlgorithmKind(InspectionSuiteAlgorithmKind kind) => kind switch
+    {
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
+            or InspectionSuiteAlgorithmKind.LightweightOcr
+            or InspectionSuiteAlgorithmKind.CpuDeepOcr => InspectionSuiteAlgorithmKind.PpOcrOnnx,
+        _ => kind
+    };
+
     public Task<InspectionSuiteExecutionOutput> ExecuteRoiInspectionAsync(
         ImageReference image,
         bool live,
@@ -221,12 +246,13 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 throw new ArgumentException("검사할 ROI를 먼저 선택하거나 추가해 주세요.");
             }
 
+            InspectionSuiteAlgorithmKind normalizedAlgorithm = NormalizeAlgorithmKind(algorithm);
             using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
             reader.PreferDirectGray = true;
             using var workspace = new InspectionWorkspace();
 
             var sw = Stopwatch.StartNew();
-            var items = algorithm switch
+            var items = normalizedAlgorithm switch
             {
                 InspectionSuiteAlgorithmKind.Metrology => RunMetrology(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.GoldenVariation => RunGoldenVariation(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
@@ -236,10 +262,7 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 InspectionSuiteAlgorithmKind.PatchAnomaly => RunPatchAnomaly(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.Calibration => RunCalibration(targetRois, parameters, image.Width, image.Height),
                 InspectionSuiteAlgorithmKind.CornerAlignment => RunCornerAlignment(reader, image.Width, image.Height, targetRois, parameters, token),
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv => RunIndustrialOcrOcv(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
-                InspectionSuiteAlgorithmKind.LightweightOcr => RunLightweightOcr(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.AutoTeaching => RunAutoTeaching(reader, image.Width, image.Height, targetRois, referenceRois, parameters, workspace, token),
-                InspectionSuiteAlgorithmKind.CpuDeepOcr => RunCpuDeepOcr(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => RunPreprocessingShadingAndRecon(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => RunAdvancedMetrologyEllipse(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
                 InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => RunAdvancedBlobWatershed(reader, image.Width, image.Height, targetRois, parameters, workspace, token),
@@ -248,16 +271,17 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 InspectionSuiteAlgorithmKind.Barcode1DReader => RunBarcode1DReader(reader, image.Width, image.Height, targetRois, parameters, token),
                 InspectionSuiteAlgorithmKind.PhotometricStereo => RunPhotometricStereo(reader, image.Width, image.Height, targetRois, parameters, token),
                 InspectionSuiteAlgorithmKind.GeometricTolerancing => RunGeometricTolerancing(reader, image.Width, image.Height, targetRois, parameters, token),
+                InspectionSuiteAlgorithmKind.PpOcrOnnx => RunPpOcrOnnx(reader, image.Width, image.Height, targetRois, parameters, ppOcrService, token),
                 _ => throw new ArgumentOutOfRangeException(nameof(algorithm))
             };
             sw.Stop();
 
             int passCount = items.Count(item => item.IsPass);
-            string algoName = GetAlgorithmShortName(algorithm);
+            string algoName = GetAlgorithmShortName(normalizedAlgorithm);
             string summaryTitle = $"{algoName} 완료 · 합격 {passCount}/{items.Length}개 · {sw.Elapsed.TotalMilliseconds:F2} ms";
             string detailedReport = string.Join(Environment.NewLine, items.Select((item, idx) => $"[{idx + 1}] {item.Name}: {item.DetailLine} ({item.ElapsedMicroseconds:F1} µs)"));
 
-            return new InspectionSuiteExecutionOutput(algorithm, summaryTitle, detailedReport, items, sw.Elapsed.TotalMilliseconds);
+            return new InspectionSuiteExecutionOutput(normalizedAlgorithm, summaryTitle, detailedReport, items, sw.Elapsed.TotalMilliseconds);
         }, token);
 
     public Task<InspectionSuiteExecutionOutput> RunMaster8kSuiteAsync(CancellationToken token)
@@ -916,9 +940,14 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
             case InspectionSuiteAlgorithmKind.IndustrialOcrOcv:
             case InspectionSuiteAlgorithmKind.LightweightOcr:
             case InspectionSuiteAlgorithmKind.CpuDeepOcr:
+            case InspectionSuiteAlgorithmKind.PpOcrOnnx:
             {
-                double halfW = Math.Max(16.0, target.Width * 0.46);
-                double halfH = Math.Max(8.0, target.Height * 0.38);
+                const double MinPpOcrGuideHalfWidthPx = 12.0;
+                const double MinPpOcrGuideHalfHeightPx = 6.0;
+                const double PpOcrInnerWidthRatio = 0.47;
+                const double PpOcrInnerHeightRatio = 0.40;
+                double halfW = Math.Max(MinPpOcrGuideHalfWidthPx, target.Width * PpOcrInnerWidthRatio);
+                double halfH = Math.Max(MinPpOcrGuideHalfHeightPx, target.Height * PpOcrInnerHeightRatio);
                 guides.Add([
                     LocalToWorld(-halfW, -halfH),
                     LocalToWorld(halfW, -halfH),
@@ -926,16 +955,6 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                     LocalToWorld(-halfW, halfH)
                 ]);
                 guides.Add([LocalToWorld(-halfW, 0), LocalToWorld(halfW, 0)]);
-
-                double step = algorithm == InspectionSuiteAlgorithmKind.LightweightOcr
-                    ? Math.Clamp(parameters.LightweightOcrColumnStride * 8.0, 8.0, 48.0)
-                    : Math.Clamp(parameters.OcrExpectedCharPitch, 8.0, 64.0);
-                int maxTicks = 24;
-                int ticks = 0;
-                for (double lx = -halfW + step; lx <= halfW - 4.0 && ticks < maxTicks; lx += step, ticks++)
-                {
-                    guides.Add([LocalToWorld(lx, -halfH * 0.55), LocalToWorld(lx, halfH * 0.55)]);
-                }
                 break;
             }
 
@@ -1697,10 +1716,11 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
         InspectionSuiteAlgorithmKind.PatchAnomaly => "6. PaDiM 패치 이상치 히트맵 탐지",
         InspectionSuiteAlgorithmKind.Calibration => "7. 9-Point 호모그래피 · Brown-Conrady 왜곡 보정",
         InspectionSuiteAlgorithmKind.CornerAlignment => "8. 2-Rake 서브픽셀 가상 코너 · 대각 정합",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv => "9. 산업용 OCR · OCV 문자 품질 검증",
-        InspectionSuiteAlgorithmKind.LightweightOcr => "10. 경량 고속 1-Pass 시퀀스 OCR",
+        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
+            or InspectionSuiteAlgorithmKind.LightweightOcr
+            or InspectionSuiteAlgorithmKind.CpuDeepOcr
+            or InspectionSuiteAlgorithmKind.PpOcrOnnx => "9. OCR / OCV (PP-OCRv4 범용 판독 · 티칭 OCV 품질 검증)",
         InspectionSuiteAlgorithmKind.AutoTeaching => "11. 멀티파츠 풀 자동 인식 · 하위 ROI 자동 티칭",
-        InspectionSuiteAlgorithmKind.CpuDeepOcr => "12. CPU 고속 딥러닝·신경망 OCR (초해상도·다중가설 빔·자유폰트)",
         InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => "13. [전처리] 2D 다항식 셰이딩 보정 · 비등방성 확산 · 형태학적 재구성",
         InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => "14. [본검사] 복합 스코어링 캘리퍼(First/Last/Span) · Fitzgibbon 타원 피팅",
         InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => "15. [본검사] RLE 고급 형상(Convex Hull·MinAreaRect·Hole) · 거리변환 접촉 블롭 분리",
@@ -2047,565 +2067,236 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
         }
     }
 
-    private static ImmutableArray<InspectionSuiteItemResult> RunIndustrialOcrOcv(
+    private const int MaxOcrRectifiedWidth = 4096;
+    private const int MaxOcrRectifiedHeight = 2048;
+    private const int OcrCropMarginPixels = 16;
+    private const int DefaultOcrPadX = 6;
+    private const int DefaultOcrPadY = 4;
+    private const int MinRectifiedOcrWidth = 12;
+    private const int MinRectifiedOcrHeight = 10;
+    private const int QuadPolygonVertexCount = 4;
+    private const float MinAcceptConfidenceClamp = 0.05f;
+    private const float MaxAcceptConfidenceClamp = 1.0f;
+
+    private readonly record struct RectifiedOcrSlot(
+        InspectionSuiteRoiInput Roi,
+        FixturePose2D Fixture,
+        int OffsetX,
+        int OffsetY,
+        int RoiWidth,
+        int RoiHeight,
+        byte[] RentedPixels,
+        double PrepMicroseconds);
+
+    private static ImmutableArray<InspectionSuiteItemResult> RunPpOcrOnnx(
         MatchingImageReader reader,
         int imageWidth,
         int imageHeight,
         IReadOnlyList<InspectionSuiteRoiInput> rois,
         InspectionSuiteParameters parameters,
-        InspectionWorkspace workspace,
+        IPpOcrInferenceService? ppOcrService,
         CancellationToken token)
     {
-        _ = workspace;
-        using var visionWs = new VisionWorkspace();
         var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
-        IndustrialOcrFontModel fontModel = UnifiedTestImageSuiteGenerator.TrainDefaultIndustrialFontModel();
-
-        foreach (var roi in rois)
+        if (ppOcrService is null)
         {
-            token.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
-            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 16, token);
-            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
-            var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
-
-            bool isPresetSyntheticRoi =
-                roi.Name.Contains("LOT", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("EXP", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("Laser", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("Dot", StringComparison.OrdinalIgnoreCase);
-
-            if (isPresetSyntheticRoi)
+            foreach (var roi in rois)
             {
-                bool isDotMatrix = roi.Name.Contains("Dot", StringComparison.OrdinalIgnoreCase) ||
-                                   roi.Name.Contains("EXP", StringComparison.OrdinalIgnoreCase) ||
-                                   roi.Center.Y > (imageHeight * 0.5);
-                int dotRadius = Math.Clamp(parameters.OcrDotClosingRadius, 0, 5);
-                var segParams = new OcrMaxSegmentParams(
-                    printMethod: isDotMatrix ? PrintMethodType.InkjetDotMatrix : PrintMethodType.ContinuousLaser,
-                    rectifiedWidth: 420,
-                    rectifiedHeight: 40,
-                    minCharWidth: 5,
-                    maxCharWidth: 28,
-                    expectedPitch: Math.Clamp(parameters.OcrExpectedCharPitch, 8, 64),
-                    dotClosingRadiusX: isDotMatrix ? Math.Max(1, dotRadius) : dotRadius,
-                    dotClosingRadiusY: isDotMatrix ? Math.Max(1, dotRadius) : dotRadius,
-                    foregroundContrastOffset: Math.Clamp(parameters.OcrForegroundContrast, 2.0f, 80.0f),
-                    darkOnLight: true);
-                var ocvParams = new HalconOcvParams(
-                    acceptThreshold: Math.Clamp(parameters.OcrAcceptThreshold, 0.10f, 0.98f),
-                    confusionMarginThreshold: 0.01f,
-                    minContrast: 20.0f,
-                    minProjectionCorrelation: Math.Clamp(parameters.OcrMinQualityScore, 0.10f, 0.98f),
-                    maxQuadrantDropRatio: 0.38f,
-                    maxMarginSmearRatio: 0.35f,
-                    adaptGray: true,
-                    adaptPos: true,
-                    verifyCalendarDate: isDotMatrix);
+                token.ThrowIfCancellationRequested();
+                results.Add(new InspectionSuiteItemResult(
+                    roi.RoiId,
+                    roi.Name,
+                    IsPass: false,
+                    BadgeLabel: "모델 미연결",
+                    DetailLine: "PP-OCR (ONNX) 서비스가 연결되지 않았습니다.",
+                    roi.Center,
+                    roi.AngleRadians,
+                    roi.Outline,
+                    [],
+                    [],
+                    [],
+                    [roi.Center],
+                    ElapsedMicroseconds: 0.0,
+                    BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.PpOcrOnnx, parameters),
+                    OcrDiagnostic: null));
+            }
 
-                var maskRule = new FieldingMaskRule(isDotMatrix ? "AAA.9999.99.99" : "AAA-9999-A99");
-                OcrOcvLineResult res = IndustrialOcrOcvEngine.InspectLine(
-                    view, in fixture, fontModel, in segParams, in ocvParams, in maskRule, visionWs);
-                if (res.IsPass && !string.IsNullOrEmpty(res.DecodedText))
+            return results.MoveToImmutable();
+        }
+
+        float minAccept = Math.Clamp(parameters.PpOcrMinConfidence, MinAcceptConfidenceClamp, MaxAcceptConfidenceClamp);
+        float minChar = Math.Clamp(parameters.PpOcrMinCharacterConfidence, 0.0f, MaxAcceptConfidenceClamp);
+
+        PpOcrRunOptions runOptions = parameters.PpOcrPreset == PpOcrSpeedPreset.HighSpeedProduction
+            ? PpOcrRunOptions.CreateHighSpeedProduction(
+                language: parameters.PpOcrLanguageMode,
+                polarityMode: parameters.PpOcrPolarity,
+                allowedCharacterSet: parameters.OcrAllowedCharacters,
+                minAcceptConfidence: minAccept,
+                minCharacterConfidence: minChar)
+            : new PpOcrRunOptions(
+                Language: parameters.PpOcrLanguageMode,
+                PipelineMode: parameters.PpOcrPipeline,
+                PolarityMode: parameters.PpOcrPolarity,
+                AllowedCharacterSet: parameters.OcrAllowedCharacters,
+                MinAcceptConfidence: minAccept,
+                MinCharacterConfidence: minChar,
+                FastInteractivePreview: parameters.IsInteractivePreview);
+
+        using var visionWs = new VisionWorkspace();
+        var slots = new List<RectifiedOcrSlot>(rois.Count);
+
+        try
+        {
+            var patches = new PpOcrRoiPatch[rois.Count];
+            for (int i = 0; i < rois.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                InspectionSuiteRoiInput roi = rois[i];
+                var prepSw = Stopwatch.StartNew();
+                var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: OcrCropMarginPixels, token);
+                var cropView = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
+                var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
+
+                int roiW = Math.Clamp((int)Math.Round(roi.Width) + DefaultOcrPadX, MinRectifiedOcrWidth, Math.Min(MaxOcrRectifiedWidth, cropView.Width));
+                int roiH = Math.Clamp((int)Math.Round(roi.Height) + DefaultOcrPadY, MinRectifiedOcrHeight, Math.Min(MaxOcrRectifiedHeight, cropView.Height));
+                int pixelCount = checked(roiW * roiH);
+
+                byte[] rented = ArrayPool<byte>.Shared.Rent(pixelCount);
+                Span<byte> rectifiedRoi = rented.AsSpan(0, pixelCount);
+                Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
+                SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
+                prepSw.Stop();
+
+                slots.Add(new RectifiedOcrSlot(roi, fixture, offsetX, offsetY, roiW, roiH, rented, prepSw.Elapsed.TotalMicroseconds));
+                patches[i] = new PpOcrRoiPatch(rented.AsMemory(0, pixelCount), roiW, roiH, roiW);
+            }
+
+            token.ThrowIfCancellationRequested();
+            var batchSw = Stopwatch.StartNew();
+            IReadOnlyList<PpOcrRecognitionResult> batchOutputs = ppOcrService.RecognizeBatch(patches, runOptions);
+            batchSw.Stop();
+
+            double amortizedBatchMicroseconds = batchOutputs.Count > 0
+                ? batchSw.Elapsed.TotalMicroseconds / batchOutputs.Count
+                : 0.0;
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                RectifiedOcrSlot slot = slots[i];
+                InspectionSuiteRoiInput roi = slot.Roi;
+                PpOcrRecognitionResult ppRes = batchOutputs[i];
+                double itemElapsedUs = slot.PrepMicroseconds + amortizedBatchMicroseconds;
+
+                if (ppRes.ModelStatus != PpOcrModelStatus.Ready)
                 {
-                    sw.Stop();
-                    string presetBadge = $"'{res.DecodedText}' · OCV={res.MinOcvQualityScore:F2}";
-                    string presetDetail = $"판독='{res.DecodedText}', 합격=True, 최소점수={res.MinCharScore:F3}, 최소OCV={res.MinOcvQualityScore:F3}, 결함플래그={res.DefectFlags}";
                     results.Add(new InspectionSuiteItemResult(
                         roi.RoiId,
                         roi.Name,
-                        true,
-                        presetBadge,
-                        presetDetail,
+                        IsPass: false,
+                        BadgeLabel: "모델 미설치",
+                        DetailLine: $"{ppRes.StatusMessage} (가짜 판독 결과 미반환)",
                         roi.Center,
                         roi.AngleRadians,
                         roi.Outline,
                         [],
-                        [roi.Center],
                         [],
-                        [],
-                        sw.Elapsed.TotalMicroseconds));
-                    continue;
-                }
-            }
-
-            var universalItem = RunIndustrialOcrOnRoi(
-                view,
-                in fixture,
-                offsetX,
-                offsetY,
-                roi,
-                parameters,
-                minAcceptConfidence: Math.Clamp(parameters.OcrAcceptThreshold, 0.10f, 0.98f),
-                minOcvQuality: Math.Clamp(parameters.OcrMinQualityScore, 0.10f, 0.98f),
-                foregroundContrastOffset: Math.Clamp(parameters.OcrForegroundContrast, 2.0f, 80.0f),
-                expectedCharPitch: Math.Clamp(parameters.OcrExpectedCharPitch, 8, 64),
-                visionWs,
-                sw);
-            results.Add(universalItem);
-        }
-
-        return results.MoveToImmutable();
-    }
-
-    private static ImmutableArray<InspectionSuiteItemResult> RunLightweightOcr(
-        MatchingImageReader reader,
-        int imageWidth,
-        int imageHeight,
-        IReadOnlyList<InspectionSuiteRoiInput> rois,
-        InspectionSuiteParameters parameters,
-        InspectionWorkspace workspace,
-        CancellationToken token)
-    {
-        _ = workspace;
-        using var visionWs = new VisionWorkspace();
-        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
-        LightweightSequenceModel model = UnifiedTestImageSuiteGenerator.TrainDefaultLightweightSequenceModel();
-        var ocrParams = new LightweightOcrParams(
-            stripWidth: 480,
-            stripHeight: 32,
-            columnStride: Math.Clamp(parameters.LightweightOcrColumnStride, 1, 6),
-            beamWidth: Math.Clamp(parameters.LightweightOcrBeamWidth, 1, 12),
-            minConfidence: Math.Clamp(parameters.LightweightOcrMinConfidence, 0.10f, 0.98f),
-            darkOnLight: true,
-            usePrefixBeamSearch: true,
-            detrendIllumination: true);
-
-        foreach (var roi in rois)
-        {
-            token.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
-            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 16, token);
-            var view = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
-            var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
-
-            bool isPresetSyntheticRoi =
-                roi.Name.Contains("WAFER", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("BATCH", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("CTC", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("1-Pass", StringComparison.OrdinalIgnoreCase);
-
-            if (isPresetSyntheticRoi)
-            {
-                LightweightOcrResult res = LightweightOcrEngine.RecognizeLine(view, in fixture, model, in ocrParams, visionWs);
-                if (res.IsPass && !string.IsNullOrEmpty(res.Text))
-                {
-                    sw.Stop();
-                    string presetBadge = $"'{res.Text}' · Conf={res.Confidence:F2}";
-                    string presetDetail = $"1-Pass 시퀀스 판독='{res.Text}', 합격=True, 신뢰도={res.Confidence:F3}, 문자수={res.Text.Length}개";
-                    results.Add(new InspectionSuiteItemResult(
-                        roi.RoiId,
-                        roi.Name,
-                        true,
-                        presetBadge,
-                        presetDetail,
-                        roi.Center,
-                        roi.AngleRadians,
-                        roi.Outline,
                         [],
                         [roi.Center],
-                        [],
-                        [],
-                        sw.Elapsed.TotalMicroseconds));
+                        itemElapsedUs,
+                        BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.PpOcrOnnx, parameters),
+                        OcrDiagnostic: null));
                     continue;
                 }
-            }
 
-            var fastItem = RunLightweightFastOcrOnRoi(
-                view,
-                in fixture,
-                offsetX,
-                offsetY,
-                roi,
-                parameters,
-                minAcceptConfidence: Math.Clamp(parameters.LightweightOcrMinConfidence, 0.10f, 0.98f),
-                foregroundContrastOffset: Math.Clamp(parameters.LightweightOcrContrastOffset, 2.0f, 80.0f),
-                columnStride: Math.Clamp(parameters.LightweightOcrColumnStride, 1, 6),
-                beamWidth: Math.Clamp(parameters.LightweightOcrBeamWidth, 1, 12),
-                visionWs,
-                sw);
-            results.Add(fastItem);
-        }
+                var roiView = new ReadOnlyImageView2D<byte>(
+                    slot.RentedPixels.AsSpan(0, slot.RoiWidth * slot.RoiHeight),
+                    slot.RoiWidth,
+                    slot.RoiHeight,
+                    slot.RoiWidth);
 
-        return results.MoveToImmutable();
-    }
+                UniversalOcrRegionResult ocrRes = ppRes.Region;
+                float halfW = (slot.RoiWidth - 1) * 0.5f;
+                float halfH = (slot.RoiHeight - 1) * 0.5f;
+                var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count + ppRes.Boxes.Length);
+                var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
+                var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
+                charCenters.Add(roi.Center);
 
-    private static ImmutableArray<InspectionSuiteItemResult> RunCpuDeepOcr(
-        MatchingImageReader reader,
-        int imageWidth,
-        int imageHeight,
-        IReadOnlyList<InspectionSuiteRoiInput> rois,
-        InspectionSuiteParameters parameters,
-        InspectionWorkspace workspace,
-        CancellationToken token)
-    {
-        _ = workspace;
-        using var visionWs = new VisionWorkspace();
-        var results = ImmutableArray.CreateBuilder<InspectionSuiteItemResult>(rois.Count);
-        float minConf = Math.Clamp(parameters.DeepOcrMinConfidence, 0.10f, 0.98f);
-        float contrastOffset = Math.Clamp(parameters.DeepOcrContrastOffset, 2.0f, 80.0f);
-        int beamWidth = Math.Clamp(parameters.DeepOcrEnsembleBeamWidth, 1, 16);
-        int expectedPitch = Math.Clamp(parameters.OcrExpectedCharPitch, 8, 64);
-        float superResScale = Math.Clamp(parameters.DeepOcrSuperResScale, 1.0f, 2.5f);
-        float unsharpGain = Math.Clamp(parameters.DeepOcrUnsharpGain, 0.0f, 2.0f);
-
-        foreach (var roi in rois)
-        {
-            token.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
-            var (crop, localCenter, offsetX, offsetY) = ReadLocalCrop(reader, imageWidth, imageHeight, roi, marginPixels: 16, token);
-            var cropView = new ReadOnlyImageView2D<byte>(crop.Pixels.Span, crop.Width, crop.Height, crop.Stride);
-            var fixture = new FixturePose2D(localCenter.X, localCenter.Y, (float)roi.AngleRadians);
-
-            int padX = roi.Width <= 400 ? 6 : 12;
-            int padY = roi.Height <= 48 ? 2 : 6;
-            int roiW = Math.Clamp((int)Math.Round(roi.Width) + padX, 12, Math.Min(3680, cropView.Width));
-            int roiH = Math.Clamp((int)Math.Round(roi.Height) + padY, 10, Math.Min(2048, cropView.Height));
-            int pixelCount = checked(roiW * roiH);
-
-            Span<byte> rectifiedRoi = visionWs.GetByteBufferA(pixelCount);
-            Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
-            SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
-
-            var roiView = new ReadOnlyImageView2D<byte>(rectifiedRoi.Slice(0, pixelCount), roiW, roiH, roiW);
-            UniversalOcrRegionResult ocrRes = CpuDeepOcrEngine.RecognizeRoi(
-                roiView,
-                minConf,
-                contrastOffset,
-                beamWidth,
-                visionWs,
-                expectedPitch,
-                superResScale,
-                unsharpGain);
-            sw.Stop();
-
-            float halfW = (roiW - 1) * 0.5f;
-            float halfH = (roiH - 1) * 0.5f;
-            var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count);
-            var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
-            var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
-            charCenters.Add(roi.Center);
-
-            foreach (RecognizedCharBox ch in ocrRes.Characters)
-            {
-                float lx0 = ch.StartCol - halfW;
-                float ly0 = ch.TopRow - halfH;
-                float lx1 = ch.EndCol - halfW;
-                float ly1 = ch.BottomRow - halfH;
-
-                var p0 = fixture.LocalToWorld(lx0, ly0);
-                var p1 = fixture.LocalToWorld(lx1, ly0);
-                var p2 = fixture.LocalToWorld(lx1, ly1);
-                var p3 = fixture.LocalToWorld(lx0, ly1);
-
-                charContours.Add([
-                    new PointD(offsetX + p0.X, offsetY + p0.Y),
-                    new PointD(offsetX + p1.X, offsetY + p1.Y),
-                    new PointD(offsetX + p2.X, offsetY + p2.Y),
-                    new PointD(offsetX + p3.X, offsetY + p3.Y)
-                ]);
-
-                var pc = fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
-                PointD worldPt = new(offsetX + pc.X, offsetY + pc.Y);
-                if (ch.Confidence >= minConf)
+                foreach (PpOcrBoxResult detBox in ppRes.Boxes)
                 {
-                    charCenters.Add(worldPt);
+                    if (detBox.Polygon.Length == QuadPolygonVertexCount)
+                    {
+                        var worldPoly = ImmutableArray.CreateBuilder<PointD>(QuadPolygonVertexCount);
+                        for (int p = 0; p < QuadPolygonVertexCount; p++)
+                        {
+                            var wp = slot.Fixture.LocalToWorld((float)detBox.Polygon[p].X - halfW, (float)detBox.Polygon[p].Y - halfH);
+                            worldPoly.Add(new PointD(slot.OffsetX + wp.X, slot.OffsetY + wp.Y));
+                        }
+
+                        charContours.Add(worldPoly.MoveToImmutable());
+                    }
                 }
-                else
+
+                foreach (RecognizedCharBox ch in ocrRes.Characters)
                 {
-                    lowConfCenters.Add(worldPt);
+                    float lx0 = ch.StartCol - halfW;
+                    float ly0 = ch.TopRow - halfH;
+                    float lx1 = ch.EndCol - halfW;
+                    float ly1 = ch.BottomRow - halfH;
+                    var pc = slot.Fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
+                    PointD worldPt = new(slot.OffsetX + pc.X, slot.OffsetY + pc.Y);
+                    if (ch.Confidence >= runOptions.MinCharacterConfidence && ch.Character != '?')
+                    {
+                        charCenters.Add(worldPt);
+                    }
+                    else
+                    {
+                        lowConfCenters.Add(worldPt);
+                    }
                 }
+
+                string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
+                string polarityTag = ppRes.UsedInvertedPolarity ? "LightOnDark(반전)" : "DarkOnLight(일반)";
+                string stageTag = ppRes.UsedDetectionStage ? "Det+Rec" : "RecOnly";
+                string batchTag = slots.Count > 1 ? $"·배치x{slots.Count}" : string.Empty;
+                bool isPass = ocrRes.IsPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
+
+                string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
+                    ? "OCR N/A"
+                    : $"'{singleLineDisplay}' · P={ocrRes.MeanConfidence:F2}";
+
+                string detail = $"OCR({ppRes.ActiveDevice}·{stageTag}{batchTag})='{singleLineDisplay}', 합격={isPass}, 평균확률={ocrRes.MeanConfidence:F3}, 최소확률={ocrRes.MinConfidence:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
+                OcrDiagnosticSnapshot diag = OcrDiagnosticPreviewBuilder.Build(
+                    roiView, ocrRes, InspectionSuiteAlgorithmKind.PpOcrOnnx, parameters);
+
+                results.Add(new InspectionSuiteItemResult(
+                    roi.RoiId,
+                    roi.Name,
+                    isPass,
+                    badge,
+                    detail,
+                    roi.Center,
+                    roi.AngleRadians,
+                    roi.Outline,
+                    charContours.ToImmutable(),
+                    charCenters.ToImmutable(),
+                    [],
+                    lowConfCenters.ToImmutable(),
+                    itemElapsedUs,
+                    [],
+                    diag));
             }
 
-            string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
-            string polarityTag = ocrRes.DarkOnLight ? "DarkOnLight" : "LightOnDark";
-            bool isPass = ocrRes.IsPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
-
-            string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
-                ? "DeepOCR N/A"
-                : $"'{singleLineDisplay}' · Deep={ocrRes.MeanConfidence:F2}";
-
-            string detail = $"CPU 신경망·시퀀스 판독='{singleLineDisplay}', 합격={isPass}, 신뢰도={ocrRes.MeanConfidence:F3}, 최소={ocrRes.MinConfidence:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
-
-            results.Add(new InspectionSuiteItemResult(
-                roi.RoiId,
-                roi.Name,
-                isPass,
-                badge,
-                detail,
-                roi.Center,
-                roi.AngleRadians,
-                roi.Outline,
-                charContours.ToImmutable(),
-                charCenters.ToImmutable(),
-                [],
-                lowConfCenters.ToImmutable(),
-                sw.Elapsed.TotalMicroseconds,
-                BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.CpuDeepOcr, parameters)));
+            return results.MoveToImmutable();
         }
-
-        return results.MoveToImmutable();
-    }
-
-    private static InspectionSuiteItemResult RunIndustrialOcrOnRoi(
-        ReadOnlyImageView2D<byte> cropView,
-        in FixturePose2D fixture,
-        int offsetX,
-        int offsetY,
-        InspectionSuiteRoiInput roi,
-        InspectionSuiteParameters parameters,
-        float minAcceptConfidence,
-        float minOcvQuality,
-        float foregroundContrastOffset,
-        int expectedCharPitch,
-        VisionWorkspace visionWs,
-        Stopwatch sw)
-    {
-        int padX = roi.Width is >= 255 and <= 265 ? 18 : 6;
-        int padY = roi.Height <= 48 ? 2 : 6;
-        int roiW = Math.Clamp((int)Math.Round(roi.Width) + padX, 12, Math.Min(3680, cropView.Width));
-        int roiH = Math.Clamp((int)Math.Round(roi.Height) + padY, 10, Math.Min(2048, cropView.Height));
-        int pixelCount = checked(roiW * roiH);
-
-        Span<byte> rectifiedRoi = visionWs.GetByteBufferA(pixelCount);
-        Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
-        SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
-
-        var roiView = new ReadOnlyImageView2D<byte>(rectifiedRoi.Slice(0, pixelCount), roiW, roiH, roiW);
-        UniversalOcrRegionResult ocrRes = UniversalMultiFontOcrEngine.RecognizeRoi(
-            roiView,
-            minAcceptConfidence,
-            foregroundContrastOffset,
-            expectedCharPitch);
-
-        // Compute per-character Halcon OCV structural quality (projection profile regularity + 4x4 quadrant stroke retention)
-        ComputeIndustrialOcvMetrics(roiView, ocrRes, out float meanOcv, out float minOcv);
-        sw.Stop();
-
-        float halfW = (roiW - 1) * 0.5f;
-        float halfH = (roiH - 1) * 0.5f;
-        var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count);
-        var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
-        var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
-        charCenters.Add(roi.Center);
-
-        foreach (RecognizedCharBox ch in ocrRes.Characters)
+        finally
         {
-            float lx0 = ch.StartCol - halfW;
-            float ly0 = ch.TopRow - halfH;
-            float lx1 = ch.EndCol - halfW;
-            float ly1 = ch.BottomRow - halfH;
-
-            var p0 = fixture.LocalToWorld(lx0, ly0);
-            var p1 = fixture.LocalToWorld(lx1, ly0);
-            var p2 = fixture.LocalToWorld(lx1, ly1);
-            var p3 = fixture.LocalToWorld(lx0, ly1);
-
-            charContours.Add([
-                new PointD(offsetX + p0.X, offsetY + p0.Y),
-                new PointD(offsetX + p1.X, offsetY + p1.Y),
-                new PointD(offsetX + p2.X, offsetY + p2.Y),
-                new PointD(offsetX + p3.X, offsetY + p3.Y)
-            ]);
-
-            var pc = fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
-            PointD worldPt = new(offsetX + pc.X, offsetY + pc.Y);
-            if (ch.Confidence >= minAcceptConfidence)
+            for (int i = 0; i < slots.Count; i++)
             {
-                charCenters.Add(worldPt);
-            }
-            else
-            {
-                lowConfCenters.Add(worldPt);
+                ArrayPool<byte>.Shared.Return(slots[i].RentedPixels);
             }
         }
-
-        string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
-        string polarityTag = ocrRes.DarkOnLight ? "DarkOnLight" : "LightOnDark";
-        bool ocvPass = minOcvQuality <= 0.78f
-            ? meanOcv >= minOcvQuality * 0.85f
-            : (meanOcv >= minOcvQuality && minOcv >= minOcvQuality * 0.75f);
-        bool isPass = ocrRes.IsPass && ocvPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
-
-        string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
-            ? "OCR N/A"
-            : $"'{singleLineDisplay}' · OCV={meanOcv:F2}";
-
-        string detail = $"판독='{singleLineDisplay}', 합격={isPass}, 평균OCV={meanOcv:F3}, 최소점수={minOcv:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
-
-        return new InspectionSuiteItemResult(
-            roi.RoiId,
-            roi.Name,
-            isPass,
-            badge,
-            detail,
-            roi.Center,
-            roi.AngleRadians,
-            roi.Outline,
-            charContours.ToImmutable(),
-            charCenters.ToImmutable(),
-            [],
-            lowConfCenters.ToImmutable(),
-            sw.Elapsed.TotalMicroseconds,
-            BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.IndustrialOcrOcv, parameters));
-    }
-
-    private static InspectionSuiteItemResult RunLightweightFastOcrOnRoi(
-        ReadOnlyImageView2D<byte> cropView,
-        in FixturePose2D fixture,
-        int offsetX,
-        int offsetY,
-        InspectionSuiteRoiInput roi,
-        InspectionSuiteParameters parameters,
-        float minAcceptConfidence,
-        float foregroundContrastOffset,
-        int columnStride,
-        int beamWidth,
-        VisionWorkspace visionWs,
-        Stopwatch sw)
-    {
-        int padX = roi.Width is >= 255 and <= 265 ? 18 : 6;
-        int padY = roi.Height <= 48 ? 2 : 6;
-        int roiW = Math.Clamp((int)Math.Round(roi.Width) + padX, 12, Math.Min(3680, cropView.Width));
-        int roiH = Math.Clamp((int)Math.Round(roi.Height) + padY, 10, Math.Min(2048, cropView.Height));
-        int pixelCount = checked(roiW * roiH);
-
-        Span<byte> rectifiedRoi = visionWs.GetByteBufferA(pixelCount);
-        Span<float> warpScratch = visionWs.GetFloatBufferA(pixelCount);
-        SimdAffineWarper.WarpAffineBilinear(cropView, in fixture, roiW, roiH, rectifiedRoi, warpScratch);
-
-        var roiView = new ReadOnlyImageView2D<byte>(rectifiedRoi.Slice(0, pixelCount), roiW, roiH, roiW);
-        UniversalOcrRegionResult ocrRes = LightweightOcrEngine.RecognizeFastRoi(
-            roiView,
-            minAcceptConfidence,
-            foregroundContrastOffset,
-            columnStride,
-            visionWs,
-            beamWidth);
-        sw.Stop();
-
-        float halfW = (roiW - 1) * 0.5f;
-        float halfH = (roiH - 1) * 0.5f;
-        var charContours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>(ocrRes.Characters.Count);
-        var charCenters = ImmutableArray.CreateBuilder<PointD>(ocrRes.Characters.Count + 1);
-        var lowConfCenters = ImmutableArray.CreateBuilder<PointD>();
-        charCenters.Add(roi.Center);
-
-        foreach (RecognizedCharBox ch in ocrRes.Characters)
-        {
-            float lx0 = ch.StartCol - halfW;
-            float ly0 = ch.TopRow - halfH;
-            float lx1 = ch.EndCol - halfW;
-            float ly1 = ch.BottomRow - halfH;
-
-            var p0 = fixture.LocalToWorld(lx0, ly0);
-            var p1 = fixture.LocalToWorld(lx1, ly0);
-            var p2 = fixture.LocalToWorld(lx1, ly1);
-            var p3 = fixture.LocalToWorld(lx0, ly1);
-
-            charContours.Add([
-                new PointD(offsetX + p0.X, offsetY + p0.Y),
-                new PointD(offsetX + p1.X, offsetY + p1.Y),
-                new PointD(offsetX + p2.X, offsetY + p2.Y),
-                new PointD(offsetX + p3.X, offsetY + p3.Y)
-            ]);
-
-            var pc = fixture.LocalToWorld(0.5f * (lx0 + lx1), 0.5f * (ly0 + ly1));
-            PointD worldPt = new(offsetX + pc.X, offsetY + pc.Y);
-            if (ch.Confidence >= minAcceptConfidence)
-            {
-                charCenters.Add(worldPt);
-            }
-            else
-            {
-                lowConfCenters.Add(worldPt);
-            }
-        }
-
-        string singleLineDisplay = ocrRes.FullText.Replace("\n", " / ", StringComparison.Ordinal);
-        string polarityTag = ocrRes.DarkOnLight ? "DarkOnLight" : "LightOnDark";
-        bool isPass = ocrRes.IsPass && !string.IsNullOrWhiteSpace(ocrRes.FullText) && lowConfCenters.Count == 0;
-
-        string badge = string.IsNullOrWhiteSpace(singleLineDisplay)
-            ? "CTC N/A"
-            : $"'{singleLineDisplay}' · Conf={ocrRes.MeanConfidence:F2}";
-
-        string detail = $"1-Pass 경량 판독='{singleLineDisplay}', 합격={isPass}, 신뢰도={ocrRes.MeanConfidence:F3}, 최소={ocrRes.MinConfidence:F3}, 줄수={ocrRes.Lines.Count}, 문자수={ocrRes.Characters.Count}개, 극성={polarityTag}";
-
-        return new InspectionSuiteItemResult(
-            roi.RoiId,
-            roi.Name,
-            isPass,
-            badge,
-            detail,
-            roi.Center,
-            roi.AngleRadians,
-            roi.Outline,
-            charContours.ToImmutable(),
-            charCenters.ToImmutable(),
-            [],
-            lowConfCenters.ToImmutable(),
-            sw.Elapsed.TotalMicroseconds,
-            BuildGeometricGuidesForRoi(roi, InspectionSuiteAlgorithmKind.LightweightOcr, parameters));
-    }
-
-    private static void ComputeIndustrialOcvMetrics(
-        ReadOnlyImageView2D<byte> roiView,
-        UniversalOcrRegionResult ocrRes,
-        out float meanOcv,
-        out float minOcv)
-    {
-        if (ocrRes.Characters.Count == 0)
-        {
-            meanOcv = 0f;
-            minOcv = 0f;
-            return;
-        }
-
-        Span<float> grid = stackalloc float[IndustrialOcrGlyphTemplate.GridLength];
-        Span<float> hProj = stackalloc float[IndustrialOcrGlyphTemplate.GridHeight];
-        Span<float> vProj = stackalloc float[IndustrialOcrGlyphTemplate.GridWidth];
-        Span<float> quads = stackalloc float[IndustrialOcrGlyphTemplate.QuadrantCount];
-
-        float sumOcv = 0f;
-        minOcv = 1f;
-        for (int i = 0; i < ocrRes.Characters.Count; i++)
-        {
-            RecognizedCharBox ch = ocrRes.Characters[i];
-            int bw = Math.Max(1, (ch.EndCol - ch.StartCol) + 1);
-            int bh = Math.Max(1, (ch.BottomRow - ch.TopRow) + 1);
-            ReadOnlySpan<byte> patchSlice = roiView.Pixels.Slice((ch.TopRow * roiView.Stride) + ch.StartCol);
-            ReadOnlyImageView2D<byte> charView = new(patchSlice, bw, bh, roiView.Stride);
-
-            IndustrialOcrTrainer.ExtractNormalizedGlyphFeatures(
-                charView,
-                ocrRes.DarkOnLight,
-                grid,
-                hProj,
-                vProj,
-                quads,
-                out float contrastRange);
-
-            int activeQuads = 0;
-            for (int q = 0; q < quads.Length; q++)
-            {
-                if (quads[q] >= 0.08f)
-                {
-                    activeQuads++;
-                }
-            }
-
-            float contrastFactor = Math.Clamp(contrastRange / 95.0f, 0.78f, 1.04f);
-            float quadFactor = activeQuads >= 3 ? 1.0f : 0.88f;
-            float charOcv = Math.Clamp((ch.Confidence * 0.84f) + (contrastFactor * quadFactor * 0.14f), 0.05f, 0.99f);
-            sumOcv += charOcv;
-            if (charOcv < minOcv)
-            {
-                minOcv = charOcv;
-            }
-        }
-
-        meanOcv = sumOcv / ocrRes.Characters.Count;
     }
 
     private static ImmutableArray<InspectionSuiteItemResult> RunAutoTeaching(
@@ -3205,30 +2896,72 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
 
             var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
             var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+            var secondaryPts = ImmutableArray.CreateBuilder<PointD>();
+
+            PointD referencePoint = target.Center;
+            double referenceAngle = target.AngleRadians;
+            double worldCx = target.Center.X;
+            double worldCy = target.Center.Y;
+            double worldLeft = 0.0;
+            double worldTop = 0.0;
+            double worldRight = 0.0;
+            double worldBottom = 0.0;
+            double barW = 0.0;
+            double barH = 0.0;
+            double angleDeg = 0.0;
 
             if (decoded.IsDecoded)
             {
-                double cx = decoded.CenterWorld.X + offsetX;
-                double cy = decoded.CenterWorld.Y + offsetY;
-                double hw = decoded.WidthPixels * 0.5;
-                double hh = decoded.HeightPixels * 0.5;
-                primaryPts.Add(new PointD(cx, cy));
-                contours.Add([
-                    new PointD(cx - hw, cy - hh),
-                    new PointD(cx + hw, cy - hh),
-                    new PointD(cx + hw, cy + hh),
-                    new PointD(cx - hw, cy + hh)
-                ]);
+                worldCx = decoded.CenterWorld.X + offsetX;
+                worldCy = decoded.CenterWorld.Y + offsetY;
+                barW = decoded.WidthPixels;
+                barH = decoded.HeightPixels;
+                double hw = barW * 0.5;
+                double hh = barH * 0.5;
+                referencePoint = new PointD(worldCx, worldCy);
+                referenceAngle = decoded.AngleRad;
+                angleDeg = decoded.AngleRad * (180.0 / Math.PI);
+
+                (double sinA, double cosA) = Math.SinCos(referenceAngle);
+                double ux = hw * cosA;
+                double uy = hw * sinA;
+                double vx = -hh * sinA;
+                double vy = hh * cosA;
+
+                PointD tl = new(worldCx - ux - vx, worldCy - uy - vy);
+                PointD tr = new(worldCx + ux - vx, worldCy + uy - vy);
+                PointD br = new(worldCx + ux + vx, worldCy + uy + vy);
+                PointD bl = new(worldCx - ux + vx, worldCy - uy + vy);
+
+                worldLeft = Math.Min(Math.Min(tl.X, tr.X), Math.Min(br.X, bl.X));
+                worldRight = Math.Max(Math.Max(tl.X, tr.X), Math.Max(br.X, bl.X));
+                worldTop = Math.Min(Math.Min(tl.Y, tr.Y), Math.Min(br.Y, bl.Y));
+                worldBottom = Math.Max(Math.Max(tl.Y, tr.Y), Math.Max(br.Y, bl.Y));
+
+                double arrowLen = Math.Max(14.0, hw * 0.85);
+                double wingBack = Math.Max(5.0, arrowLen * 0.25);
+                double wingSide = Math.Max(4.0, arrowLen * 0.18);
+                PointD arrowTip = new(worldCx + (arrowLen * cosA), worldCy + (arrowLen * sinA));
+                PointD wing1 = new(arrowTip.X - (wingBack * cosA) + (wingSide * sinA), arrowTip.Y - (wingBack * sinA) - (wingSide * cosA));
+                PointD wing2 = new(arrowTip.X - (wingBack * cosA) - (wingSide * sinA), arrowTip.Y - (wingBack * sinA) + (wingSide * cosA));
+
+                primaryPts.Add(referencePoint);
+                secondaryPts.Add(tl);
+                secondaryPts.Add(tr);
+                secondaryPts.Add(br);
+                secondaryPts.Add(bl);
+                contours.Add([tl, tr, br, bl]);
+                contours.Add([referencePoint, arrowTip, wing1, arrowTip, wing2]);
             }
 
             bool isPass = decoded.IsDecoded
                 && decoded.SymbolContrast >= minIsoContrast
                 && decoded.CorrectedByteErrors <= maxEccErrors;
             string badge = decoded.IsDecoded
-                ? $"'{decoded.DecodedText}' [{decoded.SymbolRows}×{decoded.SymbolCols}] · ISO={decoded.OverallIsoGrade} (ECC={decoded.CorrectedByteErrors}/{maxEccErrors})"
+                ? $"'{decoded.DecodedText}' @ ({worldCx:F1}, {worldCy:F1}) · θ={angleDeg:F2}° [{decoded.SymbolRows}×{decoded.SymbolCols} · {barW:F0}×{barH:F0}px] · ISO={decoded.OverallIsoGrade}"
                 : "DataMatrix 판독 실패";
             string detail = decoded.IsDecoded
-                ? $"ECC 200 판독='{decoded.DecodedText}' ({decoded.SymbolRows}×{decoded.SymbolCols} 모듈), 합격={isPass}, ISO/IEC 15415 등급={decoded.OverallIsoGrade} (대비={decoded.SymbolContrast:P0}≥{minIsoContrast:P0}, 변조={decoded.ModulationScore:P0}, 고정패턴={decoded.FixedPatternDamageScore:P0}, 비균일도={decoded.AxialNonUniformity:F3}, Reed-Solomon 복원 오류={decoded.CorrectedByteErrors}≤{maxEccErrors}바이트)"
+                ? $"2D 바코드 판독='{decoded.DecodedText}' ({decoded.SymbolRows}×{decoded.SymbolCols} 모듈), 바코드 중심좌표=({worldCx:F1}, {worldCy:F1}), 회전각={angleDeg:F2}°, 바운딩박스=[좌:{worldLeft:F1}, 상:{worldTop:F1} ~ 우:{worldRight:F1}, 하:{worldBottom:F1}] (크기={barW:F1}×{barH:F1}px, 각도={angleDeg:F2}°), 합격={isPass}, ISO/IEC 15415 등급={decoded.OverallIsoGrade} (대비={decoded.SymbolContrast:P0}≥{minIsoContrast:P0}, 변조={decoded.ModulationScore:P0}, 고정패턴={decoded.FixedPatternDamageScore:P0}, 비균일도={decoded.AxialNonUniformity:F3}, Reed-Solomon 복원 오류={decoded.CorrectedByteErrors}≤{maxEccErrors}바이트)"
                 : "유효한 DataMatrix ECC 200 L-Finder 패턴 또는 Reed-Solomon 체크섬을 복원하지 못했습니다.";
 
             results.Add(new InspectionSuiteItemResult(
@@ -3237,12 +2970,12 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 isPass,
                 badge,
                 detail,
-                target.Center,
-                target.AngleRadians,
+                referencePoint,
+                referenceAngle,
                 target.Outline,
                 contours.ToImmutable(),
                 primaryPts.ToImmutable(),
-                [],
+                secondaryPts.ToImmutable(),
                 [],
                 elapsedUs));
         }
@@ -3402,23 +3135,71 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
             double elapsedUs = (Stopwatch.GetTimestamp() - startTick) * 1_000_000.0 / Stopwatch.Frequency;
             var contours = ImmutableArray.CreateBuilder<ImmutableArray<PointD>>();
             var primaryPts = ImmutableArray.CreateBuilder<PointD>();
+            var secondaryPts = ImmutableArray.CreateBuilder<PointD>();
+
+            PointD referencePoint = target.Center;
+            double referenceAngle = target.AngleRadians;
+            double worldCx = target.Center.X;
+            double worldCy = target.Center.Y;
+            double worldLeft = 0.0;
+            double worldTop = 0.0;
+            double worldRight = 0.0;
+            double worldBottom = 0.0;
+            double barW = 0.0;
+            double barH = 0.0;
+            double angleDeg = 0.0;
 
             if (decoded.IsDecoded)
             {
-                double x0 = decoded.StartX + offsetX;
-                double x1 = decoded.EndX + offsetX;
-                double yMid = decoded.ScanlineY + offsetY;
-                primaryPts.Add(new PointD((x0 + x1) * 0.5, yMid));
-                contours.Add([new PointD(x0, yMid), new PointD(x1, yMid)]);
+                worldCx = decoded.CenterX + offsetX;
+                worldCy = decoded.CenterY + offsetY;
+                barW = decoded.WidthPixels;
+                barH = decoded.HeightPixels;
+                double hw = barW * 0.5;
+                double hh = barH * 0.5;
+                referencePoint = new PointD(worldCx, worldCy);
+                referenceAngle = decoded.AngleRad;
+                angleDeg = decoded.AngleDeg;
+
+                (double sinA, double cosA) = Math.SinCos(referenceAngle);
+                double ux = hw * cosA;
+                double uy = hw * sinA;
+                double vx = -hh * sinA;
+                double vy = hh * cosA;
+
+                PointD tl = new(worldCx - ux - vx, worldCy - uy - vy);
+                PointD tr = new(worldCx + ux - vx, worldCy + uy - vy);
+                PointD br = new(worldCx + ux + vx, worldCy + uy + vy);
+                PointD bl = new(worldCx - ux + vx, worldCy - uy + vy);
+
+                worldLeft = Math.Min(Math.Min(tl.X, tr.X), Math.Min(br.X, bl.X));
+                worldRight = Math.Max(Math.Max(tl.X, tr.X), Math.Max(br.X, bl.X));
+                worldTop = Math.Min(Math.Min(tl.Y, tr.Y), Math.Min(br.Y, bl.Y));
+                worldBottom = Math.Max(Math.Max(tl.Y, tr.Y), Math.Max(br.Y, bl.Y));
+
+                PointD scanStart = new(worldCx - ux, worldCy - uy);
+                PointD scanEnd = new(worldCx + ux, worldCy + uy);
+                double wingBack = Math.Max(6.0, hw * 0.14);
+                double wingSide = Math.Max(4.5, hw * 0.10);
+                PointD wing1 = new(scanEnd.X - (wingBack * cosA) + (wingSide * sinA), scanEnd.Y - (wingBack * sinA) - (wingSide * cosA));
+                PointD wing2 = new(scanEnd.X - (wingBack * cosA) - (wingSide * sinA), scanEnd.Y - (wingBack * sinA) + (wingSide * cosA));
+
+                primaryPts.Add(referencePoint);
+                secondaryPts.Add(tl);
+                secondaryPts.Add(tr);
+                secondaryPts.Add(br);
+                secondaryPts.Add(bl);
+                contours.Add([tl, tr, br, bl]);
+                contours.Add([scanStart, scanEnd, wing1, scanEnd, wing2]);
             }
 
             bool isPass = decoded.IsDecoded && decoded.IsChecksumValid && decoded.SymbolContrast >= minSymbolContrast;
             string badge = decoded.IsDecoded
-                ? $"'{decoded.Payload}' [{decoded.Symbology}] · ISO={decoded.IsoGradeLetter} (스캔={decoded.DecodedScanlineCount}/{scanlineCount})"
+                ? $"'{decoded.Payload}' @ ({worldCx:F1}, {worldCy:F1}) · θ={angleDeg:F2}° [{decoded.Symbology} · {barW:F0}×{barH:F0}px] · ISO={decoded.IsoGradeLetter}"
                 : "1D 바코드 판독 실패";
             string detail = decoded.IsDecoded
-                ? $"{decoded.Symbology} 판독='{decoded.Payload}', 합격={isPass}, Modulo-103 체크섬={decoded.ChecksumValue}({(decoded.IsChecksumValid ? "정상" : "오류")}), 유효스캔선={decoded.DecodedScanlineCount}/{scanlineCount}, ISO/IEC 15416 등급={decoded.IsoGradeLetter} (대비 SC={decoded.SymbolContrast:P0}≥{minSymbolContrast:P0}, 변조 MOD={decoded.Modulation:P0}, 디코더빌리티 DEC={decoded.Decodability:P0})"
-                : "유효한 Code 128 Start/Stop 패턴 또는 체크섬을 복원하지 못했습니다.";
+                ? $"1D 바코드({decoded.Symbology}) 판독='{decoded.Payload}', 바코드 중심좌표=({worldCx:F1}, {worldCy:F1}), 회전각={angleDeg:F2}°, 바운딩박스=[좌:{worldLeft:F1}, 상:{worldTop:F1} ~ 우:{worldRight:F1}, 하:{worldBottom:F1}] (크기={barW:F1}×{barH:F1}px, 각도={angleDeg:F2}°), 합격={isPass}, 체크섬={decoded.ChecksumValue}({(decoded.IsChecksumValid ? "정상" : "오류")}), 유효스캔선={decoded.DecodedScanlineCount}/{scanlineCount}, ISO/IEC 15416 등급={decoded.IsoGradeLetter} (대비 SC={decoded.SymbolContrast:P0}≥{minSymbolContrast:P0}, 변조 MOD={decoded.Modulation:P0}, 디코더빌리티 DEC={decoded.Decodability:P0})"
+                : "유효한 Code 128 / EAN-13 바코드 패턴 또는 체크섬을 복원하지 못했습니다.";
 
             results.Add(new InspectionSuiteItemResult(
                 target.RoiId,
@@ -3426,12 +3207,12 @@ public sealed class InspectionSuiteService(IImageLoader loader, Func<VideoFrame?
                 isPass,
                 badge,
                 detail,
-                target.Center,
-                target.AngleRadians,
+                referencePoint,
+                referenceAngle,
                 target.Outline,
                 contours.ToImmutable(),
                 primaryPts.ToImmutable(),
-                [],
+                secondaryPts.ToImmutable(),
                 [],
                 elapsedUs));
         }

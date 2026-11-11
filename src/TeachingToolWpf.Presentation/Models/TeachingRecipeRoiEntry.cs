@@ -16,4 +16,6 @@ public sealed record TeachingRecipeRoiEntry(
     double AngleDegrees,
     double SearchMarginPixels,
     FilterSettings PrimaryFilter,
-    List<FilterSettings> FilterPipeline);
+    List<FilterSettings> FilterPipeline,
+    string OcvExpectedText = "",
+    string OcvFormatMask = "");
