@@ -5,7 +5,13 @@ namespace VisionCanvas.Core.Editing;
 /// </summary>
 public sealed record RoiOcvSettings(
     string ExpectedText = "",
-    string FormatMask = "")
+    string FormatMask = "",
+    string FontId = RoiOcvSettings.DefaultFontId)
 {
+    public const string DefaultFontId = "default";
+
     public static RoiOcvSettings Empty { get; } = new();
+
+    public static string NormalizeFontId(string? fontId)
+        => string.IsNullOrWhiteSpace(fontId) ? DefaultFontId : fontId.Trim();
 }

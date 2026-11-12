@@ -33,7 +33,7 @@ internal static class FullModuleDataset
             }
         }
         using var sample = Dataset.ToMat(image);
-        using var pin = Dataset.ToMat(new GrayImage(106, 129, pixels));
+        using var pin = Dataset.ToMat(new CpuGrayImage(106, 129, pixels));
         Cv2.ImWrite(Path.Combine(folder, "8k-modules.png"), sample, new ImageEncodingParam(ImwriteFlags.PngCompression, 9));
         Cv2.ImWrite(Path.Combine(folder, "pin-template.png"), pin);
         var pins = (from cy in Enumerable.Range(0, 4)
@@ -42,7 +42,7 @@ internal static class FullModuleDataset
                     from column in Enumerable.Range(0, 8)
                     select new Match((cx * 2048) + ((column + 2) * 180) + 39.018,
                         (cy * 2048) + (row == 0 ? 545.678 : 1455.678), 0, 1, 1)).ToArray();
-        var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, MaximumMatches = 256 };
+        var options = new CpuSearchOptions { MinimumAngle = -30, MaximumAngle = 30, MaximumMatches = 256 };
         Case[] cases =
         [
             new("kensa-full-modules", "kensa-template.png", "kensa.png", options with { SuppressionRadius = 31.2 },
@@ -86,7 +86,7 @@ internal static class FullModuleDataset
         return matches.ToArray();
     }
 
-    private static GrayImage SampleImage()
+    private static CpuGrayImage SampleImage()
     {
         using var source = new ProceduralTileSource();
         var pixels = new byte[8192 * 8192];

@@ -4,10 +4,11 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using VisionKernels;
 
 namespace VisionAlgorithm.OpenSrc.PatternMatching;
 
-internal readonly record struct EdgePoint(double X, double Y, double NormalX, double NormalY, float Strength);
+internal readonly record struct ShapeEdgePoint(double X, double Y, double NormalX, double NormalY, float Strength);
 
 internal sealed class GradientImage
 {
@@ -18,14 +19,14 @@ internal sealed class GradientImage
     public float[] Magnitude { get; }
     public byte[] Bits { get; }
     private readonly int[] _edgeIndex;
-    public EdgePoint[] EdgePoints { get; private set; } = [];
+    public ShapeEdgePoint[] EdgePoints { get; private set; } = [];
     internal double DirectionLengthUpperBound
     {
         get; private set;
     }
     public long EstimatedBytes => ((long)Width * Height * 13) + (_edgeIndex.LongLength * 4) + (EdgePoints.LongLength * 40);
 
-    public EdgePoint? EdgeAt(int x, int y)
+    public ShapeEdgePoint? EdgeAt(int x, int y)
     {
         var index = _edgeIndex.Length == 0 ? 0 : _edgeIndex[(y * Width) + x];
         return index == 0 ? null : EdgePoints[index - 1];
@@ -43,13 +44,13 @@ internal sealed class GradientImage
         _edgeIndex = extractEdges ? new int[count] : [];
     }
 
-    public static GradientImage CreateTiled(GrayImage image, float threshold, CancellationToken token,
+    public static GradientImage CreateTiled(ShapeGrayImage image, float threshold, CancellationToken token,
         IImagePreprocessor? preprocessor = null, bool extractEdges = true)
     {
         const int Interior = 128;
         const int Halo = 4;
         var output = new GradientImage(image.Width, image.Height, extractEdges: extractEdges);
-        var edges = new List<EdgePoint>(Math.Max(64, image.Width * image.Height / 8));
+        var edges = new List<ShapeEdgePoint>(Math.Max(64, image.Width * image.Height / 8));
         for (var top = 0; top < image.Height; top += Interior)
         {
             for (var left = 0; left < image.Width; left += Interior)
@@ -90,7 +91,7 @@ internal sealed class GradientImage
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public static GradientImage Create(GrayImage image, float threshold, CancellationToken token,
+    public static GradientImage Create(ShapeGrayImage image, float threshold, CancellationToken token,
         IImagePreprocessor? preprocessor = null, bool extractEdges = true)
     {
         token.ThrowIfCancellationRequested();
@@ -116,7 +117,7 @@ internal sealed class GradientImage
         {
             return result;
         }
-        var edges = new List<EdgePoint>(Math.Max(64, image.Width * image.Height / 8));
+        var edges = new List<ShapeEdgePoint>(Math.Max(64, image.Width * image.Height / 8));
         for (var y = 2; y < image.Height - 2; y++)
         {
             token.ThrowIfCancellationRequested();
@@ -210,7 +211,7 @@ internal sealed class GradientImage
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private static GradientImage CreateCpuGradient(GrayImage image, float threshold, CancellationToken token, bool extractEdges)
+    private static GradientImage CreateCpuGradient(ShapeGrayImage image, float threshold, CancellationToken token, bool extractEdges)
     {
         var result = new GradientImage(image.Width, image.Height, extractEdges: extractEdges);
         if (image.Width < 3 || image.Height < 3)
@@ -356,60 +357,14 @@ internal sealed class GradientImage
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static float Sample(float[] values, int width, int height, double x, double y)
-    {
-        if (x < 0 || y < 0 || x > width - 1 || y > height - 1)
-        {
-            return 0;
-        }
-        var ix = (int)x;
-        var iy = (int)y;
-        var jx = Math.Min(ix + 1, width - 1);
-        var jy = Math.Min(iy + 1, height - 1);
-        var tx = x - ix;
-        var ty = y - iy;
-        return (float)((values[(iy * width) + ix] * (1 - tx) * (1 - ty)) +
-            (values[(iy * width) + jx] * tx * (1 - ty)) +
-            (values[(jy * width) + ix] * (1 - tx) * ty) + (values[(jy * width) + jx] * tx * ty));
-    }
+        => BilinearSampler.SampleClampedFloatProductOrder(values, width, height, x, y);
 
-    public static GrayImage Reduce(GrayImage image)
+    public static ShapeGrayImage Reduce(ShapeGrayImage image)
     {
         var width = Math.Max(1, image.Width / 2);
         var height = Math.Max(1, image.Height / 2);
         var output = new byte[checked(width * height)];
-        var input = image.Pixels.Span;
-        for (var y = 0; y < height; y++)
-        {
-            var x = 0;
-            var top = 2 * y * image.Stride;
-            var bottom = Math.Min((2 * y) + 1, image.Height - 1) * image.Stride;
-            if (Sse2.IsSupported)
-            {
-                for (; x <= width - 8; x += 8)
-                {
-                    var upper = Vector128.Create(input.Slice(top + (2 * x)));
-                    var lower = Vector128.Create(input.Slice(bottom + (2 * x)));
-                    var left = Sse2.Add(Sse2.UnpackLow(upper, Vector128<byte>.Zero).AsInt16(),
-                        Sse2.UnpackLow(lower, Vector128<byte>.Zero).AsInt16());
-                    var right = Sse2.Add(Sse2.UnpackHigh(upper, Vector128<byte>.Zero).AsInt16(),
-                        Sse2.UnpackHigh(lower, Vector128<byte>.Zero).AsInt16());
-                    var leftPairs = Sse2.MultiplyAddAdjacent(left, Vector128.Create((short)1));
-                    var rightPairs = Sse2.MultiplyAddAdjacent(right, Vector128.Create((short)1));
-                    leftPairs = Sse2.ShiftRightLogical(leftPairs + Vector128.Create(2), 2);
-                    rightPairs = Sse2.ShiftRightLogical(rightPairs + Vector128.Create(2), 2);
-                    var values = Sse2.PackUnsignedSaturate(Sse2.PackSignedSaturate(leftPairs, rightPairs), Vector128<short>.Zero);
-                    var packed = values.AsUInt64().GetElement(0);
-                    MemoryMarshal.Write(output.AsSpan((y * width) + x), in packed);
-                }
-            }
-            for (; x < width; x++)
-            {
-                var a = top + (2 * x);
-                var right = Math.Min((2 * x) + 1, image.Width - 1);
-                output[(y * width) + x] = (byte)((input[a] + input[top + right] +
-                    input[bottom + (2 * x)] + input[bottom + right] + 2) / 4);
-            }
-        }
+        GaussianOctaveReducer.DownsampleBox2x2(image.Pixels.Span, image.Width, image.Height, image.Stride, output, width, height);
         return new(output, width, height, width);
     }
 }

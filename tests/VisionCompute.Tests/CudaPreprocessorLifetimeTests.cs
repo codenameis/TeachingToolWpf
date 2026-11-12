@@ -44,7 +44,7 @@ public sealed class CudaPreprocessorLifetimeTests(ITestOutputHelper output)
     public void OverBudgetInputIsRejectedWithoutExecutingCuda()
     {
         using var preprocessor = new CudaImagePreprocessor();
-        var image = new GrayImage(new byte[CudaImagePreprocessor.MaximumPixels + 1],
+        var image = new ShapeGrayImage(new byte[CudaImagePreprocessor.MaximumPixels + 1],
             CudaImagePreprocessor.MaximumPixels + 1, 1, CudaImagePreprocessor.MaximumPixels + 1);
         Assert.Throws<ArgumentException>(() => preprocessor.Prepare(image, 3));
         Assert.Equal(0, preprocessor.Diagnostics.Calls);

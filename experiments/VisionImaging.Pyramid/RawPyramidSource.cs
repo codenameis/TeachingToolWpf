@@ -144,7 +144,7 @@ public sealed class RawPyramidSource : ITileSource
                 JsonSerializer.Serialize(output, info);
                 output.Flush(true);
             }
-            Directory.Move(staging, directory);
+            MoveStagingDirectoryWithRetry(staging, directory, token);
             return new(directory, info, preparationBufferPeakBytes);
         }
         catch (Exception error)
@@ -165,6 +165,27 @@ public sealed class RawPyramidSource : ITileSource
                 }
             }
             throw;
+        }
+    }
+
+    private const int StagingRenameMaxAttempts = 12;
+    private const int StagingRenameRetryDelayMilliseconds = 25;
+
+    private static void MoveStagingDirectoryWithRetry(string staging, string directory, CancellationToken token)
+    {
+        // [Domain Why]: Windows Defender / SearchIndexer can hold a brief transient handle on newly written 200MB .raw files inside staging, causing ERROR_ACCESS_DENIED (0x80070005) or sharing violation on Directory.Move.
+        for (var attempt = 1; ; attempt++)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                Directory.Move(staging, directory);
+                return;
+            }
+            catch (Exception error) when (attempt < StagingRenameMaxAttempts && (error is UnauthorizedAccessException || (error is IOException io && (io.HResult & 0xFFFF) is 5 or 32 or 33)))
+            {
+                Thread.Sleep(StagingRenameRetryDelayMilliseconds * attempt);
+            }
         }
     }
 

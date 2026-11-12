@@ -97,7 +97,7 @@ public class EditorMvvmTests
         }
         public Task<TeachingToolWpf.Imaging.Matching.TemplateSearchOutput> SearchAsync(ImageReference image, bool live,
             VisionAlgorithm.OpenSrc.PatternMatching.CorrelationTemplate model, VisionGeometry.RoiGeometry? region,
-            VisionAlgorithm.OpenSrc.PatternMatching.SearchOptions options, CancellationToken token, VisionGeometry.RoiExclusion? exclusion = null)
+            VisionAlgorithm.OpenSrc.PatternMatching.ShapeSearchOptions options, CancellationToken token, VisionGeometry.RoiExclusion? exclusion = null)
             => throw new NotSupportedException();
     }
 

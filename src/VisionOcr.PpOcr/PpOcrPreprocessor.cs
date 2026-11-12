@@ -1,6 +1,7 @@
-// File: src/VisionOcr.PpOcr/PpOcrPreprocessor.cs
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using OpenCvSharp;
 using VisionAlgorithm.OpenSrc.Common;
@@ -9,7 +10,7 @@ namespace VisionOcr.PpOcr;
 
 /// <summary>
 /// Official PaddleOCR PP-OCRv4 preprocessing routines for DBNet detection and SVTR-LCNet recognition,
-/// with pooled zero-allocation batch tensor builders and <see cref="Vector256{T}"/> SIMD planar normalization.
+/// with pooled zero-allocation batch tensor builders and genuine SIMD byte-widening planar normalization.
 /// </summary>
 public static class PpOcrPreprocessor
 {
@@ -33,7 +34,7 @@ public static class PpOcrPreprocessor
     private const int Vector256FloatCount = 8;
     private const int Vector256ByteCount = 32;
     private const float SmallRoiUpscaleFactor = 2.0f;
-    private const float InvRecNormalizeScale = 1.0f / RecNormalizeScale; // [Math Why]: 1 / 0.5 == 2.0f, exact power-of-two IEEE-754 exponent shift
+    private const float InvRecNormalizeScale = 1.0f / RecNormalizeScale;
     private const byte MaxPixelValue = byte.MaxValue;
 
     /// <summary>
@@ -59,7 +60,7 @@ public static class PpOcrPreprocessor
     }
 
     /// <summary>
-    /// Builds an official <c>[1, 3, 48, targetWidth]</c> NCHW recognition tensor:
+    /// Builds an official <c>[1, 3, 48, targetWidth]</c> NCHW recognition tensor aligned identically to <see cref="ComputeRecWidths"/>:
     /// aspect-preserving bilinear resize to height 48, <c>(x / 255 - 0.5) / 0.5</c>,
     /// 3-channel grayscale replication, and zero right-padding.
     /// </summary>
@@ -74,18 +75,8 @@ public static class PpOcrPreprocessor
             throw new ArgumentException("입력 ROI 영상이 비어 있습니다.", nameof(roiView));
         }
 
-        int srcW = roiView.Width;
-        int srcH = roiView.Height;
-        int targetH = PpOcrRunOptions.OfficialRecImageHeight;
-
-        float aspectRatio = srcW / (float)srcH;
-        resizedContentWidth = Math.Clamp(
-            (int)MathF.Ceiling(targetH * aspectRatio),
-            1,
-            PpOcrRunOptions.DefaultRecMaxWidth);
-        targetWidth = Math.Max(PpOcrRunOptions.DefaultRecMinWidth, resizedContentWidth);
-
-        int planeLen = targetH * targetWidth;
+        ComputeRecWidths(roiView.Width, roiView.Height, out targetWidth, out resizedContentWidth);
+        int planeLen = PpOcrRunOptions.OfficialRecImageHeight * targetWidth;
         float[] tensor = new float[ChannelCount * planeLen];
         FillRecBatchSliceInto(roiView, invertPolarity, targetWidth, resizedContentWidth, tensor.AsSpan(0, ChannelCount * planeLen));
         return tensor;
@@ -316,31 +307,35 @@ public static class PpOcrPreprocessor
         return mat;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector256<float> LoadEightBytesAsFloat256(ref byte rowRef, int offset)
+    {
+        // [Perf Why]: Single unaligned 64-bit load + hardware zero-extend widening (byte -> ushort -> uint -> float)
+        // eliminates 8 scalar memory gathers and int-to-float scalar conversions per iteration.
+        ulong packed8 = Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref rowRef, offset));
+        Vector128<byte> vBytes = Vector128.CreateScalarUnsafe(packed8).AsByte();
+        Vector128<ushort> vU16 = Vector128.WidenLower(vBytes);
+        (Vector128<uint> vU32Lo, Vector128<uint> vU32Hi) = Vector128.Widen(vU16);
+        Vector256<int> vI32 = Vector256.Create(vU32Lo.AsInt32(), vU32Hi.AsInt32());
+        return Vector256.ConvertToSingle(vI32);
+    }
+
     private static void NormalizeRecRowKernelSimd(
         ReadOnlySpan<byte> srcRow,
         Span<float> dstPlane0,
         Span<float> dstPlane1,
         Span<float> dstPlane2)
     {
-        // [Perf Why]: Vector256 widens 8 grayscale bytes at once and writes identical normalized floats to all 3 planar channels.
         Vector256<float> vRecip = Vector256.Create(ByteMaxReciprocal);
         Vector256<float> vOffset = Vector256.Create(RecNormalizeOffset);
         Vector256<float> vInvScale = Vector256.Create(InvRecNormalizeScale);
 
+        ref byte srcRef = ref MemoryMarshal.GetReference(srcRow);
         int x = 0;
         int simdLimit = srcRow.Length - (srcRow.Length % Vector256FloatCount);
         for (; x < simdLimit; x += Vector256FloatCount)
         {
-            Vector256<float> vPixels = Vector256.Create(
-                (float)srcRow[x],
-                srcRow[x + 1],
-                srcRow[x + 2],
-                srcRow[x + 3],
-                srcRow[x + 4],
-                srcRow[x + 5],
-                srcRow[x + 6],
-                srcRow[x + 7]);
-
+            Vector256<float> vPixels = LoadEightBytesAsFloat256(ref srcRef, x);
             Vector256<float> vNorm = ((vPixels * vRecip) - vOffset) * vInvScale;
             vNorm.CopyTo(dstPlane0.Slice(x, Vector256FloatCount));
             vNorm.CopyTo(dstPlane1.Slice(x, Vector256FloatCount));
@@ -386,20 +381,12 @@ public static class PpOcrPreprocessor
         Vector256<float> vInvStd1 = Vector256.Create(1.0f / DetStdChannel1);
         Vector256<float> vInvStd2 = Vector256.Create(1.0f / DetStdChannel2);
 
+        ref byte srcRef = ref MemoryMarshal.GetReference(srcRow);
         int x = 0;
         int simdLimit = srcRow.Length - (srcRow.Length % Vector256FloatCount);
         for (; x < simdLimit; x += Vector256FloatCount)
         {
-            Vector256<float> vPixels = Vector256.Create(
-                (float)srcRow[x],
-                srcRow[x + 1],
-                srcRow[x + 2],
-                srcRow[x + 3],
-                srcRow[x + 4],
-                srcRow[x + 5],
-                srcRow[x + 6],
-                srcRow[x + 7]);
-
+            Vector256<float> vPixels = LoadEightBytesAsFloat256(ref srcRef, x);
             Vector256<float> vUnit = vPixels * vRecip;
             ((vUnit - vMean0) * vInvStd0).CopyTo(dstPlane0.Slice(x, Vector256FloatCount));
             ((vUnit - vMean1) * vInvStd1).CopyTo(dstPlane1.Slice(x, Vector256FloatCount));
@@ -437,7 +424,6 @@ public static class PpOcrPreprocessor
 
     private static void InvertRowKernelSimd(ReadOnlySpan<byte> srcRow, Span<byte> dstRow)
     {
-        // [Math Why]: For unsigned 8-bit integers, 255 - x is bit-identical to bitwise complement (~x).
         int x = 0;
         int simdLimit = srcRow.Length - (srcRow.Length % Vector256ByteCount);
         for (; x < simdLimit; x += Vector256ByteCount)

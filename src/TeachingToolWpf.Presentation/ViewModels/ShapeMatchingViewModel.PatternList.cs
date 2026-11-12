@@ -286,9 +286,10 @@ public sealed partial class ShapeMatchingViewModel
         int previewWidth = 0,
         int previewHeight = 0)
     {
-        bool isDifferentRoiOrLocation = _selectedRegisteredPattern is not null &&
-            (_selectedRegisteredPattern.TeachingRoiId != roiId ||
-             (_selectedRegisteredPattern.TeachingRegion != teachingRegion && !IsTrainingDirty));
+        bool isDifferentRoiOrLocation = !_appendNewPatternOnTrain
+            && _selectedRegisteredPattern is not null
+            && (_selectedRegisteredPattern.TeachingRoiId != roiId
+                || (_selectedRegisteredPattern.TeachingRegion != teachingRegion && !IsTrainingDirty));
         bool append = _appendNewPatternOnTrain ||
                       _selectedRegisteredPattern is null ||
                       _selectedRegisteredPattern.Method != method ||
@@ -977,7 +978,7 @@ public sealed partial class ShapeMatchingViewModel
         }
 
         // Cross-pattern NMS: 동일 위치에서 정상 패턴과 불량 패턴(또는 서로 다른 등록 패턴)이 동시에 후보를 낸 경우 최고 점수 패턴이 승리한다.
-        var surviving = ResolveCrossPatternCandidates(rawCandidates, MaximumMatches);
+        var surviving = ResolveCrossPatternCandidates(rawCandidates, MaximumMatches, _selectedRegisteredPattern);
 
         int defectHits = surviving.Count(c => c.Pattern.IsDefect);
         int goodHits = surviving.Count(c => c.Pattern.IsGood && c.Verdict == InspectionVerdict.Pass);
@@ -1076,14 +1077,19 @@ public sealed partial class ShapeMatchingViewModel
 
     private static List<MultiPatternMatchCandidate> ResolveCrossPatternCandidates(
         List<MultiPatternMatchCandidate> candidates,
-        int maxMatches)
+        int maxMatches,
+        RegisteredPatternItem? selectedPattern)
     {
         if (candidates.Count <= 1)
         {
             return candidates;
         }
 
-        var sorted = candidates.OrderByDescending(c => c.Score).ToList();
+        var sorted = candidates
+            .OrderByDescending(c => c.Score)
+            .ThenByDescending(c => ReferenceEquals(c.Pattern, selectedPattern))
+            .ThenByDescending(c => c.Pattern.Index)
+            .ToList();
         var surviving = new List<MultiPatternMatchCandidate>(Math.Min(sorted.Count, Math.Max(1, maxMatches)));
 
         foreach (var cand in sorted)

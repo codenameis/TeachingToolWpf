@@ -93,4 +93,29 @@ public readonly record struct PatMaxSearchParams
             minSeparationPixels,
             isEmpty: false);
     }
+
+    /// <summary>
+    /// Returns a validated copy with <see cref="MaxResults"/> set to <paramref name="maxResults"/> and <see cref="MaxCandidates"/> expanded to at least <paramref name="maxResults"/>.
+    /// </summary>
+    public PatMaxSearchParams WithCapacity(int maxResults)
+    {
+        if (IsEmpty)
+        {
+            throw new InvalidOperationException("Cannot resize an empty PatMaxSearchParams instance.");
+        }
+
+        return maxResults == MaxResults
+            ? this
+            : Create(
+                acceptThreshold: AcceptThreshold,
+                angleStartRadians: AngleStartRadians,
+                angleExtentRadians: AngleExtentRadians,
+                scaleMin: ScaleMin,
+                scaleMax: ScaleMax,
+                runtimeEdgeThreshold: RuntimeEdgeThreshold,
+                ignorePolarity: IgnorePolarity,
+                maxCandidates: Math.Max(MaxCandidates, maxResults),
+                maxResults: maxResults,
+                minSeparationPixels: MinSeparationPixels);
+    }
 }

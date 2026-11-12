@@ -1,26 +1,4 @@
-// File: src/VisionAlgorithm/OpenSrc/PatMax/PatMaxModel.cs
 namespace VisionAlgorithm.OpenSrc.PatMax;
-
-/// <summary>
-/// Trained boundary dipole level centered at the pattern reference origin (US 6,408,109).
-/// </summary>
-public sealed class PatMaxModelLevel : IDisposable
-{
-    public int LevelIndex { get; }
-    public float ScaleFactor { get; }
-    public EdgeDipoleSoA Dipoles { get; }
-    public float TotalMagnitudeWeight { get; }
-
-    internal PatMaxModelLevel(int levelIndex, float scaleFactor, EdgeDipoleSoA dipoles, float totalMagnitudeWeight)
-    {
-        LevelIndex = levelIndex;
-        ScaleFactor = scaleFactor;
-        Dipoles = dipoles;
-        TotalMagnitudeWeight = totalMagnitudeWeight;
-    }
-
-    public void Dispose() => Dipoles.Dispose();
-}
 
 /// <summary>
 /// Trained multi-scale PatMax geometric model owning Coarse-to-Fine dipole levels, stability diagnostics, and pre-generated 2D Attraction Field (US 6,408,109 / US 7,065,262 / US 6,993,177).

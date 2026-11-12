@@ -7,53 +7,31 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record ShapeTrainingOutput(
-    ShapeModel Model,
-    double ReadMilliseconds,
-    double TrainingMilliseconds,
-    byte[]? PreviewGray8 = null,
-    int PreviewWidth = 0,
-    int PreviewHeight = 0);
-/// <summary>순차 단계의 wall time. 각 단계에는 해당 단계의 원본 읽기와 병렬 worker 대기가 포함된다.</summary>
-public sealed record ShapeSearchPhases(double SourceOpenMilliseconds, double CoarseSearchMilliseconds,
-    double OriginalRefinementMilliseconds, double WindowSearchMilliseconds, double FinalSuppressionMilliseconds);
-public sealed record ShapeSearchOutput(ImmutableArray<ShapeMatch> Matches, int Windows, bool Truncated,
-    double ReadMilliseconds, double TotalMilliseconds, ImmutableArray<SearchDiagnostics> Diagnostics, bool MatchLimitExceeded = false)
-{
-    public ShapeSearchPhases? Phases
-    {
-        get; init;
-    }
-    public ImagePreprocessingDiagnostics? Preprocessing
-    {
-        get; init;
-    }
-
-    public CandidateScoringDiagnostics? CandidateScoring
-    {
-        get; init;
-    }
-}
-
-public interface IShapeMatchingService
-{
-    Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null);
-    Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null);
-    Task<ShapeTrainingOutput?> PreviewAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
-        => Task.FromResult<ShapeTrainingOutput?>(null);
-}
-
-public enum ShapeSearchPipeline
-{
-    Classic,
-    Paper
-}
-
 public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame,
     Func<IImagePreprocessor>? createGpuPreprocessor = null,
     Func<CancellationToken, Task>? prepareGpu = null,
-    ShapeSearchPipeline pipeline = ShapeSearchPipeline.Classic) : IShapeMatchingService, IShapeComputePreparation
+    ShapeSearchPipeline pipeline = ShapeSearchPipeline.Classic,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : IShapeMatchingService, IShapeComputePreparation
 {
+    private const double BasePyramidSpanPixels = 64.0;
+    private const int MinPyramidLevels = 1;
+    private const int MaxPyramidLevels = 6;
+    private const int MinCropAlignmentPixels = 16;
+    private const int TrainingPaddingAlignmentMultiplier = 4;
+    private const int PreviewCropAlignmentPixels = 16;
+    private const int PreviewCropPaddingPixels = 24;
+    private const double PixelCenterOffset = 0.5;
+    private const double RectangleContainsEpsilon = 1e-10;
+    private const byte ActiveMaskValue = 255;
+    private const int PyramidSearchMinLevels = 3;
+    private const int PaperCoarseInteriorPixels = 64;
+    private const int DefaultCoarseInteriorPixels = 256;
+    private const int PyramidFilterSupportPixels = 12; // [Math Why]: 최상위 레벨 가우시안/확산/국소 정밀화 지지 반경(12px)을 halo에 반영한다.
+    private const int MinWindowInteriorPixels = 32;
+    private const int DefaultWindowInteriorPixels = 768;
+    private const int MaxCpuWindowBatchCount = 12;
+    private const int MaxMatchesPerSearchWindow = 1000;
+
     private readonly MatchingPreviewCache _previewCache = new();
 
     public async Task<double> PrepareGpuAsync(CancellationToken cancellationToken)
@@ -73,35 +51,34 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
         => Task.Run(async () =>
         {
             options.Validate();
-            ValidateRegion(image, roi);
-            var desiredLevels = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(roi.Width, roi.Height) / 64)) + 1, 1, 6);
+            MatchingRegionValidator.ValidateTeachingRegion(image, roi);
+            var desiredLevels = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(roi.Width, roi.Height) / BasePyramidSpanPixels)) + 1, MinPyramidLevels, MaxPyramidLevels);
             options = options with
             {
                 PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels),
                 UseFineDetailValidation = options.UseFineDetailValidation
             };
             var timer = Stopwatch.StartNew();
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
-            var alignment = Math.Max(16, 1 << (options.PyramidLevels - 1));
-            var padding = 4 * alignment;
-            var left = Math.Max(0, ((int)Math.Floor(roi.Bounds.Left) - padding) / alignment * alignment);
-            var top = Math.Max(0, ((int)Math.Floor(roi.Bounds.Top) - padding) / alignment * alignment);
-            var right = Math.Min(image.Width, (int)Math.Ceiling(roi.Bounds.Right) + padding);
-            var bottom = Math.Min(image.Height, (int)Math.Ceiling(roi.Bounds.Bottom) + padding);
-            var pixels = reader.Read(left, top, right - left, bottom - top, token, ShapeTrainer.MaximumPixels);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
+            var alignment = Math.Max(MinCropAlignmentPixels, 1 << (options.PyramidLevels - 1));
+            var padding = TrainingPaddingAlignmentMultiplier * alignment;
+            var crop = MatchingCropWindow.Expand(image, roi.Bounds, padding, alignment);
+            var left = crop.Left;
+            var top = crop.Top;
+            var pixels = reader.Read(left, top, crop.Width, crop.Height, token, ShapeTrainer.MaximumPixels);
             var mask = new byte[pixels.Width * pixels.Height];
             for (var y = 0; y < pixels.Height; y++)
             {
                 token.ThrowIfCancellationRequested();
                 for (var x = 0; x < pixels.Width; x++)
                 {
-                    var point = new PointD(left + x + .5, top + y + .5);
-                    mask[(y * pixels.Width) + x] = roi.Contains(point) && exclusion?.Contains(point) != true ? (byte)255 : (byte)0;
+                    var point = new PointD(left + x + PixelCenterOffset, top + y + PixelCenterOffset);
+                    mask[(y * pixels.Width) + x] = roi.Contains(point) && exclusion?.Contains(point) != true ? ActiveMaskValue : (byte)0;
                 }
             }
             var readTime = timer.Elapsed.TotalMilliseconds;
             timer.Restart();
-            var model = ShapeTrainer.Train(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / 180), options, token);
+            var model = ShapeTrainer.Train(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / GeometryConstants.HalfCircleDegrees), options, token);
             var previewPatch = RoiPreviewPatchExtractor.ExtractRectifiedPatch(
                 pixels.Pixels.Span,
                 pixels.Width,
@@ -124,25 +101,22 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
         => Task.Run<ShapeTrainingOutput?>(async () =>
         {
             options.Validate();
-            ValidateRegion(image, roi);
-            var desiredLevels = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(roi.Width, roi.Height) / 64)) + 1, 1, 6);
+            MatchingRegionValidator.ValidateTeachingRegion(image, roi);
+            var desiredLevels = Math.Clamp((int)Math.Floor(Math.Log2(Math.Max(roi.Width, roi.Height) / BasePyramidSpanPixels)) + 1, MinPyramidLevels, MaxPyramidLevels);
             options = options with
             {
                 PyramidLevels = Math.Max(options.PyramidLevels, desiredLevels),
                 UseFineDetailValidation = options.UseFineDetailValidation
             };
             var timer = Stopwatch.StartNew();
-            const int previewAlignment = 16;
-            const int previewPadding = 24;
-            var left = Math.Max(0, ((int)Math.Floor(roi.Bounds.Left) - previewPadding) / previewAlignment * previewAlignment);
-            var top = Math.Max(0, ((int)Math.Floor(roi.Bounds.Top) - previewPadding) / previewAlignment * previewAlignment);
-            var right = Math.Min(image.Width, (int)Math.Ceiling(roi.Bounds.Right) + previewPadding);
-            var bottom = Math.Min(image.Height, (int)Math.Ceiling(roi.Bounds.Bottom) + previewPadding);
-            var pixels = await _previewCache.ReadAsync(image, live, loader, retainFrame, left, top, right - left, bottom - top, null, token, ShapeTrainer.MaximumPixels).ConfigureAwait(false);
+            var crop = MatchingCropWindow.Expand(image, roi.Bounds, PreviewCropPaddingPixels, PreviewCropAlignmentPixels);
+            var left = crop.Left;
+            var top = crop.Top;
+            var pixels = await _previewCache.ReadAsync(image, live, loader, retainFrame, left, top, crop.Width, crop.Height, null, token, ShapeTrainer.MaximumPixels, preFilterPipeline: preFilterPipeline).ConfigureAwait(false);
             var mask = BuildRoiMask(pixels.Width, pixels.Height, left, top, roi, exclusion, token);
             var readTime = timer.Elapsed.TotalMilliseconds;
             timer.Restart();
-            var model = ShapeTrainer.TrainPreview(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / 180), options, token);
+            var model = ShapeTrainer.TrainPreview(pixels, new(mask, new(roi.Center.X - left, roi.Center.Y - top), roi.Angle * Math.PI / GeometryConstants.HalfCircleDegrees), options, token);
             return new ShapeTrainingOutput(model, readTime, timer.Elapsed.TotalMilliseconds);
         }, token);
 
@@ -158,26 +132,26 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
         {
             return mask;
         }
-        var (sin, cos) = Math.SinCos(-roi.Angle * (Math.PI / 180.0));
+        var (sin, cos) = Math.SinCos(-roi.Angle * GeometryConstants.DegreesToRadians);
         var centerX = roi.Center.X;
         var centerY = roi.Center.Y;
         var roiWidth = roi.Width;
         var roiHeight = roi.Height;
         var isRectangle = roi.Shape.Kind == RoiShapeKind.Rectangle;
-        var halfWidth = (roiWidth / 2.0) + 1e-10;
-        var halfHeight = (roiHeight / 2.0) + 1e-10;
+        var halfWidth = (roiWidth / 2.0) + RectangleContainsEpsilon;
+        var halfHeight = (roiHeight / 2.0) + RectangleContainsEpsilon;
         var hasExclusion = exclusion is not null && !exclusion.Regions.IsDefaultOrEmpty;
         for (var y = minY; y <= maxY; y++)
         {
             token.ThrowIfCancellationRequested();
-            var worldY = top + y + .5;
+            var worldY = top + y + PixelCenterOffset;
             var dy = worldY - centerY;
             var dySin = dy * sin;
             var dyCos = dy * cos;
             var rowOffset = y * width;
             for (var x = minX; x <= maxX; x++)
             {
-                var worldX = left + x + .5;
+                var worldX = left + x + PixelCenterOffset;
                 var dx = worldX - centerX;
                 var localX = (dx * cos) - dySin;
                 var localY = (dx * sin) + dyCos;
@@ -186,7 +160,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                     : roi.Shape.ContainsLocal(new(localX, localY), roiWidth, roiHeight, 0);
                 if (inside && (!hasExclusion || !exclusion!.Contains(new(worldX, worldY))))
                 {
-                    mask[rowOffset + x] = 255;
+                    mask[rowOffset + x] = ActiveMaskValue;
                 }
             }
         }
@@ -194,13 +168,13 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
     }
 
     public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region,
-        SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             ShapeMatcher.ValidateSearchOptions(model, options);
             if (region is not null)
             {
-                ValidateSearchRegion(image, region);
+                MatchingRegionValidator.ValidateSearchRegion(image, region);
             }
             var total = Stopwatch.StartNew();
             using var preprocessor = options.ComputeMode == InspectionComputeMode.GpuPreprocessing
@@ -209,13 +183,15 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             var paper = pipeline == ShapeSearchPipeline.Paper;
             var matcher = new ShapeMatcher(preprocessor, preprocessor?.CandidateScorer, paper);
             var readTimer = Stopwatch.StartNew();
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             var readTime = readTimer.Elapsed.TotalMilliseconds;
             reader.PreferDirectGray = paper;
             reader.Exclusion = exclusion;
-            if (model.Levels.Length >= 3 && (paper || (long)image.Width * image.Height > PreparedSearchImage.MaximumPixels))
+            if (model.Levels.Length >= PyramidSearchMinLevels && (paper || (long)image.Width * image.Height > PreparedSearchImage.MaximumPixels))
             {
-                var coarseInterior = paper && (long)image.Width * image.Height <= PreparedSearchImage.MaximumPixels ? 64 : 256;
+                var coarseInterior = paper && (long)image.Width * image.Height <= PreparedSearchImage.MaximumPixels
+                    ? PaperCoarseInteriorPixels
+                    : DefaultCoarseInteriorPixels;
                 return ShapePyramidSearch.Run(reader, image, model, region, options, total, readTime, token, matcher, coarseInterior) with
                 {
                     Preprocessing = preprocessor?.Diagnostics,
@@ -224,16 +200,16 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             }
             var radius = model.Bounds.Max(p => Math.Sqrt((p.X * p.X) + (p.Y * p.Y))) * model.Options.MaximumScale;
             // 모든 pyramid 필터의 지지 범위, 확산, 위치 국소 탐색, 정밀화 대응 반경을 함께 보존한다.
-            var halo = (int)Math.Ceiling((radius + (12 * (1 << (model.Levels.Length - 1))) + 12) / 16) * 16;
-            var maximumInterior = ((int)Math.Floor(Math.Sqrt(PreparedSearchImage.MaximumPixels)) - (2 * halo)) / 16 * 16;
-            if (maximumInterior < 32)
+            var halo = (int)Math.Ceiling((radius + (PyramidFilterSupportPixels * (1 << (model.Levels.Length - 1))) + PyramidFilterSupportPixels) / MinCropAlignmentPixels) * MinCropAlignmentPixels;
+            var maximumInterior = ((int)Math.Floor(Math.Sqrt(PreparedSearchImage.MaximumPixels)) - (2 * halo)) / MinCropAlignmentPixels * MinCropAlignmentPixels;
+            if (maximumInterior < MinWindowInteriorPixels)
             {
                 throw new InvalidOperationException("모델 크기가 검색 창의 메모리 예산을 초과합니다. 더 작은 학습 ROI가 필요합니다.");
             }
-            var interior = Math.Min(768, maximumInterior);
+            var interior = Math.Min(DefaultWindowInteriorPixels, maximumInterior);
             var bounds = region?.Bounds ?? new BoundsD(0, 0, image.Width, image.Height);
             var all = new List<ShapeMatch>();
-            var diagnostics = ImmutableArray.CreateBuilder<SearchDiagnostics>();
+            var diagnostics = ImmutableArray.CreateBuilder<ShapeSearchDiagnostics>();
             var truncated = false;
             var sourceOpenTime = readTime;
             var phaseTimer = Stopwatch.StartNew();
@@ -249,11 +225,11 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                     windowSpecs.Add((x, y, left, top, right, bottom));
                 }
             }
-            var maxWindowBatch = preprocessor is null && options.MaximumParallelism > 1 ? Math.Min(12, options.MaximumParallelism) : 1;
+            var maxWindowBatch = preprocessor is null && options.MaximumParallelism > 1 ? Math.Min(MaxCpuWindowBatchCount, options.MaximumParallelism) : 1;
             for (var batchStart = 0; batchStart < windowSpecs.Count; batchStart += maxWindowBatch)
             {
                 var batchCount = Math.Min(maxWindowBatch, windowSpecs.Count - batchStart);
-                var batchPixels = new GrayImage[batchCount];
+                var batchPixels = new ShapeGrayImage[batchCount];
                 for (var i = 0; i < batchCount; i++)
                 {
                     token.ThrowIfCancellationRequested();
@@ -270,7 +246,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                     batchResults[0] = matcher.Search(batchPixels[0], model, options with
                     {
                         Region = localRegion,
-                        MaximumMatches = options.MaximumCandidates > 1000 ? 1000 : options.MaximumCandidates
+                        MaximumMatches = options.MaximumCandidates > MaxMatchesPerSearchWindow ? MaxMatchesPerSearchWindow : options.MaximumCandidates
                     }, token);
                 }
                 else
@@ -288,7 +264,7 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
                             // 바깥 창 병렬과 안쪽 후보 병렬이 스레드 풀을 두고 경합하지 않게 안쪽은 코어를 나눠 쓴다.
                             MaximumParallelism = Math.Max(1, options.MaximumParallelism / batchCount),
                             Region = localRegion,
-                            MaximumMatches = options.MaximumCandidates > 1000 ? 1000 : options.MaximumCandidates
+                            MaximumMatches = options.MaximumCandidates > MaxMatchesPerSearchWindow ? MaxMatchesPerSearchWindow : options.MaximumCandidates
                         }, token);
                     });
                 }
@@ -342,25 +318,8 @@ public sealed class ShapeMatchingService(IImageLoader loader, Func<VideoFrame?> 
             };
         }, token);
 
-    internal static void ValidateRegion(ImageReference image, RoiGeometry region)
-    {
-        var bounds = region.Bounds;
-        if (bounds.Left < -1e-7 || bounds.Top < -1e-7 || bounds.Right > image.Width + 1e-7 || bounds.Bottom > image.Height + 1e-7)
-        {
-            throw new ArgumentException("ROI가 원본 이미지 경계를 벗어납니다. 영역을 수정한 뒤 다시 실행하세요.");
-        }
-    }
-
-    internal static void ValidateSearchRegion(ImageReference image, RoiGeometry region)
-    {
-        if (!region.Bounds.Intersects(new(0, 0, image.Width, image.Height)))
-        {
-            throw new ArgumentException("검색 범위가 원본 이미지와 겹치지 않습니다.");
-        }
-    }
-
-    internal static SearchRegion? ToSearchRegion(RoiGeometry? geometry, int left, int top)
+    internal static ShapeSearchRegion? ToSearchRegion(RoiGeometry? geometry, int left, int top)
         => geometry is null ? null : geometry.Radius > 0
-            ? new SearchRegion(new(geometry.Center.X - left, geometry.Center.Y - top), geometry.Radius)
-            : new SearchRegion(geometry.Outline.Select(p => new ImagePoint(p.X - left, p.Y - top)));
+            ? new ShapeSearchRegion(new(geometry.Center.X - left, geometry.Center.Y - top), geometry.Radius)
+            : new ShapeSearchRegion(geometry.Outline.Select(p => new ImagePoint(p.X - left, p.Y - top)));
 }

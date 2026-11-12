@@ -3,14 +3,6 @@ using VisionAlgorithm.OpenSrc.PatternMatching;
 
 namespace TeachingToolWpf.Models;
 
-public enum InspectionVerdict
-{
-    Pass,
-    Fail,
-    Warning,
-    Review
-}
-
 /// <summary>패턴 존재와 선택형 회전 검사 정책. 오류·불완전 검색은 제품 불량으로 판정하지 않는다.</summary>
 public sealed record InspectionDecision(InspectionVerdict Verdict, string Reason)
 {

@@ -37,7 +37,7 @@ internal sealed class CudaGradientBuffers : IDisposable
         }
     }
 
-    public void Upload(GrayImage image, AcceleratorStream stream, CancellationToken token)
+    public void Upload(ShapeGrayImage image, AcceleratorStream stream, CancellationToken token)
     {
         var pixels = image.Pixels.Span;
         var count = checked(image.Width * image.Height);

@@ -2,6 +2,7 @@ using System.Numerics;
 using SkiaSharp;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionCanvas.Skia.Rendering;
 using VisionGeometry;
 using VisionImaging.Abstractions;

@@ -160,7 +160,7 @@ public sealed class FiducialAlignment
         }
         var correlation = double.Hypot(dot, cross);
         var energy = Math.Sqrt(referenceEnergy) * Math.Sqrt(detectedEnergy);
-        if (!double.IsFinite(correlation) || !double.IsFinite(energy) || correlation <= 1e-12 * energy)
+        if (!double.IsFinite(correlation) || !double.IsFinite(energy) || correlation <= GeometryTolerance.Squared * energy)
         {
             return false;
         }

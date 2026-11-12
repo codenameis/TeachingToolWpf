@@ -16,7 +16,7 @@ public sealed class CandidateScorerContractTests
         var image = PreparedSearchImage.Create(source, 8, model.Levels.Length);
         var compact = PreparedSearchImage.CreateForSearch(source, 8, model.Levels.Length, true,
             default, false, null, createLinearResponses: false);
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             CandidateThreshold = 0.45,
             MaximumCandidates = 12,

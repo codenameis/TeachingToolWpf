@@ -6,35 +6,21 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record TemplateTrainingOutput(
-    CorrelationTemplate Model,
-    double Milliseconds,
-    byte[]? PreviewGray8 = null,
-    int PreviewWidth = 0,
-    int PreviewHeight = 0);
-
-public sealed record TemplateSearchOutput(ImmutableArray<CorrelationMatch> Matches, int Windows, bool Truncated,
-    double ReadMilliseconds, double TotalMilliseconds, bool MatchLimitExceeded = false);
-
-public interface ITemplateMatchingService
-{
-    Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null);
-    Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null);
-}
-
-public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame) : ITemplateMatchingService
+public sealed class TemplateMatchingService(
+    IImageLoader loader,
+    Func<VideoFrame?> retainFrame,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : ITemplateMatchingService
 {
     public Task<TemplateTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
-            ShapeMatchingService.ValidateRegion(image, roi);
+            MatchingRegionValidator.ValidateTeachingRegion(image, roi);
             var timer = Stopwatch.StartNew();
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
-            var left = Math.Max(0, (int)Math.Floor(roi.Bounds.Left));
-            var top = Math.Max(0, (int)Math.Floor(roi.Bounds.Top));
-            var right = Math.Min(image.Width, (int)Math.Ceiling(roi.Bounds.Right));
-            var bottom = Math.Min(image.Height, (int)Math.Ceiling(roi.Bounds.Bottom));
-            var pixels = reader.Read(left, top, right - left, bottom - top, token, CorrelationTemplate.MaximumTemplatePixels);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
+            var crop = MatchingCropWindow.Expand(image, roi.Bounds, padding: 0);
+            var left = crop.Left;
+            var top = crop.Top;
+            var pixels = reader.Read(left, top, crop.Width, crop.Height, token, CorrelationTemplate.MaximumTemplatePixels);
             var mask = new byte[checked(pixels.Width * pixels.Height)];
             for (var y = 0; y < pixels.Height; y++)
             {
@@ -64,7 +50,7 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
         }, token);
 
     public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model,
-        RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        RoiGeometry? region, ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         => Task.Run(async () =>
         {
             options.Validate();
@@ -74,10 +60,10 @@ public sealed class TemplateMatchingService(IImageLoader loader, Func<VideoFrame
             }
             if (region is not null)
             {
-                ShapeMatchingService.ValidateSearchRegion(image, region);
+                MatchingRegionValidator.ValidateSearchRegion(image, region);
             }
             var timer = Stopwatch.StartNew();
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             var matches = new PriorityQueue<CorrelationMatch, (double Score, double Y, double X)>();
             reader.Exclusion = exclusion;
             var windows = 0;

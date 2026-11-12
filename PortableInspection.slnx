@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/VisionKernels/VisionKernels.csproj" />
     <Project Path="src/VisionGeometry/VisionGeometry.csproj" />
     <Project Path="src/VisionImaging.Abstractions/VisionImaging.Abstractions.csproj" />
     <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
+    <Project Path="src/VisionAlgorithm.Verification/VisionAlgorithm.Verification.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />
     <Project Path="src/VisionInspection/VisionInspection.csproj" />
     <Project Path="src/VisionCompute.ILGPU/VisionCompute.ILGPU.csproj" />

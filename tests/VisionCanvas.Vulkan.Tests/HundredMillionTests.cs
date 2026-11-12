@@ -6,7 +6,7 @@ using VisionCanvas.Core.Geometry;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
 using VisionCanvas.Vulkan.Controls;
-using VisionCanvas.VulkanSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.VulkanSample.ViewModels;
 using VisionGeometry;
 using VisionImaging;

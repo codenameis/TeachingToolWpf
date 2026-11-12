@@ -8,42 +8,10 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record PrimitiveDetectionOutput(ImmutableArray<PrimitiveShapeDetection> Shapes, int Windows,
-    bool Incomplete, int ClippedContours, double Milliseconds)
-{
-    public double ReadMilliseconds
-    {
-        get; init;
-    }
-    /// <summary>각 창 작업의 시간 합. 병렬 실행과 GPU 잠금 대기를 포함하므로 실제 경과 시간이 아니다.</summary>
-    public double DetectionWorkMilliseconds
-    {
-        get; init;
-    }
-    /// <summary>병렬 검출과 결과 병합의 실제 경과 시간. 원본 읽기와 장치 초기화는 제외한다.</summary>
-    public double DetectionMilliseconds
-    {
-        get; init;
-    }
-    public double ComputeInitializationMilliseconds
-    {
-        get; init;
-    }
-    public PrimitivePreprocessingDiagnostics? Gpu
-    {
-        get; init;
-    }
-}
-
-public interface IPrimitiveShapeDetectionService
-{
-    Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region,
-        PrimitiveDetectionOptions options, CancellationToken token, RoiExclusion? exclusion = null);
-}
-
 /// <summary>독립 원본 reader와 제한된 창을 소유한다. 최대 도형 폭보다 넓은 halo와 중심 소유권으로 이음새를 처리한다.</summary>
 public sealed class PrimitiveShapeDetectionService(IImageLoader loader, Func<VideoFrame?> retainFrame,
-    Func<IPrimitivePreprocessor>? createGpu = null) : IPrimitiveShapeDetectionService
+    Func<IPrimitivePreprocessor>? createGpu = null,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : IPrimitiveShapeDetectionService
 {
     public Task<PrimitiveDetectionOutput> DetectAsync(ImageReference image, bool live, RoiGeometry? region,
         PrimitiveDetectionOptions options, CancellationToken token, RoiExclusion? exclusion = null)
@@ -52,14 +20,14 @@ public sealed class PrimitiveShapeDetectionService(IImageLoader loader, Func<Vid
             options.Validate();
             if (region is not null)
             {
-                ShapeMatchingService.ValidateRegion(image, region);
+                MatchingRegionValidator.ValidateTeachingRegion(image, region);
             }
             var timer = Stopwatch.StartNew();
             using var preprocessor = options.UseGpu
                 ? (createGpu ?? throw new NotSupportedException("CUDA 도형 전처리가 연결되지 않았습니다. CPU 모드를 선택하세요."))()
                 : null;
             var initializationMilliseconds = timer.Elapsed.TotalMilliseconds;
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
             var halo = (int)Math.Ceiling(options.MaximumSize) + 4;
             reader.Exclusion = exclusion;
@@ -177,7 +145,7 @@ public sealed class PrimitiveShapeDetectionService(IImageLoader loader, Func<Vid
             }
         }, token);
 
-    private sealed record DetectionWindow(GrayImage Pixels, int X, int Y, int Left, int Top);
+    private sealed record DetectionWindow(ShapeGrayImage Pixels, int X, int Y, int Left, int Top);
 
     private static bool ContainsContour(RoiGeometry region, ImmutableArray<ImagePoint> contour)
     {

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Numerics;
+using VisionCanvas.Rendering.Abstractions;
 using Vortice.Direct3D;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
@@ -46,18 +47,18 @@ internal sealed class MaskPipeline : IDisposable
 
     public unsafe void Draw(RenderScene scene, Dx12Surface surface)
     {
-        if (!MaskDrawConstants.TryResolveActiveMaskTarget(scene, out var roi, out var geometry, out var draft, out var maskCount, out var vertexCount))
+        if (MaskDrawConstants.TryResolveActiveTarget(scene) is not { } target)
         {
             return;
         }
 
         var arena = _uploads[surface.FrameIndex];
         arena.Reset();
-        var masks = arena.Allocate((ulong)maskCount * 32);
-        var maskData = new Span<Vector4>((void*)masks.Pointer, maskCount * 2);
-        var outline = arena.Allocate((ulong)vertexCount * 8);
-        var points = new Span<Vector2>((void*)outline.Pointer, vertexCount);
-        MaskDrawConstants.Pack(scene, roi, geometry, draft, maskCount, maskData, points, out var constants);
+        var masks = arena.Allocate((ulong)target.MaskCount * 32);
+        var maskData = new Span<Vector4>((void*)masks.Pointer, target.MaskCount * 2);
+        var outline = arena.Allocate((ulong)target.VertexCount * 8);
+        var points = new Span<Vector2>((void*)outline.Pointer, target.VertexCount);
+        var constants = MaskDrawConstants.Pack(scene, in target, maskData, points);
 
         var commands = surface.Commands;
         commands.SetGraphicsRootSignature(_root);

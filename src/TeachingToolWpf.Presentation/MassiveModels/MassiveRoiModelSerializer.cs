@@ -419,7 +419,7 @@ public sealed class MassiveRoiModelSerializer
                 }
             }
 
-            byte baseAlg = (byte)((s0 >> AlgorithmByteShift) % MassiveRoiModelFile.TotalAlgorithmCatalogCount);
+            byte baseAlg = (byte)((s0 >> AlgorithmByteShift) % (ulong)MassiveRoiModelFile.TotalAlgorithmCatalogCount);
             byte shapeVariant = (byte)((s1 >> ShapeByteShift) % MassiveRoiModelFile.ShapeKindModulus);
             sectors[i] = MassiveRoiSectorRecord.Create(
                 (float)Math.Clamp(anchorX, margin, width - margin),

@@ -3,12 +3,12 @@ namespace CpuMatching.Core;
 /// <summary>방향이 일치하는 원본 서브픽셀 경계의 point-to-line 최소제곱 자세 보정.</summary>
 public sealed class EdgePoseRefiner
 {
-    private readonly EdgePoint[] _template;
-    private readonly EdgePoint?[] _scene;
+    private readonly CpuEdgePoint[] _template;
+    private readonly CpuEdgePoint?[] _scene;
     private readonly int _width;
     private readonly int _height;
 
-    public EdgePoseRefiner(GrayImage template, GrayImage scene)
+    public EdgePoseRefiner(CpuGrayImage template, CpuGrayImage scene)
     {
         _width = scene.Width;
         _height = scene.Height;
@@ -20,7 +20,7 @@ public sealed class EdgePoseRefiner
         _scene = Thin(scene);
     }
 
-    public Match Refine(Match seed, SearchOptions options)
+    public Match Refine(Match seed, CpuSearchOptions options)
     {
         var pose = seed;
         Span<double> matrix = stackalloc double[12];
@@ -101,9 +101,9 @@ public sealed class EdgePoseRefiner
         return pose;
     }
 
-    private EdgePoint? FindNearbyEdge(double px, double py, double expected)
+    private CpuEdgePoint? FindNearbyEdge(double px, double py, double expected)
     {
-        EdgePoint? best = null;
+        CpuEdgePoint? best = null;
         var cost = double.MaxValue;
         var ix = (int)Math.Round(px);
         var iy = (int)Math.Round(py);
@@ -138,7 +138,7 @@ public sealed class EdgePoseRefiner
     }
 
     // 두꺼운 경계를 밝기 변화 방향의 최대점 한 줄로 줄이고, 1픽셀 이내 위치를 보간한다.
-    private static EdgePoint?[] Thin(GrayImage image)
+    private static CpuEdgePoint?[] Thin(CpuGrayImage image)
     {
         var gradients = Edges.Gradients(image);
         var magnitude = new float[gradients.Length];
@@ -147,7 +147,7 @@ public sealed class EdgePoseRefiner
             var (gx, gy) = gradients[i];
             magnitude[i] = (float)Math.Sqrt((gx * gx) + (gy * gy));
         }
-        var result = new EdgePoint?[gradients.Length];
+        var result = new CpuEdgePoint?[gradients.Length];
         for (var y = 2; y < image.Height - 2; y++)
         {
             for (var x = 2; x < image.Width - 2; x++)
@@ -169,7 +169,7 @@ public sealed class EdgePoseRefiner
                 }
                 var denominator = before - (2 * length) + after;
                 var offset = Math.Abs(denominator) < 1e-6 ? 0 : Math.Clamp(0.5 * (before - after) / denominator, -0.5, 0.5);
-                result[index] = new EdgePoint(x + (offset * nx), y + (offset * ny), Math.Atan2(gy, gx), length);
+                result[index] = new CpuEdgePoint(x + (offset * nx), y + (offset * ny), Math.Atan2(gy, gx), length);
             }
         }
         return result;

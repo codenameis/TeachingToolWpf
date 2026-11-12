@@ -197,7 +197,9 @@ public sealed class MainSimulatorViewModel : INotifyPropertyChanged, IDisposable
         _selectedPaletteTool = InspectionToolPalette[0];
 
         // File & Stack Commands
-        OpenImageFilesCommand = new RelayCommand(() => _ = OpenUserImageFilesDialogAsync());
+        OpenImageFilesCommand = new AsyncRelayCommand(
+            OpenUserImageFilesDialogAsync,
+            ex => CanvasStatusText = $"영상 열기 실패: {ex.Message}");
         SaveImageAsCommand = new RelayCommand(SaveCurrentImageToFileDialog);
         RevertToOriginalCommand = new RelayCommand(RevertActiveSliceToOriginal);
         PixelUndoCommand = new RelayCommand(ExecutePixelUndo, () => _selectedStackFrame?.CanUndo == true);
@@ -206,10 +208,18 @@ public sealed class MainSimulatorViewModel : INotifyPropertyChanged, IDisposable
         NextStackFrameCommand = new RelayCommand(MoveToNextStackFrame, () => LoadedImageStack.Count > 1);
 
         // Optional On-Demand Sample Commands (Never loaded automatically on startup!)
-        LoadBlobsSampleCommand = new RelayCommand(() => _ = ActivateSampleSliceAsync(ImageJSampleKind.BlobsAndParticles));
-        LoadColoniesSampleCommand = new RelayCommand(() => _ = ActivateSampleSliceAsync(ImageJSampleKind.CellColonyCounter));
-        LoadMetrologySampleCommand = new RelayCommand(() => _ = ActivateSampleSliceAsync(ImageJSampleKind.MetrologyEdgesAndRings));
-        LoadShadingSampleCommand = new RelayCommand(() => _ = ActivateSampleSliceAsync(ImageJSampleKind.UnevenShadingAndSaltPepper));
+        LoadBlobsSampleCommand = new AsyncRelayCommand(
+            () => ActivateSampleSliceAsync(ImageJSampleKind.BlobsAndParticles),
+            ex => CanvasStatusText = $"샘플 로드 실패: {ex.Message}");
+        LoadColoniesSampleCommand = new AsyncRelayCommand(
+            () => ActivateSampleSliceAsync(ImageJSampleKind.CellColonyCounter),
+            ex => CanvasStatusText = $"샘플 로드 실패: {ex.Message}");
+        LoadMetrologySampleCommand = new AsyncRelayCommand(
+            () => ActivateSampleSliceAsync(ImageJSampleKind.MetrologyEdgesAndRings),
+            ex => CanvasStatusText = $"샘플 로드 실패: {ex.Message}");
+        LoadShadingSampleCommand = new AsyncRelayCommand(
+            () => ActivateSampleSliceAsync(ImageJSampleKind.UnevenShadingAndSaltPepper),
+            ex => CanvasStatusText = $"샘플 로드 실패: {ex.Message}");
 
         // Canvas Tool & ROI Manager Commands
         SelectToolCommand = new RelayCommand(() => _rawInput.Tool = EditorTool.Select);

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using VisionCanvas.Core.Geometry;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 
 namespace VisionCanvas.Rendering;

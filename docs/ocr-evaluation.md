@@ -28,7 +28,7 @@ dotnet test tests\TeachingToolWpf.Fluent2.Tests\TeachingToolWpf.Fluent2.Tests.cs
 
 ### 2.2 안티치트 가드 ([OcrAntiCheatGuardTests.cs](../tests/TeachingToolWpf.Fluent2.Tests/OcrBenchmark/OcrAntiCheatGuardTests.cs))
 
-- `src/` 하위 전체 **723개 `.cs` 파일**(`src/VisionOcr.PpOcr/` 포함)에 대해 `labels.json` 전 항목의 길이 6 이상 부분 문자열(**506종**), 문자열 결합/보간/문자 배열 치트, OCR 경로 내 ROI `Name` 분기, 비승인 이미지 크기(`Width`/`Height`) 분기, 근거 없는 신뢰도 하한(`Math.Max(0.9f, ...)`) **0건**을 강제한다.
+- `src/` 하위 전체 **719개 `.cs` 파일**(`src/VisionOcr.PpOcr/` 포함)에 대해 `labels.json` 전 항목의 길이 6 이상 부분 문자열(**506종**), 문자열 결합/보간/문자 배열 치트, OCR 경로 내 ROI `Name` 분기, 비승인 이미지 크기(`Width`/`Height`) 분기, 근거 없는 신뢰도 하한(`Math.Max(0.9f, ...)`) **0건**을 강제한다.
 
 ---
 
@@ -79,34 +79,35 @@ dotnet test tests\TeachingToolWpf.Fluent2.Tests\TeachingToolWpf.Fluent2.Tests.cs
 
 ---
 
-## 4. 범용 OCR 4종 엔진 전체 비교 (`A1.4`, `A3.3`, `B3.1`~`B3.4`)
+## 4. 범용 OCR 엔진 비교 (`A1.4`, `A3.3`, `B3.1`~`B3.4` — 제거된 고전 3종 기준선 포함)
 
 > [!WARNING]
-> **고전 엔진 3종의 구조적 한계 명시 (`A1.4`)**: **현재 고전 엔진 3종(`IndustrialOcrOcv`, `LightweightOcr [실험용]`, `MultiContrastEnsembleOcrEngine`)은 범용 판독 용도로 사용 불가(`holdout` 거부율 `93.5% ~ 100.0%`)**하다. 내장 원형이 표준 5×7 도트 + 소수 비트맵 원형뿐이므로 미등록 다중 폰트·한글·영수증·반도체 각인을 일반화해 읽지 못한다. 동일 인쇄 그룹의 기대 문자열 검증에는 티칭 기반 OCV(`TaughtFontOcvService`)를, 미등록 다중 폰트 범용 판독에는 `PP-OCR (ONNX)`를 사용해야 한다.
+> **고전 무티칭 엔진 3종의 제거 근거 (`A1.4`, 5.1절 연계)**: 아래 4.1절의 고전 엔진 3종(`IndustrialOcrOcv`, `LightweightOcr [실험용]`, `MultiContrastEnsembleOcrEngine`) 행은 **제품 코드에서 제거하기 직전에 측정한 비교 기준선(Historical Baseline)**이다. 내장 원형이 표준 5×7 도트 + 소수 비트맵 원형뿐이라 `holdout` 거부율이 **`93.5% ~ 100.0%`**에 달해 범용 판독 용도로 사용할 수 없었으며, 현재 제품에는 범용 판독용 `VisionOcr.PpOcr`(`PP-OCRv4 ONNX`)와 티칭 품질 검증용 `TaughtFontOcvVerifier`/`TaughtFontOcvService`만 남겼다.
 
-### 4.1 60개 ROI(`29 tuning` + `31 holdout`) 보정 후 4개 엔진 성능 비교표
+### 4.1 60개 ROI(`29 tuning` + `31 holdout`) 보정 후 성능 비교표 (`P1` 공식 CTC 신뢰도 · `P2` 정확 폭 버킷 · `P3` `MinAreaRect` Unclip 반영)
 
 합격(`IsPass`) 임계값은 모두 **`tuning` (`N = 29`)에서만** 오인식 통과율(`MisreadPassRate`) $\le 5.0\%$를 만족하는 최소 거부율 조합으로 고정했다(`holdout` 열람 후 재조정 없음):
-- `IndustrialOcrOcv`: `mean >= 0.952`, `minChar >= 0.800`
-- `LightweightOcr [실험용]`: `mean >= 0.865`, `minChar >= 0.865`
-- `MultiContrastEnsemble` (`CpuDeepOcr`): `mean >= 0.938`, `minChar >= 0.865`
-- `PP-OCRv4 ONNX` (`VisionOcr.PpOcr`): `mean >= 0.995`, `minChar >= 0.000` (보정 전 `0.50` 기준 `tuning MisreadPass = 51.7%` → 보정 후 `0.0%`)
+- *(제거 전 기준선)* `IndustrialOcrOcv`: `mean >= 0.952`, `minChar >= 0.800`
+- *(제거 전 기준선)* `LightweightOcr [실험용]`: `mean >= 0.865`, `minChar >= 0.865`
+- *(제거 전 기준선)* `MultiContrastEnsemble` (`CpuDeepOcr`): `mean >= 0.938`, `minChar >= 0.865`
+- *(현재 단일 범용 엔진)* `PP-OCRv4 ONNX` (`VisionOcr.PpOcr`, PaddleOCR `BaseRecLabelDecode` 첫 타임스텝 + 공백 토큰 포함 공식 CTC 신뢰도): `mean >= 0.995`, `minChar >= 0.000` (`tuning` 거부율 `75.9% (22/29)`, `tuning MisreadPass = 3.4% (1/29 <= 5.0%)`)
 
-| 엔진 | 장치 | Split ($N$) | 줄 완전일치율 [Wilson 95%] | CER (편집거리/기준자수) | 거부율 (`Reject`) | 오인식 통과율 (`MisreadPass`) | 신뢰도-정확도 상관 (`r`) | 세션 초기화 / `ColdMs` / `WarmMs` |
+| 엔진 | 상태 / 장치 | Split ($N$) | 줄 완전일치율 [Wilson 95%] | CER (편집거리/기준자수) | 거부율 (`Reject`) | 오인식 통과율 (`MisreadPass`) | 신뢰도-정확도 상관 (`r`) | 세션 초기화 / `ColdMs` / `WarmMs` |
 | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
-| `IndustrialOcrOcv` | CPU | `tuning` (29) | 8/29 (**27.6%**) `[14.7%~45.7%]` | **25.07%** (170/678) | 86.2% (25/29) | **3.4%** (1/29) | 0.667 | `0` / 8.75 / **8.54 ms** |
-| `IndustrialOcrOcv` | CPU | **`holdout` (31)** | 7/31 (**22.6%**) `[11.4%~39.8%]` | **28.10%** (129/459) | **100.0%** (31/31) | **0.0%** (0/31) | 0.759 | `0` / 2.04 / **2.00 ms** |
-| `LightweightOcr [실험용]` | CPU | `tuning` (29) | 1/29 (**3.4%**) `[0.6%~17.2%]` | **41.15%** (279/678) | 96.6% (28/29) | **3.4%** (1/29) | 0.540 | `0` / 10.20 / **9.95 ms** |
-| `LightweightOcr [실험용]` | CPU | **`holdout` (31)** | 4/31 (**12.9%**) `[5.1%~28.9%]` | **74.29%** (341/459) | **100.0%** (31/31) | **0.0%** (0/31) | 0.855 | `0` / 2.25 / **2.15 ms** |
-| `MultiContrastEnsemble` | CPU | `tuning` (29) | 8/29 (**27.6%**) `[14.7%~45.7%]` | **21.53%** (146/678) | 82.8% (24/29) | **3.4%** (1/29) | 0.803 | `0` / 25.65 / **25.64 ms** |
-| `MultiContrastEnsemble` | CPU | **`holdout` (31)** | 7/31 (**22.6%**) `[11.4%~39.8%]` | **26.36%** (121/459) | **93.5%** (29/31) | **3.2%** (1/31) | 0.607 | `0` / 18.89 / **18.82 ms** |
-| **`PP-OCRv4 ONNX`** | **CPU (기본)** | `tuning` (29) | **14/29 (48.3%)** `[31.4%~65.6%]` | **10.03%** (68/678) | 65.5% (19/29) | **0.0%** (0/29) | 0.764 | `567.44 ms` (3세션) / 124.39 / **125.88 ms** |
-| **`PP-OCRv4 ONNX`** | **CPU (기본)** | **`holdout` (31)** | **18/31 (58.1%)** `[40.8%~73.6%]` | **6.97%** (32/459) | 71.0% (22/31) | **9.7%** (3/31) | 0.176 | `567.44 ms` (공유) / 68.40 / **68.41 ms** |
-| **`PP-OCRv4 ONNX`** | **CUDA (RTX 3060)** | `tuning` (29) | **14/29 (48.3%)** `[31.4%~65.6%]` | **10.03%** (68/678) | 69.0% (20/29) | **0.0%** (0/29) | 0.764 | `2,776.42 ms` (3세션) / 1,878.01 / **785.59 ms** |
-| **`PP-OCRv4 ONNX`** | **CUDA (RTX 3060)** | **`holdout` (31)** | **18/31 (58.1%)** `[40.8%~73.6%]` | **6.97%** (32/459) | 71.0% (22/31) | **9.7%** (3/31) | 0.176 | `2,776.42 ms` (공유) / 1,345.50 / **343.25 ms** |
+| `IndustrialOcrOcv` | 제거됨 (기준선·CPU) | `tuning` (29) | 8/29 (**27.6%**) `[14.7%~45.7%]` | **25.07%** (170/678) | 86.2% (25/29) | **3.4%** (1/29) | 0.667 | `0` / 8.75 / **8.54 ms** |
+| `IndustrialOcrOcv` | 제거됨 (기준선·CPU) | **`holdout` (31)** | 7/31 (**22.6%**) `[11.4%~39.8%]` | **28.10%** (129/459) | **100.0%** (31/31) | **0.0%** (0/31) | 0.759 | `0` / 2.04 / **2.00 ms** |
+| `LightweightOcr [실험용]` | 제거됨 (기준선·CPU) | `tuning` (29) | 1/29 (**3.4%**) `[0.6%~17.2%]` | **41.15%** (279/678) | 96.6% (28/29) | **3.4%** (1/29) | 0.540 | `0` / 10.20 / **9.95 ms** |
+| `LightweightOcr [실험용]` | 제거됨 (기준선·CPU) | **`holdout` (31)** | 4/31 (**12.9%**) `[5.1%~28.9%]` | **74.29%** (341/459) | **100.0%** (31/31) | **0.0%** (0/31) | 0.855 | `0` / 2.25 / **2.15 ms** |
+| `MultiContrastEnsemble` | 제거됨 (기준선·CPU) | `tuning` (29) | 8/29 (**27.6%**) `[14.7%~45.7%]` | **21.53%** (146/678) | 82.8% (24/29) | **3.4%** (1/29) | 0.803 | `0` / 25.65 / **25.64 ms** |
+| `MultiContrastEnsemble` | 제거됨 (기준선·CPU) | **`holdout` (31)** | 7/31 (**22.6%**) `[11.4%~39.8%]` | **26.36%** (121/459) | **93.5%** (29/31) | **3.2%** (1/31) | 0.607 | `0` / 18.89 / **18.82 ms** |
+| **`PP-OCRv4 ONNX` (`UniversalAuto`)** | **현행 기본 · CPU** | `tuning` (29) | **14/29 (48.3%)** `[31.4%~65.6%]` | **9.59%** (65/678) | 75.9% (22/29) | **3.4%** (1/29) | 0.634 | `724.53 ms` (3세션) / 118.62 / **119.03 ms** |
+| **`PP-OCRv4 ONNX` (`UniversalAuto`)** | **현행 기본 · CPU** | **`holdout` (31)** | **18/31 (58.1%)** `[40.8%~73.6%]` | **6.75%** (31/459) | 74.2% (23/31) | **6.5%** (2/31) | 0.103 | `724.53 ms` (공유) / 54.81 / **55.72 ms** |
+| **`PP-OCRv4 ONNX` (`UniversalAuto`)** | **현행 선택 · CUDA (RTX 3060)** | `tuning` (29) | **14/29 (48.3%)** `[31.4%~65.6%]` | **9.59%** (65/678) | 75.9% (22/29) | **3.4%** (1/29) | 0.634 | `927.24 ms` (3세션) / 2,190.95 / **926.81 ms** |
+| **`PP-OCRv4 ONNX` (`UniversalAuto`)** | **현행 선택 · CUDA (RTX 3060)** | **`holdout` (31)** | **18/31 (58.1%)** `[40.8%~73.6%]` | **6.75%** (31/459) | 74.2% (23/31) | **6.5%** (2/31) | 0.101 | `927.24 ms` (공유) / 1,133.87 / **305.54 ms** |
 
-- **CUDA 감속 실측 분석**: 소형 단일 ROI(`batch = 1`)에서 `PP-OCRv4` 동적 폭(`targetWidth = max(320, ...)`)과 `Det` 32배수 동적 해상도로 인해 ONNX Runtime CUDA EP의 cuDNN 알고리즘 탐색·커널 재컴파일 비용이 발생하여 CPU(`holdout WarmMs = 68.41 ms`)보다 RTX 3060 CUDA(`343.25 ms`)가 약 5.0배 느리게 측정되었다. 이에 따라 기본 실행 장치는 결정론적이고 지연이 낮은 **CPU**로 유지한다.
-- **기본 엔진 유지 사유 (`B3.4`)**: 사용자 승인 범위(`기본 엔진 자동 교체는 승인 범위가 아님`) 및 외부 모델 파일(`models/ppocr/*.onnx`, 약 36.5 MB) 유무에 따른 실행 환경 독립성을 보존하기 위해 앱 기본 OCR 선택지는 기존 `IndustrialOcrOcv`를 그대로 유지하고, `PP-OCR (ONNX)`는 서비스 주입 시 선택 가능한 독립 옵션으로 노출한다.
+- **60개 ROI 전체(`tuning` + `holdout`) 요약 (`PP-OCRv4 ONNX UniversalAuto`)**: 줄 완전일치 **32/60 (`53.3%`)**, 전체 CER **`8.44%` (`96/1,137`)**, 거부율 **`75.0%` (`45/60`)**, 오인식 통과율 **`5.0%` (`3/60`)**, 신뢰도-정확도 상관 **`r = 0.514`**.
+- **CUDA 감속 실측 분석**: 소형 단일 ROI(`batch = 1`)에서 `PP-OCRv4` 32px 정렬 동적 폭(`targetWidth = max(320, ceil32(...))`)과 `Det` 32배수 동적 해상도로 인해 ONNX Runtime CUDA EP의 cuDNN 알고리즘 탐색·커널 재컴파일 비용이 발생하여 CPU(`holdout WarmMs = 55.72 ms`)보다 RTX 3060 CUDA(`305.54 ms`)가 약 5.5배 느리게 측정되었다. 따라서 기본 실행 장치는 결정론적이고 소형 배치 지연이 낮은 **CPU**로 유지하며, UI 및 도움말에서도 단건/소량 ROI에서의 CUDA 감속 주의 문구를 명시한다.
+- **단일 `OCR / OCV` 통합 구조**: 사용자 후속 지시에 따라 무티칭 고전 OCR 3종은 제거하고 앱의 OCR 카테고리를 단일 `OCR / OCV`(`InspectionSuiteAlgorithmKind.PpOcrOnnx` + `TaughtFontOcvService`)로 통합했다. 기존 저장 문서·레시피의 열거형(`IndustrialOcrOcv`, `LightweightOcr`, `CpuDeepOcr`)은 `InspectionSuiteService.NormalizeAlgorithmKind`를 통해 손실 없이 `PpOcrOnnx`로 정규화되며, `models/ppocr/*.onnx` 파일이 없는 환경에서는 허위 판독 대신 `"모델 미연결"` 상태를 정직하게 표시한다.
 
 ### 4.2 허용 문자 집합(`OcrAllowedCharacterSet.UpperAlphaNumericAndSymbols`) 측정 (`A3.3`)
 
@@ -126,35 +127,51 @@ dotnet test tests\TeachingToolWpf.Fluent2.Tests\TeachingToolWpf.Fluent2.Tests.cs
 
 ---
 
-## 5. 고전 무티칭 OCR 3종 제거 및 산업용 택타임 실측
+## 5. 고전 무티칭 OCR 3종 제거, 적대적 리뷰 결함 교정 및 산업용 택타임 실측
 
-### 5.1 고전 무티칭 OCR 3종 제거 및 단일 `OCR / OCV` 통합
+### 5.1 고전 무티칭 OCR 3종·잔존 죽은 코드 제거 및 단일 `OCR / OCV` 통합
 
-- **제거 대상 및 근거**: 4.1절에서 실측된 바와 같이 무티칭 고전 OCR 3종(`UniversalMultiFontOcrEngine`, `LightweightOcrEngine.RecognizeFastRoi`, `MultiContrastEnsembleOcrEngine`/`CpuDeepOcr`)은 `holdout` 거부율이 **`93.5% ~ 100.0%`**에 달해 범용 판독기로 사용할 수 없으므로 사용자 지시에 따라 제품 코드에서 제거했다.
-- **통합 구성 (`OCR / OCV`)**:
-  1. **범용 문자 판독 (`OCR`)**: `VisionOcr.PpOcr` (`PP-OCRv4 ONNX`, `det` + `en/korean rec`).
-  2. **티칭 인쇄 품질 검증 (`OCV`)**: `TaughtFontOcvVerifier` / `TaughtFontOcvService` (`OK` / `Review` / `NG` 3상태 검증, 획 결손·번짐·대비 측정, `.ocvfont` 입출력).
-  3. **티칭 보조 연결**: `PP-OCR` 판독 문자열을 선택한 ROI의 `OCV` 기대 문자열로 즉시 복사하는 1클릭 명령(`ApplyPpOcrTextToOcvExpectedText`) 제공 및 기존 문서 열거형(`IndustrialOcrOcv`/`LightweightOcr`/`CpuDeepOcr`) 자동 정규화(`NormalizeAlgorithmKind`).
+- **제거 대상 및 근거**: 4.1절 기준선에서 실측된 바와 같이 무티칭 고전 OCR 3종(`UniversalMultiFontOcrEngine`, `LightweightOcrEngine.RecognizeFastRoi`, `MultiContrastEnsembleOcrEngine`/`CpuDeepOcr`)은 `holdout` 거부율이 **`93.5% ~ 100.0%`**에 달해 범용 판독기로 사용할 수 없으므로 제거했고, 후속 적대적 리뷰에 따라 미사용 잔존 파일 11개(`IndustrialOcrOcvEngine.cs`, `HalconProjectionOcvInspector.cs`, `OcrMaxFieldingMatcher.cs`, `RecognizedCharBox.cs`, `UniversalOcrRegionResult.cs`, `src/VisionAlgorithm/OpenSrc/LightweightOcr/*`)도 완전 제거했다(범위 밖 테스트 호환을 위한 공통 DTO `OcrOcvTypes.cs`만 유지).
+- **통합 구성 (`OCR / OCV`) 및 워크플로 불변식 강화**:
+  1. **범용 문자 판독 (`OCR`)**: `VisionOcr.PpOcr` (`PP-OCRv4 ONNX`, `PpOcrInferenceService`·`PpOcrSessionHost`·`PpOcrDbPostProcessor`·`PpOcrCtcDecoder`·`PpOcrRecBatchPlanner`·`PpOcrPolarityRouter` 6개 응집 모듈 분리, 독립 `PpOcrRegionResult`/`PpOcrCharacterBox` 사용).
+  2. **티칭 인쇄 품질 검증 (`OCV`)**: `TaughtFontOcvVerifier` / `TaughtFontOcvService` (`OK` / `Review` / `NG` 3상태 검증, 형식 마스크 밖 동형 문자 확증 편향 차단 `B1`, 폰트 파일 `DarkOnLight` 극성 영속화 `version: 2`, 기존 폰트 병합 추가 학습 `TrainOrMerge`, ROI별 `FontId` 분리 및 레시피 영속화, 품질 우선 자동 극성 선택).
+  3. **안전한 1클릭 티칭 보조 연결**: `ApplyPpOcrTextToOcvExpectedText`는 **단일 리프 ROI 선택 + 해당 `RoiId` 결과 정확 일치 + `PP-OCR` `IsPass == true` 합격 판정 + 사용자 확인 대화상자 승인**을 모두 통과할 때만 기대 문자열에 반영한다(미합격 오인식 문자열의 무검증 정답 등록 차단).
 
-### 5.2 `VisionOcr.PpOcr` 및 `VisionInspection` 택타임 최적화 항목
+### 5.2 `VisionOcr.PpOcr` 정확도·동치성 교정 및 택타임 최적화 항목
 
-1. **무할당 버퍼 재사용 및 `Vector256` SIMD 전처리**: `ArrayPool<float>.Shared`·`ArrayPool<byte>.Shared` 대여(`DenseTensor<float>(Memory<float>, dims)` 직접 래핑), `Vector256<float>` 평면 정규화(`Rec`/`Det`) 및 `Vector256<byte>` 비트 보수 극성 반전(스칼라 꼬리·폴백 포함).
-2. **무복사 1패스 CTC 디코딩 및 무손실 한영 단락**: 타임스텝당 어휘 복사 없이 단일 순회로 허용 문자 집합 마스킹·최대 로짓 탐색·소프트맥스 보정을 수행하며, 영문 가중 신뢰도 `enScore >= 0.990`일 때 한국어 세션이 수학적으로 역전 불가능함을 이용해 출력 변화 `0%`로 `_koreanSlot` 호출을 생략한다.
-3. **32px 폭 버킷 다중 ROI / 다중 쿼드 배치(`RecognizeBatch`)**: 다중 ROI 및 `Det+Rec` 다중 단어 크롭을 32px 단위 폭 버킷으로 정렬·묶어 실행하되, CPU 실행 시 SVTR-LCNet 중간 활성 텐서가 L2/L3 캐시(`~1.9 MB`)에 상주하도록 마이크로배치 크기(`batch = 2`)로 제한하고 CUDA에서는 동적 배치를 사용한다.
+1. **진정한 `Vector256` SIMD 확장(`Widen`) 전처리 및 무할당 버퍼 재사용**: `ArrayPool<float>.Shared`·`ArrayPool<byte>.Shared` 대여(`DenseTensor<float>(Memory<float>, dims)` 직접 래핑), `Vector128.Widen` + `Vector256.ConvertToSingle` 기반 무루프 `byte -> float` 평면 정규화(`Rec`/`Det`) 및 `Vector256<byte>` 비트 보수 극성 반전을 적용했다.
+2. **PaddleOCR 공식 `BaseRecLabelDecode` CTC 신뢰도(`P1`) 및 무손실 한영 단락**: 각 병합 토큰 구간의 첫 타임스텝 확률(`runFirstProb`)과 방출된 공백(`' '`) 확률을 `MeanConfidence`/`MinConfidence`에 모두 포함하고, 어휘 파일 줄 번호 1:1 검증(`P5`) 및 세션 출력 클래스 수 일치를 강제했다. 영문 신뢰도 `enScore >= 0.990`일 때 한국어 슬롯 호출을 생략한다.
+3. **단건-배치 비트 동치 32px 정확 폭 버킷(`P2`) 및 DBNet `MinAreaRect` Unclip(`P3`)**: 단건과 배치 모두 동일하게 `targetWidth = max(320, ceil32(round(48 * w / h)))`를 사용하며, `PpOcrRecBatchPlanner`는 우측 제로패딩에 의한 CTC 분포 변화를 막기 위해 **동일 `TargetWidth`끼리만(`MaxBucketWidthSpreadPx = 0`)** 묶어 CPU L2 캐시 상주 마이크로배치(`batch = 2`)로 실행한다. DBNet 폴리곤 확장은 `MinAreaRect` 기반 `d = (w * h * r) / (2 * (w + h))` 공식을 사용한다.
 4. **운용 프리셋(`PpOcrSpeedPreset`) 분리**:
-   - `UniversalAuto` (기본): 단줄/다줄 자동 판별, 양극성 자동 탐색, 한·영 신뢰도 선택, 저신뢰 180° 재검사를 모두 유지(**60개 ROI 정확도 `32/60 (53.3%)`, 전체 CER `8.71% (99/1,137)` 보존**).
-   - `HighSpeedProduction` (고속 양산): 정렬·조명 극성이 고정된 양산 라인용(`RecOnly` 직행 + 단일 극성 + 단일 언어 슬롯 + 정방향 전용).
+   - `UniversalAuto` (기본): 스케일 불변 다줄/세로쓰기 판별, 양극성 자동 탐색, 한·영 신뢰도 선택, 회전 역변환 문자 박스를 모두 유지(**60개 ROI 정확도 `32/60 (53.3%)`, 전체 CER `8.44% (96/1,137)`**).
+   - `HighSpeedProduction` (고속 양산): 정렬·조명 극성이 고정된 단줄 양산 라인용(`RecOnly` 직행 + 단일 극성 + 선택 언어 단일 슬롯(`Korean` 지정 시 보존, `Multilingual` 시 `English`) + 정방향 전용).
 
-### 5.3 Release CPU 택타임 실측 (`PpOcrInferenceServiceTests`, 중앙값 Warm 지연)
+### 5.3 `HighSpeedProduction` 프리셋 60개 ROI(`29 tuning` + `31 holdout`) 정확도 실측표 (`OcrEvaluationRatchetTests`)
 
-| 시나리오 | 대상 데이터 | 최적화 전 / 순차 `UniversalAuto` | 배치 `UniversalAuto` | **`HighSpeedProduction` (고속 양산)** | 비고 |
+> [!NOTE]
+> 아래 표는 다줄 영수증(`ocr6.jpg`), 한글 라벨, 어두운 배경 반전 각인(`kensa.png`), 고각도 회전(`OCR7.jpg`)이 섞인 범용 60개 ROI 전체에 대해 별도 극성/언어 수동 지정 없이 `HighSpeedProduction` 기본값(`RecOnly` + `NormalOnly` + 단일 슬롯 + 정방향 전용)을 일괄 적용했을 때의 정직한 실측치다.
+
+| 프리셋 (`CPU`) | Split ($N$) | 줄 완전일치율 [Wilson 95%] | CER (편집거리/기준자수) | 거부율 (`Reject`) | 오인식 통과율 (`MisreadPass`) | 신뢰도-정확도 상관 (`r`) | `ColdMs` / `WarmMs` |
+| --- | --- | --- | --- | --- | --- | ---: | --- |
+| `HighSpeedProduction` | `tuning` (29) | **10/29 (34.5%)** `[19.9%~52.7%]` | **52.80%** (358/678) | 89.7% (26/29) | **0.0%** (0/29) | 0.895 | 12.10 / **12.33 ms** |
+| `HighSpeedProduction` | **`holdout` (31)** | **17/31 (54.8%)** `[37.8%~70.8%]` | **26.36%** (121/459) | 83.9% (26/31) | **3.2%** (1/31) | 0.815 | 10.86 / **11.56 ms** |
+| `HighSpeedProduction` | **전체 (`60`)** | **27/60 (45.0%)** | **42.13%** (479/1,137) | 86.7% (52/60) | **1.7%** (1/60) | 0.884 | 11.46 / **11.93 ms** |
+
+- **정확도 차이 원인**: `HighSpeedProduction`은 택타임 단축을 위해 DBNet 검출기(`Det`), 자동 역극성 재시도, 다국어 이중 슬롯, 180°/90° 회전 탐색을 생략하므로 다줄 문서·미지정 반전 각인·회전 샘플에서 CER이 `8.44% → 42.13%`로 상승한다(단, 오인식 통과율은 `1.7% (1/60)`로 억제됨). 따라서 다줄·미지 극성·회전 조건에는 반드시 `UniversalAuto`를 사용하고, `HighSpeedProduction`은 단줄 크롭과 조명 극성(`NormalOnly`/`InvertedOnly`)·언어가 확정된 인라인 고정 ROI에만 적용해야 한다.
+
+### 5.4 Release CPU 산업용 택타임 실측 (`PpOcrInferenceServiceTests`, 중앙값 Warm 지연)
+
+| 시나리오 | 대상 데이터 | 순차 `UniversalAuto` | 배치 `UniversalAuto` | **`HighSpeedProduction` (`InvertedOnly` 단줄 지정)** | 비고 |
 | --- | --- | ---: | ---: | ---: | --- |
-| **단일 ROI (`PP-OCR`)** | `kensa.png` `Kensa_Chip2_Vendor` (`"SAMSUNG"`) | `57.30 ms` | `57.30 ms` | **`9.96 ms`** (`5.8×` 단축) | `"SAMSUNG"` 정확 일치 (`Pass=True`) |
-| **10-ROI 실사 칩 트레이 (`PP-OCR`)** | `kensa.png` `Chips 2..6` (`5칩 × 2줄 = 10 ROI`) | `546.12 ms` (`54.61 ms/ROI`) | `508.97 ms` (`50.90 ms/ROI`) | **`132.36 ms` (`13.24 ms/ROI`)** (`4.1×` 단축) | 순차↔배치(`Auto`) 10/10 문자열·판정 100% 동일 |
-| **32-ROI 산업용 트레이 (`PP-OCR`)** | `kensa.png` 칩 마킹 32개 ROI 배치 | `1,647.18 ms` (`51.47 ms/ROI`) | `1,552.64 ms` (`48.52 ms/ROI`) | **`372.52 ms` (`11.64 ms/ROI`)** (`4.4×` 단축) | CPU 단순 `batch=32`(`814.55 ms`) 대비 L2 캐시 마이크로배치(`batch=2`)가 `2.2×` 빠름 |
-| **다중 단어 영수증 (`Det+Rec`)** | `ocr6.jpg` 전체 영수증 (DBNet + 쿼드 배치 인식) | `261.57 ms` | **`194.72 ms`** | N/A (다줄은 `Det+Rec` 사용) | 검출 쿼드 폭 버킷 마이크로배치 적용 |
-| **티칭 기반 `OCV` 검증 (`TaughtFontOcvVerifier`)** | `kensa.png` 픽셀 비중첩 (`Chip 1` 티칭 → 검증) | — | — | **단일 `2.660 ms` / 32-ROI `24.87 ms` (`0.777 ms/ROI`)** | 고정 인쇄 마킹 초고속 인라인 검증 경로 |
+| **단일 ROI (`PP-OCR`)** | `kensa.png` `Kensa_Chip2_Vendor` (`"SAMSUNG"`) | `40.39 ms` | `40.39 ms` | **`10.13 ms`** (`4.0×` 단축) | `"SAMSUNG"` 정확 일치 (`ExactMatch=True`) |
+| **10-ROI 실사 칩 트레이 (`PP-OCR`)** | `kensa.png` `Chips 2..6` (`5칩 × 2줄 = 10 ROI`) | `449.24 ms` (`44.92 ms/ROI`) | `413.32 ms` (`41.33 ms/ROI`) | **`84.63 ms` (`8.46 ms/ROI`)** (`5.3×` 단축) | 단건↔배치(`Auto`) 10/10 텍스트·신뢰도 비트 동치(`1e-5` 이내) |
+| **32-ROI 산업용 트레이 (`PP-OCR`)** | `kensa.png` 칩 마킹 32개 ROI 배치 | `1,365.75 ms` (`42.68 ms/ROI`) | `1,139.45 ms` (`35.61 ms/ROI`) | **`252.34 ms` (`7.89 ms/ROI`)** (`5.4×` 단축) | 동일 `TargetWidth` 정확 버킷 + CPU L2 마이크로배치(`batch=2`) |
+| **다중 단어 영수증 (`Det+Rec`)** | `ocr6.jpg` 전체 영수증 (DBNet + 쿼드 배치 인식) | — | **`152.09 ms`** | N/A (다줄은 `Det+Rec` 사용) | `MinAreaRect` Unclip + 쿼드 정확 폭 버킷 배치 적용 |
+| **티칭 기반 `OCV` 검증 (`TaughtFontOcvVerifier`)** | `kensa.png` 픽셀 비중첩 (`Chip 1` 티칭 → 검증) | — | — | **단일 `4.599 ms` / 32-ROI `37.44 ms` (`1.170 ms/ROI`)** | 전체 폰트 동형 문자 마진 검사(`B1`) 포함 초고속 검증 |
+
+> [!CAUTION]
+> **양산 무결점 판정 운용 원칙 (무티칭 `PP-OCR` 단독 최종 판정 금지)**:
+> `PP-OCRv4 ONNX`(`UniversalAuto`)는 엄격한 임계값(`mean >= 0.995`)에서도 미학습 `holdout`에서 **거부율 `74.2% (23/31)` 및 오인식 통과율 `6.5% (2/31)`**(예: 반도체 각인 `'0'↔'O'`, `'G'↔'6'`)가 존재한다. 따라서 **무티칭 `PP-OCR`의 `IsPass` 단독 판정을 무결점(Zero-Defect) 양산 출하 최종 판정으로 사용해서는 안 되며**, 양산 불량 검출에는 반드시 **티칭 기반 `TaughtFontOcvVerifier`(`OK`/`Review`/`NG` + 전체 템플릿 동형 문자 마진)** 또는 **`OcrFieldFormatSpec`(기대 문자열·필드 형식 마스크) 교차 검증**을 결합해야 한다.
 
 - **미실행(`NOT_RUN`) 및 한계 명시**:
   - OpenVINO EP / TensorRT INT8·FP16 엔진 변환 가속 및 실제 현장 카메라·조명·PLC 연동 인라인 지속 처리량은 **`NOT_RUN`**이다.
-  - `HighSpeedProduction` 프리셋은 단줄 크롭·단일 극성·정방향 정렬이 확보된 양산 ROI 전제이며, 다줄 문서·미지 극성·180° 역방향 입력에는 기본 `UniversalAuto`를 사용해야 한다.

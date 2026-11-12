@@ -4,8 +4,6 @@ using ILGPU.Runtime.Cuda;
 
 namespace IndustrialVision.Filters.Gpu;
 
-public sealed record SmokeResult(string Status, string Device, string Backend, long MemoryBytes, int ComparedValues);
-
 public static class CudaSmoke
 {
     public static SmokeResult Run()

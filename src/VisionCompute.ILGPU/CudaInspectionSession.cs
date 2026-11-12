@@ -241,7 +241,7 @@ public sealed class CudaInspectionSession : IDisposable
             }
         }
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             lock (_gate)
             {

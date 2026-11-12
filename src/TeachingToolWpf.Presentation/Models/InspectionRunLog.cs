@@ -12,7 +12,7 @@ namespace TeachingToolWpf.Models;
 /// <summary>원본 파일 경로와 픽셀은 기록하지 않는다. UI 소유의 검사별 스냅샷이며 저장은 명시적 내보내기다.</summary>
 public sealed record InspectionRunLog(Guid RunId, DateTimeOffset StartedAt, long StartedTimestamp,
     int ImageWidth, int ImageHeight, long SourceGeneration, Guid ModelId,
-    RoiGeometry TeachingRegion, RoiGeometry? SearchRegion, TrainingOptions Training, SearchOptions Search,
+    RoiGeometry TeachingRegion, RoiGeometry? SearchRegion, TrainingOptions Training, ShapeSearchOptions Search,
     ImmutableArray<int> FeaturesPerLevel, int TemplateCount)
 {
     public string Event => "paper_inspection";
@@ -91,7 +91,7 @@ public sealed record InspectionRunLog(Guid RunId, DateTimeOffset StartedAt, long
     {
         get; init;
     }
-    public ImmutableArray<SearchDiagnostics> WorkerDiagnostics { get; init; } = [];
+    public ImmutableArray<ShapeSearchDiagnostics> WorkerDiagnostics { get; init; } = [];
     public ImagePreprocessingDiagnostics? GpuPreprocessing
     {
         get; init;

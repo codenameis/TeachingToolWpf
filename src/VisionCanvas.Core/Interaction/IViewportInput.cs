@@ -2,12 +2,6 @@ using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
-public enum PointerButton
-{
-    Left = 0,
-    Middle = 1
-}
-
 /// <summary>HWND가 전달하는 포인터·탐색·키보드 입력 계약이다. 문서 종류와 편집 이력은 구현이 소유한다.</summary>
 public interface IViewportInput
 {

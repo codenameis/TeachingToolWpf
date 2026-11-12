@@ -90,7 +90,7 @@ public sealed class ImagePreprocessorContractTests
         }
         public ImagePreprocessingDiagnostics Diagnostics => new("Test", "Test", Sizes.Count, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             Sizes.Add((image.Width, image.Height));
             if (Failure)

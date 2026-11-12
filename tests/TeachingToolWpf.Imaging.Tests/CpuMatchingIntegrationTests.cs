@@ -7,7 +7,6 @@ using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
 using VisionImaging.Abstractions;
-using SearchOptions = CpuMatching.Core.SearchOptions;
 
 namespace TeachingToolWpf.Imaging.Tests;
 
@@ -68,7 +67,7 @@ public sealed class CpuMatchingIntegrationTests
         var matcher = new FullImageMatcher();
         var template = new CpuTemplate(CpuTemplateMethod.SubNcc, matcher, new(new(20, 20), 20, 20, 0));
         var result = await service.SearchAsync(new("full", "full", 8192, 8192), false, template, null,
-            new SearchOptions(), default);
+            new CpuSearchOptions(), default);
         Assert.Equal(256, loader.Tiles.Count);
         Assert.Contains(new TileKey(0, 15, 15), loader.Tiles);
         Assert.Equal(8000.5, Assert.Single(result.Result.Matches).X);
@@ -77,7 +76,7 @@ public sealed class CpuMatchingIntegrationTests
 
     private sealed class FullImageMatcher : ITemplateMatcher
     {
-        public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        public SearchResult Find(CpuGrayImage image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
             Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
         {
             Assert.Equal(8192, image.Width);
@@ -122,7 +121,7 @@ public sealed class CpuMatchingIntegrationTests
         var image = new ImageReference("fixture", "fixture", 256, 192);
         var roi = new RoiGeometry(new(48.5, 48.5), 33, 29, 0);
         var model = await service.TrainAsync(image, false, roi, CpuTemplateMethod.Line2D, default);
-        var options = new SearchOptions { MinimumAngle = -5, MaximumAngle = 5 };
+        var options = new CpuSearchOptions { MinimumAngle = -5, MaximumAngle = 5 };
         Assert.Single((await service.SearchAsync(image, false, model, roi, options, default)).Result.Matches);
         Assert.Equal(0, calls);
         await Assert.ThrowsAsync<NotSupportedException>(() => service.SearchAsync(image, false, model, roi, options, default, useCuda: true));
@@ -142,7 +141,7 @@ public sealed class CpuMatchingIntegrationTests
         var image = new ImageReference("fixture", "fixture", 256, 192);
         var model = await service.TrainAsync(image, false, new(new(48.5, 48.5), 33, 29, 0), method, default);
         var region = RoiGeometry.Create(RoiShapeKind.Circle, new(160.5, 88.5), 4, 4);
-        var options = new SearchOptions { MinimumAngle = 80, MaximumAngle = 100, MinimumScore = .8, MaximumMatches = 1 };
+        var options = new CpuSearchOptions { MinimumAngle = 80, MaximumAngle = 100, MinimumScore = .8, MaximumMatches = 1 };
         var result = await service.SearchAsync(image, false, model, region, options, default, useCuda: useCuda);
         Assert.Equal(useCuda, result.Acceleration is not null);
         Check(result);
@@ -330,7 +329,7 @@ public sealed class CpuMatchingIntegrationTests
         }
         public Task<CpuTemplate> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method, CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null)
             => inner.TrainAsync(image, live, roi, method, token, exclusion, parameters);
-        public Task<CpuSearchOutput> SearchAsync(ImageReference image, bool live, CpuTemplate template, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false)
+        public Task<CpuSearchOutput> SearchAsync(ImageReference image, bool live, CpuTemplate template, RoiGeometry? region, CpuSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false)
             => Pending?.Task ?? inner.SearchAsync(image, live, template, region, options, token, exclusion, useCuda);
     }
 

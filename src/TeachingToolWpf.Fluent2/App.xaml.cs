@@ -11,6 +11,7 @@ using TeachingToolWpf.Fluent2.Views;
 using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Services;
 using TeachingToolWpf.ViewModels;
+using VisionAlgorithm.Verification;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Rendering;
 using VisionCompute.ILGPU;
@@ -54,6 +55,7 @@ public partial class App : Application
             loader,
             window.Viewport.RetainFrame,
             () => filterGpu ??= new IndustrialVision.Filters.Gpu.CudaBackend());
+        PreInspectionFilterPipeline preFilterPipeline = new PreInspectionFilterPipeline();
 
         ShapeMatchingViewModel pattern = new ShapeMatchingViewModel(
             new ShapeMatchingService(
@@ -61,29 +63,32 @@ public partial class App : Application
                 window.Viewport.RetainFrame,
                 inspectionCompute.Rent,
                 inspectionCompute.PrepareAsync,
-                ShapeSearchPipeline.Paper),
-            new TemplateMatchingService(loader, window.Viewport.RetainFrame),
-            new CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent),
-            new PatMaxMatchingService(loader, window.Viewport.RetainFrame));
+                ShapeSearchPipeline.Paper,
+                preFilterPipeline),
+            new TemplateMatchingService(loader, window.Viewport.RetainFrame, preFilterPipeline),
+            new CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent, preFilterPipeline),
+            new PatMaxMatchingService(loader, window.Viewport.RetainFrame, preFilterPipeline));
 
         PrimitiveShapeDetectionViewModel shapes = new PrimitiveShapeDetectionViewModel(
             new PrimitiveShapeDetectionService(
                 loader,
                 window.Viewport.RetainFrame,
-                () => new CudaPrimitivePreprocessor()));
+                () => new CudaPrimitivePreprocessor(),
+                preFilterPipeline));
 
         EdgeFewShotViewModel fewShot = new EdgeFewShotViewModel(
-            new EdgeFewShotService(loader, window.Viewport.RetainFrame));
+            new EdgeFewShotService(loader, window.Viewport.RetainFrame, preFilterPipeline));
 
         PpOcrInferenceService ppOcrService = new PpOcrInferenceService(
             PpOcrModelOptions.FromDirectory(ResolvePpOcrModelDirectory()));
-        TaughtFontOcvService ocvService = new TaughtFontOcvService(loader, window.Viewport.RetainFrame);
+        TaughtFontOcvService ocvService = new TaughtFontOcvService(loader, window.Viewport.RetainFrame, preFilterPipeline);
 
         InspectionSuiteViewModel suite = new InspectionSuiteViewModel(
-            new InspectionSuiteService(loader, window.Viewport.RetainFrame, ppOcrService),
+            new InspectionSuiteService(loader, window.Viewport.RetainFrame, ppOcrService, preFilterPipeline, new Master8kSuiteVerificationRunner()),
             ocvService,
             selectOcvFontOpenPath: () => SelectOcvFontOpenPath(window),
-            selectOcvFontSavePath: () => SelectOcvFontSavePath(window));
+            selectOcvFontSavePath: () => SelectOcvFontSavePath(window),
+            confirmApplyPpOcrToOcv: (roiName, text, conf) => ConfirmApplyPpOcrToOcv(window, roiName, text, conf));
 
         InspectionToolsViewModel inspections = new InspectionToolsViewModel(pattern, shapes, fewShot, suite);
         MainWindowViewModel studioModel = new MainWindowViewModel(
@@ -93,7 +98,8 @@ public partial class App : Application
             live,
             filterPreview,
             inspections,
-            selectImage: () => TeachingToolWpf.Views.ImageFilePicker.Select(window));
+            selectImage: () => TeachingToolWpf.Views.ImageFilePicker.Select(window),
+            preFilterPipeline: preFilterPipeline);
 
         SubPixelTeachingReadinessEngine readinessEngine = new SubPixelTeachingReadinessEngine();
         Fluent2StudioViewModel viewModel = new Fluent2StudioViewModel(studioModel, readinessEngine);
@@ -179,6 +185,14 @@ public partial class App : Application
         };
         return dialog.ShowDialog(owner) == true ? dialog.FileName : null;
     }
+
+    private static bool ConfirmApplyPpOcrToOcv(Window owner, string roiName, string recognizedText, float meanConfidence)
+        => System.Windows.MessageBox.Show(
+            owner,
+            $"선택 ROI '{roiName}'의 PP-OCR 판독 결과 '{recognizedText}' (평균 신뢰도 {meanConfidence:P1})를 OCV 기대 문자열(기준값)로 적용하시겠습니까?\n\n※ 오인식된 문자열로 골든 폰트를 티칭하면 실제 불량이 정상 통과될 수 있으므로 인쇄 내용과 일치하는지 반드시 확인해 주세요.",
+            "OCV 기대 문자열 적용 확인",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes;
 
     private static string GetImageCachePath()
     {

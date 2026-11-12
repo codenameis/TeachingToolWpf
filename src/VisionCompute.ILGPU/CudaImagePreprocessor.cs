@@ -66,7 +66,7 @@ public sealed class CudaImagePreprocessor : IImagePreprocessor, IShapeCandidateS
         }
     }
 
-    public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+    public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(image);
         if ((long)image.Width * image.Height > MaximumPixels)

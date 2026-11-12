@@ -10,7 +10,7 @@ public sealed class RobustnessTests
     {
         var pixels = new byte[269 * 259];
         new Random(41381).NextBytes(pixels);
-        var image = new GrayImage(pixels, 269, 259, 269);
+        var image = new ShapeGrayImage(pixels, 269, 259, 269);
         var reference = GradientImage.Create(image, 8, default);
         var tiled = GradientImage.CreateTiled(image, 8, default);
         Assert.Equal(reference.X, tiled.X);
@@ -62,10 +62,10 @@ public sealed class RobustnessTests
         {
             inverted[i] = (byte)(255 - inverted[i]);
         }
-        var input = new GrayImage(inverted, scene.Width, scene.Height, scene.Stride);
+        var input = new ShapeGrayImage(inverted, scene.Width, scene.Height, scene.Stride);
         Assert.Empty(matcher.Search(input, MatchingTests.Train(), new()).Matches);
         Assert.Single(matcher.Search(input, MatchingTests.Train(ContrastPolarity.IgnoreLocal), new()).Matches);
-        Assert.Empty(matcher.Search(new GrayImage(new byte[151 * 143], 151, 143, 151), MatchingTests.Train(), new()).Matches);
+        Assert.Empty(matcher.Search(new ShapeGrayImage(new byte[151 * 143], 151, 143, 151), MatchingTests.Train(), new()).Matches);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class RobustnessTests
                 padded[(y * Stride) + x] = (byte)Math.Clamp(40 + (sum / 18) + random.Next(-3, 4), 0, 255);
             }
         }
-        var result = new ShapeMatcher().Search(new GrayImage(padded, 155, 149, Stride), MatchingTests.Train(), new());
+        var result = new ShapeMatcher().Search(new ShapeGrayImage(padded, 155, 149, Stride), MatchingTests.Train(), new());
         var match = Assert.Single(result.Matches);
         Assert.InRange(match.Pose.X, 72.9, 73.9);
         Assert.InRange(match.Pose.Y, 76.7, 77.7);
@@ -191,7 +191,7 @@ public sealed class RobustnessTests
                 pixels[(y * Size) + x] = (byte)(25 + (200 * Math.Clamp(28.5 - distance, 0, 1)));
             }
         }
-        var image = new GrayImage(pixels, Size, Size, Size);
+        var image = new ShapeGrayImage(pixels, Size, Size, Size);
         var model = ShapeTrainer.Train(image, new(ReadOnlyMemory<byte>.Empty, new(64, 64)), new());
         var result = new ShapeMatcher().Search(image, model, new());
         var match = Assert.Single(result.Matches);

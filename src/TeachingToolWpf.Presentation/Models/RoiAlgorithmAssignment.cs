@@ -1,5 +1,4 @@
 // File: src/TeachingToolWpf.Presentation/Models/RoiAlgorithmAssignment.cs
-using System;
 using System.Windows.Media;
 using TeachingToolWpf.Imaging.Matching;
 
@@ -18,13 +17,16 @@ public sealed record RoiAlgorithmAssignment(
     string VerdictBadge,
     string VerdictAccent,
     string LastResultSummary,
-    ImageSource? PatternThumbnail = null)
+    ImageSource? PatternThumbnail = null,
+    RoiSuiteExecutionMode SuiteExecutionMode = default)
 {
     public bool HasPatternThumbnail => PatternThumbnail is not null;
+
     public static string FormatAlgorithmBadge(
         InspectionToolKind tool,
         PatternMatchingMethod? patternMethod = null,
-        InspectionSuiteAlgorithmKind? suiteAlgorithm = null)
+        InspectionSuiteAlgorithmKind? suiteAlgorithm = null,
+        InspectionAlgorithmRegistry? registry = null)
     {
         return tool switch
         {
@@ -38,27 +40,9 @@ public sealed record RoiAlgorithmAssignment(
             },
             InspectionToolKind.PrimitiveShapes => "도형·마크 검출",
             InspectionToolKind.EdgeFewShot => "Few-Shot 분류",
-            InspectionToolKind.InspectionSuite => suiteAlgorithm switch
-            {
-                InspectionSuiteAlgorithmKind.Metrology => "스위트 · 캘리퍼",
-                InspectionSuiteAlgorithmKind.GoldenVariation => "스위트 · 골든변이",
-                InspectionSuiteAlgorithmKind.BlobRle => "스위트 · 블롭RLE",
-                InspectionSuiteAlgorithmKind.Curvilinear => "스위트 · 비드능선",
-                InspectionSuiteAlgorithmKind.FewShot => "스위트 · FewShot",
-                InspectionSuiteAlgorithmKind.PatchAnomaly => "스위트 · PaDiM",
-                InspectionSuiteAlgorithmKind.Calibration => "스위트 · 호모그래피",
-                InspectionSuiteAlgorithmKind.CornerAlignment => "스위트 · 코너정합",
-                InspectionSuiteAlgorithmKind.AutoTeaching => "스위트 · 자동티칭",
-                InspectionSuiteAlgorithmKind.IndustrialOcrOcv
-                    or InspectionSuiteAlgorithmKind.LightweightOcr
-                    or InspectionSuiteAlgorithmKind.CpuDeepOcr
-                    or InspectionSuiteAlgorithmKind.PpOcrOnnx => "스위트 · OCR/OCV",
-                InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => "전처리 · 조명/재구성",
-                InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => "스위트 · 타원/복합캘리퍼",
-                InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => "스위트 · 고급블롭/분리",
-                InspectionSuiteAlgorithmKind.DataMatrix2DReader => "스위트 · DataMatrix",
-                _ => "16종 정밀 스위트"
-            },
+            InspectionToolKind.InspectionSuite => suiteAlgorithm is { } kind
+                ? (registry ?? InspectionAlgorithmRegistry.CreateDefault()).GetAssignmentBadge(kind)
+                : "18종 정밀 스위트",
             _ => "미지정"
         };
     }

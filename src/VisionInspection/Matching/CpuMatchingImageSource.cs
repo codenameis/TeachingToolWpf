@@ -4,14 +4,14 @@ using CpuMatching.Core;
 namespace TeachingToolWpf.Imaging.Matching;
 
 /// <summary>원본 reader의 단일 소유 수명을 유지하며 CPU 피라미드 창을 읽는다.</summary>
-internal sealed class CpuMatchingImageSource(MatchingImageReader reader, SearchRegion bounds) : IGrayImageSource
+internal sealed class CpuMatchingImageSource(MatchingImageReader reader, CpuSearchRegion bounds) : IGrayImageSource
 {
     private readonly object _gate = new();
     public int Width => bounds.Width;
     public int Height => bounds.Height;
     public double ReadMilliseconds { get; private set; }
 
-    public GrayImage Read(SearchRegion region, int reduction, CancellationToken token)
+    public CpuGrayImage Read(CpuSearchRegion region, int reduction, CancellationToken token)
     {
         if (region.Width < 1 || region.Height < 1 || region.X < 0 || region.Y < 0 || region.Width < 4 || region.Height < 4 ||
             (long)region.X + region.Width > Width || (long)region.Y + region.Height > Height ||
@@ -34,7 +34,7 @@ internal sealed class CpuMatchingImageSource(MatchingImageReader reader, SearchR
                 if (left % reduction == 0 && top % reduction == 0 && (long)width * height <= 2_097_152)
                 {
                     var raw = reader.ReadReduced(left, top, region.Width, region.Height, reduction, token);
-                    return new GrayImage(width, height, raw.Pixels.Span);
+                    return new CpuGrayImage(width, height, raw.Pixels.Span);
                 }
                 // ROI 원점이 전역 축소 격자와 달라도 ROI 기준의 2×2 반올림/위상을 지킨다.
                 var output = new byte[checked(width * height)];
@@ -54,7 +54,7 @@ internal sealed class CpuMatchingImageSource(MatchingImageReader reader, SearchR
                         }
                     }
                 }
-                return new GrayImage(width, height, output);
+                return new CpuGrayImage(width, height, output);
             }
             finally
             {

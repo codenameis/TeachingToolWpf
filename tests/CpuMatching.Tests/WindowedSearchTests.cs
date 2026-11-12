@@ -11,9 +11,9 @@ public sealed class WindowedSearchTests
     [InlineData(4)]
     public void OriginalRefinementVerifiesConvergedPosesOnceAndKeepsCandidateOrder(int workers)
     {
-        var image = new GrayImage(128, 128, new byte[128 * 128]);
-        var template = new GrayImage(8, 8, new byte[64]);
-        var options = new SearchOptions
+        var image = new CpuGrayImage(128, 128, new byte[128 * 128]);
+        var template = new CpuGrayImage(8, 8, new byte[64]);
+        var options = new CpuSearchOptions
         {
             MinimumAngle = -10,
             MaximumAngle = 10,
@@ -60,7 +60,7 @@ public sealed class WindowedSearchTests
                 }
             }
         }
-        var template = new GrayImage(49, 53, pixels);
+        var template = new CpuGrayImage(49, 53, pixels);
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
@@ -75,9 +75,9 @@ public sealed class WindowedSearchTests
                 pixels.AsSpan(row * 49, 49).CopyTo(scene.AsSpan(((y + row) * width) + x, 49));
             }
         }
-        var image = new GrayImage(width, Height, scene);
+        var image = new CpuGrayImage(width, Height, scene);
         var source = new MemorySource(image);
-        var options = new SearchOptions
+        var options = new CpuSearchOptions
         {
             Region = new(7, 9, width - 12, 1069),
             MinimumAngle = -10,
@@ -107,7 +107,7 @@ public sealed class WindowedSearchTests
     public void ImageLargerThanIntPixelCountIsVisitedWithoutWholeImageAllocation()
     {
         var source = new EmptySource(65_537, 32_769);
-        var template = new GrayImage(512, 512, new byte[512 * 512]);
+        var template = new CpuGrayImage(512, 512, new byte[512 * 512]);
         var result = PyramidSearch.FindWindowed(template, source, new()
         {
             MinimumAngle = 0,
@@ -127,7 +127,7 @@ public sealed class WindowedSearchTests
     {
         using var cancel = new CancellationTokenSource();
         var source = new EmptySource(17_280, 30_720, cancel);
-        var template = new GrayImage(512, 512, new byte[512 * 512]);
+        var template = new CpuGrayImage(512, 512, new byte[512 * 512]);
         Assert.ThrowsAny<OperationCanceledException>(() => PyramidSearch.FindWindowed(template, source, new()
         {
             MinimumAngle = 0,
@@ -137,7 +137,7 @@ public sealed class WindowedSearchTests
         Assert.Equal(3, source.Reads);
     }
 
-    private sealed class MemorySource(GrayImage image) : IGrayImageSource
+    private sealed class MemorySource(CpuGrayImage image) : IGrayImageSource
     {
         public int Width => image.Width;
         public int Height => image.Height;
@@ -145,7 +145,7 @@ public sealed class WindowedSearchTests
         {
             get; private set;
         }
-        public GrayImage Read(SearchRegion region, int reduction, CancellationToken token)
+        public CpuGrayImage Read(CpuSearchRegion region, int reduction, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             Reads++;
@@ -178,7 +178,7 @@ public sealed class WindowedSearchTests
         {
             get; private set;
         }
-        public GrayImage Read(SearchRegion region, int reduction, CancellationToken token)
+        public CpuGrayImage Read(CpuSearchRegion region, int reduction, CancellationToken token)
         {
             Reads++;
             if (Reads == 3)

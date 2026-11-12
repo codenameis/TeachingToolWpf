@@ -4,7 +4,8 @@ using VisionGeometry;
 namespace VisionOcr.PpOcr;
 
 /// <summary>
-/// Detected text polygon and recognized text for one line crop inside an ROI.
+/// Polygon and recognized text for one text crop inside an ROI.
+/// When <see cref="IsDetectedQuad"/> is <c>false</c> (<c>RecOnly</c> mode), <see cref="DetScore"/> is <c>0f</c>.
 /// </summary>
 public sealed record PpOcrBoxResult(
     ImmutableArray<PointD> Polygon,
@@ -12,4 +13,5 @@ public sealed record PpOcrBoxResult(
     float MeanConfidence,
     float MinConfidence,
     float DetScore,
-    bool UsedInvertedPolarity);
+    bool UsedInvertedPolarity,
+    bool IsDetectedQuad = true);

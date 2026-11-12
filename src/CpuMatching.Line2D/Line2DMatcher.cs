@@ -7,10 +7,12 @@ namespace CpuMatching.Line2D;
 /// <summary>방향 응답 맵/희소 특징 기반 CPU 매칭. 최종 단계는 극성을 보존한다.</summary>
 public sealed class Line2DMatcher : ITemplateMatcher
 {
-    private readonly GrayImage _template;
+    private static readonly PyramidSearchPlan SearchPlan = new(RefineEdges: true, ReuseIdenticalTiles: true);
+
+    private readonly CpuGrayImage _template;
     private readonly Line2DOptions _parameters;
 
-    public Line2DMatcher(GrayImage template, Line2DOptions? parameters = null)
+    public Line2DMatcher(CpuGrayImage template, Line2DOptions? parameters = null)
     {
         ArgumentNullException.ThrowIfNull(template);
         _parameters = parameters ?? new Line2DOptions();
@@ -25,7 +27,7 @@ public sealed class Line2DMatcher : ITemplateMatcher
 
     public IReadOnlyList<(double X, double Y)> PreviewPoints { get; }
 
-    private static (double X, double Y)[] ExtractPreviewPoints(GrayImage template, Line2DOptions parameters)
+    private static (double X, double Y)[] ExtractPreviewPoints(CpuGrayImage template, Line2DOptions parameters)
     {
         var cx = (template.Width - 1) / 2.0;
         var cy = (template.Height - 1) / 2.0;
@@ -38,26 +40,26 @@ public sealed class Line2DMatcher : ITemplateMatcher
         return points;
     }
 
-    public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+    public SearchResult Find(CpuGrayImage image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
-        options ??= new SearchOptions();
+        options ??= new CpuSearchOptions();
         return PyramidSearch.Find(_template, image, options,
             (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine, _parameters,
                 options.MaximumDegreeOfParallelism, cancellationToken), cancellationToken,
-            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
+            plan: SearchPlan, acceptCenter: acceptCenter, accelerator: accelerator);
     }
 
-    public SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+    public SearchResult FindWindowed(IGrayImageSource image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
-        options ??= new SearchOptions();
+        options ??= new CpuSearchOptions();
         return PyramidSearch.FindWindowed(_template, image, options,
             (template, scene, cx, cy, fine) => new OrientationLevel(template, scene, cx, cy, fine, _parameters,
                 options.MaximumDegreeOfParallelism, cancellationToken), cancellationToken,
-            refineEdges: true, acceptCenter: acceptCenter, accelerator: accelerator, reuseIdenticalTiles: true);
+            plan: SearchPlan, acceptCenter: acceptCenter, accelerator: accelerator);
     }
 
     private sealed class OrientationLevel : IScoreLevel
@@ -66,12 +68,12 @@ public sealed class Line2DMatcher : ITemplateMatcher
 
         private const int Bins = 16;
         private readonly float[][] _maps;
-        private readonly EdgePoint[] _features;
+        private readonly CpuEdgePoint[] _features;
         private readonly int _width;
         private readonly int _height;
         private readonly bool _fine;
 
-        public OrientationLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, Line2DOptions parameters,
+        public OrientationLevel(CpuGrayImage template, CpuGrayImage scene, double cx, double cy, bool fine, Line2DOptions parameters,
             int workers, CancellationToken token)
         {
             _width = scene.Width;

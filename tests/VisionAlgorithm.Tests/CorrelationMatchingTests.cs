@@ -107,7 +107,7 @@ public sealed class CorrelationMatchingTests
         var backing = new byte[8 * 1024 * 1024];
         pixels.CopyTo(backing, 0);
         var model = CorrelationTemplate.Train(new(pixels, 24, 20, 24), new(ReadOnlyMemory<byte>.Empty, new(12, 10)));
-        var view = new GrayImage(backing, 24, 20, 24);
+        var view = new ShapeGrayImage(backing, 24, 20, 24);
         CorrelationMatcher.Search(view, model, new());
         var before = GC.GetAllocatedBytesForCurrentThread();
         Assert.Single(CorrelationMatcher.Search(view, model, new()).Matches);

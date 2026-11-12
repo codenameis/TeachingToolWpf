@@ -74,7 +74,7 @@ public sealed class PrimitiveShapeDetectionTests
         var image = Scene((x, y) => Contains(PrimitiveShapeKind.Ring, x, y), 0, 1, false, false);
         var mask = new byte[image.Width * image.Height];
         mask[(120 * image.Width) + 120 + offset] = 255;
-        var masked = new GrayImage(image.Pixels, image.Width, image.Height, image.Stride, mask);
+        var masked = new ShapeGrayImage(image.Pixels, image.Width, image.Height, image.Stride, mask);
         var shapes = PrimitiveShapeDetector.Detect(masked, new()).Shapes;
         if (rejected)
         {
@@ -295,7 +295,7 @@ public sealed class PrimitiveShapeDetectionTests
         _ => false
     };
 
-    private static GrayImage Scene(Func<double, double, bool> inside, double degrees, double scale, bool dark, bool noise)
+    private static ShapeGrayImage Scene(Func<double, double, bool> inside, double degrees, double scale, bool dark, bool noise)
     {
         const int Size = 240;
         const int Stride = 247;

@@ -2,11 +2,6 @@ using System.Collections.Immutable;
 
 namespace VisionGeometry;
 
-public enum RoiShapeKind
-{
-    Rectangle, Circle, Triangle, Polygon
-}
-
 /// <summary>정규화된 불변 윤곽. 위치·크기·각도는 RoiGeometry가 소유한다.</summary>
 public abstract record RoiShape
 {
@@ -86,7 +81,7 @@ public abstract record RoiShape
         public override BoundsD ComputeBounds(PointD center, double width, double height, double angle)
         {
             // 회전 사각형을 감싸는 축 정렬 경계. 실제 ROI 내부 판정은 Contains가 담당한다.
-            var (sine, cosine) = Math.SinCos(angle * Math.PI / 180);
+            var (sine, cosine) = Math.SinCos(angle * Math.PI / GeometryConstants.HalfCircleDegrees);
             var halfBoundsWidth = ((width * Math.Abs(cosine)) + (height * Math.Abs(sine))) / 2;
             var halfBoundsHeight = ((width * Math.Abs(sine)) + (height * Math.Abs(cosine))) / 2;
             return new(center.X - halfBoundsWidth, center.Y - halfBoundsHeight,
@@ -102,8 +97,10 @@ public abstract record RoiShape
 
     private sealed record CircleShape : RoiShape
     {
-        private static readonly ImmutableArray<PointD> s_outline = Enumerable.Range(0, 128)
-            .Select(i => new PointD(.5, 0).Rotate(i * 360d / 128)).ToImmutableArray();
+        private const int OutlineVertexCount = 128;
+
+        private static readonly ImmutableArray<PointD> s_outline = Enumerable.Range(0, OutlineVertexCount)
+            .Select(i => new PointD(.5, 0).Rotate(i * GeometryConstants.FullCircleDegrees / OutlineVertexCount)).ToImmutableArray();
 
         public override RoiShapeKind Kind => RoiShapeKind.Circle;
 
@@ -222,9 +219,12 @@ internal static class PolygonMath
         var ab = b - a;
         var cd = d - c;
         var divisor = Cross(ab, cd);
-        if (Math.Abs(divisor) < 1e-12)
+        if (Math.Abs(divisor) < GeometryTolerance.Squared)
         {
-            return Distance(a, c, d) < 1e-9 || Distance(b, c, d) < 1e-9 || Distance(c, a, b) < 1e-9 || Distance(d, a, b) < 1e-9;
+            return Distance(a, c, d) < GeometryTolerance.CollinearDistance
+                || Distance(b, c, d) < GeometryTolerance.CollinearDistance
+                || Distance(c, a, b) < GeometryTolerance.CollinearDistance
+                || Distance(d, a, b) < GeometryTolerance.CollinearDistance;
         }
 
         var t = Cross(c - a, cd) / divisor;
@@ -239,7 +239,7 @@ internal static class PolygonMath
             throw new ArgumentException("폴리곤은 유한한 꼭짓점 3개 이상이 필요합니다.");
         }
 
-        if (Math.Abs(SignedArea(points)) < 1e-8)
+        if (Math.Abs(SignedArea(points)) < GeometryTolerance.MinimumSignedArea)
         {
             throw new ArgumentException("폴리곤 면적은 0보다 커야 합니다.");
         }
@@ -247,14 +247,14 @@ internal static class PolygonMath
         for (var i = 0; i < points.Count; i++)
         {
             var next = (i + 1) % points.Count;
-            if ((points[i] - points[next]).Length < .000001)
+            if ((points[i] - points[next]).Length < GeometryTolerance.Base)
             {
                 throw new ArgumentException("중복 꼭짓점은 사용할 수 없습니다.");
             }
 
             var incoming = points[i] - points[(i + points.Count - 1) % points.Count];
             var outgoing = points[next] - points[i];
-            if (Math.Abs(Cross(incoming, outgoing)) < 1e-12 && (incoming.X * outgoing.X) + (incoming.Y * outgoing.Y) <= 0)
+            if (Math.Abs(Cross(incoming, outgoing)) < GeometryTolerance.Squared && (incoming.X * outgoing.X) + (incoming.Y * outgoing.Y) <= 0)
             {
                 throw new ArgumentException("폴리곤의 인접한 변이 되접힐 수 없습니다.");
             }
@@ -300,7 +300,7 @@ internal static class PolygonMath
             var c = parent[i];
             var d = parent[(i + 1) % parent.Length];
             var divisor = Cross(edge, d - c);
-            if (Math.Abs(divisor) < 1e-12)
+            if (Math.Abs(divisor) < GeometryTolerance.Squared)
             {
                 continue;
             }

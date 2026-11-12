@@ -5,26 +5,35 @@ namespace CpuMatching.Core;
 
 public static partial class PyramidSearch
 {
+    private const int MinimumSearchRegionSidePixels = 4;
+    private const int WindowedCoarseBandPixelBudget = 1_048_576;
+
     /// <summary>영상 크기 제한 없이 전역 피라미드 격자를 순회하고 원본 후보 주변만 읽는다.</summary>
-    public static SearchResult FindWindowed(GrayImage template, IGrayImageSource source, SearchOptions options,
-        Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, CancellationToken token, bool refineEdges = false,
-        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null, bool refineCoarsePositions = false,
-        bool reuseIdenticalTiles = false)
+    public static SearchResult FindWindowed(CpuGrayImage template, IGrayImageSource source, CpuSearchOptions options,
+        Func<CpuGrayImage, CpuGrayImage, double, double, bool, IScoreLevel> prepare, CancellationToken token,
+        PyramidSearchPlan? plan = null,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
+        ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(prepare);
+        var activePlan = plan ?? PyramidSearchPlan.Default;
         options.Validate();
         token.ThrowIfCancellationRequested();
-        var region = options.Region ?? new SearchRegion(0, 0, source.Width, source.Height);
-        if (region.X < 0 || region.Y < 0 || region.Width < 4 || region.Height < 4 ||
+        var region = options.Region ?? new CpuSearchRegion(0, 0, source.Width, source.Height);
+        if (region.X < 0 || region.Y < 0 ||
+            region.Width < MinimumSearchRegionSidePixels || region.Height < MinimumSearchRegionSidePixels ||
             (long)region.X + region.Width > source.Width || (long)region.Y + region.Height > source.Height ||
-            template.Width > 512 || template.Height > 512)
+            template.Width > MaximumTemplateSidePixels || template.Height > MaximumTemplateSidePixels)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "Search region must be inside the image; template <=512px per side.");
         }
         var timer = Stopwatch.StartNew();
-        var templates = new List<GrayImage> { template };
-        while (templates.Count < options.PyramidLevels && Math.Min(templates[^1].Width, templates[^1].Height) >= 24 &&
-            Math.Min(region.Width, region.Height) / (1 << (templates.Count - 1)) >= 32)
+        var templates = new List<CpuGrayImage> { template };
+        while (templates.Count < options.PyramidLevels &&
+            Math.Min(templates[^1].Width, templates[^1].Height) >= MinimumPyramidTemplateSidePixels &&
+            Math.Min(region.Width, region.Height) / (1 << (templates.Count - 1)) >= MinimumPyramidImageSidePixels)
         {
             templates.Add(templates[^1].Half());
         }
@@ -34,23 +43,24 @@ public static partial class PyramidSearch
         {
             var factor = 1 << level;
             var levelTemplate = templates[level];
-            var fine = level == 0 || (refineCoarsePositions && level < stages.Length - 1);
-            var capacity = Math.Clamp(65_536 / (levelTemplate.Width * levelTemplate.Height), 1, 128);
+            var fine = level == 0 || (activePlan.RefineCoarsePositions && level < stages.Length - 1);
+            var capacity = Math.Clamp(PoseCachePixelBudget / (levelTemplate.Width * levelTemplate.Height),
+                MinimumPoseCacheCapacity, MaximumPoseCacheCapacity);
             var image = new SearchImage(region.Width / factor, region.Height / factor, area => source.Read(new(
                 region.X + (area.X * factor), region.Y + (area.Y * factor), area.Width * factor, area.Height * factor), factor, token));
-            IScoreLevel Prepare(GrayImage scene) => new CachedLevel(prepare(levelTemplate, scene,
+            IScoreLevel Prepare(CpuGrayImage scene) => new CachedLevel(prepare(levelTemplate, scene,
                 (template.Width / (2.0 * factor)) - .5, (template.Height / (2.0 * factor)) - .5, fine), capacity);
             // 템플릿 반경, 32px 거리 전파, 미분과 봉우리의 이웃까지 포함한다.
             var margin = (int)Math.Ceiling(Math.Sqrt((levelTemplate.Width * levelTemplate.Width) +
-                (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + 36;
+                (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + LocalTileSafetyMarginPixels;
             IScoreLevel scoreLevel;
-            if ((long)image.Width * image.Height <= 2_097_152)
+            if ((long)image.Width * image.Height <= FullFrameScorePixelBudget)
             {
                 scoreLevel = Prepare(image.ReadAll());
             }
             else
             {
-                var local = new LocalScoreLevel(image, margin, Prepare, token, reuseIdenticalTiles);
+                var local = new LocalScoreLevel(image, margin, Prepare, token, activePlan.ReuseIdenticalTiles);
                 localLevels.Add(local);
                 scoreLevel = new CachedLevel(local, capacity);
             }
@@ -63,15 +73,15 @@ public static partial class PyramidSearch
         var refined = new List<Match>();
         var coarse = VisitWindowedCoarse(stages[^1].Image, stages[^1].Prepare, stages[^1].Margin, options, accelerator, token, candidates =>
         {
-            SearchDiagnostics.Write("Candidates", candidates);
+            CpuSearchDiagnostics.Write("Candidates", candidates);
             timer.Restart();
             var levels = stages.Select(s => s.Level).ToArray();
-            var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations, skipOriginal: true);
+            var (current, angleRadius) = RefinePyramid(levels, candidates, options, activePlan.RefineCoarsePositions, token, ref evaluations, skipOriginal: true);
             refinementMs += timer.Elapsed.TotalMilliseconds;
             timer.Restart();
             refined.AddRange(RefineAndVerifyOriginal(template, stages[0].Image, stages[0].Level, current, region, options,
-                angleRadius, stages.Length > 1, refineCoarsePositions && stages.Length == 2,
-                refineEdges, acceptCenter, token, ref evaluations));
+                angleRadius, stages.Length > 1, activePlan.RefineCoarsePositions && stages.Length == 2,
+                activePlan.RefineEdges, acceptCenter, token, ref evaluations));
             verificationMs += timer.Elapsed.TotalMilliseconds;
             foreach (var local in localLevels)
             {
@@ -80,9 +90,9 @@ public static partial class PyramidSearch
         });
         evaluations += coarse.Evaluations;
         timer.Restart();
-        var final = Suppress(refined, options.SuppressionRadius, 361, 10);
-        SearchDiagnostics.Write("Accepted", refined);
-        SearchDiagnostics.Write("Suppressed", final);
+        var final = Suppress(refined, options.SuppressionRadius, UnboundedAngleSuppressionDegrees, UnboundedScaleSuppressionDelta);
+        CpuSearchDiagnostics.Write("Accepted", refined);
+        CpuSearchDiagnostics.Write("Suppressed", final);
         return new SearchResult(final.Take(options.MaximumMatches).ToArray(), false, final.Count > options.MaximumMatches, evaluations)
         {
             CandidateCount = coarse.Candidates,
@@ -91,8 +101,8 @@ public static partial class PyramidSearch
         };
     }
 
-    private static List<Match> RefineAndVerifyOriginal(GrayImage template, SearchImage image, IScoreLevel level, List<Match> candidates,
-        SearchRegion region, SearchOptions options, double angleRadius, bool scaleCenters, bool densePositions,
+    private static List<Match> RefineAndVerifyOriginal(CpuGrayImage template, SearchImage image, IScoreLevel level, List<Match> candidates,
+        CpuSearchRegion region, CpuSearchOptions options, double angleRadius, bool scaleCenters, bool densePositions,
         bool refineEdges, Func<double, double, bool>? acceptCenter, CancellationToken token, ref long evaluations)
     {
         var original = new Match[candidates.Count];
@@ -121,7 +131,7 @@ public static partial class PyramidSearch
         evaluations += counts.Sum();
         // 완료 순서가 아닌 기존 후보 순서로 복원한 뒤 같은 위치/자세만 합친다.
         var distinct = original.DistinctBy(match => (match.X, match.Y, match.AngleDegrees, match.Scale)).ToArray();
-        SearchDiagnostics.Write("Refined", distinct);
+        CpuSearchDiagnostics.Write("Refined", distinct);
         var checkedMatches = new Match[distinct.Length];
         for (var index = 0; index < distinct.Length; index++)
         {
@@ -134,7 +144,7 @@ public static partial class PyramidSearch
     }
 
     private static (long Evaluations, long Candidates, int Batches, double Milliseconds) VisitWindowedCoarse(
-        SearchImage image, Func<GrayImage, IScoreLevel> prepare, int margin, SearchOptions options,
+        SearchImage image, Func<CpuGrayImage, IScoreLevel> prepare, int margin, CpuSearchOptions options,
         ICoarseScoreAccelerator? accelerator, CancellationToken token, Action<List<Match>> inspect)
     {
         const int Cell = 256;
@@ -143,9 +153,9 @@ public static partial class PyramidSearch
         long evaluations = 0;
         long count = 0;
         var batches = 0;
-        var threshold = Math.Max(.2, options.MinimumScore - .25);
+        var threshold = Math.Max(CoarseScoreFloor, options.MinimumScore - CoarseScoreSlack);
         // 한 띠의 후보도 제한된 높이로 모으고, 기존 angle/scale/y/x 순서로 다음 단계에 전달한다.
-        var bandHeight = Math.Clamp(1_048_576 / image.Width, 1, Cell);
+        var bandHeight = Math.Clamp(WindowedCoarseBandPixelBudget / image.Width, 1, Cell);
         foreach (var scale in Samples(options.MinimumScale, options.MaximumScale, options.ScaleStep))
         {
             foreach (var angle in Samples(options.MinimumAngle, options.MaximumAngle, options.AngleStep))
@@ -214,6 +224,6 @@ public static partial class PyramidSearch
     private readonly record struct WindowedPyramidStage(
         SearchImage Image,
         IScoreLevel Level,
-        Func<GrayImage, IScoreLevel> Prepare,
+        Func<CpuGrayImage, IScoreLevel> Prepare,
         int Margin);
 }

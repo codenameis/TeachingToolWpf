@@ -10,8 +10,6 @@ using VisionImaging.Abstractions;
 
 namespace VisionAnomaly.Controls;
 
-public sealed record VideoAnnotation(Rect Bounds, string Label);
-
 /// <summary>알고리즘을 모르는 표시 컨트롤. 전달받은 프레임과 같은 프레임의 표시 자료만 함께 게시한다.</summary>
 public partial class CameraMonitorControl : UserControl, IDisposable
 {
@@ -130,7 +128,7 @@ public partial class CameraMonitorControl : UserControl, IDisposable
             {
                 graphics.Add(new ShapeGraphic(Geometry(annotation.Bounds), new(1, .49f, .39f, 1), 2));
             }
-            Surface.Layers["Inspection"].ReplaceAll(graphics);
+            Surface.Layers[DrawingLayerNames.Inspection].ReplaceAll(graphics);
             DisplayedSequence = frame.Sequence;
             Surface.PublishFrame(frame.Retain());
         }
@@ -146,11 +144,9 @@ public partial class CameraMonitorControl : UserControl, IDisposable
             return;
         }
 
-        var document = DocumentState.Empty with
-        {
-            Image = new(_info.Key, _info.Name, _info.Width, _info.Height),
-            Viewport = ViewportTransform.Fit(_info.Width, _info.Height, Surface.ViewWidth, Surface.ViewHeight)
-        };
+        var document = DocumentState.Empty.WithImage(
+            new(_info.Key, _info.Name, _info.Width, _info.Height),
+            ViewportTransform.Fit(_info.Width, _info.Height, Surface.ViewWidth, Surface.ViewHeight));
         Surface.Scene = new(document, _info, _generation, Surface.ViewWidth, Surface.ViewHeight, Surface.Dpi, new(), IsLive: true);
     }
 
@@ -166,7 +162,7 @@ public partial class CameraMonitorControl : UserControl, IDisposable
             _pending = null;
         }
         Surface.ClearFrames();
-        Surface.Layers["Inspection"].Clear();
+        Surface.Layers[DrawingLayerNames.Inspection].Clear();
         Surface.Visibility = Visibility.Collapsed;
         EmptyMessage.Visibility = Visibility.Visible;
         _info = null;

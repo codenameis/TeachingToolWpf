@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Rendering;
 

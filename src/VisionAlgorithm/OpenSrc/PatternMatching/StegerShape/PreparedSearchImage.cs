@@ -15,7 +15,7 @@ public sealed class PreparedSearchImage
     public double ElapsedMilliseconds { get; }
     public long EstimatedBytes => Gradients.Sum(g => g.EstimatedBytes) +
         Maps.Sum(map => map.EstimatedBytes) + (Original?.Pixels.Length ?? 0) + ExcludedPixels.Length;
-    internal GrayImage? Original
+    internal ShapeGrayImage? Original
     {
         get; private init;
     }
@@ -41,24 +41,24 @@ public sealed class PreparedSearchImage
         ElapsedMilliseconds = elapsed;
     }
 
-    public static PreparedSearchImage Create(GrayImage image, float minimumGradient, int levels,
+    public static PreparedSearchImage Create(ShapeGrayImage image, float minimumGradient, int levels,
         CancellationToken cancellationToken = default, bool tiled = false, int maximumPixels = MaximumPixels,
         IImagePreprocessor? preprocessor = null, bool retainOriginal = false)
         => Build(image, minimumGradient, levels, cancellationToken, tiled, maximumPixels, true, true, preprocessor,
             retainOriginal: retainOriginal);
 
-    internal static PreparedSearchImage CreateForSearch(GrayImage image, float minimumGradient, int levels,
+    internal static PreparedSearchImage CreateForSearch(ShapeGrayImage image, float minimumGradient, int levels,
         bool extractEdges, CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor,
         bool createLinearResponses = true, bool retainOriginal = false)
         => Build(image, minimumGradient, levels, cancellationToken, tiled, MaximumPixels, true, extractEdges, preprocessor,
             createLinearResponses, retainOriginal);
 
-    internal static PreparedSearchImage CreateForRefinement(GrayImage image, float minimumGradient, int levels,
+    internal static PreparedSearchImage CreateForRefinement(ShapeGrayImage image, float minimumGradient, int levels,
         CancellationToken cancellationToken, bool tiled, IImagePreprocessor? preprocessor = null, bool extractEdges = true, bool retainOriginal = false)
         => Build(image, minimumGradient, levels, cancellationToken, tiled, ShapeTrainer.MaximumPixels, false, extractEdges, preprocessor,
             retainOriginal: retainOriginal);
 
-    private static PreparedSearchImage Build(GrayImage image, float minimumGradient, int levels,
+    private static PreparedSearchImage Build(ShapeGrayImage image, float minimumGradient, int levels,
         CancellationToken cancellationToken, bool tiled, int maximumPixels, bool responseMaps, bool extractEdges,
         IImagePreprocessor? preprocessor, bool createLinearResponses = true, bool retainOriginal = false)
     {
@@ -92,7 +92,7 @@ public sealed class PreparedSearchImage
                 current = GradientImage.Reduce(current);
             }
         }
-        GrayImage? original = null;
+        ShapeGrayImage? original = null;
         if (retainOriginal)
         {
             var pixels = new byte[image.Width * image.Height];
@@ -112,7 +112,7 @@ public sealed class PreparedSearchImage
         };
     }
 
-    internal static void ValidateSize(GrayImage image)
+    internal static void ValidateSize(ShapeGrayImage image)
     {
         if ((long)image.Width * image.Height > MaximumPixels)
         {

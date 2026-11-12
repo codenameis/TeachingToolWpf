@@ -1,12 +1,12 @@
-namespace CpuMatching.Core;
+using VisionKernels;
 
-public readonly record struct EdgePoint(double X, double Y, double Angle, double Strength);
+namespace CpuMatching.Core;
 
 public static class Edges
 {
-    public static EdgePoint[] Extract(GrayImage image, double centerX, double centerY, int maximum = 128)
+    public static CpuEdgePoint[] Extract(CpuGrayImage image, double centerX, double centerY, int maximum = 128)
     {
-        var candidates = new List<EdgePoint>();
+        var candidates = new List<CpuEdgePoint>();
         var gradients = Gradients(image);
         for (var y = 2; y < image.Height - 2; y++)
         {
@@ -19,10 +19,10 @@ public static class Edges
                 {
                     continue;
                 }
-                candidates.Add(new EdgePoint(x - centerX, y - centerY, Math.Atan2(gy, gx), strength));
+                candidates.Add(new CpuEdgePoint(x - centerX, y - centerY, Math.Atan2(gy, gx), strength));
             }
         }
-        var selected = new List<EdgePoint>();
+        var selected = new List<CpuEdgePoint>();
         foreach (var point in candidates.OrderByDescending(point => point.Strength))
         {
             var conflict = false;
@@ -49,35 +49,11 @@ public static class Edges
         return selected.ToArray();
     }
 
-    public static (double X, double Y)[] Gradients(GrayImage image)
-    {
-        var result = new (double, double)[image.Width * image.Height];
-        for (var y = 1; y < image.Height - 1; y++)
-        {
-            for (var x = 1; x < image.Width - 1; x++)
-            {
-                var gx = (image[x + 1, y - 1] + (2 * image[x + 1, y]) + image[x + 1, y + 1] -
-                    image[x - 1, y - 1] - (2 * image[x - 1, y]) - image[x - 1, y + 1]) / 8.0;
-                var gy = (image[x - 1, y + 1] + (2 * image[x, y + 1]) + image[x + 1, y + 1] -
-                    image[x - 1, y - 1] - (2 * image[x, y - 1]) - image[x + 1, y - 1]) / 8.0;
-                result[(y * image.Width) + x] = (gx, gy);
-            }
-        }
-        return result;
-    }
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static (double X, double Y)[] Gradients(CpuGrayImage image)
+        => SobelKernel.ComputeNormalizedGray8Gradients(image.Pixels.Span, image.Width, image.Height);
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     public static float Bilinear(float[] map, int width, int height, double x, double y)
-    {
-        if (x < 0 || y < 0 || x >= width - 1 || y >= height - 1)
-        {
-            return 0;
-        }
-        var ix = (int)x;
-        var iy = (int)y;
-        var dx = (float)(x - ix);
-        var dy = (float)(y - iy);
-        var index = (iy * width) + ix;
-        return ((1 - dy) * (((1 - dx) * map[index]) + (dx * map[index + 1]))) +
-            (dy * (((1 - dx) * map[index + width]) + (dx * map[index + width + 1])));
-    }
+        => BilinearSampler.SampleInteriorFloat(map, width, height, x, y);
 }

@@ -5,7 +5,7 @@ using VisionImaging.Abstractions;
 namespace TeachingToolWpf.Imaging.Matching;
 
 /// <summary>
-/// Service contract for taught-font OCV font registration, persistence, and ROI print quality verification.
+/// Service contract for taught-font OCV font registration, multi-font persistence, and ROI print quality verification.
 /// </summary>
 public interface ITaughtFontOcvService
 {
@@ -15,6 +15,12 @@ public interface ITaughtFontOcvService
 
     string RegisteredCharactersSummary { get; }
 
+    bool HasGoldenFontForId(string? fontId);
+
+    int GetRegisteredCharacterCount(string? fontId);
+
+    string GetRegisteredCharactersSummary(string? fontId);
+
     Task<OcvTeachingOutcome> TeachFromRoiAsync(
         ImageReference image,
         bool live,
@@ -23,7 +29,8 @@ public interface ITaughtFontOcvService
         OcvPolaritySelection polarity,
         float foregroundContrastOffset,
         bool appendToExistingFont,
-        CancellationToken token);
+        CancellationToken token,
+        string fontId = "default");
 
     Task<ImmutableArray<OcvRoiInspectionItem>> VerifyRoisAsync(
         ImageReference image,
@@ -33,9 +40,13 @@ public interface ITaughtFontOcvService
         float foregroundContrastOffset,
         CancellationToken token);
 
-    void SaveFontModel(Stream destination);
+    void SaveFontModel(Stream destination, string fontId = "default");
 
-    void LoadFontModel(Stream source);
+    void LoadFontModel(Stream source, string fontId = "default");
 
-    void ClearFontModel();
+    void ClearFontModel(string? fontId = null);
+
+    IReadOnlyDictionary<string, string> ExportAllFontModelsJson();
+
+    void ImportAllFontModelsJson(IReadOnlyDictionary<string, string>? fontModelsJson, bool clearExisting = true);
 }

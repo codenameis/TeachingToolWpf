@@ -11,6 +11,9 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <ProjectReference Include="../../src/VisionAlgorithm/VisionAlgorithm.csproj" />
+    <ProjectReference Include="../../src/VisionAlgorithm.Verification/VisionAlgorithm.Verification.csproj" />
+    <ProjectReference Include="../../src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
+    <ProjectReference Include="../../src/CpuMatching.SubNcc/CpuMatching.SubNcc.csproj" />
     <Using Include="Xunit" />
     <Compile Include="../Shared/PcbMarkFixture.cs" Link="Fixtures/PcbMarkFixture.cs" />
   </ItemGroup>

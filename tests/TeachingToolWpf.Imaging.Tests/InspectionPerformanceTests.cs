@@ -224,7 +224,7 @@ public sealed class InspectionPerformanceTests
             return 123.4;
         }
 
-        public SearchOptions? LastOptions
+        public ShapeSearchOptions? LastOptions
         {
             get; private set;
         }
@@ -241,7 +241,7 @@ public sealed class InspectionPerformanceTests
             => Task.FromResult(new ShapeTrainingOutput(ShapeTrainer.Train(SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0)),
                 new(ReadOnlyMemory<byte>.Empty, new(48, 48)), options), 0, 0));
 
-        public async Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        public async Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             LastOptions = options;
             PreparedBeforeSearch = PreparationCalls > 0;

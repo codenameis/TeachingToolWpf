@@ -126,7 +126,7 @@ public sealed class RoiMaskTests
         editor.Select([]);
         input.Up(new(220, 220));
         Assert.Empty(editor.State.Rois[id].Masks);
-        input.ValidateDraftImage();
+        input.ReconcileToolWithDocument();
         Assert.Equal(EditorTool.Select, input.Tool);
     }
 

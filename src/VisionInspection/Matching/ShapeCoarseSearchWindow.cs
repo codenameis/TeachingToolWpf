@@ -4,9 +4,9 @@ using VisionAlgorithm.OpenSrc.PatternMatching;
 namespace TeachingToolWpf.Imaging.Matching;
 
 /// <summary>원본 reader와 분리된 축소 crop의 검색. 창 순서를 유지하고 중첩 CPU 병렬화를 피한다.</summary>
-internal sealed record ShapeCoarseSearchWindow(GrayImage Image, int Left, int Top, SearchRegion Region)
+internal sealed record ShapeCoarseSearchWindow(ShapeGrayImage Image, int Left, int Top, ShapeSearchRegion Region)
 {
-    public MatchResult Search(ShapeModel model, SearchOptions options, CancellationToken token, ShapeMatcher matcher, int parallelism)
+    public MatchResult Search(ShapeModel model, ShapeSearchOptions options, CancellationToken token, ShapeMatcher matcher, int parallelism)
     {
         return matcher.Search(Image, model, options with
         {

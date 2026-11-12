@@ -10,7 +10,7 @@ namespace TeachingToolWpf.Imaging.Matching;
 internal static class ShapePyramidSearch
 {
     public static ShapeSearchOutput Run(MatchingImageReader reader, ImageReference image, ShapeModel model,
-        RoiGeometry? region, SearchOptions options, Stopwatch total, double readTime, CancellationToken token, ShapeMatcher matcher,
+        RoiGeometry? region, ShapeSearchOptions options, Stopwatch total, double readTime, CancellationToken token, ShapeMatcher matcher,
         int preferredInterior = 256)
     {
         var sourceOpenTime = readTime;
@@ -26,7 +26,7 @@ internal static class ShapePyramidSearch
         }
         var bounds = region?.Bounds ?? new BoundsD(0, 0, image.Width, image.Height);
         var seeds = new PriorityQueue<ShapeMatch, double>();
-        var diagnostics = ImmutableArray.CreateBuilder<SearchDiagnostics>();
+        var diagnostics = ImmutableArray.CreateBuilder<ShapeSearchDiagnostics>();
         var incomplete = false;
         var windows = 0;
         var requests = new List<ShapeCoarseSearchScheduler.Request>();
@@ -39,11 +39,11 @@ internal static class ShapePyramidSearch
                 var top = Math.Max(0, y - halo) * factor;
                 var right = Math.Min(image.Width, (x + interior + halo) * factor);
                 var bottom = Math.Min(image.Height, (y + interior + halo) * factor);
-                var ownership = new SearchRegion([new(x - (left / factor), y - (top / factor)),
+                var ownership = new ShapeSearchRegion([new(x - (left / factor), y - (top / factor)),
                     new(x + interior - (left / factor), y - (top / factor)),
                     new(x + interior - (left / factor), y + interior - (top / factor)),
                     new(x - (left / factor), y + interior - (top / factor))]);
-                requests.Add(new(left, top, right - left, bottom - top, SearchRegion.Intersect(ownership,
+                requests.Add(new(left, top, right - left, bottom - top, ShapeSearchRegion.Intersect(ownership,
                     ScaledRegion(region, left, top, factor)?.ExpandedBy(4))));
             }
         }
@@ -89,7 +89,7 @@ internal static class ShapePyramidSearch
         }
     }
 
-    private static SearchRegion? ScaledRegion(RoiGeometry? region, int left, int top, int factor)
+    private static ShapeSearchRegion? ScaledRegion(RoiGeometry? region, int left, int top, int factor)
         => region is null ? null : region.Radius > 0
             ? new(new((region.Center.X - left) / factor, (region.Center.Y - top) / factor), region.Radius / factor)
             : new(region.Outline.Select(point => new ImagePoint((point.X - left) / factor, (point.Y - top) / factor)));

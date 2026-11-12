@@ -68,8 +68,8 @@ public static class VirtualCornerAligner
         Span<SubpixelEdgePoint> slice2 = pts2.Slice(0, count2);
 
         // 두 변을 완전히 독립된 직교 거리 회귀(RANSAC + Tukey Biweight IRLS)로 각각 피팅한다.
-        FittedLine2D line1 = HessianNormalLineFitter.FitLine(slice1, options, dir1);
-        FittedLine2D line2 = HessianNormalLineFitter.FitLine(slice2, options, dir2);
+        HessianLine2D line1 = HessianNormalLineFitter.FitLine(slice1, options, dir1);
+        HessianLine2D line2 = HessianNormalLineFitter.FitLine(slice2, options, dir2);
 
         int inlierTotal = 0;
         for (int i = 0; i < count1; i++)
@@ -132,8 +132,8 @@ public static class VirtualCornerAligner
     /// 피팅된 두 헤세 법선 직선의 Cramer 공식 교차점을 계산하고 내각 직각도 공차를 검증한다.
     /// </summary>
     public static VirtualCornerResult IntersectFittedLines(
-        FittedLine2D line1,
-        FittedLine2D line2,
+        HessianLine2D line1,
+        HessianLine2D line2,
         int totalExpectedCalipers,
         CornerDetectionOptions options)
     {

@@ -15,14 +15,24 @@ namespace VisionAlgorithm.OpenSrc.DataCode2D;
 /// </summary>
 public static class DataMatrixEcc200Decoder
 {
+    public const int DefaultMaxSymbols = 32;
+
     // [Math Why]: ISO/IEC 16022 ECC 200 Galois Field GF(2^8) primitive polynomial p(x) = x^8 + x^5 + x^3 + x^2 + 1 = 0x12D (301).
     private const int GfPrimitivePolynomial = 301;
     private const int GfFieldSize = 256;
     private const int GfMaxElementIndex = 255;
     private const byte AsciiPadCodeword = 129;
     private const int BitsPerCodeword = 8;
+    private const int MaxCandidateSubBoxes = 64;
+    private const int ComponentCellShift = 2;
+    private const int MinContrastGrayRange = 25;
+    private const int MinSymbolBoxSpanPx = 10;
     private const float HalfModuleOffset = 0.5f;
     private const float MaxByteNormalizedScale = 1.0f / 255.0f;
+    private const float DuplicateCenterDistanceRatio = 0.45f;
+    private const float ReadingOrderRowBandRatio = 0.55f;
+    private const float MinCandidateAspectRatio = 0.65f;
+    private const float MaxCandidateAspectRatio = 1.55f;
     private const float IsoGradeAThreshold = 0.70f;
     private const float IsoGradeBThreshold = 0.55f;
     private const float IsoGradeCThreshold = 0.40f;
@@ -31,7 +41,7 @@ public static class DataMatrixEcc200Decoder
     private static readonly byte[] GfExpTable = new byte[GfFieldSize * 2];
     private static readonly byte[] GfLogTable = new byte[GfFieldSize];
 
-    private static readonly SymbolGeometrySpec[] SupportedSymbolGeometries =
+    internal static readonly SymbolGeometrySpec[] SupportedSymbolGeometries =
     [
         new(SymbolRows: 10, SymbolCols: 10, DataCodewords: 3, EccCodewords: 5),
         new(SymbolRows: 12, SymbolCols: 12, DataCodewords: 5, EccCodewords: 7),
@@ -104,7 +114,7 @@ public static class DataMatrixEcc200Decoder
 
         // Stage 2: When the ROI spans multiple symbols (e.g., two DataMatrix codes on the same canvas) or surrounding text/borders,
         // decompose the foreground into candidate 2D square/compact sub-regions and evaluate each candidate with local contrast.
-        Span<(int X0, int Y0, int X1, int Y1)> candidateBoxes = stackalloc (int X0, int Y0, int X1, int Y1)[24];
+        Span<(int X0, int Y0, int X1, int Y1)> candidateBoxes = stackalloc (int X0, int Y0, int X1, int Y1)[MaxCandidateSubBoxes];
         int candidateCount = ExtractCandidate2DSymbolBoxes(
             imageView,
             (int)MathF.Floor(minX),
@@ -130,7 +140,7 @@ public static class DataMatrixEcc200Decoder
                 box.Y1,
                 out byte subDark,
                 out byte subLight);
-            if (subLight - subDark < 25)
+            if (subLight - subDark < MinContrastGrayRange)
             {
                 subDark = darkRef;
                 subLight = lightRef;
@@ -155,6 +165,192 @@ public static class DataMatrixEcc200Decoder
         }
 
         return bestResult;
+    }
+
+    /// <summary>
+    /// Locates, error-corrects, and decodes all distinct ISO/IEC 16022 ECC 200 DataMatrix symbols inside <paramref name="imageView"/>
+    /// across both Dark-on-Light and Light-on-Dark polarities, sorted in reading order (top-to-bottom row band, left-to-right).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public static DataMatrixDecodeResult[] DecodeAll(ReadOnlyImageView2D<byte> imageView, int maxSymbols = DefaultMaxSymbols)
+    {
+        imageView.EnsureValid();
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSymbols);
+
+        if (!TryLocateSymbolBoundingBox(
+            imageView,
+            out _,
+            out _,
+            out _,
+            out _,
+            out byte darkRef,
+            out byte lightRef,
+            out bool primaryDarkOnLight))
+        {
+            return [];
+        }
+
+        var accepted = new List<DataMatrixDecodeResult>(Math.Min(maxSymbols, 8));
+        CollectDataMatrixSymbolsWithPolarity(imageView, darkRef, lightRef, primaryDarkOnLight, maxSymbols, accepted);
+
+        if (accepted.Count < maxSymbols)
+        {
+            CollectDataMatrixSymbolsWithPolarity(imageView, darkRef, lightRef, !primaryDarkOnLight, maxSymbols, accepted);
+        }
+
+        if (accepted.Count == 0)
+        {
+            return [];
+        }
+
+        SortDataMatrixResultsInReadingOrder(accepted);
+        return accepted.ToArray();
+    }
+
+    /// <summary>
+    /// Decodes all DataMatrix ECC 200 symbols in <paramref name="imageView"/> and returns a standardized
+    /// <see cref="VisionMultiResult{TItem}"/> supporting lossless multi-envelope SPC &amp; <c>VisionCanvas</c> replay export.
+    /// </summary>
+    public static VisionMultiResult<DataMatrixDecodeResult> DecodeMulti(ReadOnlyImageView2D<byte> imageView, int maxSymbols = DefaultMaxSymbols)
+    {
+        DataMatrixDecodeResult[] items = DecodeAll(imageView, maxSymbols);
+        return VisionMultiResult<DataMatrixDecodeResult>.Create(VisionToolCategory.OcrVerification, items);
+    }
+
+    private static void CollectDataMatrixSymbolsWithPolarity(
+        ReadOnlyImageView2D<byte> imageView,
+        byte darkRef,
+        byte lightRef,
+        bool isDarkOnLight,
+        int maxSymbols,
+        List<DataMatrixDecodeResult> accepted)
+    {
+        float midThreshold = (lightRef + darkRef) * HalfModuleOffset;
+        if (!TightenSubBoxForeground(
+            imageView,
+            0,
+            0,
+            imageView.Width - 1,
+            imageView.Height - 1,
+            midThreshold,
+            isDarkOnLight,
+            out int boundX0,
+            out int boundY0,
+            out int boundX1,
+            out int boundY1))
+        {
+            return;
+        }
+
+        Span<(int X0, int Y0, int X1, int Y1)> candidateBoxes = stackalloc (int X0, int Y0, int X1, int Y1)[MaxCandidateSubBoxes];
+        int candidateCount = ExtractCandidate2DSymbolBoxes(
+            imageView,
+            boundX0,
+            boundY0,
+            boundX1,
+            boundY1,
+            darkRef,
+            lightRef,
+            isDarkOnLight,
+            candidateBoxes);
+
+        // Also include the tight overall foreground box so single-symbol tight ROIs always remain covered.
+        AddUniqueCandidateBox(candidateBoxes, ref candidateCount, boundX0, boundY0, boundX1, boundY1);
+
+        for (int i = 0; i < candidateCount && accepted.Count < maxSymbols; i++)
+        {
+            var box = candidateBoxes[i];
+            ComputeSubBoxDarkLightRange(
+                imageView,
+                box.X0,
+                box.Y0,
+                box.X1,
+                box.Y1,
+                out byte subDark,
+                out byte subLight);
+            if (subLight - subDark < MinContrastGrayRange)
+            {
+                subDark = darkRef;
+                subLight = lightRef;
+            }
+
+            if (TryDecodeCandidateBoxWithRefinement(
+                imageView,
+                box.X0,
+                box.Y0,
+                box.X1 + 1.0f,
+                box.Y1 + 1.0f,
+                subDark,
+                subLight,
+                isDarkOnLight,
+                out DataMatrixDecodeResult decoded))
+            {
+                MergeOrAppendDataMatrixSymbol(accepted, in decoded, maxSymbols);
+            }
+        }
+    }
+
+    private static void MergeOrAppendDataMatrixSymbol(
+        List<DataMatrixDecodeResult> accepted,
+        in DataMatrixDecodeResult candidate,
+        int maxSymbols)
+    {
+        float candSpan = MathF.Min(candidate.WidthPixels, candidate.HeightPixels);
+        for (int i = 0; i < accepted.Count; i++)
+        {
+            DataMatrixDecodeResult existing = accepted[i];
+            float minSpan = MathF.Max(MinSymbolBoxSpanPx, MathF.Min(candSpan, MathF.Min(existing.WidthPixels, existing.HeightPixels)));
+            if (Vector2.Distance(candidate.CenterWorld, existing.CenterWorld) <= (minSpan * DuplicateCenterDistanceRatio))
+            {
+                if (IsHigherQualityDataMatrix(in candidate, in existing))
+                {
+                    accepted[i] = candidate;
+                }
+
+                return;
+            }
+        }
+
+        if (accepted.Count < maxSymbols)
+        {
+            accepted.Add(candidate);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsHigherQualityDataMatrix(in DataMatrixDecodeResult candidate, in DataMatrixDecodeResult existing)
+    {
+        if (candidate.CorrectedByteErrors != existing.CorrectedByteErrors)
+        {
+            return candidate.CorrectedByteErrors < existing.CorrectedByteErrors;
+        }
+
+        if (MathF.Abs(candidate.FixedPatternDamageScore - existing.FixedPatternDamageScore) > 0.02f)
+        {
+            return candidate.FixedPatternDamageScore > existing.FixedPatternDamageScore;
+        }
+
+        return candidate.ModulationScore > existing.ModulationScore;
+    }
+
+    private static void SortDataMatrixResultsInReadingOrder(List<DataMatrixDecodeResult> results)
+    {
+        if (results.Count <= 1)
+        {
+            return;
+        }
+
+        results.Sort(static (a, b) =>
+        {
+            float rowBand = MathF.Max(MinSymbolBoxSpanPx, MathF.Min(a.HeightPixels, b.HeightPixels) * ReadingOrderRowBandRatio);
+            float dy = a.CenterWorld.Y - b.CenterWorld.Y;
+            if (MathF.Abs(dy) > rowBand)
+            {
+                return dy < 0.0f ? -1 : 1;
+            }
+
+            return a.CenterWorld.X.CompareTo(b.CenterWorld.X);
+        });
     }
 
     private static bool IsBetterDecodeCandidate(
@@ -425,112 +621,271 @@ public static class DataMatrixEcc200Decoder
         float midThreshold = (lightRef + darkRef) * HalfModuleOffset;
         int count = 0;
 
+        // 0. 2D 8-connected coarse cell component clustering (4x4 px cells):
+        // Separates diagonally or arbitrarily arranged multiple 2D symbols whose X and Y projections overlap simultaneously,
+        // while naturally bridging 1..2 module gaps along alternating timing borders.
+        ExtractConnectedCellCandidateBoxes(
+            imageView,
+            boundX0,
+            boundY0,
+            boundX1,
+            boundY1,
+            midThreshold,
+            isDarkOnLight,
+            candidates,
+            ref count);
+
         // 1. Horizontal & vertical projection band splitting:
         // Separates side-by-side symbols (like the two DataMatrix symbols in the sample scene or 1D barcode + 2D code in OCR7 Section E)
         // and separates stacked text banners from the 2D matrix block.
-        int[] rowFg = new int[height];
-        for (int y = boundY0; y <= boundY1; y++)
+        int[] rowFgPooled = ArrayPool<int>.Shared.Rent(height);
+        int[] colFgPooled = ArrayPool<int>.Shared.Rent(width);
+        try
         {
-            ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
-            int hits = 0;
-            for (int x = boundX0; x <= boundX1; x++)
+            Span<int> rowFg = rowFgPooled.AsSpan(0, height);
+            Span<int> colFg = colFgPooled.AsSpan(0, width);
+            rowFg.Slice(boundY0, boundY1 - boundY0 + 1).Clear();
+
+            for (int y = boundY0; y <= boundY1; y++)
             {
-                bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
-                if (fg) hits++;
+                ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
+                int hits = 0;
+                for (int x = boundX0; x <= boundX1; x++)
+                {
+                    bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
+                    if (fg)
+                    {
+                        hits++;
+                    }
+                }
+
+                rowFg[y] = hits;
             }
-            rowFg[y] = hits;
-        }
 
-        Span<(int Y0, int Y1)> rowBands = stackalloc (int Y0, int Y1)[12];
-        int rowBandCount = SplitProjectionIntervals(rowFg, boundY0, boundY1, minGapRun: 3, minBandSpan: 10, rowBands);
-        if (rowBandCount == 0 && (boundY1 - boundY0 + 1) >= 10)
-        {
-            rowBands[0] = (boundY0, boundY1);
-            rowBandCount = 1;
-        }
+            Span<(int Y0, int Y1)> rowBands = stackalloc (int Y0, int Y1)[24];
+            int rowBandCount = SplitProjectionIntervals(rowFg, boundY0, boundY1, minGapRun: 3, minBandSpan: MinSymbolBoxSpanPx, rowBands);
+            if (rowBandCount == 0 && (boundY1 - boundY0 + 1) >= MinSymbolBoxSpanPx)
+            {
+                rowBands[0] = (boundY0, boundY1);
+                rowBandCount = 1;
+            }
 
-        int[] colFg = new int[width];
-        Span<(int X0, int X1)> colBands = stackalloc (int X0, int X1)[12];
+            Span<(int X0, int X1)> colBands = stackalloc (int X0, int X1)[24];
 
-        for (int rb = 0; rb < rowBandCount; rb++)
-        {
-            (int ry0, int ry1) = rowBands[rb];
-            Array.Clear(colFg, boundX0, boundX1 - boundX0 + 1);
-            for (int y = ry0; y <= ry1; y++)
+            for (int rb = 0; rb < rowBandCount; rb++)
+            {
+                (int ry0, int ry1) = rowBands[rb];
+                colFg.Slice(boundX0, boundX1 - boundX0 + 1).Clear();
+                for (int y = ry0; y <= ry1; y++)
+                {
+                    ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
+                    for (int x = boundX0; x <= boundX1; x++)
+                    {
+                        bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
+                        if (fg)
+                        {
+                            colFg[x]++;
+                        }
+                    }
+                }
+
+                // Use a 4px empty column gap to separate distinct symbols while keeping a single DataMatrix's alternating timing columns together
+                int colBandCount = SplitProjectionIntervals(colFg, boundX0, boundX1, minGapRun: 4, minBandSpan: MinSymbolBoxSpanPx, colBands);
+                for (int cb = 0; cb < colBandCount; cb++)
+                {
+                    (int cx0, int cx1) = colBands[cb];
+                    if (TightenSubBoxForeground(imageView, cx0, ry0, cx1, ry1, midThreshold, isDarkOnLight, out int tx0, out int ty0, out int tx1, out int ty1))
+                    {
+                        int bw = tx1 - tx0 + 1;
+                        int bh = ty1 - ty0 + 1;
+                        float aspect = (float)bw / Math.Max(1, bh);
+                        if (bw >= MinSymbolBoxSpanPx && bh >= MinSymbolBoxSpanPx && aspect is >= MinCandidateAspectRatio and <= MaxCandidateAspectRatio)
+                        {
+                            AddUniqueCandidateBox(candidates, ref count, tx0, ty0, tx1, ty1);
+                        }
+                    }
+                }
+            }
+
+            // 2. Also run full-ROI column splitting first, then row splitting per column band (handles cases where text spans beside a 2D symbol)
+            colFg.Slice(boundX0, boundX1 - boundX0 + 1).Clear();
+            for (int y = boundY0; y <= boundY1; y++)
             {
                 ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
                 for (int x = boundX0; x <= boundX1; x++)
                 {
                     bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
-                    if (fg) colFg[x]++;
+                    if (fg)
+                    {
+                        colFg[x]++;
+                    }
                 }
             }
 
-            // Use a 4px empty column gap to separate distinct symbols while keeping a single DataMatrix's alternating timing columns together
-            int colBandCount = SplitProjectionIntervals(colFg, boundX0, boundX1, minGapRun: 4, minBandSpan: 10, colBands);
-            for (int cb = 0; cb < colBandCount; cb++)
+            int globalColBandCount = SplitProjectionIntervals(colFg, boundX0, boundX1, minGapRun: 4, minBandSpan: MinSymbolBoxSpanPx, colBands);
+            for (int cb = 0; cb < globalColBandCount; cb++)
             {
                 (int cx0, int cx1) = colBands[cb];
-                if (TightenSubBoxForeground(imageView, cx0, ry0, cx1, ry1, midThreshold, isDarkOnLight, out int tx0, out int ty0, out int tx1, out int ty1))
+                rowFg.Slice(boundY0, boundY1 - boundY0 + 1).Clear();
+                for (int y = boundY0; y <= boundY1; y++)
                 {
-                    int bw = tx1 - tx0 + 1;
-                    int bh = ty1 - ty0 + 1;
-                    float aspect = (float)bw / Math.Max(1, bh);
-                    if (bw >= 10 && bh >= 10 && aspect is >= 0.65f and <= 1.55f)
+                    ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
+                    int hits = 0;
+                    for (int x = cx0; x <= cx1; x++)
                     {
-                        AddUniqueCandidateBox(candidates, ref count, tx0, ty0, tx1, ty1);
+                        bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
+                        if (fg)
+                        {
+                            hits++;
+                        }
+                    }
+
+                    rowFg[y] = hits;
+                }
+
+                int subRowBands = SplitProjectionIntervals(rowFg, boundY0, boundY1, minGapRun: 3, minBandSpan: MinSymbolBoxSpanPx, rowBands);
+                for (int rb = 0; rb < subRowBands; rb++)
+                {
+                    (int ry0, int ry1) = rowBands[rb];
+                    if (TightenSubBoxForeground(imageView, cx0, ry0, cx1, ry1, midThreshold, isDarkOnLight, out int tx0, out int ty0, out int tx1, out int ty1))
+                    {
+                        int bw = tx1 - tx0 + 1;
+                        int bh = ty1 - ty0 + 1;
+                        float aspect = (float)bw / Math.Max(1, bh);
+                        if (bw >= MinSymbolBoxSpanPx && bh >= MinSymbolBoxSpanPx && aspect is >= MinCandidateAspectRatio and <= MaxCandidateAspectRatio)
+                        {
+                            AddUniqueCandidateBox(candidates, ref count, tx0, ty0, tx1, ty1);
+                        }
                     }
                 }
             }
         }
-
-        // 2. Also run full-ROI column splitting first, then row splitting per column band (handles cases where text spans beside a 2D symbol)
-        Array.Clear(colFg, boundX0, boundX1 - boundX0 + 1);
-        for (int y = boundY0; y <= boundY1; y++)
+        finally
         {
-            ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
-            for (int x = boundX0; x <= boundX1; x++)
-            {
-                bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
-                if (fg) colFg[x]++;
-            }
-        }
-
-        int globalColBandCount = SplitProjectionIntervals(colFg, boundX0, boundX1, minGapRun: 4, minBandSpan: 10, colBands);
-        for (int cb = 0; cb < globalColBandCount; cb++)
-        {
-            (int cx0, int cx1) = colBands[cb];
-            Array.Clear(rowFg, boundY0, boundY1 - boundY0 + 1);
-            for (int y = boundY0; y <= boundY1; y++)
-            {
-                ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
-                int hits = 0;
-                for (int x = cx0; x <= cx1; x++)
-                {
-                    bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
-                    if (fg) hits++;
-                }
-                rowFg[y] = hits;
-            }
-
-            int subRowBands = SplitProjectionIntervals(rowFg, boundY0, boundY1, minGapRun: 3, minBandSpan: 10, rowBands);
-            for (int rb = 0; rb < subRowBands; rb++)
-            {
-                (int ry0, int ry1) = rowBands[rb];
-                if (TightenSubBoxForeground(imageView, cx0, ry0, cx1, ry1, midThreshold, isDarkOnLight, out int tx0, out int ty0, out int tx1, out int ty1))
-                {
-                    int bw = tx1 - tx0 + 1;
-                    int bh = ty1 - ty0 + 1;
-                    float aspect = (float)bw / Math.Max(1, bh);
-                    if (bw >= 10 && bh >= 10 && aspect is >= 0.65f and <= 1.55f)
-                    {
-                        AddUniqueCandidateBox(candidates, ref count, tx0, ty0, tx1, ty1);
-                    }
-                }
-            }
+            ArrayPool<int>.Shared.Return(colFgPooled);
+            ArrayPool<int>.Shared.Return(rowFgPooled);
         }
 
         return count;
+    }
+
+    private static void ExtractConnectedCellCandidateBoxes(
+        ReadOnlyImageView2D<byte> imageView,
+        int boundX0,
+        int boundY0,
+        int boundX1,
+        int boundY1,
+        float midThreshold,
+        bool isDarkOnLight,
+        Span<(int X0, int Y0, int X1, int Y1)> candidates,
+        ref int count)
+    {
+        int spanW = (boundX1 - boundX0) + 1;
+        int spanH = (boundY1 - boundY0) + 1;
+        int cellSize = 1 << ComponentCellShift;
+        int gridW = (spanW + cellSize - 1) >> ComponentCellShift;
+        int gridH = (spanH + cellSize - 1) >> ComponentCellShift;
+        int cellCount = gridW * gridH;
+        if (cellCount < 4)
+        {
+            return;
+        }
+
+        byte[] maskPooled = ArrayPool<byte>.Shared.Rent(cellCount);
+        int[] queuePooled = ArrayPool<int>.Shared.Rent(cellCount);
+        try
+        {
+            Span<byte> cellMask = maskPooled.AsSpan(0, cellCount);
+            cellMask.Clear();
+
+            for (int y = boundY0; y <= boundY1; y++)
+            {
+                ReadOnlySpan<byte> row = imageView.GetRowSpan(y);
+                int gy = (y - boundY0) >> ComponentCellShift;
+                int gridRowOffset = gy * gridW;
+                for (int x = boundX0; x <= boundX1; x++)
+                {
+                    bool fg = isDarkOnLight ? row[x] < midThreshold : row[x] > midThreshold;
+                    if (fg)
+                    {
+                        cellMask[gridRowOffset + ((x - boundX0) >> ComponentCellShift)] = 1;
+                    }
+                }
+            }
+
+            Span<int> queue = queuePooled.AsSpan(0, cellCount);
+            for (int gy = 0; gy < gridH && count < candidates.Length; gy++)
+            {
+                for (int gx = 0; gx < gridW && count < candidates.Length; gx++)
+                {
+                    int startIdx = (gy * gridW) + gx;
+                    if (cellMask[startIdx] != 1)
+                    {
+                        continue;
+                    }
+
+                    int head = 0;
+                    int tail = 0;
+                    queue[tail++] = startIdx;
+                    cellMask[startIdx] = 2;
+
+                    int minGx = gx;
+                    int maxGx = gx;
+                    int minGy = gy;
+                    int maxGy = gy;
+
+                    while (head < tail)
+                    {
+                        int curr = queue[head++];
+                        int cy = curr / gridW;
+                        int cx = curr - (cy * gridW);
+                        if (cx < minGx) minGx = cx;
+                        if (cx > maxGx) maxGx = cx;
+                        if (cy < minGy) minGy = cy;
+                        if (cy > maxGy) maxGy = cy;
+
+                        int ny0 = Math.Max(0, cy - 1);
+                        int ny1 = Math.Min(gridH - 1, cy + 1);
+                        int nx0 = Math.Max(0, cx - 1);
+                        int nx1 = Math.Min(gridW - 1, cx + 1);
+                        for (int ny = ny0; ny <= ny1; ny++)
+                        {
+                            int nRow = ny * gridW;
+                            for (int nx = nx0; nx <= nx1; nx++)
+                            {
+                                int nIdx = nRow + nx;
+                                if (cellMask[nIdx] == 1)
+                                {
+                                    cellMask[nIdx] = 2;
+                                    queue[tail++] = nIdx;
+                                }
+                            }
+                        }
+                    }
+
+                    int px0 = Math.Max(boundX0, boundX0 + (minGx << ComponentCellShift) - 2);
+                    int py0 = Math.Max(boundY0, boundY0 + (minGy << ComponentCellShift) - 2);
+                    int px1 = Math.Min(boundX1, boundX0 + ((maxGx + 1) << ComponentCellShift) + 1);
+                    int py1 = Math.Min(boundY1, boundY0 + ((maxGy + 1) << ComponentCellShift) + 1);
+
+                    if (TightenSubBoxForeground(imageView, px0, py0, px1, py1, midThreshold, isDarkOnLight, out int tx0, out int ty0, out int tx1, out int ty1))
+                    {
+                        int bw = (tx1 - tx0) + 1;
+                        int bh = (ty1 - ty0) + 1;
+                        float aspect = (float)bw / Math.Max(1, bh);
+                        if (bw >= MinSymbolBoxSpanPx && bh >= MinSymbolBoxSpanPx && aspect is >= MinCandidateAspectRatio and <= MaxCandidateAspectRatio)
+                        {
+                            AddUniqueCandidateBox(candidates, ref count, tx0, ty0, tx1, ty1);
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(queuePooled);
+            ArrayPool<byte>.Shared.Return(maskPooled);
+        }
     }
 
     private static int SplitProjectionIntervals(
@@ -820,201 +1175,6 @@ public static class DataMatrixEcc200Decoder
             if (v < minV) minV = v;
             if (v > maxV) maxV = v;
         }
-    }
-
-    /// <summary>
-    /// Renders a ground-truth ISO/IEC 16022 ECC 200 DataMatrix symbol for <paramref name="asciiPayload"/> onto a strided
-    /// 8-bit image buffer using the exact Utah L-shaped module placement and $\text{GF}(2^8)$ Reed-Solomon check codewords.
-    /// Useful for deterministic verification, calibration targets, and interactive sample synthesis.
-    /// </summary>
-    public static void RenderEcc200Symbol(
-        string asciiPayload,
-        Span<byte> destination,
-        int width,
-        int height,
-        int stride,
-        int originX,
-        int originY,
-        int moduleSizePixels,
-        byte darkLevel = 25,
-        byte lightLevel = 230)
-    {
-        ArgumentNullException.ThrowIfNull(asciiPayload);
-        ArgumentOutOfRangeException.ThrowIfLessThan(moduleSizePixels, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(stride, width);
-
-        bool[,] moduleGrid = BuildEcc200ModuleMatrix(asciiPayload, out SymbolGeometrySpec geom);
-
-        for (int r = 0; r < geom.SymbolRows; r++)
-        {
-            for (int c = 0; c < geom.SymbolCols; c++)
-            {
-                byte val = moduleGrid[r, c] ? darkLevel : lightLevel;
-                int py0 = originY + (r * moduleSizePixels);
-                int px0 = originX + (c * moduleSizePixels);
-
-                for (int dy = 0; dy < moduleSizePixels; dy++)
-                {
-                    int y = py0 + dy;
-                    if ((uint)y >= (uint)height)
-                    {
-                        continue;
-                    }
-
-                    Span<byte> rowSpan = destination.Slice(y * stride, width);
-                    for (int dx = 0; dx < moduleSizePixels; dx++)
-                    {
-                        int x = px0 + dx;
-                        if ((uint)x < (uint)width)
-                        {
-                            rowSpan[x] = val;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Renders a 4x4 supersampled anti-aliased ISO/IEC 16022 ECC 200 DataMatrix symbol rotated by <paramref name="angleRad"/>
-    /// around <c>(centerX, centerY)</c> in world coordinates.
-    /// </summary>
-    public static void RenderRotatedEcc200Symbol(
-        string asciiPayload,
-        Span<byte> destination,
-        int width,
-        int height,
-        int stride,
-        float centerX,
-        float centerY,
-        float moduleSizePixels,
-        float angleRad,
-        byte darkLevel = 25,
-        byte lightLevel = 230)
-    {
-        ArgumentNullException.ThrowIfNull(asciiPayload);
-        ArgumentOutOfRangeException.ThrowIfLessThan(moduleSizePixels, 1.5f);
-        ArgumentOutOfRangeException.ThrowIfLessThan(stride, width);
-
-        bool[,] moduleGrid = BuildEcc200ModuleMatrix(asciiPayload, out SymbolGeometrySpec geom);
-        float symW = geom.SymbolCols * moduleSizePixels;
-        float symH = geom.SymbolRows * moduleSizePixels;
-        float halfW = symW * HalfModuleOffset;
-        float halfH = symH * HalfModuleOffset;
-        float quietMargin = moduleSizePixels * 1.5f;
-        float radius = MathF.Sqrt(((halfW + quietMargin) * (halfW + quietMargin)) + ((halfH + quietMargin) * (halfH + quietMargin))) + 2.0f;
-
-        int minPx = Math.Max(0, (int)MathF.Floor(centerX - radius));
-        int maxPx = Math.Min(width - 1, (int)MathF.Ceiling(centerX + radius));
-        int minPy = Math.Max(0, (int)MathF.Floor(centerY - radius));
-        int maxPy = Math.Min(height - 1, (int)MathF.Ceiling(centerY + radius));
-
-        (float sinA, float cosA) = MathF.SinCos(angleRad);
-        const int subDiv = 4;
-        const float subStep = 1.0f / subDiv;
-        const float invSamples = 1.0f / (subDiv * subDiv);
-
-        for (int py = minPy; py <= maxPy; py++)
-        {
-            Span<byte> rowSpan = destination.Slice(py * stride, width);
-            for (int px = minPx; px <= maxPx; px++)
-            {
-                byte bgVal = rowSpan[px];
-                float accum = 0.0f;
-                bool anyInsideQuiet = false;
-
-                for (int sy = 0; sy < subDiv; sy++)
-                {
-                    float wy = py + ((sy + HalfModuleOffset) * subStep);
-                    float dy = wy - centerY;
-                    for (int sx = 0; sx < subDiv; sx++)
-                    {
-                        float wx = px + ((sx + HalfModuleOffset) * subStep);
-                        float dx = wx - centerX;
-
-                        float lu = (dx * cosA) + (dy * sinA) + halfW;
-                        float lv = (-dx * sinA) + (dy * cosA) + halfH;
-
-                        if (lu >= 0.0f && lu < symW && lv >= 0.0f && lv < symH)
-                        {
-                            anyInsideQuiet = true;
-                            int col = Math.Clamp((int)(lu / moduleSizePixels), 0, geom.SymbolCols - 1);
-                            int row = Math.Clamp((int)(lv / moduleSizePixels), 0, geom.SymbolRows - 1);
-                            accum += moduleGrid[row, col] ? darkLevel : lightLevel;
-                        }
-                        else if (lu >= -quietMargin && lu <= symW + quietMargin && lv >= -quietMargin && lv <= symH + quietMargin)
-                        {
-                            anyInsideQuiet = true;
-                            accum += lightLevel;
-                        }
-                        else
-                        {
-                            accum += bgVal;
-                        }
-                    }
-                }
-
-                if (anyInsideQuiet)
-                {
-                    rowSpan[px] = (byte)Math.Clamp((int)MathF.Round(accum * invSamples), 0, 255);
-                }
-            }
-        }
-    }
-
-    private static bool[,] BuildEcc200ModuleMatrix(string asciiPayload, out SymbolGeometrySpec geom)
-    {
-        byte[] dataBytes = EncodeAsciiCodewords(asciiPayload, out geom);
-        byte[] eccBytes = ComputeReedSolomonEcc(dataBytes, geom.EccCodewords);
-
-        byte[] allCodewords = new byte[geom.DataCodewords + geom.EccCodewords];
-        Array.Copy(dataBytes, 0, allCodewords, 0, geom.DataCodewords);
-        Array.Copy(eccBytes, 0, allCodewords, geom.DataCodewords, geom.EccCodewords);
-
-        int mapRows = geom.SymbolRows - 2;
-        int mapCols = geom.SymbolCols - 2;
-        int[] bitMap = BuildUtahPlacementMap(mapRows, mapCols);
-        bool[,] grid = new bool[geom.SymbolRows, geom.SymbolCols];
-
-        for (int r = 0; r < geom.SymbolRows; r++)
-        {
-            for (int c = 0; c < geom.SymbolCols; c++)
-            {
-                bool isDarkModule;
-                if (r == geom.SymbolRows - 1 || c == 0)
-                {
-                    isDarkModule = true;
-                }
-                else if (r == 0)
-                {
-                    isDarkModule = (c & 1) == 0;
-                }
-                else if (c == geom.SymbolCols - 1)
-                {
-                    isDarkModule = ((geom.SymbolRows - 1 - r) & 1) == 0;
-                }
-                else
-                {
-                    int mr = r - 1;
-                    int mc = c - 1;
-                    int codeBitIndex = bitMap[(mr * mapCols) + mc];
-                    if (codeBitIndex > 0)
-                    {
-                        int cwIndex = (codeBitIndex - 1) / BitsPerCodeword;
-                        int bitPos = 7 - ((codeBitIndex - 1) % BitsPerCodeword);
-                        isDarkModule = cwIndex < allCodewords.Length && ((allCodewords[cwIndex] >> bitPos) & 1) != 0;
-                    }
-                    else
-                    {
-                        isDarkModule = false;
-                    }
-                }
-
-                grid[r, c] = isDarkModule;
-            }
-        }
-
-        return grid;
     }
 
     private static bool TryLocateSymbolBoundingBox(
@@ -1549,57 +1709,6 @@ public static class DataMatrixEcc200Decoder
         return false;
     }
 
-    private static byte[] EncodeAsciiCodewords(string text, out SymbolGeometrySpec selectedGeometry)
-    {
-        List<byte> encoded = new(text.Length);
-        int i = 0;
-        while (i < text.Length)
-        {
-            if (i + 1 < text.Length && char.IsAsciiDigit(text[i]) && char.IsAsciiDigit(text[i + 1]))
-            {
-                int pairValue = ((text[i] - '0') * 10) + (text[i + 1] - '0');
-                encoded.Add((byte)(pairValue + 130));
-                i += 2;
-            }
-            else
-            {
-                encoded.Add((byte)(text[i] + 1));
-                i++;
-            }
-        }
-
-        selectedGeometry = SupportedSymbolGeometries[^1];
-        for (int g = 0; g < SupportedSymbolGeometries.Length; g++)
-        {
-            if (SupportedSymbolGeometries[g].DataCodewords >= encoded.Count)
-            {
-                selectedGeometry = SupportedSymbolGeometries[g];
-                break;
-            }
-        }
-
-        byte[] data = new byte[selectedGeometry.DataCodewords];
-        int copyCount = Math.Min(encoded.Count, data.Length);
-        for (int idx = 0; idx < copyCount; idx++)
-        {
-            data[idx] = encoded[idx];
-        }
-
-        if (copyCount < data.Length)
-        {
-            data[copyCount] = AsciiPadCodeword;
-            for (int padPos = copyCount + 1; padPos < data.Length; padPos++)
-            {
-                // ISO/IEC 16022 253-state pseudo-random pad codeword randomization
-                int r = ((149 * (padPos + 1)) % 253) + 1;
-                int temp = AsciiPadCodeword + r;
-                data[padPos] = (byte)(temp <= 254 ? temp : temp - 254);
-            }
-        }
-
-        return data;
-    }
-
     private static bool TryDecodeAsciiCodewords(ReadOnlySpan<byte> dataCodewords, out string decodedText)
     {
         StringBuilder sb = new(dataCodewords.Length * 2);
@@ -1646,14 +1755,7 @@ public static class DataMatrixEcc200Decoder
     /// Computes ISO/IEC 16022 Reed-Solomon check codewords over $\text{GF}(2^8)$ with generator polynomial
     /// $g(x) = \prod_{k=1}^{E} (x + \alpha^k)$.
     /// </summary>
-    private static byte[] ComputeReedSolomonEcc(ReadOnlySpan<byte> data, int eccCount)
-    {
-        byte[] ecc = new byte[eccCount];
-        ComputeReedSolomonEccInto(data, ecc);
-        return ecc;
-    }
-
-    private static void ComputeReedSolomonEccInto(ReadOnlySpan<byte> data, Span<byte> eccOut)
+    internal static void ComputeReedSolomonEccInto(ReadOnlySpan<byte> data, Span<byte> eccOut)
     {
         int eccCount = eccOut.Length;
         Span<byte> gen = stackalloc byte[eccCount + 1];
@@ -1690,7 +1792,7 @@ public static class DataMatrixEcc200Decoder
     /// Builds the ISO/IEC 16022 Annex F Utah diagonal L-shaped module placement map over $(nrow \times ncol)$ data region.
     /// Each cell stores a 1-based global bit index $((cw \times 8) + \text{bit})$.
     /// </summary>
-    private static int[] BuildUtahPlacementMap(int nrow, int ncol)
+    internal static int[] BuildUtahPlacementMap(int nrow, int ncol)
     {
         int[] array = new int[nrow * ncol];
         Array.Fill(array, -1);
@@ -1868,7 +1970,7 @@ public static class DataMatrixEcc200Decoder
         return 'F';
     }
 
-    private readonly record struct SymbolGeometrySpec(
+    internal readonly record struct SymbolGeometrySpec(
         int SymbolRows,
         int SymbolCols,
         int DataCodewords,

@@ -4,7 +4,7 @@ using VisionGeometry;
 namespace TeachingToolWpf.Imaging.Matching;
 
 /// <summary>
-/// Per-ROI verification input carrying geometry and document-persisted expected text / field mask.
+/// Per-ROI verification input carrying geometry, font slot identifier, and document-persisted expected text / field mask.
 /// </summary>
 public sealed record OcvRoiVerifyRequest(
     Guid RoiId,
@@ -15,4 +15,5 @@ public sealed record OcvRoiVerifyRequest(
     double AngleRadians,
     ImmutableArray<PointD> Outline,
     string ExpectedText,
-    string FormatMask = "");
+    string FormatMask = "",
+    string FontId = "default");

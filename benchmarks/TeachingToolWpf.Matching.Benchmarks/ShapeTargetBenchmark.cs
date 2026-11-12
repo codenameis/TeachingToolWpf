@@ -65,7 +65,7 @@ internal static class ShapeTargetBenchmark
                         });
                         Console.WriteLine($"CUDA session preparation: {preparationTime:F1} ms (separate from inspection)");
                     }
-                    var options = new SearchOptions
+                    var options = new ShapeSearchOptions
                     {
                         MaximumMatches = 256,
                         ClutterWeight = 1,

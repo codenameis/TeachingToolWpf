@@ -33,7 +33,7 @@ internal static class InspectionSpeedBenchmark
             ShapeSearchOutput? cpu = null;
             foreach (var mode in new[] { InspectionComputeMode.Cpu, InspectionComputeMode.GpuPreprocessing })
             {
-                var options = new SearchOptions
+                var options = new ShapeSearchOptions
                 {
                     MaximumMatches = 1000,
                     MaximumCandidates = width > 8192 ? 8192 : 2048,

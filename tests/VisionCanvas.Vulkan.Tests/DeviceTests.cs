@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionCanvas.Vulkan.Rendering;
 using VisionImaging.Abstractions;
 

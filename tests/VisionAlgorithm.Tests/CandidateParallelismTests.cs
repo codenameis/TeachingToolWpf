@@ -20,7 +20,7 @@ public sealed class CandidateParallelismTests
             new MatchPose(158.4, 55.2, -0.18),
             new MatchPose(109.3, 128.1, 0.09));
         var prepared = PreparedSearchImage.Create(scene, 8, model.Levels.Length);
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             CandidateThreshold = 0.45,
             MaximumCandidates = maximumCandidates,

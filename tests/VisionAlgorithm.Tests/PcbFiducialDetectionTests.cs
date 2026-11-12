@@ -144,7 +144,7 @@ public sealed class PcbFiducialDetectionTests
         {
             var mask = new byte[image.Width * image.Height];
             mask[((240 - x) * image.Width) + x] = 255;
-            var masked = new GrayImage(image.Pixels, image.Width, image.Height, image.Stride, mask);
+            var masked = new ShapeGrayImage(image.Pixels, image.Width, image.Height, image.Stride, mask);
             var result = PrimitiveShapeDetector.Detect(masked, new()
             {
                 Shapes = PrimitiveShapeKind.DoubleSquare

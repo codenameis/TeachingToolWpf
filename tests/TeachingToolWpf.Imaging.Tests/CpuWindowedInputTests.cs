@@ -17,9 +17,9 @@ public sealed class CpuWindowedInputTests
         var loader = new Source(1109, 1083);
         using var reader = await MatchingImageReader.OpenAsync(new("test", "test", 1109, 1083), false, loader, () => null, default);
         var source = new CpuMatchingImageSource(reader, new(origin, origin, 1090, 1070));
-        var region = new SearchRegion(0, 0, 1024, 1024);
+        var region = new CpuSearchRegion(0, 0, 1024, 1024);
         var raw = reader.Read(origin, origin, 1024, 1024, default);
-        var expected = new GrayImage(1024, 1024, raw.Pixels.Span);
+        var expected = new CpuGrayImage(1024, 1024, raw.Pixels.Span);
         for (var step = 1; step < factor; step *= 2)
         {
             expected = expected.Half();
@@ -46,11 +46,11 @@ public sealed class CpuWindowedInputTests
 
     private sealed class WindowedMatcher : ITemplateMatcher
     {
-        public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        public SearchResult Find(CpuGrayImage image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
             Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
             => throw new InvalidOperationException("Large input must not allocate a contiguous image.");
 
-        public SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+        public SearchResult FindWindowed(IGrayImageSource image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
             Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
         {
             Assert.Equal(17_280, image.Width);

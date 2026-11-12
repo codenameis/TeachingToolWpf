@@ -10,7 +10,7 @@ public static class PrimitiveShapeDetector
 {
     public const int MaximumPixels = 2 * 1024 * 1024;
 
-    public static PrimitiveDetectionResult Detect(GrayImage image, PrimitiveDetectionOptions options, CancellationToken token = default,
+    public static PrimitiveDetectionResult Detect(ShapeGrayImage image, PrimitiveDetectionOptions options, CancellationToken token = default,
         IPrimitivePreprocessor? preprocessor = null, Memory<byte> preprocessingBuffer = default)
     {
         options.Validate();
@@ -81,14 +81,14 @@ public static class PrimitiveShapeDetector
         }
     }
 
-    private static bool OverlapsMask(GrayImage image, PrimitiveContour contour, CancellationToken token)
+    private static bool OverlapsMask(ShapeGrayImage image, PrimitiveContour contour, CancellationToken token)
     {
         if (image.ExcludedPixels.IsEmpty)
         {
             return false;
         }
-        var region = new SearchRegion(contour.Points);
-        var holes = contour.Holes.Select(hole => new SearchRegion(hole.Points)).ToArray();
+        var region = new ShapeSearchRegion(contour.Points);
+        var holes = contour.Holes.Select(hole => new ShapeSearchRegion(hole.Points)).ToArray();
         GetBounds(contour.Points.AsSpan(), out var minX, out var minY, out var maxX, out var maxY);
         var left = Math.Max(0, (int)Math.Floor(minX) - 1);
         var top = Math.Max(0, (int)Math.Floor(minY) - 1);
@@ -109,7 +109,7 @@ public static class PrimitiveShapeDetector
         return false;
     }
 
-    private static bool InsideHole(SearchRegion hole, double x, double y)
+    private static bool InsideHole(ShapeSearchRegion hole, double x, double y)
     {
         if (!hole.Contains(x, y))
         {

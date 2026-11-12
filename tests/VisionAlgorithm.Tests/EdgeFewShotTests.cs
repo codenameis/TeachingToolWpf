@@ -1,5 +1,6 @@
 // File: tests/VisionAlgorithm.Tests/EdgeFewShotTests.cs
 using Microsoft.ML.OnnxRuntime;
+using VisionAlgorithm.OpenSrc.Common;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Backbone;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Domain;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Engine;
@@ -187,7 +188,6 @@ public sealed class EdgeFewShotTests
             new IlluminationNormalizer(),
             new MultiScaleGaborHogExtractor(),
             new GemSpatialPooler(),
-            new SimpleShotNormalizer(),
             new KMeansPlusPlusClusterer(),
             new LedoitWolfCovariance());
         var classifier = new EdgeFewShotClassifier(
@@ -195,7 +195,6 @@ public sealed class EdgeFewShotTests
             new IlluminationNormalizer(),
             new MultiScaleGaborHogExtractor(),
             new GemSpatialPooler(),
-            new SimpleShotNormalizer(),
             new LedoitWolfCovariance());
 
         var options = FewShotTrainOptions.Create(
@@ -262,15 +261,14 @@ public sealed class EdgeFewShotTests
             }
         }
 
-        var simpleShot = new SimpleShotNormalizer();
         var globalMean = new float[dimension];
-        simpleShot.ComputeGlobalMean(rawFeatures, sampleCount, dimension, globalMean);
+        SimpleShotNormalizer.ComputeGlobalMean(rawFeatures, sampleCount, dimension, globalMean);
 
         var centeredNormalized = new float[sampleCount * dimension];
         for (var s = 0; s < sampleCount; s++)
         {
             var outSlice = centeredNormalized.AsSpan(s * dimension, dimension);
-            simpleShot.CenterAndNormalizeInto(rawFeatures.AsSpan(s * dimension, dimension), globalMean, outSlice);
+            SimpleShotNormalizer.CenterAndL2Normalize(rawFeatures.AsSpan(s * dimension, dimension), globalMean, outSlice);
 
             var normSq = SimpleShotNormalizer.ComputeSquaredL2Norm(outSlice);
             Assert.InRange(MathF.Sqrt(normSq), 0.9999f, 1.0001f);
@@ -523,12 +521,11 @@ public sealed class EdgeFewShotTests
         var normalizer = new IlluminationNormalizer();
         var backbone = new MultiScaleGaborHogExtractor();
         var gemPooler = new GemSpatialPooler();
-        var simpleShot = new SimpleShotNormalizer();
         var clusterer = new KMeansPlusPlusClusterer();
         var covariance = new LedoitWolfCovariance();
 
-        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, simpleShot, clusterer, covariance);
-        var classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, simpleShot, covariance);
+        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, clusterer, covariance);
+        var classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, covariance);
 
         var options = FewShotTrainOptions.Create(
             roiWidth: RoiWidth,
@@ -597,12 +594,11 @@ public sealed class EdgeFewShotTests
         var normalizer = new IlluminationNormalizer();
         var backbone = new MultiScaleGaborHogExtractor();
         var gemPooler = new GemSpatialPooler();
-        var simpleShot = new SimpleShotNormalizer();
         var clusterer = new KMeansPlusPlusClusterer();
         var covariance = new LedoitWolfCovariance();
 
-        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, simpleShot, clusterer, covariance);
-        var classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, simpleShot, covariance);
+        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, clusterer, covariance);
+        var classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, covariance);
 
         var goodClass = FewShotClassId.Create(0, "Good");
         var badClass = FewShotClassId.Create(1, "BackBad");
@@ -760,12 +756,11 @@ public sealed class EdgeFewShotTests
         var normalizer = new IlluminationNormalizer();
         var backbone = new MultiScaleGaborHogExtractor();
         var gemPooler = new GemSpatialPooler();
-        var simpleShot = new SimpleShotNormalizer();
         var clusterer = new KMeansPlusPlusClusterer();
         var covariance = new LedoitWolfCovariance();
 
-        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, simpleShot, clusterer, covariance);
-        var classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, simpleShot, covariance);
+        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, clusterer, covariance);
+        var classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, covariance);
 
         var options = FewShotTrainOptions.Create(
             roiWidth: roiSize,

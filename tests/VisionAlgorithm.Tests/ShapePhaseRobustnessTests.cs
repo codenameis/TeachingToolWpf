@@ -149,8 +149,8 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
                 }
             }
         }
-        var scene = new GrayImage(pixels, Width, Height, Width);
-        var options = new SearchOptions { ClutterWeight = 1, MaximumMatches = 1000, MaximumParallelism = 4 };
+        var scene = new ShapeGrayImage(pixels, Width, Height, Width);
+        var options = new ShapeSearchOptions { ClutterWeight = 1, MaximumMatches = 1000, MaximumParallelism = 4 };
         var matcher = new ShapeMatcher();
         var result = matcher.Search(scene, model, options);
         var missing = expected.Where(pose => !result.Matches.Any(match => SameTarget(match.Pose, pose))).ToArray();
@@ -261,7 +261,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
             MinimumFeatureContrastRatio = 0
         });
         var pose = new MatchPose(128, 128, 0);
-        var options = new SearchOptions { ClutterWeight = 1, Refine = false };
+        var options = new ShapeSearchOptions { ClutterWeight = 1, Refine = false };
         var matcher = new ShapeMatcher();
         var defaultMissing = matcher.RefineCandidate(missingDetail, defaultModel, pose, 1, options);
         var detailedMissing = matcher.RefineCandidate(missingDetail, detailedModel, pose, 1, options);
@@ -354,7 +354,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         Assert.Equal(before.EnergyRatio, after.EnergyRatio, 10);
     }
 
-    private static ShapeModel TrainLocalContrastModel(GrayImage training, ReadOnlyMemory<byte> mask = default)
+    private static ShapeModel TrainLocalContrastModel(ShapeGrayImage training, ReadOnlyMemory<byte> mask = default)
         => ShapeTrainer.Train(training, new(mask, new(128, 128)), new()
         {
             PyramidLevels = 1,
@@ -384,9 +384,9 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         });
     }
 
-    private void Check(ShapeModel model, GrayImage scene, MatchPose expected, string name, List<string> failures)
+    private void Check(ShapeModel model, ShapeGrayImage scene, MatchPose expected, string name, List<string> failures)
     {
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             ClutterWeight = 1,
             MaximumParallelism = 1
@@ -419,7 +419,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         => Distance(actual, expected) <= .75 && RobustShapeScene.AngleErrorDegrees(actual, expected) <= 1.5 &&
             Math.Abs(actual.Scale - expected.Scale) <= .025;
 
-    private static GrayImage CreateDistractor(int size, MatchPose pose)
+    private static ShapeGrayImage CreateDistractor(int size, MatchPose pose)
     {
         var pixels = new byte[size * size];
         var cosine = Math.Cos(pose.Angle);
@@ -440,7 +440,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         return new(pixels, size, size, size);
     }
 
-    private static GrayImage CreateMixedContrastScene(bool includeDetail)
+    private static ShapeGrayImage CreateMixedContrastScene(bool includeDetail)
     {
         const int Size = 256;
         var pixels = new byte[Size * Size];
@@ -456,7 +456,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         return new(pixels, Size, Size, Size);
     }
 
-    private static GrayImage CreateLocalContrastScene(byte detailIntensity, bool brightPatch = false)
+    private static ShapeGrayImage CreateLocalContrastScene(byte detailIntensity, bool brightPatch = false)
     {
         const int Size = 256;
         var pixels = Enumerable.Repeat((byte)20, Size * Size).ToArray();
@@ -473,7 +473,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         return new(pixels, Size, Size, Size);
     }
 
-    private static GrayImage CreateBoundaryContrastScene(int? barLeft, byte barIntensity, byte detailIntensity)
+    private static ShapeGrayImage CreateBoundaryContrastScene(int? barLeft, byte barIntensity, byte detailIntensity)
     {
         const int Size = 256;
         var pixels = Enumerable.Repeat((byte)20, Size * Size).ToArray();
@@ -493,7 +493,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         => (x is >= 118 and <= 134 && y is >= 40 and <= 216) ||
             (x is >= 118 and <= 232 && (y is >= 40 and <= 56 || y is >= 120 and <= 136 || y is >= 200 and <= 216));
 
-    private static GrayImage CreateBlockNoiseTile(int centerX, int centerY, double degrees, double scale, bool extraContour = false)
+    private static ShapeGrayImage CreateBlockNoiseTile(int centerX, int centerY, double degrees, double scale, bool extraContour = false)
     {
         const int Size = 640;
         var pixels = new byte[Size * Size];
@@ -522,7 +522,7 @@ public sealed class ShapePhaseRobustnessTests(ITestOutputHelper output)
         return new(pixels, Size, Size, Size);
     }
 
-    private static GrayImage CreateWire(int width, int height, MatchPose pose, double thickness)
+    private static ShapeGrayImage CreateWire(int width, int height, MatchPose pose, double thickness)
     {
         var pixels = new byte[width * height];
         var cosine = Math.Cos(pose.Angle);

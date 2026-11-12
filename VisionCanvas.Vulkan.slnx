@@ -9,6 +9,7 @@
     <Project Path="src/VisionImaging.Sources/VisionImaging.Sources.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/VisionCanvas.SampleShell/VisionCanvas.SampleShell.csproj" />
     <Project Path="samples/VisionCanvas.VulkanSample/VisionCanvas.VulkanSample.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -260,6 +260,53 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         Refresh();
     }
 
+    public void RegisterSingleBoardPresetSamples(
+        IReadOnlyList<Guid> goodRoiIds,
+        IReadOnlyList<Guid> defectRoiIds)
+    {
+        ArgumentNullException.ThrowIfNull(goodRoiIds);
+        ArgumentNullException.ThrowIfNull(defectRoiIds);
+
+        _samples.Clear();
+        _model = null;
+        LastTraining = null;
+        LastClassification = null;
+
+        foreach (Guid id in goodRoiIds)
+        {
+            if (_state.Rois.TryGetValue(id, out var roi) && !roi.IsGroup)
+            {
+                var pose = ToFixturePose(roi.Geometry, FewShotTrainOptions.DefaultRoiWidth, FewShotTrainOptions.DefaultRoiHeight);
+                _samples.Add(new EdgeFewShotSampleInput(roi.Id, roi.Name, pose, GoodClass));
+            }
+        }
+
+        foreach (Guid id in defectRoiIds)
+        {
+            if (_state.Rois.TryGetValue(id, out var roi) && !roi.IsGroup)
+            {
+                var pose = ToFixturePose(roi.Geometry, FewShotTrainOptions.DefaultRoiWidth, FewShotTrainOptions.DefaultRoiHeight);
+                _samples.Add(new EdgeFewShotSampleInput(roi.Id, roi.Name, pose, DefectClass));
+            }
+        }
+
+        if (_samples.Count < 2)
+        {
+            RegisterSingleBoardPresetSamples();
+            return;
+        }
+
+        UpdateSampleSummary();
+        BuildSamplePreviewOverlay();
+        foreach (var sample in _samples)
+        {
+            EmitFewShotSampleAssignment(sample);
+        }
+
+        Status = $"학습용 ROI {_samples.Count}개를 등록했습니다. ‘소량 샘플 모델 학습 실행’ 버튼을 눌러 프로토타입과 공분산을 학습하세요.";
+        Publish();
+    }
+
     public void RegisterSingleBoardPresetSamples()
     {
         var leaves = GetAllLeafRois();
@@ -277,13 +324,12 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         foreach (var roi in leaves)
         {
             var pose = ToFixturePose(roi.Geometry, FewShotTrainOptions.DefaultRoiWidth, FewShotTrainOptions.DefaultRoiHeight);
-            if (roi.Name.Contains("학습-정상", StringComparison.OrdinalIgnoreCase) ||
-                roi.Name.Contains("Train-Good", StringComparison.OrdinalIgnoreCase))
+            FewShotSampleRole role = LegacyRoiModeMigration.InferFewShotRole(roi.Name);
+            if (role == FewShotSampleRole.TrainGood)
             {
                 _samples.Add(new EdgeFewShotSampleInput(roi.Id, roi.Name, pose, GoodClass));
             }
-            else if (roi.Name.Contains("학습-불량", StringComparison.OrdinalIgnoreCase) ||
-                     roi.Name.Contains("Train-BackBad", StringComparison.OrdinalIgnoreCase))
+            else if (role == FewShotSampleRole.TrainDefect)
             {
                 _samples.Add(new EdgeFewShotSampleInput(roi.Id, roi.Name, pose, DefectClass));
             }
@@ -292,8 +338,7 @@ public sealed class EdgeFewShotViewModel : ObservableObject, IVisionAlgorithmPre
         if (_samples.Count < 2)
         {
             var nonTestLeaves = leaves
-                .Where(roi => !roi.Name.Contains("테스트", StringComparison.OrdinalIgnoreCase) &&
-                              !roi.Name.Contains("Test", StringComparison.OrdinalIgnoreCase))
+                .Where(static roi => LegacyRoiModeMigration.InferFewShotRole(roi.Name) != FewShotSampleRole.TestTarget)
                 .ToList();
             var candidates = nonTestLeaves.Count >= 2 ? nonTestLeaves : leaves;
             int half = candidates.Count / 2;

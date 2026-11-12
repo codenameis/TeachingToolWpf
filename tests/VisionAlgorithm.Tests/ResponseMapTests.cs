@@ -8,9 +8,9 @@ public sealed class ResponseMapTests
     [Fact]
     public void GrayInputValidatesStrideLengthAndOverflow()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new GrayImage(new byte[4], 3, 2, 2));
-        Assert.Throws<ArgumentException>(() => new GrayImage(new byte[4], 3, 2, 3));
-        Assert.Throws<OverflowException>(() => new GrayImage(new byte[1], 2, int.MaxValue, int.MaxValue));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ShapeGrayImage(new byte[4], 3, 2, 2));
+        Assert.Throws<ArgumentException>(() => new ShapeGrayImage(new byte[4], 3, 2, 3));
+        Assert.Throws<OverflowException>(() => new ShapeGrayImage(new byte[1], 2, int.MaxValue, int.MaxValue));
     }
 
     [Fact]

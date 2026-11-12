@@ -29,7 +29,7 @@ public static class PatMaxTrainer
     // [Math Why]: Inverse golden ratio conjugate (~0.61803398875) yields a low-discrepancy quasi-random stride across 1D raster dipole sequences.
     private const float GoldenRatioConjugate = 0.61803398875f;
 
-    public static PatMaxModel Train(GrayImage image, in PatMaxTrainParams trainParams, CancellationToken cancellationToken = default)
+    public static PatMaxModel Train(ShapeGrayImage image, in PatMaxTrainParams trainParams, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(image);
         return Train(

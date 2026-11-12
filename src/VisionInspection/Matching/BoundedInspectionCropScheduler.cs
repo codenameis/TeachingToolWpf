@@ -10,8 +10,8 @@ internal static class BoundedInspectionCropScheduler
     private sealed record Work<TResult>(int Index, long Pixels, Task<TResult> Task);
 
     public static double Run<TJob, TResult>(IReadOnlyList<TJob> jobs, Func<TJob, long> pixelCount,
-        Func<TJob, CancellationToken, GrayImage> read,
-        Func<TJob, GrayImage, CancellationToken, TResult> execute, Action<int, TResult> publish,
+        Func<TJob, CancellationToken, ShapeGrayImage> read,
+        Func<TJob, ShapeGrayImage, CancellationToken, TResult> execute, Action<int, TResult> publish,
         Limits limits, CancellationToken token)
     {
         if (limits.MaximumParallelism < 1 || limits.ParallelPixels < 1 || limits.SingleCropPixels < limits.ParallelPixels)

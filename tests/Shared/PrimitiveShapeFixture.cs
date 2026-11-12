@@ -9,11 +9,11 @@ internal readonly record struct PrimitiveFixtureShape(PrimitiveShapeKind Kind, d
 
 internal static class PrimitiveShapeFixture
 {
-    public static GrayImage Mixed() => Create(640, 480,
+    public static ShapeGrayImage Mixed() => Create(640, 480,
         new(PrimitiveShapeKind.Triangle, 130, 120, 17), new(PrimitiveShapeKind.Rectangle, 440, 120, 27),
         new(PrimitiveShapeKind.Circle, 160, 350), new(PrimitiveShapeKind.Cross, 450, 350, 29));
 
-    public static GrayImage Create(int width, int height, params PrimitiveFixtureShape[] shapes)
+    public static ShapeGrayImage Create(int width, int height, params PrimitiveFixtureShape[] shapes)
     {
         var pixels = new byte[checked(width * height)];
         Array.Fill(pixels, (byte)25);
@@ -52,7 +52,7 @@ internal static class PrimitiveShapeFixture
         return new(pixels, width, height, width);
     }
 
-    public static void WritePng(string path, GrayImage image)
+    public static void WritePng(string path, ShapeGrayImage image)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var pixels = new byte[image.Width * image.Height];

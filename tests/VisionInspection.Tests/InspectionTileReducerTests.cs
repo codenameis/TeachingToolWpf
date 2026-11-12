@@ -24,7 +24,7 @@ public sealed class InspectionTileReducerTests
                 var stride = width + 7;
                 var input = new byte[(stride * height) + Offset + 9];
                 random.NextBytes(input);
-                var original = new GrayImage(input.AsMemory(Offset), width, height, stride);
+                var original = new ShapeGrayImage(input.AsMemory(Offset), width, height, stride);
                 var expected = ScalarReduce(original, factor);
                 using var actual = InspectionTileReducer.Reduce(original, factor, default);
                 Assert.Equal(expected.Width, actual.Width);
@@ -66,7 +66,7 @@ public sealed class InspectionTileReducerTests
         Assert.Throws<OperationCanceledException>(() => InspectionTileReducer.Reduce(new(new byte[64], 8, 8, 8), 4, cancellation.Token));
     }
 
-    private static GrayImage ScalarReduce(GrayImage image, int factor)
+    private static ShapeGrayImage ScalarReduce(ShapeGrayImage image, int factor)
     {
         while (factor > 1)
         {

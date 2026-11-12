@@ -60,7 +60,7 @@ internal sealed record MatchingSearchSettings
     {
         get; init;
     }
-    public SearchOptions Options { get; init; } = new();
+    public ShapeSearchOptions Options { get; init; } = new();
     public bool UseSelection
     {
         get; init;

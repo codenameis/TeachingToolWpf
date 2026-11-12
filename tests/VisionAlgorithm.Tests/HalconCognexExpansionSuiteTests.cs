@@ -257,7 +257,7 @@ public sealed class HalconCognexExpansionSuiteTests
         Array.Fill(img, (byte)235);
 
         const string expectedPayload = "LOT26A";
-        DataMatrixEcc200Decoder.RenderEcc200Symbol(
+        Ecc200SymbolRenderer.RenderEcc200Symbol(
             expectedPayload,
             img,
             dmWidth,
@@ -296,7 +296,7 @@ public sealed class HalconCognexExpansionSuiteTests
         Array.Fill(img, (byte)232);
 
         float expectedRad = expectedAngleDeg * (MathF.PI / 180.0f);
-        DataMatrixEcc200Decoder.RenderRotatedEcc200Symbol(
+        Ecc200SymbolRenderer.RenderRotatedEcc200Symbol(
             "ROT23",
             img,
             dmWidth,

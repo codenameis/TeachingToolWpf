@@ -39,7 +39,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
     {
         var model = TrainModel(masked);
         var scene = SyntheticScene.Create(253, 197, new MatchPose(102.3, 86.7, .1));
-        var options = new SearchOptions { MaximumParallelism = 1, TiledPreprocessing = tiled, ClutterWeight = 1 };
+        var options = new ShapeSearchOptions { MaximumParallelism = 1, TiledPreprocessing = tiled, ClutterWeight = 1 };
         var expected = Assert.Single(new ShapeMatcher().Search(scene, model, options).Matches);
         using var preprocessor = new CudaImagePreprocessor();
         var actual = new ShapeMatcher(preprocessor).Search(scene, model,
@@ -57,7 +57,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
     {
         var model = TrainModel(true);
         var scene = SyntheticScene.Create(253, 197, new MatchPose(102.3, 86.7, .1));
-        var options = new SearchOptions { MaximumParallelism = 1, ClutterWeight = 1 };
+        var options = new ShapeSearchOptions { MaximumParallelism = 1, ClutterWeight = 1 };
         var cpu = new ShapeMatcher();
         var expectedSearch = Assert.Single(cpu.Search(scene, model, options).Matches);
         var expectedRefinement = Assert.Single(cpu.RefineCandidate(scene, model, new(102, 87, .1), .9, options).Matches);
@@ -81,7 +81,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
     {
         var model = TrainModel(masked);
         var scene = SyntheticScene.Create(253, 197, new MatchPose(102.3, 86.7, .1));
-        var cpuOptions = new SearchOptions { MaximumParallelism = 1, ClutterWeight = 1 };
+        var cpuOptions = new ShapeSearchOptions { MaximumParallelism = 1, ClutterWeight = 1 };
         var cpu = new ShapeMatcher();
         var expected = Assert.Single(cpu.Search(scene, model, cpuOptions).Matches);
         var expectedRefinement = Assert.Single(cpu.RefineCandidate(scene, model, new(102, 87, .1), .9, cpuOptions).Matches);
@@ -128,7 +128,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
             });
     }
 
-    internal static GrayImage RandomImage(int width, int height, int padding)
+    internal static ShapeGrayImage RandomImage(int width, int height, int padding)
     {
         var stride = width + padding;
         const int Prefix = 13;
@@ -146,7 +146,7 @@ public sealed class CudaPreprocessingTests(ITestOutputHelper output)
         Assert.Equal(expected.Y, actual.Y);
     }
 
-    internal static GradientPlanes ReferenceGradient(GrayImage image, float threshold)
+    internal static GradientPlanes ReferenceGradient(ShapeGrayImage image, float threshold)
     {
         ReadOnlySpan<int> weights = [1, 4, 6, 4, 1];
         var count = image.Width * image.Height;

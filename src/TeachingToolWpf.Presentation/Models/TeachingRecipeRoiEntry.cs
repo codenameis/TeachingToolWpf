@@ -1,3 +1,4 @@
+using TeachingToolWpf.Imaging.Matching;
 using VisionCanvas.Core.Editing;
 using VisionGeometry;
 
@@ -18,4 +19,8 @@ public sealed record TeachingRecipeRoiEntry(
     FilterSettings PrimaryFilter,
     List<FilterSettings> FilterPipeline,
     string OcvExpectedText = "",
-    string OcvFormatMask = "");
+    string OcvFormatMask = "",
+    string OcvFontId = RoiOcvSettings.DefaultFontId,
+    Guid? Id = null,
+    InspectionSuiteAlgorithmKind? SuiteAlgorithm = null,
+    RoiSuiteExecutionMode? SuiteExecutionMode = null);

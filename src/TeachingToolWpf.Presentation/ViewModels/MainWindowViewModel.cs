@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Input;
 using TeachingToolWpf.Commands;
+using TeachingToolWpf.Imaging.Matching;
 using TeachingToolWpf.Infrastructure;
 using TeachingToolWpf.MassiveModels;
 using TeachingToolWpf.Models;
@@ -32,10 +33,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private readonly List<AsyncCommand> _asyncCommands = [];
     private readonly RoiClipboard _clipboard = new();
     private readonly RoiPreviewPreparation _previewPreparation;
+    private readonly TeachingToolWpf.Imaging.Matching.IPreInspectionFilterPipeline _preFilterPipeline;
     private CancellationTokenSource? _editCancellation;
     private MassiveRoiModelFile? _activeMassiveModel;
     private bool _suppressMassiveModelReset;
     private bool _disposed;
+
+    public TeachingToolWpf.Imaging.Matching.IPreInspectionFilterPipeline PreFilterPipeline => _preFilterPipeline;
 
     public MassiveRoiModelFile? ActiveMassiveModel => _activeMassiveModel;
 
@@ -357,16 +361,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     public MainWindowViewModel(IImageDisplay display, ViewportLayout layout, IImageLoader loader, LivePreview live, VisionCanvas.Imaging.Filters.IRoiFilterPreview filterPreview,
-        InspectionToolsViewModel inspections, Func<string?>? selectImage = null)
-        : this(display, layout, loader, live, filterPreview, inspections, null, selectImage)
+        InspectionToolsViewModel inspections, Func<string?>? selectImage = null,
+        TeachingToolWpf.Imaging.Matching.IPreInspectionFilterPipeline? preFilterPipeline = null)
+        : this(display, layout, loader, live, filterPreview, inspections, null, selectImage, preFilterPipeline)
     {
     }
 
     internal MainWindowViewModel(IImageDisplay display, ViewportLayout layout, IImageLoader loader, LivePreview live, VisionCanvas.Imaging.Filters.IRoiFilterPreview filterPreview,
-        InspectionToolsViewModel inspections, Action<DocumentState, CancellationToken>? preparePreview, Func<string?>? selectImage = null)
+        InspectionToolsViewModel inspections, Action<DocumentState, CancellationToken>? preparePreview, Func<string?>? selectImage = null,
+        TeachingToolWpf.Imaging.Matching.IPreInspectionFilterPipeline? preFilterPipeline = null)
     {
         Layout = layout;
         _selectImage = selectImage;
+        _preFilterPipeline = preFilterPipeline ?? new TeachingToolWpf.Imaging.Matching.PreInspectionFilterPipeline();
         StyleSettings.Changed += ApplyRoiSettings;
         Live = live;
         Filters = new(filterPreview, Session);
@@ -379,7 +386,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         Masks.Changed += Publish;
         Masks.PatternMaskEditorRequested += RequestPatternMaskWindow;
         Images = new(Session, display, layout, loader, Live.CloseAsync, PrepareRowsAsync);
-        PatternMaskEditor = new(Session, loader, () => null, message => Status = message);
+        PatternMaskEditor = new(Session, loader, () => null, message => Status = message, _preFilterPipeline);
         Inspections = inspections;
         Matching = inspections.Pattern;
         SyncPreInspectionFilterPipeline(Filters.BuildEffectivePipeline(), Filters.PreFilterBeforeInspection);
@@ -583,7 +590,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void SessionChanged(object? sender, EventArgs e)
     {
-        Input.ValidateDraftImage();
+        Input.ReconcileToolWithDocument();
         var isPreviewing = Session.IsPreviewing;
         var previewingTransition = _wasPreviewing != isPreviewing;
         _wasPreviewing = isPreviewing;
@@ -1093,7 +1100,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (!preFilterBeforeInspection || pipeline.IsDefaultOrEmpty)
         {
-            TeachingToolWpf.Imaging.Matching.PreInspectionFilterPipeline.ClearActivePipeline();
+            _preFilterPipeline.ClearActivePipeline();
             Inspections.UpdatePreFilterStatus(Filters.PipelineSummaryText, hasEnabledSteps: false);
             return;
         }
@@ -1115,7 +1122,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         var mapped = builder.ToImmutable();
-        TeachingToolWpf.Imaging.Matching.PreInspectionFilterPipeline.SetActivePipeline(mapped);
+        _preFilterPipeline.SetActivePipeline(mapped);
         Inspections.UpdatePreFilterStatus(Filters.PipelineSummaryText, hasEnabledSteps: !mapped.IsEmpty);
     }
 
@@ -1132,13 +1139,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public void SaveTeachingRecipeToDefaultFile()
     {
         var rois = new List<TeachingRecipeRoiEntry>();
-        foreach (var roi in Session.State.Rois.Values)
+        foreach (var roi in Session.State.Rois.Values.OrderBy(static r => r.Order))
         {
             if (Session.State.IsGroupRoi(roi.Id))
             {
                 continue;
             }
 
+            Inspections.RoiAssignments.TryGetValue(roi.Id, out var assignment);
+            RoiSuiteExecutionMode? mode = Inspections.Suite is { } suite
+                ? suite.GetRoiExecutionMode(roi)
+                : assignment?.SuiteExecutionMode;
             rois.Add(new TeachingRecipeRoiEntry(
                 Name: roi.Name,
                 Kind: roi.Geometry.Shape.Kind,
@@ -1151,7 +1162,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 PrimaryFilter: roi.Filter,
                 FilterPipeline: [.. roi.FilterPipeline],
                 OcvExpectedText: roi.Ocv.ExpectedText,
-                OcvFormatMask: roi.Ocv.FormatMask));
+                OcvFormatMask: roi.Ocv.FormatMask,
+                OcvFontId: RoiOcvSettings.NormalizeFontId(roi.Ocv.FontId),
+                Id: roi.Id,
+                SuiteAlgorithm: assignment?.SuiteAlgorithm,
+                SuiteExecutionMode: mode));
         }
 
         var doc = new TeachingRecipeDocument
@@ -1159,12 +1174,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             ActiveTeachingCategory = Inspections.Selected.ToString(),
             PreFilterBeforeInspection = Filters.PreFilterBeforeInspection,
             SessionFilterPipeline = [.. Filters.PipelineSteps.Select(static s => s.Settings)],
-            Rois = rois
+            Rois = rois,
+            OcvFontModels = Inspections.Suite?.ExportOcvFontModelsForRecipe() ?? [],
+            SuiteParameters = Inspections.Suite?.ExportParameters()
         };
 
         var recipePath = Path.Combine(AppContext.BaseDirectory, "latest-teaching-recipe.json");
         File.WriteAllText(recipePath, doc.ToJson());
-        Status = $"티칭 레시피 저장 완료: ROI {rois.Count}개 · 필터 파이프라인 {doc.SessionFilterPipeline.Count}단계 ({Path.GetFileName(recipePath)})";
+        Status = $"티칭 레시피 저장 완료: ROI {rois.Count}개 · 폰트 {doc.OcvFontModels.Count}종 · 필터 파이프라인 {doc.SessionFilterPipeline.Count}단계 ({Path.GetFileName(recipePath)})";
     }
 
     public void LoadTeachingRecipeFromDefaultFile()
@@ -1190,7 +1207,75 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             Inspections.Selected = category;
         }
 
-        Status = $"티칭 레시피 불러오기 완료: 카테고리={doc.ActiveTeachingCategory} · ROI {doc.Rois.Count}개 · 필터 {doc.SessionFilterPipeline.Count}단계";
+        if (doc.Rois.Count > 0 && Session.State.Image is not null)
+        {
+            var restoredRois = new List<Roi>(doc.Rois.Count);
+            var restoredModes = new List<(Guid RoiId, string RoiName, InspectionSuiteAlgorithmKind? SuiteAlgorithm, RoiSuiteExecutionMode Mode)>(doc.Rois.Count);
+            for (int i = 0; i < doc.Rois.Count; i++)
+            {
+                var entry = doc.Rois[i];
+                RoiShape shape = entry.Kind switch
+                {
+                    RoiShapeKind.Circle => RoiShape.Circle,
+                    RoiShapeKind.Triangle => RoiShape.Triangle,
+                    _ => RoiShape.Rectangle
+                };
+                double width = Math.Max(1.0, entry.Width);
+                double height = entry.Kind == RoiShapeKind.Circle ? width : Math.Max(1.0, entry.Height);
+                var geometry = new RoiGeometry(new PointD(entry.CenterX, entry.CenterY), width, height, entry.AngleDegrees, shape);
+                var roiId = entry.Id is { } savedId && savedId != Guid.Empty ? savedId : Guid.NewGuid();
+                RoiSearchRange? searchRange = entry.SearchMarginPixels > 0.0
+                    ? new RoiSearchRange(entry.SearchMarginPixels, entry.SearchMarginPixels)
+                    : null;
+                var ocv = new RoiOcvSettings(
+                    entry.OcvExpectedText ?? string.Empty,
+                    entry.OcvFormatMask ?? string.Empty,
+                    RoiOcvSettings.NormalizeFontId(entry.OcvFontId));
+                string roiName = string.IsNullOrWhiteSpace(entry.Name) ? $"ROI {i + 1:000}" : entry.Name;
+                var roi = new Roi(roiId, roiName, geometry, null, false, i + 1)
+                {
+                    SearchRange = searchRange,
+                    Filter = entry.PrimaryFilter,
+                    FilterPipeline = entry.FilterPipeline is { Count: > 0 } ? [.. entry.FilterPipeline] : [],
+                    Ocv = ocv
+                };
+                restoredRois.Add(roi);
+                RoiSuiteExecutionMode mode = entry.SuiteExecutionMode ?? LegacyRoiModeMigration.FromRoiName(entry.Name);
+                restoredModes.Add((roiId, roiName, entry.SuiteAlgorithm, mode));
+            }
+
+            RunGuarded(() => Session.ReplaceWithNamedRois("티칭 레시피 불러오기", restoredRois, selectAdded: restoredRois.Count == 1));
+            if (Inspections.Suite is { } restoredSuite)
+            {
+                foreach (var item in restoredModes)
+                {
+                    restoredSuite.SetRoiExecutionMode(item.RoiId, item.Mode);
+                    if (item.SuiteAlgorithm is { } algKind)
+                    {
+                        var normalizedAlg = restoredSuite.Registry.NormalizeKind(algKind);
+                        string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, normalizedAlg, restoredSuite.Registry);
+                        string accent = RoiAlgorithmAssignment.GetAlgorithmAccent(InspectionToolKind.InspectionSuite, null, normalizedAlg);
+                        Inspections.RecordSingleAssignment(Session.State, new RoiAlgorithmAssignment(
+                            RoiId: item.RoiId,
+                            RoiName: item.RoiName,
+                            Tool: InspectionToolKind.InspectionSuite,
+                            PatternMethod: null,
+                            SuiteAlgorithm: normalizedAlg,
+                            AlgorithmBadge: badge,
+                            AlgorithmAccent: accent,
+                            ParameterSummary: restoredSuite.Registry.GetShortName(normalizedAlg),
+                            VerdictBadge: "레시피 복원",
+                            VerdictAccent: "#38BDF8",
+                            LastResultSummary: $"{badge} 레시피 복원 완료",
+                            SuiteExecutionMode: item.Mode));
+                    }
+                }
+            }
+        }
+
+        Inspections.Suite?.ImportParameters(doc.SuiteParameters);
+        Inspections.Suite?.ImportOcvFontModelsFromRecipe(doc.OcvFontModels);
+        Status = $"티칭 레시피 불러오기 완료: 카테고리={doc.ActiveTeachingCategory} · ROI {doc.Rois.Count}개 · 폰트 {doc.OcvFontModels.Count}종 · 필터 {doc.SessionFilterPipeline.Count}단계";
     }
 
     public void Dispose()

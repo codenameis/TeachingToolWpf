@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Win32.SafeHandles;
-using VisionCanvas.Diagnostics;
+using VisionCanvas.Rendering.Abstractions;
 using Vortice.Direct3D12;
 using Vortice.DXGI;
 using Vortice.Mathematics;

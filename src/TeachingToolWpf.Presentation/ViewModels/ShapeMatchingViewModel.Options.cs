@@ -192,7 +192,7 @@ public sealed partial class ShapeMatchingViewModel
         }
     }
 
-    private void ChangeSearchOptions(SearchOptions options, [CallerMemberName] string? property = null)
+    private void ChangeSearchOptions(ShapeSearchOptions options, [CallerMemberName] string? property = null)
         => ChangeSearchSettings(ActiveSearchSettings with
         {
             Options = options
@@ -222,7 +222,7 @@ public sealed partial class ShapeMatchingViewModel
         }
     }
 
-    private SearchOptions CreateTemplateSearchOptions() => new()
+    private ShapeSearchOptions CreateTemplateSearchOptions() => new()
     {
         MinimumScore = MinimumScore,
         MaximumMatches = MaximumMatches,

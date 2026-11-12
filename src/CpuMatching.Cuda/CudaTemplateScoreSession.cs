@@ -104,7 +104,7 @@ public sealed class CudaTemplateScoreSession : IDisposable
             DirectionalSampling sampling, double[] output, CancellationToken token) =>
             owner.Execute(this, backend => backend.ScoreDirections(maps, points, width, height, sampling, output, token));
 
-        public void ScoreCorrelation(GrayImage image, CorrelationSample[] points, double templateEnergy,
+        public void ScoreCorrelation(CpuGrayImage image, CorrelationSample[] points, double templateEnergy,
             double[] output, CancellationToken token) =>
             owner.Execute(this, backend => backend.ScoreCorrelation(image, points, templateEnergy, output, token));
 

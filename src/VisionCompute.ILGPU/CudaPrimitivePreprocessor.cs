@@ -53,7 +53,7 @@ public sealed class CudaPrimitivePreprocessor : IPrimitivePreprocessor
         }
     }
 
-    public GrayImage Median3x3(GrayImage image, CancellationToken token, Memory<byte> destination = default)
+    public ShapeGrayImage Median3x3(ShapeGrayImage image, CancellationToken token, Memory<byte> destination = default)
     {
         var count = checked(image.Width * image.Height);
         if (count > PrimitiveShapeDetector.MaximumPixels)

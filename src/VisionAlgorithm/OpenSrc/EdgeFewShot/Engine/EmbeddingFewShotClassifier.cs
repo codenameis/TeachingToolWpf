@@ -1,31 +1,15 @@
-// File: src/VisionAlgorithm/OpenSrc/EdgeFewShot/Engine/EmbeddingFewShotClassifier.cs
 using VisionAlgorithm.OpenSrc.Common;
 
 namespace VisionAlgorithm.OpenSrc.EdgeFewShot.Engine;
 
 /// <summary>
-/// Represents a labeled few-shot training example in feature space.
-/// </summary>
-public readonly record struct FewShotTrainingExample(int ClassLabel, float[] RawEmbedding);
-
-/// <summary>
 /// Represents a trained sub-cluster prototype within a class.
 /// </summary>
-public readonly record struct FewShotClassPrototype(
+internal readonly record struct FewShotClassPrototype(
     int ClassLabel,
     int SubClusterIndex,
     float[] NormalizedCentroid,
     float RejectionRadiusThreshold);
-
-/// <summary>
-/// Prediction result of <see cref="EmbeddingFewShotClassifier"/> including Out-of-Distribution (OOD) anomaly detection.
-/// </summary>
-public readonly record struct FewShotPrediction(
-    int PredictedClassLabel,
-    bool IsOutOfDistribution,
-    float MahalanobisDistance,
-    float RejectionThreshold,
-    float ConfidenceScore);
 
 /// <summary>
 /// Few-shot multi-prototype embedding classifier combining <see cref="SimpleShotNormalizer"/>, deterministic K-Means++
@@ -61,7 +45,6 @@ public sealed class EmbeddingFewShotClassifier
     private readonly LedoitWolfMahalanobis _mahalanobisMetric;
 
     public int FeatureDimension { get; }
-    public IReadOnlyList<FewShotClassPrototype> Prototypes => _prototypes;
     public LedoitWolfMahalanobis Metric => _mahalanobisMetric;
 
     private EmbeddingFewShotClassifier(

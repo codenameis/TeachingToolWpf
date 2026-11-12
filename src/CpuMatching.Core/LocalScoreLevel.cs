@@ -3,12 +3,12 @@ using System.Diagnostics;
 namespace CpuMatching.Core;
 
 /// <summary>전체 후보 탐색 이후의 원본/중간 점수 맵만 필요한 주변에 준비한다.</summary>
-internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
+internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<CpuGrayImage, IScoreLevel> prepare, CancellationToken token,
     bool reuseIdenticalTiles = false) : IScoreLevel
 {
     private int ImageWidth => image.Width;
     private int ImageHeight => image.Height;
-    public LocalScoreLevel(GrayImage image, int margin, Func<GrayImage, IScoreLevel> prepare, CancellationToken token,
+    public LocalScoreLevel(CpuGrayImage image, int margin, Func<CpuGrayImage, IScoreLevel> prepare, CancellationToken token,
         bool reuseIdenticalTiles = false) : this(new SearchImage(image), margin, prepare, token, reuseIdenticalTiles) { }
 
     internal const int CellSize = 256;
@@ -19,7 +19,7 @@ internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayIm
     private readonly Dictionary<(int X, int Y), Tile> _tiles = new();
     private readonly Queue<(int X, int Y)> _order = new();
     private readonly Queue<Tile> _contentMaps = new();
-    private readonly bool _profile = SearchDiagnostics.Listener.IsEnabled();
+    private readonly bool _profile = CpuSearchDiagnostics.Listener.IsEnabled();
     private long _reads;
     private long _builds;
     private long _clearedAliases;
@@ -34,7 +34,7 @@ internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayIm
     {
         if (_profile)
         {
-            SearchDiagnostics.Write("Maps", new
+            CpuSearchDiagnostics.Write("Maps", new
             {
                 image.Width,
                 image.Height,
@@ -156,7 +156,7 @@ internal sealed class LocalScoreLevel(SearchImage image, int margin, Func<GrayIm
         }
     }
 
-    private sealed record Tile(int Left, int Top, IScoreLevel Level, GrayImage Pixels, int Hash);
+    private sealed record Tile(int Left, int Top, IScoreLevel Level, CpuGrayImage Pixels, int Hash);
 
     private sealed class Pose(LocalScoreLevel owner, double angle, double scale) : IPoseScore
     {

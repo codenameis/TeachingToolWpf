@@ -138,7 +138,7 @@ internal static class NarrowRoiBenchmark
                 using var scene = new Mat(source, sceneRect);
                 Cv2.ImWrite(Path.Combine(folder, name + "-template.png"), template);
                 Cv2.ImWrite(Path.Combine(folder, name + ".png"), scene);
-                cases.Add(new(name, name + "-template.png", name + ".png", new SearchOptions
+                cases.Add(new(name, name + "-template.png", name + ".png", new CpuSearchOptions
                 {
                     MinimumAngle = -30,
                     MaximumAngle = 30,
@@ -183,6 +183,6 @@ internal static class NarrowRoiBenchmark
         using var contiguous = patch.Clone();
         var pixels = new byte[patch.Width * patch.Height];
         Marshal.Copy(contiguous.Data, pixels, 0, pixels.Length);
-        return Edges.Extract(new GrayImage(patch.Width, patch.Height, pixels), 0, 0).Length >= 6;
+        return Edges.Extract(new CpuGrayImage(patch.Width, patch.Height, pixels), 0, 0).Length >= 6;
     }
 }

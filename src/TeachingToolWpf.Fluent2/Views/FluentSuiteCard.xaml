@@ -65,7 +65,7 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
-                                <Button Content="1D·2D 바코드 (2)" Command="{Binding SelectBarcodeCategory}" Margin="2,0,0,0" Padding="4,3" MinHeight="24" FontSize="10" ToolTip="1D Code 128 바코드 / 2D DataMatrix ECC 200">
+                                <Button Content="1D·2D 바코드 (3)" Command="{Binding SelectBarcodeCategory}" Margin="2,0,0,0" Padding="4,3" MinHeight="24" FontSize="10" ToolTip="1D Code 128 바코드 / 2D DataMatrix ECC 200 / 2D QR 코드 (ISO 18004)">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
                                             <Style.Triggers>
@@ -997,6 +997,31 @@
                                 </Grid>
                             </StackPanel>
 
+                            <!-- [Page 21] ISO/IEC 18004 2D QR Code 360-deg Pose & Reed-Solomon Parameters -->
+                            <StackPanel Visibility="{Binding IsQrCode2DSelected, Converter={StaticResource BoolVisibility}}">
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="152" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="56" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="ISO 15415 최소 심볼 대비 (0.05~0.9)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
+                                    <Slider Grid.Column="1" Style="{StaticResource Fluent2SliderStyle}" Minimum="0.05" Maximum="0.90" TickFrequency="0.01" Value="{Binding QrCodeMinIsoContrast, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}" Text="{Binding QrCodeMinIsoContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}" />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="152" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="56" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="RS(0x11D) 최대 허용 정정수 (0~32)" Style="{StaticResource Fluent2ParameterLabelStyle}" />
+                                    <Slider Grid.Column="1" Style="{StaticResource Fluent2SliderStyle}" Minimum="0" Maximum="32" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding QrCodeMaxEccErrors, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Grid.Column="2" Style="{StaticResource Fluent2CompactNumericBoxStyle}" Text="{Binding QrCodeMaxEccErrors, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}" />
+                                </Grid>
+                            </StackPanel>
+
                             <!-- [Page 17] 2D Radix-2 FFT Notch, Homomorphic & Gabor Filter Parameters -->
                             <StackPanel Visibility="{Binding IsPreprocessingFftGaborSelected, Converter={StaticResource BoolVisibility}}">
                                 <Grid Margin="0,0,0,4">
@@ -1209,7 +1234,12 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="기대 문자열 (ROI)" Style="{StaticResource Fluent2ParameterLabelStyle}" VerticalAlignment="Center" />
-                                <TextBox Grid.Column="1" Text="{Binding SelectedRoiOcvExpectedText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas, Malgun Gothic" FontSize="11" ToolTip="선택한 ROI의 기준/기대 문자열 (문서 저장 및 Ctrl+Z 실행 취소 지원)" />
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding SelectedRoiOcvExpectedText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                         IsEnabled="{Binding CanEditSelectedRoiOcvSettings}"
+                                         FontFamily="Consolas, Malgun Gothic"
+                                         FontSize="11"
+                                         ToolTip="단일 선택된 ROI의 기준/기대 문자열 (포커스 이동 시 문서 저장 및 Ctrl+Z 실행 취소 1건 기록)" />
                             </Grid>
 
                             <Button Content="PP-OCR 판독값 → 기대 문자열 채우기"
@@ -1218,7 +1248,7 @@
                                     Height="24"
                                     FontSize="9.8"
                                     Margin="0,0,0,5"
-                                    ToolTip="방금 PP-OCRv4로 판독한 문자열을 현재 선택된 ROI의 OCV 기대 문자열에 즉시 복사합니다." />
+                                    ToolTip="방금 합격(PASS) 판정된 선택 ROI의 PP-OCRv4 판독 문자열을 확인 후 OCV 기대 문자열에 복사합니다." />
 
                             <Grid Margin="0,0,0,5">
                                 <Grid.ColumnDefinitions>
@@ -1226,7 +1256,26 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="형식 마스크 (선택)" Style="{StaticResource Fluent2ParameterLabelStyle}" VerticalAlignment="Center" />
-                                <TextBox Grid.Column="1" Text="{Binding SelectedRoiOcvFormatMask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas, Malgun Gothic" FontSize="10.5" ToolTip="패턴 마스크(A=대문자, 9=숫자, #=영숫자, ?=임의) 또는 ^...$ 정규식" />
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding SelectedRoiOcvFormatMask, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                         IsEnabled="{Binding CanEditSelectedRoiOcvSettings}"
+                                         FontFamily="Consolas, Malgun Gothic"
+                                         FontSize="10.5"
+                                         ToolTip="예: AAAADDDD 또는 LOT\-DDDD\-ADD · 기호: D=숫자(0-9), A=영문대문자, a=영문소문자, X=영숫자, #=공백제외 임의문자, [0-9A-F]=문자범위, \문자=리터럴 (정규식 미지원)" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,5">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="118" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="폰트 ID (선택)" Style="{StaticResource Fluent2ParameterLabelStyle}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding SelectedRoiOcvFontId, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                         IsEnabled="{Binding CanEditSelectedRoiOcvSettings}"
+                                         FontFamily="Consolas, Malgun Gothic"
+                                         FontSize="10.5"
+                                         ToolTip="ROI가 참조할 골든 폰트 식별자 (기본: default · 공정/인쇄기별 다중 폰트 분리)" />
                             </Grid>
 
                             <Grid Margin="0,0,0,5">

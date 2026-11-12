@@ -30,7 +30,7 @@ internal static class CpuWindowedBenchmark
         var timer = Stopwatch.StartNew();
         var model = await service.TrainAsync(image, false, roi, method, cancel.Token);
         var trainingMs = timer.Elapsed.TotalMilliseconds;
-        var options = new CpuMatching.Core.SearchOptions { MinimumAngle = -30, MaximumAngle = 30, MaximumMatches = 256 };
+        var options = new CpuMatching.Core.CpuSearchOptions { MinimumAngle = -30, MaximumAngle = 30, MaximumMatches = 256 };
         var allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
         var collectionsBefore = GC.CollectionCount(2);
         timer.Restart();

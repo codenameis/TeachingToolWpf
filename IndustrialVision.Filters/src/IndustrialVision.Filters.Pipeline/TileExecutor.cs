@@ -2,9 +2,6 @@ using IndustrialVision.Filters.Core;
 
 namespace IndustrialVision.Filters.Pipeline;
 
-public sealed record TileExecutionReport(int Tiles, int Halo, int TileWidth, int TileHeight,
-    long PeakHostBytes, long PeakGpuBytes, long UploadBytes, long DownloadBytes, IReadOnlyList<StagePlan> Stages);
-
 /// <summary>지역 연산 전용. halo를 역방향 누적하고 실제 영상 경계에서 각 필터의 replicate를 적용한다.</summary>
 public sealed class TileExecutor(FilterEngine engine)
 {

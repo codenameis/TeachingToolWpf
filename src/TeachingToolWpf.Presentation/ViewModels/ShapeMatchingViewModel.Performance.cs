@@ -73,7 +73,7 @@ public sealed partial class ShapeMatchingViewModel
         set => ChangeSearchSettings(ActiveSearchSettings with { SearchTimeoutSeconds = value });
     }
 
-    private SearchOptions ApplyProfile(SearchOptions options, InspectionSpeedProfile profile)
+    private ShapeSearchOptions ApplyProfile(ShapeSearchOptions options, InspectionSpeedProfile profile)
     {
         var (candidates, verified, coarse, refine) = profile switch
         {

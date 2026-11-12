@@ -1,4 +1,5 @@
 using VisionCanvas.Imaging;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 using VisionImaging.Abstractions;
 

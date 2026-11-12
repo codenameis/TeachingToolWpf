@@ -124,7 +124,7 @@ internal static class ShapeRegressionBenchmark
                 // 방식별 순서를 바꿔 항상 CPU 4만 뒤에서 실행하는 편향을 줄인다.
                 foreach (var parallelism in new[] { 1, 4 })
                 {
-                    var options = new SearchOptions
+                    var options = new ShapeSearchOptions
                     {
                         MaximumMatches = 1000,
                         MaximumParallelism = parallelism,

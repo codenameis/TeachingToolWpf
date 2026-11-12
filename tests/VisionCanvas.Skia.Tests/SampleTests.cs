@@ -7,7 +7,7 @@ using System.Windows.Threading;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
-using VisionCanvas.SkiaSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.SkiaSample.ViewModels;
 using VisionCanvas.SkiaSample.Views;
 using VisionImaging;

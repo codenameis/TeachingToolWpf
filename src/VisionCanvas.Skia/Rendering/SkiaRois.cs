@@ -2,6 +2,7 @@ using SkiaSharp;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 
 namespace VisionCanvas.Skia.Rendering;
@@ -32,15 +33,15 @@ internal sealed class SkiaRois : IDisposable
     {
         _cache.BeginFrame();
         var view = scene.Document.Viewport;
-        RoiSpatialTraversal.GetLodMetrics(scene, out var visible, out var level, out var aggregate);
+        var lod = RoiSpatialTraversal.ComputeLodMetrics(scene);
         RoiSpatialTraversal.ForEachIndex(scene, (index, selected, transform, search) =>
         {
-            foreach (var region in index.Blocks(transform.InverseTransformBounds(visible)))
+            foreach (var region in index.Blocks(transform.InverseTransformBounds(lod.VisibleBounds)))
             {
                 var block = _cache.GetOrUpload(
                     region,
-                    level,
-                    aggregate,
+                    lod.Level,
+                    lod.AggregateSize,
                     scene.Document,
                     static (sourceRegion, blockAggregate, instances, roles) => new Block(sourceRegion.Bounds.Center, instances.ToArray(), roles, blockAggregate),
                     static _ => { },

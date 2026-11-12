@@ -7,7 +7,10 @@ internal enum NativeWindowMessage
     KillFocus = 0x0008,
     SetCursor = 0x0020,
     GetDialogCode = 0x0087,
+    KeyFirst = 0x0100,
     KeyDown = 0x0100,
+    KeyLast = 0x0109,
+    MouseFirst = 0x0200,
     MouseMove = 0x0200,
     LeftButtonDown = 0x0201,
     LeftButtonUp = 0x0202,
@@ -16,6 +19,7 @@ internal enum NativeWindowMessage
     MiddleButtonUp = 0x0208,
     MiddleButtonDoubleClick = 0x0209,
     MouseWheel = 0x020A,
+    MouseLast = 0x020E,
     CaptureChanged = 0x0215
 }
 

@@ -21,7 +21,7 @@ internal static class PaperPinBenchmark
             MaximumAngleDegrees = 180,
             AngleStepDegrees = 10,
         };
-        var searchOptions = new SearchOptions
+        var searchOptions = new ShapeSearchOptions
         {
             MaximumMatches = 1000,
         };

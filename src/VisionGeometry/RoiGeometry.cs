@@ -169,7 +169,8 @@ public sealed record RoiGeometry
     public double Support(PointD direction) => (Center.X * direction.X) + (Center.Y * direction.Y)
         + Shape.Support(direction.Rotate(-Angle), Width, Height);
 
-    public static double NormalizeAngle(double angle) => ((angle % 360) + 360) % 360;
+    public static double NormalizeAngle(double angle)
+        => ((angle % GeometryConstants.FullCircleDegrees) + GeometryConstants.FullCircleDegrees) % GeometryConstants.FullCircleDegrees;
 
     public PointD ToWorld(PointD local) => Center + local.Rotate(Angle);
 
@@ -197,7 +198,7 @@ public sealed record RoiGeometry
     /// </remarks>
     public bool Contains(RoiGeometry child)
     {
-        var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
+        var tolerance = GeometryTolerance.Scaled(Center);
         if (Area <= child.Area + (tolerance * (Width + Height)))
         {
             return false;
@@ -209,7 +210,7 @@ public sealed record RoiGeometry
     /// <summary>경계가 닿는 경우까지 포함해 판정한다. <see cref="Contains(RoiGeometry)"/>보다 한 단계 느슨하다.</summary>
     public bool Covers(RoiGeometry child)
     {
-        var tolerance = Math.Max(1e-6, Math.Max(Math.Abs(Center.X), Math.Abs(Center.Y)) * 1e-12);
+        var tolerance = GeometryTolerance.Scaled(Center);
         if (Radius > 0)
         {
             if (child.Radius > 0)

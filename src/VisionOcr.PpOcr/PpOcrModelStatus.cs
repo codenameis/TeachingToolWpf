@@ -8,4 +8,5 @@ public enum PpOcrModelStatus
     Ready = 0,
     MissingModel = 1,
     LoadFailed = 2,
+    Disposed = 3,
 }

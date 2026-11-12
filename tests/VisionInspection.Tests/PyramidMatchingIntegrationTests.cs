@@ -26,7 +26,7 @@ public sealed class PyramidMatchingIntegrationTests
         }, default);
         Assert.True(trained.Model.Levels.Length >= 3);
         var exclusion = new RoiExclusion(new(new(400, 150), 800, 300, 0), [new(MaskShape.Rectangle, new(0, 0, .4, 1))]);
-        var options = new SearchOptions { ClutterWeight = 1 };
+        var options = new ShapeSearchOptions { ClutterWeight = 1 };
         var baseline = await service.SearchAsync(image, false, trained.Model, null, options, default);
         Assert.Equal(2, baseline.Matches.Length);
         var result = await service.SearchAsync(image, false, trained.Model, null, options, default, exclusion);
@@ -102,7 +102,7 @@ public sealed class PyramidMatchingIntegrationTests
             MaximumScale = 1.1,
             ScaleStep = .1
         }, default);
-        var options = new SearchOptions { MaximumParallelism = 4, ClutterWeight = 1 };
+        var options = new ShapeSearchOptions { MaximumParallelism = 4, ClutterWeight = 1 };
         var output = await paper.SearchAsync(image, false, trained.Model, null, options, default);
         var phases = Assert.IsType<ShapeSearchPhases>(output.Phases);
         Assert.InRange(phases.SourceOpenMilliseconds + phases.CoarseSearchMilliseconds + phases.OriginalRefinementMilliseconds +
@@ -445,7 +445,7 @@ public sealed class PyramidMatchingIntegrationTests
                     };
                 }
             }
-            var occLoader = new Loader(new GrayImage(pixels, 1024, 1536, 1024));
+            var occLoader = new Loader(new ShapeGrayImage(pixels, 1024, 1536, 1024));
             var occService = new ShapeMatchingService(occLoader, () => null, pipeline: ShapeSearchPipeline.Paper);
             var result = await occService.SearchAsync(new("fixture", "fixture", 1024, 1536), false, trained.Model, null, new()
             {
@@ -548,7 +548,7 @@ public sealed class PyramidMatchingIntegrationTests
                         rotated[(dy * canvasSize) + dx] = (byte)Math.Clamp((int)Math.Round(val), 0, 255);
                     }
                 }
-                var rotLoader = new Loader(new GrayImage(rotated, canvasSize, canvasSize, canvasSize));
+                var rotLoader = new Loader(new ShapeGrayImage(rotated, canvasSize, canvasSize, canvasSize));
                 var rotService = new ShapeMatchingService(rotLoader, () => null, pipeline: ShapeSearchPipeline.Paper);
                 var result = await rotService.SearchAsync(new("fixture", "fixture", canvasSize, canvasSize), false, trained.Model, null, new()
                 {
@@ -604,7 +604,7 @@ public sealed class PyramidMatchingIntegrationTests
     {
         var bytes = new byte[1060 * 1033];
         new Random(89).NextBytes(bytes);
-        var image = new GrayImage(bytes, 1049, 1033, 1060);
+        var image = new ShapeGrayImage(bytes, 1049, 1033, 1060);
         var loader = new Loader(image);
         using (var reader = await MatchingImageReader.OpenAsync(new("fixture", "fixture", 1049, 1033), false, loader, () => null, default))
         {
@@ -645,7 +645,7 @@ public sealed class PyramidMatchingIntegrationTests
         Assert.Equal(3, loader.Disposed);
     }
 
-    private sealed class Loader(GrayImage image) : IImageLoader
+    private sealed class Loader(ShapeGrayImage image) : IImageLoader
     {
         public int Reads;
         public int Disposed;
@@ -654,7 +654,7 @@ public sealed class PyramidMatchingIntegrationTests
             => Task.FromResult<ITileSource>(new Source(this, image));
     }
 
-    private sealed class Source(Loader owner, GrayImage image) : ITileSource
+    private sealed class Source(Loader owner, ShapeGrayImage image) : ITileSource
     {
         public ImageInfo Info { get; } = new("fixture", "fixture", image.Width, image.Height, PixelKind.Gray8, 1);
 

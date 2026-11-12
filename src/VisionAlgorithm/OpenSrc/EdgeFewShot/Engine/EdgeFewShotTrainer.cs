@@ -1,22 +1,11 @@
-// File: src/VisionAlgorithm/OpenSrc/EdgeFewShot/Engine/EdgeFewShotTrainer.cs
 using System.Buffers;
+using VisionAlgorithm.OpenSrc.Common;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Backbone;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Domain;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Math;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Preprocessing;
 
 namespace VisionAlgorithm.OpenSrc.EdgeFewShot.Engine;
-
-/// <summary>
-/// Per-sample local image crop and fixture pose input for few-shot training without full-image copies or atlas packing.
-/// </summary>
-public readonly record struct RoiTrainingSample(
-    ReadOnlyMemory<byte> Pixels,
-    int Width,
-    int Height,
-    int Stride,
-    RoiFixturePose Pose,
-    FewShotClassId ClassId);
 
 /// <summary>
 /// Few-shot training engine executing Stage 1 (Affine ROI + Z-Score), Stage 2 (Mid-Layer Extraction + GeM Pooling),
@@ -35,7 +24,6 @@ public sealed class EdgeFewShotTrainer
     private readonly IlluminationNormalizer _illuminationNormalizer;
     private readonly IFeatureMapExtractor _featureExtractor;
     private readonly GemSpatialPooler _gemPooler;
-    private readonly SimpleShotNormalizer _simpleShotNormalizer;
     private readonly KMeansPlusPlusClusterer _clusterer;
     private readonly LedoitWolfCovariance _covarianceEstimator;
 
@@ -44,7 +32,6 @@ public sealed class EdgeFewShotTrainer
         IlluminationNormalizer illuminationNormalizer,
         IFeatureMapExtractor featureExtractor,
         GemSpatialPooler gemPooler,
-        SimpleShotNormalizer simpleShotNormalizer,
         KMeansPlusPlusClusterer clusterer,
         LedoitWolfCovariance covarianceEstimator)
     {
@@ -52,7 +39,6 @@ public sealed class EdgeFewShotTrainer
         ArgumentNullException.ThrowIfNull(illuminationNormalizer);
         ArgumentNullException.ThrowIfNull(featureExtractor);
         ArgumentNullException.ThrowIfNull(gemPooler);
-        ArgumentNullException.ThrowIfNull(simpleShotNormalizer);
         ArgumentNullException.ThrowIfNull(clusterer);
         ArgumentNullException.ThrowIfNull(covarianceEstimator);
 
@@ -60,7 +46,6 @@ public sealed class EdgeFewShotTrainer
         _illuminationNormalizer = illuminationNormalizer;
         _featureExtractor = featureExtractor;
         _gemPooler = gemPooler;
-        _simpleShotNormalizer = simpleShotNormalizer;
         _clusterer = clusterer;
         _covarianceEstimator = covarianceEstimator;
     }
@@ -280,12 +265,12 @@ public sealed class EdgeFewShotTrainer
         }
 
         var globalMean = new float[featureDimension];
-        _simpleShotNormalizer.ComputeGlobalMean(rawFeatures, sampleCount, featureDimension, globalMean);
+        SimpleShotNormalizer.ComputeGlobalMean(rawFeatures, sampleCount, featureDimension, globalMean);
 
         var normalizedFeatures = new float[checked(sampleCount * featureDimension)];
         for (var s = 0; s < sampleCount; s++)
         {
-            _simpleShotNormalizer.CenterAndNormalizeInto(
+            SimpleShotNormalizer.CenterAndL2Normalize(
                 rawFeatures.Slice(s * featureDimension, featureDimension),
                 globalMean,
                 normalizedFeatures.AsSpan(s * featureDimension, featureDimension));

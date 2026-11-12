@@ -1,6 +1,6 @@
 using System.Numerics;
 using SkiaSharp;
-using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Skia.Rendering;
 
@@ -19,7 +19,7 @@ internal sealed class SkiaSprites : IDisposable
         for (var index = first; index < end; index++)
         {
             var batch = mesh.Batches[index];
-            var texture = (SkiaTexture)batch.Texture;
+            var texture = SkiaTexturePipeline.GetTexture(in batch);
             if (TryDrawImageRectangle(canvas, mesh, batch, texture, width, height))
             {
                 continue;

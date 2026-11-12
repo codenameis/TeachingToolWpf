@@ -4,18 +4,18 @@ using OpenCvSharp;
 namespace CpuMatching.Evaluation;
 
 /// <summary>비교용 OpenCV CCOEFF_NORMED. 고정 방향 또는 회전/배율 bank + 국소 각도 보정.</summary>
-internal sealed class OpenCvBaseline(GrayImage template, bool rotated) : ITemplateMatcher
+internal sealed class OpenCvBaseline(CpuGrayImage template, bool rotated) : ITemplateMatcher
 {
-    public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+    public SearchResult Find(CpuGrayImage image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         if (accelerator is not null)
         {
             throw new NotSupportedException("OpenCV baseline is CPU-only.");
         }
-        options ??= new SearchOptions();
+        options ??= new CpuSearchOptions();
         options.Validate();
-        var region = options.Region ?? new SearchRegion(0, 0, image.Width, image.Height);
+        var region = options.Region ?? new CpuSearchRegion(0, 0, image.Width, image.Height);
         using var scene = Dataset.ToMat(image.Crop(region));
         using var original = Dataset.ToMat(template);
         var candidates = new List<Match>();

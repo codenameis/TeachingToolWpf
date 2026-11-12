@@ -4,13 +4,17 @@ using VisionGeometry;
 namespace VisionCanvas.Core.Interaction;
 
 /// <summary>여러 번의 클릭을 이어 붙여 폴리곤 ROI 초안을 만들고 닫힘 시 도형을 완성하는 제스처다.</summary>
-internal sealed class PolygonDrawGesture(InteractionController controller, PolygonDraftState draft) : IGesture
+internal sealed class PolygonDrawGesture(IGestureContext context, PolygonDraftState draft) : IGesture
 {
     public bool IsFinished { get; private set; }
 
+    public void Start()
+    {
+    }
+
     public void AddClick(PointD screen)
     {
-        var state = controller.Editor.State;
+        var state = context.State;
         if (draft.TryAddPointOrClose(screen, state.Viewport, state.Image) is { } closedPolygon)
         {
             CompleteWithPoints(closedPolygon);
@@ -27,7 +31,7 @@ internal sealed class PolygonDrawGesture(InteractionController controller, Polyg
             return;
         }
 
-        var state = controller.Editor.State;
+        var state = context.State;
         var cursor = RoiImageBounds.Clamp(state.Viewport.ScreenToImage(screen), state.Image);
         ShowDraft(cursor);
     }
@@ -64,7 +68,7 @@ internal sealed class PolygonDrawGesture(InteractionController controller, Polyg
         if (!draft.HasPoints)
         {
             IsFinished = true;
-            controller.Show(new());
+            context.Show(new());
             return;
         }
 
@@ -74,12 +78,12 @@ internal sealed class PolygonDrawGesture(InteractionController controller, Polyg
     private void CompleteWithPoints(IEnumerable<PointD> points)
     {
         var geometry = RoiGeometry.Polygon(points);
-        controller.AddDrawnRoi(geometry);
+        context.AddDrawnRoi(geometry);
         IsFinished = true;
         draft.Clear();
-        controller.Tool = EditorTool.Select;
+        context.Tool = EditorTool.Select;
     }
 
     private void ShowDraft(PointD? cursor = null)
-        => controller.Show(draft.CreateOverlay(controller.DrawAsGroup, cursor));
+        => context.Show(draft.CreateOverlay(context.DrawAsGroup, cursor));
 }

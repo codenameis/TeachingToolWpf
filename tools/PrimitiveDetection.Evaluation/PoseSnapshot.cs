@@ -45,7 +45,7 @@ internal static class PoseSnapshot
             hash = Convert.ToHexString(hash.GetHashAndReset())
         }));
 
-        void Add(GrayImage image)
+        void Add(ShapeGrayImage image)
         {
             hash.AppendData(JsonSerializer.SerializeToUtf8Bytes(PrimitiveShapeDetector.Detect(image, new())));
             cases++;

@@ -17,7 +17,7 @@ public sealed partial class ShapeMatchingViewModel
         set => ChangeSearchOptions(ActiveSearchSettings.Options with { ClutterTolerancePixels = value });
     }
 
-    private SearchOptions CreateShapeSearchOptions() => ActiveSearchSettings.Options;
+    private ShapeSearchOptions CreateShapeSearchOptions() => ActiveSearchSettings.Options;
 
     private static string FormatShapeMatch(ShapeMatch match, int index)
         => $"{index + 1} · X {match.Pose.X:F3} / Y {match.Pose.Y:F3}\n" +

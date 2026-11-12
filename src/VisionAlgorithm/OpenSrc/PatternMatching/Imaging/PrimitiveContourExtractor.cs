@@ -16,7 +16,7 @@ internal sealed record PrimitiveContour(ImmutableArray<ImagePoint> Points, Immut
 /// <summary>OpenCV 객체와 네이티브 호출 수명을 이 경계에만 유지한다.</summary>
 internal static class PrimitiveContourExtractor
 {
-    public static ImmutableArray<PrimitiveContour> Extract(GrayImage image,
+    public static ImmutableArray<PrimitiveContour> Extract(ShapeGrayImage image,
         PrimitiveDetectionOptions options, CancellationToken token, IPrimitivePreprocessor? preprocessor = null,
         Memory<byte> preprocessingBuffer = default)
     {
@@ -112,7 +112,7 @@ internal static class PrimitiveContourExtractor
         }
     }
 
-    private static Mat Source(GrayImage image, CancellationToken token)
+    private static Mat Source(ShapeGrayImage image, CancellationToken token)
     {
         // Mat pins this array only for the native call lifetime. The source remains read-only.
         if (MemoryMarshal.TryGetArray(image.Pixels, out var segment) && segment.Offset == 0 &&
@@ -129,7 +129,7 @@ internal static class PrimitiveContourExtractor
         return Mat.FromPixelData(image.Height, image.Width, MatType.CV_8UC1, pixels, image.Width);
     }
 
-    private static double MaskedThreshold(Mat filtered, GrayImage image, CancellationToken token)
+    private static double MaskedThreshold(Mat filtered, ShapeGrayImage image, CancellationToken token)
     {
         var values = new List<byte>();
         for (var y = 1; y < image.Height - 1; y++)
@@ -160,7 +160,7 @@ internal static class PrimitiveContourExtractor
         return Cv2.Threshold(samples, result, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
     }
 
-    private static bool MostlyBright(Mat binary, GrayImage image, CancellationToken token)
+    private static bool MostlyBright(Mat binary, ShapeGrayImage image, CancellationToken token)
     {
         var valid = 0;
         var bright = 0;

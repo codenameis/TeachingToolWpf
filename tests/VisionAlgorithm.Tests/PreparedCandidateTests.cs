@@ -20,7 +20,7 @@ public sealed class PreparedCandidateTests
             });
         var scene = SyntheticScene.Create(193, 171, new MatchPose(101.3, 85.7, .234, scale ? 1.075 : 1));
         var prepared = PreparedSearchImage.Create(scene, 8, model.Levels.Length);
-        var options = new SearchOptions { MaximumParallelism = parallelism, MaximumCandidates = 128 };
+        var options = new ShapeSearchOptions { MaximumParallelism = parallelism, MaximumCandidates = 128 };
         var scalar = CandidateSearch.Find(prepared, model, options, default);
         var cached = CandidateSearch.Find(prepared, model, options, default, optimizedLocalSearch: true);
         Assert.Equal(scalar.Candidates, cached.Candidates);

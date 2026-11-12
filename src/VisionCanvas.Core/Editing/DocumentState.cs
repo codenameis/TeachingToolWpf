@@ -5,38 +5,6 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Core.Editing;
 
-public sealed record Roi(Guid Id, string Name, RoiGeometry Geometry, Guid? ParentId, bool IsGroup, long Order)
-{
-    public ImmutableArray<MaskRegion> Masks { get; init; } = [];
-
-    public RoiSearchRange? SearchRange
-    {
-        get; init;
-    }
-
-    public RoiOcvSettings Ocv { get; init; } = RoiOcvSettings.Empty;
-
-    public bool IsNameVisible { get; init; } = true;
-
-    public FilterSettings Filter
-    {
-        get;
-        init;
-    } = new(RoiFilterKind.None);
-
-    public ImmutableArray<FilterSettings> FilterPipeline { get; init; } = [];
-
-    public ImmutableArray<FilterSettings> EffectiveFilterPipeline =>
-        !FilterPipeline.IsDefaultOrEmpty
-            ? FilterPipeline
-            : (Filter.Kind != RoiFilterKind.None && Filter.IsEnabled ? [Filter] : []);
-
-    public bool HasActiveFilter =>
-        !FilterPipeline.IsDefaultOrEmpty
-            ? FilterPipeline.Any(static s => s.IsEnabled && s.Kind != RoiFilterKind.None)
-            : (Filter.IsEnabled && Filter.Kind != RoiFilterKind.None);
-}
-
 /// <summary>Immutable image-space geometry prevents precision drift during reparenting.</summary>
 public sealed record DocumentState
 {
@@ -97,6 +65,9 @@ public sealed record DocumentState
     }
 
     public bool IsGroupRoi(Guid id) => Rois[id].IsGroup || Snapshot.Children.ContainsKey(id);
+
+    public bool CanAddMask(Guid id, int maxMasks = EditorSession.MaximumMasksPerRoi)
+        => Rois.TryGetValue(id, out var roi) && !IsGroupRoi(id) && roi.Masks.Length < maxMasks;
 
     public bool IsTransformSelectionPrepared => SelectionSnapshot.IsTransformSelectionPrepared;
 

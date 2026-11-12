@@ -44,7 +44,7 @@ public sealed class RecipeJsonTests
     {
         var recipe = new InspectionRecipe
         {
-            SearchOptions = new SearchOptions { ClutterTolerancePixels = tolerance, MaximumMatches = 71, ClutterWeight = .6 }
+            SearchOptions = new ShapeSearchOptions { ClutterTolerancePixels = tolerance, MaximumMatches = 71, ClutterWeight = .6 }
         };
         var options = RecipeJson.CreateOptions();
 

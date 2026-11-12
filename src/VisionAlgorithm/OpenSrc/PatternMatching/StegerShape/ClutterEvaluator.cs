@@ -179,7 +179,7 @@ internal static class ClutterEvaluator
         var relativeAngle = pose.Angle - model.TrainingReferenceAngle;
         var cosine = Math.Cos(relativeAngle);
         var sine = Math.Sin(relativeAngle);
-        bool InsideTrainingMask(EdgePoint edge)
+        bool InsideTrainingMask(ShapeEdgePoint edge)
         {
             var dx = (edge.X - pose.X) / pose.Scale;
             var dy = (edge.Y - pose.Y) / pose.Scale;
@@ -213,11 +213,11 @@ internal static class ClutterEvaluator
         return count % 2 == 0 ? (observed[(count / 2) - 1] + observed[count / 2]) / 2 : observed[count / 2];
     }
 
-    internal static EdgePoint? FindCorrespondence(GradientImage image, double x, double y, double normalX,
-        double normalY, double radius, ContrastPolarity polarity, Func<EdgePoint, bool>? allowed = null)
+    internal static ShapeEdgePoint? FindCorrespondence(GradientImage image, double x, double y, double normalX,
+        double normalY, double radius, ContrastPolarity polarity, Func<ShapeEdgePoint, bool>? allowed = null)
     {
         var bestDistance = radius * radius;
-        EdgePoint? best = null;
+        ShapeEdgePoint? best = null;
         // 에지는 픽셀 중심에서 최대 0.5 이동하므로 대응 후보의 원래 정수 픽셀까지 포함한다.
         var left = (int)Math.Max(0, Math.Floor(x - radius - 1));
         var right = (int)Math.Min(image.Width - 1, Math.Ceiling(x + radius));
@@ -245,7 +245,7 @@ internal static class ClutterEvaluator
         return best;
     }
 
-    internal static bool Compatible(double normalX, double normalY, EdgePoint edge, ContrastPolarity polarity)
+    internal static bool Compatible(double normalX, double normalY, ShapeEdgePoint edge, ContrastPolarity polarity)
     {
         var dot = (normalX * edge.NormalX) + (normalY * edge.NormalY);
         return (polarity == ContrastPolarity.IgnoreLocal ? Math.Abs(dot) : dot) >= 0.8;

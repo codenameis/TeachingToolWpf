@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/VisionCanvas.Skia/VisionCanvas.Skia.csproj" />
     <ProjectReference Include="../../src/VisionImaging/VisionImaging.csproj" />
+    <ProjectReference Include="../VisionCanvas.SampleShell/VisionCanvas.SampleShell.csproj" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../licenses/skia-canvas/*.txt" Link="licenses/skia-canvas/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../licenses/streaming-codecs/*.txt" Link="licenses/streaming-codecs/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

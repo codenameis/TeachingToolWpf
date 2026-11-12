@@ -11,10 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="..\VisionCanvas.Core\VisionCanvas.Core.csproj" />
     <ProjectReference Include="..\VisionImaging.Abstractions\VisionImaging.Abstractions.csproj" />
-    <InternalsVisibleTo Include="VisionCanvas" />
-    <InternalsVisibleTo Include="VisionCanvas.Vulkan" />
-    <InternalsVisibleTo Include="VisionCanvas.Wgpu" />
-    <InternalsVisibleTo Include="VisionCanvas.Skia" />
     <InternalsVisibleTo Include="VisionCanvas.Tests" />
     <InternalsVisibleTo Include="VisionCanvas.Vulkan.Tests" />
     <InternalsVisibleTo Include="VisionCanvas.Wgpu.Tests" />

@@ -1,7 +1,7 @@
 using System.IO;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Presentation;
-using VisionCanvas.SkiaSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.SkiaSample.ViewModels;
 using VisionCanvas.SkiaSample.Views;
 using VisionImaging;

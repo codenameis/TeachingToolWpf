@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using VisionAlgorithm.OpenSrc.Common;
+using VisionKernels;
 
 namespace VisionAlgorithm.OpenSrc.Metrology;
 
@@ -348,39 +349,7 @@ public static class CompositeSubpixelCaliper
         int radius = spec.ComputeKernelRadius();
         int kernelLength = (2 * radius) + 1;
         Span<float> kernel = workspace.GetFloatBufferD(kernelLength);
-
-        float sigma = spec.GaussianSigma;
-        float invTwoSigmaSq = 1.0f / (2.0f * sigma * sigma);
-        float positiveIntegral = 0.0f;
-
-        for (int m = -radius; m <= radius; m++)
-        {
-            float w = m * MathF.Exp(-(m * m) * invTwoSigmaSq);
-            kernel[m + radius] = w;
-            if (m > 0)
-            {
-                positiveIntegral += w;
-            }
-        }
-
-        float normFactor = positiveIntegral > 0.0f ? 1.0f / positiveIntegral : 1.0f;
-        for (int k = 0; k < kernelLength; k++)
-        {
-            kernel[k] *= normFactor;
-        }
-
-        int n = profile.Length;
-        responseOut.Clear();
-        for (int u = radius; u < n - radius; u++)
-        {
-            float acc = 0.0f;
-            for (int m = -radius; m <= radius; m++)
-            {
-                acc += profile[u + m] * kernel[m + radius];
-            }
-
-            responseOut[u] = acc;
-        }
+        GaussianDerivative1DKernel.ConvolveNormalized(profile, spec.GaussianSigma, radius, kernel, responseOut);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

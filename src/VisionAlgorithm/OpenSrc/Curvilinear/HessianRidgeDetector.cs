@@ -1,28 +1,8 @@
-// File: src/VisionAlgorithm/OpenSrc/Curvilinear/HessianRidgeDetector.cs
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using VisionAlgorithm.OpenSrc.Common;
 
 namespace VisionAlgorithm.OpenSrc.Curvilinear;
-
-/// <summary>
-/// Polarity of the curvilinear structure (bright ridge/bead vs. dark crack/scratch).
-/// </summary>
-public enum RidgePolarity
-{
-    BrightLine = 0,
-    DarkLine = 1
-}
-
-/// <summary>
-/// Represents a single subpixel centerline point extracted via Steger (1998) Hessian eigen-analysis.
-/// </summary>
-public readonly record struct RidgeCenterlinePoint(
-    int GridX,
-    int GridY,
-    Vector2 SubpixelPosition,
-    Vector2 NormalDirection,
-    float SecondDerivativeStrength);
 
 /// <summary>
 /// Implements Carsten Steger's 1998 curvilinear structure detector ("An Unbiased Detector of Curvilinear Structures",

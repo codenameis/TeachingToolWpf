@@ -10,6 +10,7 @@ using VisionCanvas.Controls;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 
 namespace VisionCanvas.Tests;

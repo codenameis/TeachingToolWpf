@@ -115,7 +115,7 @@ public sealed class InspectionToolsTests
         tools.Update(session.State, 1, false, true);
 
         Assert.True(tools.ShowSuite);
-        Assert.Equal(7, suiteVm.Algorithms.Count);
+        Assert.Equal(suiteVm.Registry.All.Count, suiteVm.Algorithms.Count);
         Assert.True(suiteVm.ExecuteSelected.CanExecute(null));
 
         suiteVm.SelectedAlgorithm = InspectionSuiteAlgorithmKind.Metrology;
@@ -381,7 +381,7 @@ public sealed class InspectionToolsTests
         public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => throw new InvalidOperationException("패턴 서비스 실행은 이 조정 테스트의 대상이 아닙니다.");
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => throw new InvalidOperationException("동시 실행되면 안 됩니다.");
     }
 }

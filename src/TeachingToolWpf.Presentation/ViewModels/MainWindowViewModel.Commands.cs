@@ -138,19 +138,23 @@ public sealed partial class MainWindowViewModel
         }
 
         float[] trainGoodAngles = [0f, 4.0f, -3.5f, 2.5f, -2.0f];
+        var goodRoiIds = new List<Guid>(5);
         for (int i = 0; i < 5; i++)
         {
             var id = Session.Add(new(new(110 + i * 155, 96), 64, 64, trainGoodAngles[i]));
             var roi = Session.State.Rois[id];
             Session.SetProperties(id, $"학습-정상-{i + 1}", roi.Geometry, roi.SearchRange, true);
+            goodRoiIds.Add(id);
         }
 
         float[] trainBadAngles = [0f, -4.0f, 3.0f, -2.5f, 4.5f];
+        var defectRoiIds = new List<Guid>(5);
         for (int i = 0; i < 5; i++)
         {
             var id = Session.Add(new(new(110 + i * 155, 256), 64, 64, trainBadAngles[i]));
             var roi = Session.State.Rois[id];
             Session.SetProperties(id, $"학습-불량-{i + 1}", roi.Geometry, roi.SearchRange, true);
+            defectRoiIds.Add(id);
         }
 
         (double X, double Y, double Angle, string Name)[] testSpecs =
@@ -171,7 +175,7 @@ public sealed partial class MainWindowViewModel
         {
             Inspections.Selected = InspectionToolKind.EdgeFewShot;
             Inspections.Update(Session.State, Images.Generation, false, true);
-            fewShot.RegisterSingleBoardPresetSamples();
+            fewShot.RegisterSingleBoardPresetSamples(goodRoiIds, defectRoiIds);
         }
     }
 
@@ -187,29 +191,11 @@ public sealed partial class MainWindowViewModel
 
     public async Task LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind kind, bool placePresetRois = false)
     {
-        kind = InspectionSuiteService.NormalizeAlgorithmKind(kind);
-        (string sceneSlug, string sampleTitle) = kind switch
-        {
-            InspectionSuiteAlgorithmKind.Metrology => ("metrology", "1. 서브픽셀 캘리퍼·직선·원 계측 합성 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.GoldenVariation => ("golden", "2. 통계적 골든 마스터 변이 검사 합성 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.BlobRle => ("blob", "3. RLE 블롭 해석·구간 모폴로지 합성 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.Curvilinear => ("curvilinear", "4. Steger 곡선 능선·실링 비드 단선 검사 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.FewShot => ("fewshot", "5. Few-Shot 마할라노비스·OOD 기각 합성 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.PatchAnomaly => ("padim", "6. PaDiM 공간 패치 이상 히트맵 합성 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.Calibration => ("calibration", "7. 9-Point 핸드아이 호모그래피·왜곡 보정 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.CornerAlignment => ("corner", "8. 2-Rake 서브픽셀 가상 코너·4코너 대각 정합 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.AutoTeaching => ("autoteach", "11. 멀티파츠 풀 자동 인식·하위 ROI 자동 티칭 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.PpOcrOnnx => ("ocrocv", "9. 통합 OCR / OCV (PP-OCRv4 범용 판독 · 티칭 OCV 품질 검증) 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon => ("preprocessing", "13. [전처리] 2D 다항식 조명 평탄화·비등방성 확산·재구성 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse => ("ellipse", "14. [본검사] 복합 스코어링 캘리퍼·Fitzgibbon 타원 피팅 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.AdvancedBlobWatershed => ("watershed", "15. [본검사] RLE 고급 형상·접촉 블롭 EDT 워터셰드 분리 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.DataMatrix2DReader => ("datamatrix", "16. [본검사] 산업용 2D DataMatrix ECC 200 리더 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor => ("fftgabor", "17. [전처리] 2D FFT 모아레 노치·호모모픽 조명 분리·Gabor 텍스처 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.Barcode1DReader => ("barcode1d", "18. [본검사] 1D 바코드(Code 128) 멀티스캔 디코더 & ISO 15416 품질 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.PhotometricStereo => ("photometric", "19. [본검사] 4방향 포토메트릭 스테레오 법선·알베도·3D 곡률 결함 샘플 (1200×800)"),
-            InspectionSuiteAlgorithmKind.GeometricTolerancing => ("geomtolerance", "20. [본검사] 다중 형상 기하공차(GD&T) 직교도·동심도·수직거리 샘플 (1200×800)"),
-            _ => ("metrology", "검사 스위트 합성 샘플 (1200×800)")
-        };
+        var registry = Inspections.Suite?.Registry ?? InspectionAlgorithmRegistry.CreateDefault();
+        IRoiInspectionAlgorithm alg = registry.GetRequired(kind);
+        kind = alg.Kind;
+        string sceneSlug = alg.SampleSceneSlug;
+        string sampleTitle = alg.SampleSceneTitle;
 
         string key = $"{InspectionSuiteSampleTileSource.KeyPrefix}{sceneSlug}";
         await Images.ReplaceAsync(new(key, sampleTitle, InspectionSuiteSampleTileSource.DefaultWidth, InspectionSuiteSampleTileSource.DefaultHeight));
@@ -236,20 +222,26 @@ public sealed partial class MainWindowViewModel
         List<Guid> normalRefIds = [];
         List<Guid> defectRefIds = [];
         List<Guid> targetIds = [];
+        var explicitModes = new Dictionary<Guid, RoiSuiteExecutionMode>();
 
-        Guid AddNamedRoi(double cx, double cy, double w, double h, double angleDeg, string name)
+        Guid AddNamedRoi(double cx, double cy, double w, double h, double angleDeg, string name, RoiSuiteExecutionMode? mode = null)
         {
             Guid id = Session.Add(new(new(cx, cy), w, h, angleDeg));
             var roi = Session.State.Rois[id];
             Session.SetProperties(id, name, roi.Geometry, roi.SearchRange, true);
+            if (mode is { } m)
+            {
+                explicitModes[id] = m;
+            }
+
             return id;
         }
 
         switch (kind)
         {
             case InspectionSuiteAlgorithmKind.Metrology:
-                targetIds.Add(AddNamedRoi(320.35, 400.25, 130, 220, 10.0, "트레이스 폭·직선 계측"));
-                targetIds.Add(AddNamedRoi(820.40, 400.60, 230, 230, 0.0, "원형 패드 외경·진원도"));
+                targetIds.Add(AddNamedRoi(320.35, 400.25, 130, 220, 10.0, "트레이스 폭·직선 계측", new(MetrologyDefaultMode: MetrologyMeasurementMode.EdgePairWidth)));
+                targetIds.Add(AddNamedRoi(820.40, 400.60, 230, 230, 0.0, "원형 패드 외경·진원도", new(MetrologyDefaultMode: MetrologyMeasurementMode.SpokeCircleFit)));
                 break;
 
             case InspectionSuiteAlgorithmKind.GoldenVariation:
@@ -331,21 +323,21 @@ public sealed partial class MainWindowViewModel
             }
 
             case InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon:
-                targetIds.Add(AddNamedRoi(250.0, 400.0, 240, 320, 0.0, "전처리 1 · 2D 다항식 조명 평탄화"));
-                targetIds.Add(AddNamedRoi(600.0, 400.0, 220, 220, 0.0, "전처리 2 · 비등방성 확산(Diffusion)"));
-                targetIds.Add(AddNamedRoi(950.0, 400.0, 240, 240, 0.0, "전처리 3 · 형태학적 재구성(Recon)"));
+                targetIds.Add(AddNamedRoi(250.0, 400.0, 240, 320, 0.0, "전처리 1 · 2D 다항식 조명 평탄화", new(ShadingVariant: ShadingFilterVariant.PolynomialShadingAndReconstruction)));
+                targetIds.Add(AddNamedRoi(600.0, 400.0, 220, 220, 0.0, "전처리 2 · 비등방성 확산(Diffusion)", new(ShadingVariant: ShadingFilterVariant.AnisotropicDiffusion)));
+                targetIds.Add(AddNamedRoi(950.0, 400.0, 240, 240, 0.0, "전처리 3 · 형태학적 재구성(Recon)", new(ShadingVariant: ShadingFilterVariant.MorphologicalReconstruction)));
                 break;
 
             case InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse:
-                targetIds.Add(AddNamedRoi(300.35, 400.25, 250, 220, 0.0, "복합 캘리퍼 (외곽 간섭에지 억제)"));
-                targetIds.Add(AddNamedRoi(640.40, 400.30, 250, 190, 22.5, "Fitzgibbon 타원 1 (22.5° 회전)"));
-                targetIds.Add(AddNamedRoi(980.25, 400.60, 220, 170, -31.0, "Fitzgibbon 타원 2 (-31.0° 회전)"));
+                targetIds.Add(AddNamedRoi(300.35, 400.25, 250, 220, 0.0, "복합 캘리퍼 (외곽 간섭에지 억제)", new(AdvancedMetrology: AdvancedMetrologyVariant.CompositeCaliper)));
+                targetIds.Add(AddNamedRoi(640.40, 400.30, 250, 190, 22.5, "Fitzgibbon 타원 1 (22.5° 회전)", new(AdvancedMetrology: AdvancedMetrologyVariant.FitzgibbonEllipse)));
+                targetIds.Add(AddNamedRoi(980.25, 400.60, 220, 170, -31.0, "Fitzgibbon 타원 2 (-31.0° 회전)", new(AdvancedMetrology: AdvancedMetrologyVariant.FitzgibbonEllipse)));
                 break;
 
             case InspectionSuiteAlgorithmKind.AdvancedBlobWatershed:
-                targetIds.Add(AddNamedRoi(260.0, 400.0, 220, 190, 0.0, "고급형상 (Euler 홀2개·MinAreaBox)"));
-                targetIds.Add(AddNamedRoi(610.0, 400.0, 220, 190, 0.0, "워터셰드 분리 1 (2접촉 솔더볼)"));
-                targetIds.Add(AddNamedRoi(950.0, 400.0, 210, 190, 0.0, "워터셰드 분리 2 (3접촉 입자군집)"));
+                targetIds.Add(AddNamedRoi(260.0, 400.0, 220, 190, 0.0, "고급형상 (Euler 홀2개·MinAreaBox)", new(AdvancedBlob: AdvancedBlobVariant.TopologyAndMinAreaBox)));
+                targetIds.Add(AddNamedRoi(610.0, 400.0, 220, 190, 0.0, "워터셰드 분리 1 (2접촉 솔더볼)", new(AdvancedBlob: AdvancedBlobVariant.WatershedSplit)));
+                targetIds.Add(AddNamedRoi(950.0, 400.0, 210, 190, 0.0, "워터셰드 분리 2 (3접촉 입자군집)", new(AdvancedBlob: AdvancedBlobVariant.WatershedSplit)));
                 break;
 
             case InspectionSuiteAlgorithmKind.DataMatrix2DReader:
@@ -355,9 +347,9 @@ public sealed partial class MainWindowViewModel
                 break;
 
             case InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor:
-                targetIds.Add(AddNamedRoi(210.0, 405.0, 240, 280, 0.0, "전처리 1 · 2D FFT 모아레 노치 감쇠"));
-                targetIds.Add(AddNamedRoi(610.0, 400.0, 240, 240, 0.0, "전처리 2 · 호모모픽(Homomorphic) 조명 분리"));
-                targetIds.Add(AddNamedRoi(980.0, 400.0, 240, 240, 30.0, "전처리 3 · 2D Gabor 방향성 텍스처"));
+                targetIds.Add(AddNamedRoi(210.0, 405.0, 240, 280, 0.0, "전처리 1 · 2D FFT 모아레 노치 감쇠", new(FrequencyFilter: FrequencyFilterVariant.FftPeriodicNotch)));
+                targetIds.Add(AddNamedRoi(610.0, 400.0, 240, 240, 0.0, "전처리 2 · 호모모픽(Homomorphic) 조명 분리", new(FrequencyFilter: FrequencyFilterVariant.HomomorphicIllumination)));
+                targetIds.Add(AddNamedRoi(980.0, 400.0, 240, 240, 30.0, "전처리 3 · 2D Gabor 방향성 텍스처", new(FrequencyFilter: FrequencyFilterVariant.GaborTexture)));
                 break;
 
             case InspectionSuiteAlgorithmKind.Barcode1DReader:
@@ -375,6 +367,12 @@ public sealed partial class MainWindowViewModel
                 targetIds.Add(AddNamedRoi(320.0, 380.0, 350, 350, 0.0, "GD&T 부품 1 · 직교90° & 동심보어 정상(OK)"));
                 targetIds.Add(AddNamedRoi(840.0, 380.0, 350, 350, 0.0, "GD&T 부품 2 · 경사데이텀 & 편심보어 불량(NG)"));
                 break;
+
+            case InspectionSuiteAlgorithmKind.QrCode2DReader:
+                targetIds.Add(AddNamedRoi(306.0, 326.0, 224, 224, 0.0, "QR 코드 1 (QR26A · 0.0°)"));
+                targetIds.Add(AddNamedRoi(860.0, 326.0, 224, 224, 0.0, "QR 코드 2 (ROT-325 · -32.5° 회전)"));
+                targetIds.Add(AddNamedRoi(584.0, 620.0, 216, 216, 0.0, "QR 코드 3 (INV135 · +135.0° 회전)"));
+                break;
         }
 
         if (targetIds.Count > 0)
@@ -389,6 +387,11 @@ public sealed partial class MainWindowViewModel
             Inspections.Selected = InspectionToolKind.InspectionSuite;
             suite.SelectedAlgorithm = kind;
             Inspections.Update(Session.State, Images.Generation, false, true);
+            foreach (var kv in explicitModes)
+            {
+                suite.SetRoiExecutionMode(kv.Key, kv.Value);
+            }
+
             Inspections.RecordPresetSuiteAssignments(Session.State, targetIds, kind);
             suite.RegisterPresetReferenceRois(normalRefIds, defectRefIds);
 

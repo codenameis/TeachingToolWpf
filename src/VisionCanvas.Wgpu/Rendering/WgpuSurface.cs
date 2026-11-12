@@ -1,4 +1,4 @@
-using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using WebGPU;
 using static WebGPU.WebGPU;
 

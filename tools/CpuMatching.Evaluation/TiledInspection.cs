@@ -6,11 +6,11 @@ namespace CpuMatching.Evaluation;
 // 위치 보정이 끝난 이미지의 분할 실험. 제품의 기본 전체 검색 경로는 바꾸지 않는다.
 internal static class TiledInspection
 {
-    internal sealed record Tile(SearchRegion Core, SearchRegion Read, SearchRegion Accept);
+    internal sealed record Tile(CpuSearchRegion Core, CpuSearchRegion Read, CpuSearchRegion Accept);
     internal sealed record TileResult(Tile Tile, SearchResult Search, double Milliseconds);
     internal sealed record RunResult(SearchResult Search, TileResult[] Tiles, double MergeMilliseconds);
 
-    public static Tile[] Plan(GrayImage image, GrayImage template, SearchOptions options, int count, bool boundaryPadding)
+    public static Tile[] Plan(CpuGrayImage image, CpuGrayImage template, CpuSearchOptions options, int count, bool boundaryPadding)
     {
         options.Validate();
         if (count is not (8 or 16) || options.Region is not null)
@@ -33,10 +33,10 @@ internal static class TiledInspection
                 var top = row * image.Height / rows;
                 var right = (column + 1) * image.Width / Columns;
                 var bottom = (row + 1) * image.Height / rows;
-                var core = new SearchRegion(left, top, right - left, bottom - top);
+                var core = new CpuSearchRegion(left, top, right - left, bottom - top);
                 var readLeft = Math.Max(0, left - halo) / phase * phase;
                 var readTop = Math.Max(0, top - halo) / phase * phase;
-                var crop = new SearchRegion(readLeft, readTop,
+                var crop = new CpuSearchRegion(readLeft, readTop,
                     0, 0);
                 crop = crop with
                 {
@@ -45,7 +45,7 @@ internal static class TiledInspection
                 };
                 crop.Validate(image);
                 // 경계에 걸친 중심은 양쪽에서 검증하고 마지막에 같은 NMS로 합친다.
-                var accept = new SearchRegion(Math.Max(0, left - overlap), Math.Max(0, top - overlap), 0, 0);
+                var accept = new CpuSearchRegion(Math.Max(0, left - overlap), Math.Max(0, top - overlap), 0, 0);
                 accept = accept with
                 {
                     Width = Math.Min(image.Width, right + overlap) - accept.X,
@@ -57,8 +57,8 @@ internal static class TiledInspection
         return result;
     }
 
-    public static RunResult Find(GrayImage image, GrayImage template, ITemplateMatcher[] matchers,
-        SearchOptions options, int workers, bool boundaryPadding, CancellationToken token)
+    public static RunResult Find(CpuGrayImage image, CpuGrayImage template, ITemplateMatcher[] matchers,
+        CpuSearchOptions options, int workers, bool boundaryPadding, CancellationToken token)
     {
         if (workers is < 1 or > 64)
         {
@@ -103,6 +103,6 @@ internal static class TiledInspection
         return new(search, results, merge.Elapsed.TotalMilliseconds);
     }
 
-    internal static bool Contains(SearchRegion region, double x, double y)
+    internal static bool Contains(CpuSearchRegion region, double x, double y)
         => x >= region.X && y >= region.Y && x < region.X + region.Width && y < region.Y + region.Height;
 }

@@ -5,14 +5,14 @@ using OpenCvSharp;
 
 namespace CpuMatching.Evaluation;
 
-internal sealed record Case(string Name, string Template, string Image, SearchOptions Options, Match[] Expected, string Labels,
-    bool GroundTruthComplete = true, string Split = "Development", SearchRegion? Centers = null);
+internal sealed record Case(string Name, string Template, string Image, CpuSearchOptions Options, Match[] Expected, string Labels,
+    bool GroundTruthComplete = true, string Split = "Development", CpuSearchRegion? Centers = null);
 
 internal static class Dataset
 {
     public static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
-    public static GrayImage Read(string path)
+    public static CpuGrayImage Read(string path)
     {
         using var image = Cv2.ImRead(path, ImreadModes.Grayscale);
         if (image.Empty())
@@ -21,10 +21,10 @@ internal static class Dataset
         }
         var pixels = new byte[image.Width * image.Height];
         Marshal.Copy(image.Data, pixels, 0, pixels.Length);
-        return new GrayImage(image.Width, image.Height, pixels);
+        return new CpuGrayImage(image.Width, image.Height, pixels);
     }
 
-    public static Mat ToMat(GrayImage image)
+    public static Mat ToMat(CpuGrayImage image)
     {
         var mat = new Mat(image.Height, image.Width, MatType.CV_8UC1);
         Marshal.Copy(image.Pixels.ToArray(), 0, mat.Data, image.Width * image.Height);
@@ -78,7 +78,7 @@ internal static class Dataset
             using var local = new Mat(image, new Rect(150, 320, 120, 100)).Clone();
             Cv2.ImWrite(Path.Combine(folder, "kensa-18v-original.png"), local);
             cases.Add(new Case("kensa-18v-original", "kensa-18v-template.png", "kensa-18v-original.png",
-                new SearchOptions { MinimumAngle = -20, MaximumAngle = 20, MaximumMatches = 8 },
+                new CpuSearchOptions { MinimumAngle = -20, MaximumAngle = 20, MaximumMatches = 8 },
                 [new Match(44, 50.5, 0, 1, 1)], "Known template crop; other possible instances unverified", GroundTruthComplete: false));
         }
         using var validation = new Mat(61, 73, MatType.CV_8UC1, new Scalar(30));
@@ -144,7 +144,7 @@ internal static class Dataset
                     HersheyFonts.HersheySimplex, 0.4, Scalar.LimeGreen, 1);
             }
             Cv2.ImWrite(Path.Combine(folder, name + "-truth.png"), annotated);
-            cases.Add(new Case(name, templateName, name + ".png", new SearchOptions
+            cases.Add(new Case(name, templateName, name + ".png", new CpuSearchOptions
             {
                 MinimumAngle = fullRotation ? -180 : -30,
                 MaximumAngle = fullRotation ? 180 : 30,

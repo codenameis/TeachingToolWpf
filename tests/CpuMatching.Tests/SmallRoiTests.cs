@@ -27,7 +27,7 @@ public sealed class SmallRoiTests
                 }
             }
         }
-        var template = new GrayImage(TemplateWidth, TemplateHeight, pixels);
+        var template = new CpuGrayImage(TemplateWidth, TemplateHeight, pixels);
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
@@ -42,8 +42,8 @@ public sealed class SmallRoiTests
                 pixels.AsSpan(y * TemplateWidth, TemplateWidth).CopyTo(scene.AsSpan(((corner.Y + y) * width) + corner.X));
             }
         }
-        var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 16 };
-        var result = matcher.Find(new GrayImage(width, Height, scene), options);
+        var options = new CpuSearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 16 };
+        var result = matcher.Find(new CpuGrayImage(width, Height, scene), options);
         Assert.Equal(4, result.Matches.Count);
         foreach (var corner in corners)
         {
@@ -52,6 +52,6 @@ public sealed class SmallRoiTests
         }
         Assert.False(result.CandidatesTruncated);
         // 동일 모델로 완전히 다른 영상을 검사할 때 이전 픽셀/결과가 남으면 안 된다.
-        Assert.Empty(matcher.Find(new GrayImage(width, Height, new byte[scene.Length]), options).Matches);
+        Assert.Empty(matcher.Find(new CpuGrayImage(width, Height, new byte[scene.Length]), options).Matches);
     }
 }

@@ -42,7 +42,7 @@ internal static class RoiPaste
                 Geometry = placement.Apply(template.Geometry),
                 ParentId = resolvedParent,
                 Order = ++order,
-                Name = template.Name[..Math.Min(template.Name.Length, 253)] + " 복사"
+                Name = RoiName.CreateCopyName(template.Name)
             });
         }
 

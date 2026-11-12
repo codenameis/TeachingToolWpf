@@ -13,9 +13,15 @@ namespace TeachingToolWpf.Imaging.Matching;
 /// <summary>
 /// Production taught-font OCV service wrapping <see cref="TaughtFontOcvVerifier"/>,
 /// <see cref="IndustrialOcrTrainer"/>, and <see cref="IndustrialOcrFontModelSerializer"/>.
+/// Supports multiple named font slots (<c>FontId</c>) for multi-print recipes and merges incremental teaches
+/// cleanly onto loaded <c>.ocvfont.json</c> models without losing previously stored glyph templates.
 /// </summary>
-public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> retainFrame) : ITaughtFontOcvService
+public sealed class TaughtFontOcvService(
+    IImageLoader loader,
+    Func<VideoFrame?> retainFrame,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : ITaughtFontOcvService
 {
+    public const string DefaultFontId = "default";
     public const string AccentOk = "#10B981";
     public const string AccentReview = "#F59E0B";
     public const string AccentNg = "#EF4444";
@@ -33,9 +39,7 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
     private const float PolaritySwitchMinGain = 0.05f;
 
     private readonly object _sync = new();
-    private readonly List<GoldenCharSample> _taughtSamples = [];
-    private IndustrialOcrFontModel? _goldenFont;
-    private bool _lastTaughtDarkOnLight = true;
+    private readonly Dictionary<string, FontSlot> _fontsById = new(StringComparer.OrdinalIgnoreCase);
 
     public bool HasGoldenFont
     {
@@ -43,42 +47,72 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
         {
             lock (_sync)
             {
-                return _goldenFont is not null;
+                return _fontsById.Count > 0;
             }
         }
     }
 
-    public int RegisteredCharacterCount
+    public int RegisteredCharacterCount => GetRegisteredCharacterCount(DefaultFontId);
+
+    public string RegisteredCharactersSummary => GetRegisteredCharactersSummary(DefaultFontId);
+
+    public bool HasGoldenFontForId(string? fontId)
     {
-        get
+        string key = NormalizeFontId(fontId);
+        lock (_sync)
         {
-            lock (_sync)
-            {
-                return _goldenFont?.Templates.Length ?? 0;
-            }
+            return _fontsById.ContainsKey(key);
         }
     }
 
-    public string RegisteredCharactersSummary
+    public int GetRegisteredCharacterCount(string? fontId)
     {
-        get
+        string key = NormalizeFontId(fontId);
+        lock (_sync)
         {
-            lock (_sync)
+            if (_fontsById.TryGetValue(key, out FontSlot? slot))
             {
-                if (_goldenFont is null)
+                return slot.Model.Count;
+            }
+
+            if (string.Equals(key, DefaultFontId, StringComparison.OrdinalIgnoreCase) && _fontsById.Count == 1)
+            {
+                foreach (FontSlot onlySlot in _fontsById.Values)
+                {
+                    return onlySlot.Model.Count;
+                }
+            }
+
+            return 0;
+        }
+    }
+
+    public string GetRegisteredCharactersSummary(string? fontId)
+    {
+        string key = NormalizeFontId(fontId);
+        lock (_sync)
+        {
+            if (!_fontsById.TryGetValue(key, out FontSlot? slot))
+            {
+                if (_fontsById.Count == 0)
                 {
                     return "미등록 (기준 ROI에서 '폰트 티칭' 또는 '폰트 불러오기' 필요)";
                 }
 
-                ReadOnlySpan<IndustrialOcrGlyphTemplate> templates = _goldenFont.Templates;
-                var sb = new StringBuilder(templates.Length + 16);
-                for (int i = 0; i < templates.Length; i++)
-                {
-                    sb.Append(templates[i].Character);
-                }
-
-                return $"등록 문자 {templates.Length}종 [{sb}]";
+                return $"폰트 '{key}' 미등록 (전체 등록 폰트 {_fontsById.Count}개)";
             }
+
+            ReadOnlySpan<IndustrialOcrGlyphTemplate> templates = slot.Model.Templates;
+            var sb = new StringBuilder(templates.Length + 16);
+            for (int i = 0; i < templates.Length; i++)
+            {
+                sb.Append(templates[i].Character);
+            }
+
+            string idTag = string.Equals(key, DefaultFontId, StringComparison.OrdinalIgnoreCase) && _fontsById.Count <= 1
+                ? string.Empty
+                : $" (ID:{key})";
+            return $"등록 문자 {templates.Length}종{idTag} [{sb}]";
         }
     }
 
@@ -90,19 +124,21 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
         OcvPolaritySelection polarity,
         float foregroundContrastOffset,
         bool appendToExistingFont,
-        CancellationToken token)
+        CancellationToken token,
+        string fontId = DefaultFontId)
         => Task.Run(async () =>
         {
             ArgumentNullException.ThrowIfNull(image);
             ArgumentNullException.ThrowIfNull(roi);
 
+            string resolvedFontId = NormalizeFontId(fontId);
             string compactExpected = CompactNonWhitespace(expectedText);
             if (compactExpected.Length == 0)
             {
                 return new OcvTeachingOutcome(
                     IsSuccess: false,
                     TaughtGlyphCount: 0,
-                    UniqueCharacterCount: RegisteredCharacterCount,
+                    UniqueCharacterCount: GetRegisteredCharacterCount(resolvedFontId),
                     ExpectedLength: 0,
                     ObservedSegmentCount: 0,
                     PolarityTag: "N/A",
@@ -111,7 +147,7 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
                     RecommendedAction: "선택 ROI에 인쇄된 정확한 기준 문자열을 입력한 뒤 다시 티칭하세요.");
             }
 
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
             using var visionWs = new VisionWorkspace();
 
@@ -153,20 +189,24 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
 
                 if (extracted.Count == compactExpected.Length)
                 {
+                    var extractedList = new List<GoldenCharSample>(extracted);
                     int uniqueCount;
                     string summaryChars;
                     lock (_sync)
                     {
-                        if (!appendToExistingFont)
-                        {
-                            _taughtSamples.Clear();
-                        }
+                        IndustrialOcrFontModel? baseModel = appendToExistingFont &&
+                            _fontsById.TryGetValue(resolvedFontId, out FontSlot? existingSlot)
+                                ? existingSlot.Model
+                                : null;
 
-                        _taughtSamples.AddRange(extracted);
-                        _goldenFont = IndustrialOcrTrainer.Train(CollectionsMarshal.AsSpan(_taughtSamples));
-                        _lastTaughtDarkOnLight = darkOnLight;
-                        uniqueCount = _goldenFont.Templates.Length;
-                        summaryChars = RegisteredCharactersSummary;
+                        IndustrialOcrFontModel updatedModel = IndustrialOcrTrainer.TrainOrMerge(
+                            baseModel,
+                            CollectionsMarshal.AsSpan(extractedList),
+                            darkOnLight);
+
+                        _fontsById[resolvedFontId] = new FontSlot(updatedModel, darkOnLight);
+                        uniqueCount = updatedModel.Count;
+                        summaryChars = GetRegisteredCharactersSummary(resolvedFontId);
                     }
 
                     string polarityLabel = darkOnLight ? "DarkOnLight(밝은 배경/어두운 글자)" : "LightOnDark(어두운 배경/밝은 글자)";
@@ -179,7 +219,7 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
                         PolarityTag: polarityLabel,
                         StatusSummary: $"폰트 티칭 완료: '{compactExpected}' ({extracted.Count}글자) · {summaryChars}",
                         FailureCause: string.Empty,
-                        RecommendedAction: "이제 다른 검증 대상 ROI(예: 칩2~4)를 선택하고 'OCV 검증'을 실행하세요.");
+                        RecommendedAction: "이제 다른 검증 대상 ROI를 선택하고 'OCV 검증'을 실행하세요.");
                 }
 
                 int segCount = ProbeSegmentedBoxCount(roiView, in stripFixture, candidateOptions, visionWs);
@@ -194,7 +234,7 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
             return new OcvTeachingOutcome(
                 IsSuccess: false,
                 TaughtGlyphCount: 0,
-                UniqueCharacterCount: RegisteredCharacterCount,
+                UniqueCharacterCount: GetRegisteredCharacterCount(resolvedFontId),
                 ExpectedLength: compactExpected.Length,
                 ObservedSegmentCount: bestObservedCount,
                 PolarityTag: failPolarity,
@@ -219,21 +259,19 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
                 throw new ArgumentException("OCV 검증할 대상 ROI를 먼저 선택하거나 추가하세요.", nameof(requests));
             }
 
-            IndustrialOcrFontModel fontModel;
-            bool taughtDarkOnLight;
+            Dictionary<string, FontSlot> snapshot;
             lock (_sync)
             {
-                if (_goldenFont is null)
+                if (_fontsById.Count == 0)
                 {
                     throw new InvalidOperationException("등록된 골든 폰트가 없습니다. 먼저 기준 ROI에서 '폰트 티칭'을 실행하거나 저장된 폰트 파일을 불러오세요.");
                 }
 
-                fontModel = _goldenFont;
-                taughtDarkOnLight = _lastTaughtDarkOnLight;
+                snapshot = new Dictionary<string, FontSlot>(_fontsById, StringComparer.OrdinalIgnoreCase);
             }
 
-            var verifier = new TaughtFontOcvVerifier(fontModel);
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            var verifiersByFontId = new Dictionary<string, (TaughtFontOcvVerifier Verifier, bool TaughtDarkOnLight)>(StringComparer.OrdinalIgnoreCase);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
             using var visionWs = new VisionWorkspace();
 
@@ -245,6 +283,42 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
                 token.ThrowIfCancellationRequested();
                 OcvRoiVerifyRequest req = requests[i];
                 var sw = Stopwatch.StartNew();
+
+                string reqFontId = NormalizeFontId(req.FontId);
+                if (!verifiersByFontId.TryGetValue(reqFontId, out var slotVerifier))
+                {
+                    if (!snapshot.TryGetValue(reqFontId, out FontSlot? resolvedSlot) &&
+                        !snapshot.TryGetValue(DefaultFontId, out resolvedSlot))
+                    {
+                        sw.Stop();
+                        results.Add(new OcvRoiInspectionItem(
+                            req.RoiId,
+                            req.Name,
+                            req.ExpectedText,
+                            req.FormatMask,
+                            DecodedText: string.Empty,
+                            OcvVerdictKind.Ng,
+                            VerdictBadge: "NG · 폰트ID 미등록",
+                            VerdictAccent: AccentNg,
+                            MeanScore: 0f,
+                            MinScore: 0f,
+                            CauseSummary: $"ROI가 참조하는 골든 폰트 ID '{reqFontId}'가 등록되지 않았습니다.",
+                            RecommendedAction: $"폰트 ID '{reqFontId}'로 기준 ROI를 티칭하거나 해당 폰트 파일을 불러오세요.",
+                            Characters: [],
+                            req.Center,
+                            req.AngleRadians,
+                            req.Outline,
+                            CharContours: [],
+                            OkCharCenters: [],
+                            ReviewCharCenters: [],
+                            NgCharCenters: [req.Center],
+                            sw.Elapsed.TotalMicroseconds));
+                        continue;
+                    }
+
+                    slotVerifier = (new TaughtFontOcvVerifier(resolvedSlot.Model), resolvedSlot.DarkOnLight);
+                    verifiersByFontId[reqFontId] = slotVerifier;
+                }
 
                 var roiInput = new InspectionSuiteRoiInput(
                     req.RoiId,
@@ -335,12 +409,12 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
                 int expectedSlotLen = compactExpected.Length > 0 ? compactExpected.Length : Math.Max(1, fieldSpec.SlotCount);
                 var stripFixture = new FixturePose2D(roiView.Width * 0.5f, roiView.Height * 0.5f, 0f);
                 OcvVerificationResult lineRes = ResolveAndVerifyLine(
-                    verifier,
+                    slotVerifier.Verifier,
                     roiView,
                     in stripFixture,
                     fieldSpec,
                     polarity,
-                    taughtDarkOnLight,
+                    slotVerifier.TaughtDarkOnLight,
                     expectedSlotLen,
                     clampedContrast,
                     visionWs);
@@ -360,36 +434,159 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
             return results.MoveToImmutable();
         }, token);
 
-    public void SaveFontModel(Stream destination)
+    public void SaveFontModel(Stream destination, string fontId = DefaultFontId)
     {
         ArgumentNullException.ThrowIfNull(destination);
+        string key = NormalizeFontId(fontId);
         IndustrialOcrFontModel model;
         lock (_sync)
         {
-            model = _goldenFont ?? throw new InvalidOperationException("저장할 티칭 골든 폰트가 없습니다. 먼저 '폰트 티칭'을 실행하세요.");
+            if (!_fontsById.TryGetValue(key, out FontSlot? slot))
+            {
+                throw new InvalidOperationException($"저장할 티칭 골든 폰트('{key}')가 없습니다. 먼저 '폰트 티칭'을 실행하세요.");
+            }
+
+            model = slot.Model;
         }
 
         IndustrialOcrFontModelSerializer.Save(destination, model);
     }
 
-    public void LoadFontModel(Stream source)
+    public void LoadFontModel(Stream source, string fontId = DefaultFontId)
     {
         ArgumentNullException.ThrowIfNull(source);
+        string key = NormalizeFontId(fontId);
         IndustrialOcrFontModel loaded = IndustrialOcrFontModelSerializer.Load(source);
         lock (_sync)
         {
-            _goldenFont = loaded;
-            _taughtSamples.Clear();
+            _fontsById[key] = new FontSlot(loaded, loaded.DarkOnLight);
         }
     }
 
-    public void ClearFontModel()
+    public void ClearFontModel(string? fontId = null)
     {
         lock (_sync)
         {
-            _goldenFont = null;
-            _taughtSamples.Clear();
+            if (string.IsNullOrWhiteSpace(fontId))
+            {
+                _fontsById.Clear();
+                return;
+            }
+
+            _fontsById.Remove(NormalizeFontId(fontId));
         }
+    }
+
+    public IReadOnlyDictionary<string, string> ExportAllFontModelsJson()
+    {
+        Dictionary<string, FontSlot> snapshot;
+        lock (_sync)
+        {
+            snapshot = new Dictionary<string, FontSlot>(_fontsById, StringComparer.OrdinalIgnoreCase);
+        }
+
+        var exported = new Dictionary<string, string>(snapshot.Count, StringComparer.OrdinalIgnoreCase);
+        foreach ((string key, FontSlot slot) in snapshot)
+        {
+            using var ms = new MemoryStream();
+            IndustrialOcrFontModelSerializer.Save(ms, slot.Model);
+            exported[key] = Encoding.UTF8.GetString(ms.ToArray());
+        }
+
+        return exported;
+    }
+
+    public void ImportAllFontModelsJson(IReadOnlyDictionary<string, string>? fontModelsJson, bool clearExisting = true)
+    {
+        var loadedSlots = new Dictionary<string, FontSlot>(StringComparer.OrdinalIgnoreCase);
+        if (fontModelsJson is not null)
+        {
+            foreach ((string rawId, string json) in fontModelsJson)
+            {
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    continue;
+                }
+
+                using var ms = new MemoryStream(Encoding.UTF8.GetBytes(json));
+                IndustrialOcrFontModel loaded = IndustrialOcrFontModelSerializer.Load(ms);
+                loadedSlots[NormalizeFontId(rawId)] = new FontSlot(loaded, loaded.DarkOnLight);
+            }
+        }
+
+        lock (_sync)
+        {
+            if (clearExisting)
+            {
+                _fontsById.Clear();
+            }
+
+            foreach ((string key, FontSlot slot) in loadedSlots)
+            {
+                _fontsById[key] = slot;
+            }
+        }
+    }
+
+    internal static OcvVerificationResult SelectPreferredPolarityVerification(
+        OcvVerificationResult primary,
+        OcvVerificationResult alternate)
+    {
+        int primaryRank = GetVerdictQualityRank(primary.Verdict);
+        int altRank = GetVerdictQualityRank(alternate.Verdict);
+        if (altRank != primaryRank)
+        {
+            return altRank > primaryRank ? alternate : primary;
+        }
+
+        (int primaryNg, int primaryReview) = CountDefectiveCharacters(primary);
+        (int altNg, int altReview) = CountDefectiveCharacters(alternate);
+        if (altNg != primaryNg)
+        {
+            return altNg < primaryNg ? alternate : primary;
+        }
+
+        if (altReview != primaryReview)
+        {
+            return altReview < primaryReview ? alternate : primary;
+        }
+
+        return alternate.MeanMatchScore > (primary.MeanMatchScore + PolaritySwitchMinGain)
+            ? alternate
+            : primary;
+    }
+
+    private static int GetVerdictQualityRank(OcvVerdictKind verdict)
+        => verdict switch
+        {
+            OcvVerdictKind.Ok => 2,
+            OcvVerdictKind.Review => 1,
+            _ => 0,
+        };
+
+    private static (int NgCount, int ReviewCount) CountDefectiveCharacters(OcvVerificationResult result)
+    {
+        if (result.Characters.Count == 0)
+        {
+            return (result.IsNg ? int.MaxValue : 0, result.NeedsReview ? 1 : 0);
+        }
+
+        int ng = 0;
+        int review = 0;
+        for (int i = 0; i < result.Characters.Count; i++)
+        {
+            OcvVerdictKind v = result.Characters[i].Verdict;
+            if (v == OcvVerdictKind.Ng)
+            {
+                ng++;
+            }
+            else if (v == OcvVerdictKind.Review)
+            {
+                review++;
+            }
+        }
+
+        return (ng, review);
     }
 
     private static OcvVerificationResult ResolveAndVerifyLine(
@@ -434,7 +631,7 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
             clampedContrast,
             !taughtDarkOnLight);
         OcvVerificationResult alt = verifier.VerifyLine(roiView, in stripFixture, fieldSpec, altOptions, visionWs);
-        return alt.MeanMatchScore > primary.MeanMatchScore + PolaritySwitchMinGain ? alt : primary;
+        return SelectPreferredPolarityVerification(primary, alt);
     }
 
     private static OcvRoiInspectionItem BuildRoiInspectionItem(
@@ -685,6 +882,9 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
         return new ReadOnlyImageView2D<byte>(copy, roiW, roiH, roiW);
     }
 
+    private static string NormalizeFontId(string? fontId)
+        => string.IsNullOrWhiteSpace(fontId) ? DefaultFontId : fontId.Trim();
+
     private static string CompactNonWhitespace(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -703,4 +903,6 @@ public sealed class TaughtFontOcvService(IImageLoader loader, Func<VideoFrame?> 
 
         return sb.ToString();
     }
+
+    private sealed record FontSlot(IndustrialOcrFontModel Model, bool DarkOnLight);
 }

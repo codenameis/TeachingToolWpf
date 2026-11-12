@@ -6,6 +6,7 @@
     <Project Path="IndustrialVision.Filters/src/IndustrialVision.Filters.Gpu.ILGPU/IndustrialVision.Filters.Gpu.ILGPU.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/VisionKernels/VisionKernels.csproj" />
     <Project Path="src/CpuMatching.Core/CpuMatching.Core.csproj" />
     <Project Path="src/CpuMatching.Cuda/CpuMatching.Cuda.csproj" />
     <Project Path="src/CpuMatching.Line2D/CpuMatching.Line2D.csproj" />
@@ -25,6 +26,7 @@
     <Project Path="src/VisionCanvas.Wgpu/VisionCanvas.Wgpu.csproj" />
     <Project Path="src/VisionCanvas.Filters.Wpf/VisionCanvas.Filters.Wpf.csproj" />
     <Project Path="src/VisionAlgorithm/VisionAlgorithm.csproj" />
+    <Project Path="src/VisionAlgorithm.Verification/VisionAlgorithm.Verification.csproj" />
     <Project Path="src/VisionOcr.PpOcr/VisionOcr.PpOcr.csproj" />
     <Project Path="src/VisionImaging/VisionImaging.csproj" />
     <Project Path="src/VisionInspection/VisionInspection.csproj" />
@@ -51,6 +53,7 @@
     <Project Path="benchmarks/VisionAlgorithm.Benchmarks/VisionAlgorithm.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/VisionCanvas.SampleShell/VisionCanvas.SampleShell.csproj" />
     <Project Path="samples/VisionCanvas.MvvmSample/VisionCanvas.MvvmSample.csproj" />
     <Project Path="samples/VisionCanvas.VulkanSample/VisionCanvas.VulkanSample.csproj" />
     <Project Path="samples/VisionCanvas.SkiaSample/VisionCanvas.SkiaSample.csproj" />

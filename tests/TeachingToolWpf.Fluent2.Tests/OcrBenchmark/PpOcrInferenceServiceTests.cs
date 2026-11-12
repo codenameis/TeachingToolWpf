@@ -234,20 +234,28 @@ public sealed class PpOcrInferenceServiceTests(ITestOutputHelper output)
             Assert.False(unwiredVm.IsPpOcrWired);
 
             // 2) Legacy classical OCR enum values normalize cleanly to unified PpOcrOnnx
+#pragma warning disable CS0618
             unwiredVm.SelectedAlgorithm = InspectionSuiteAlgorithmKind.IndustrialOcrOcv;
             Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, unwiredVm.SelectedAlgorithm);
             unwiredVm.SelectedAlgorithm = InspectionSuiteAlgorithmKind.LightweightOcr;
             Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, unwiredVm.SelectedAlgorithm);
             unwiredVm.SelectedAlgorithm = InspectionSuiteAlgorithmKind.CpuDeepOcr;
             Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, unwiredVm.SelectedAlgorithm);
+#pragma warning restore CS0618
 
             // 3) Wired PP-OCRv4 + OCV: 1-click ApplyPpOcrTextToOcvExpectedText copies recognized text to SelectedRoiOcvExpectedText
             string modelDir = Path.Combine(repoRootPath, "models", "ppocr");
             using var ppOcrService = new PpOcrInferenceService(PpOcrModelOptions.FromDirectory(modelDir, PpOcrExecutionDevice.Cpu));
             var ocvService = new TaughtFontOcvService(loader, () => null);
+            bool confirmInvoked = false;
             using var wiredVm = new InspectionSuiteViewModel(
                 new InspectionSuiteService(loader, () => null, ppOcrService),
-                ocvService);
+                ocvService,
+                confirmApplyPpOcrToOcv: (_, _, _) =>
+                {
+                    confirmInvoked = true;
+                    return true;
+                });
 
             wiredVm.SelectOcrCategory.Execute(null);
             Assert.Single(wiredVm.CategoryAlgorithms);
@@ -255,7 +263,7 @@ public sealed class PpOcrInferenceServiceTests(ITestOutputHelper output)
             Assert.True(wiredVm.IsPpOcrOnnxSelected);
 
             string synthImgPath = Path.Combine(tempDir, "copy_test.png");
-            (byte[] px, int w, int h) = RenderSyntheticGrayLine("LOT2026A", darkOnLight: true);
+            (byte[] px, int w, int h) = RenderSyntheticGrayLine("12345678", darkOnLight: true);
             using (var mat = new Mat(h, w, MatType.CV_8UC1))
             {
                 Marshal.Copy(px, 0, mat.Data, px.Length);
@@ -265,15 +273,20 @@ public sealed class PpOcrInferenceServiceTests(ITestOutputHelper output)
             var session = new EditorSession();
             var imageRef = new ImageReference(synthImgPath, "copy_test.png", w, h);
             session.InitializeImage(imageRef, new ViewportTransform(1.0, default));
-            Guid roiId = session.Add(new RoiGeometry(new PointD(w * 0.5, h * 0.5), w - 8, h - 4, 0.0));
+            Guid roiId = session.Add(new RoiGeometry(new PointD(w * 0.5, h * 0.5), w - 4, h - 2, 0.0));
             session.Select([roiId]);
 
             wiredVm.Update(new InspectionUpdate(session.State, Generation: 1, Live: false, CanExecute: true, ToolAvailable: true, TransformPreview: null));
             await wiredVm.ExecuteSelected.ExecuteAsync();
 
+            Assert.NotNull(wiredVm.LastOutput);
+            Assert.True(
+                wiredVm.LastOutput.Items[0].IsPass,
+                $"Expected synthetic UI copy sample to pass default PP-OCR gate (badge='{wiredVm.LastOutput.Items[0].BadgeLabel}', detail='{wiredVm.LastOutput.Items[0].DetailLine}')");
             Assert.True(wiredVm.ApplyPpOcrTextToOcvExpectedText.CanExecute(null));
             wiredVm.ApplyPpOcrTextToOcvExpectedText.Execute(null);
-            Assert.Equal("LOT2026A", wiredVm.SelectedRoiOcvExpectedText);
+            Assert.True(confirmInvoked);
+            Assert.Equal("12345678", wiredVm.SelectedRoiOcvExpectedText);
         }
         finally
         {
@@ -458,6 +471,243 @@ public sealed class PpOcrInferenceServiceTests(ITestOutputHelper output)
         output.WriteLine(sb.ToString());
 
         Assert.True(batch32FastMs < seq32AutoMs, $"Expected 32-ROI HighSpeed batch ({batch32FastMs:F2} ms) < sequential Auto ({seq32AutoMs:F2} ms).");
+    }
+
+    [Fact]
+    public void P1_CtcDecoder_UsesFirstTimestepProbability_AndIncludesEmittedSpaceTokenConfidence()
+    {
+        // Vocabulary: class 0 = blank, class 1 = 'A', class 2 = 'B', class 3 = ' '
+        ReadOnlySpan<char> vocab = ['A', 'B', ' '];
+        ReadOnlySpan<bool> allowed = [true, true, true, true];
+        const int timeSteps = 5;
+        const int numClasses = 4;
+
+        // Softmax rows summing to 1.0:
+        // t=0: 'A' run starts with 0.60
+        // t=1: 'A' run continues with 0.98 (official BaseRecLabelDecode MUST use t=0 prob 0.60, NOT max 0.98!)
+        // t=2: ' ' space token with 0.50
+        // t=3: blank (0.97)
+        // t=4: 'B' token with 0.90
+        float[] matrix =
+        [
+            0.30f, 0.60f, 0.05f, 0.05f,
+            0.01f, 0.98f, 0.005f, 0.005f,
+            0.40f, 0.05f, 0.05f, 0.50f,
+            0.97f, 0.01f, 0.01f, 0.01f,
+            0.05f, 0.03f, 0.90f, 0.02f,
+        ];
+
+        PpOcrCtcDecoder.DecodedCropLine decoded = PpOcrCtcDecoder.DecodeContiguousMatrix(
+            vocab,
+            matrix,
+            timeSteps,
+            numClasses,
+            targetWidth: 320,
+            resizedContentWidth: 320,
+            orientedCropWidth: 160,
+            orientedCropHeight: 48,
+            allowed);
+
+        Assert.Equal("A B", decoded.Text);
+        Assert.Equal(2, decoded.Characters.Count);
+        Assert.Equal('A', decoded.Characters[0].Character);
+        Assert.Equal(0.60f, decoded.Characters[0].Confidence, precision: 4); // First timestep (0.60), NOT run max (0.98)!
+        Assert.Equal('B', decoded.Characters[1].Character);
+        Assert.True(decoded.Characters[1].PrecededBySpace);
+        Assert.Equal(0.90f, decoded.Characters[1].Confidence, precision: 4);
+
+        // Space token prob (0.50) must be included in MeanConfidence = (0.60 + 0.50 + 0.90) / 3 = 0.6667 and MinConfidence = 0.50!
+        Assert.Equal((0.60f + 0.50f + 0.90f) / 3.0f, decoded.MeanConfidence, precision: 4);
+        Assert.Equal(0.50f, decoded.MinConfidence, precision: 4);
+    }
+
+    [Fact]
+    public void P2_RecognizeBatch_ShuffledHeterogeneousWidths_MatchesSingleRoiExactly()
+    {
+        (_, string repoRootPath, _) = OcrBenchmarkDataset.LoadFromDefaultLocation();
+        string modelDir = Path.Combine(repoRootPath, "models", "ppocr");
+        using var service = new PpOcrInferenceService(PpOcrModelOptions.FromDirectory(modelDir, PpOcrExecutionDevice.Cpu));
+
+        (string Text, int Width, int Height)[] specs =
+        [
+            ("OK", 90, 48),
+            ("A19", 180, 48),
+            ("LOT2026", 310, 52),
+            ("BATCH-8841", 470, 54),
+            ("SN-2026-9901A", 640, 56),
+            ("MFG 2026.11.11 REV02", 820, 58),
+        ];
+
+        var patches = new PpOcrRoiPatch[specs.Length];
+        var singleResults = new PpOcrRecognitionResult[specs.Length];
+        var opts = new PpOcrRunOptions(
+            Language: PpOcrLanguage.English,
+            PipelineMode: PpOcrPipelineMode.RecOnly,
+            PolarityMode: PpOcrPolarityMode.NormalOnly);
+
+        for (int i = 0; i < specs.Length; i++)
+        {
+            using var mat = new Mat(specs[i].Height, specs[i].Width, MatType.CV_8UC1, Scalar.All(240));
+            Cv2.PutText(mat, specs[i].Text, new Point(12, specs[i].Height - 14), HersheyFonts.HersheySimplex, 0.9, Scalar.All(20), thickness: 2, LineTypes.AntiAlias);
+            byte[] buf = new byte[specs[i].Width * specs[i].Height];
+            Marshal.Copy(mat.Data, buf, 0, buf.Length);
+            patches[i] = new PpOcrRoiPatch(buf, specs[i].Width, specs[i].Height, specs[i].Width);
+            singleResults[i] = service.RecognizeRoi(patches[i].AsView(), opts);
+        }
+
+        // Verify forward, reverse, and interleaved permutations all match single-ROI RecognizeRoi identically
+        int[][] permutations =
+        [
+            [0, 1, 2, 3, 4, 5],
+            [5, 4, 3, 2, 1, 0],
+            [2, 5, 0, 4, 1, 3],
+        ];
+
+        foreach (int[] perm in permutations)
+        {
+            var permutedPatches = perm.Select(idx => patches[idx]).ToArray();
+            IReadOnlyList<PpOcrRecognitionResult> batchRes = service.RecognizeBatch(permutedPatches, opts);
+            Assert.Equal(perm.Length, batchRes.Count);
+
+            for (int k = 0; k < perm.Length; k++)
+            {
+                int origIdx = perm[k];
+                Assert.Equal(singleResults[origIdx].Region.FullText, batchRes[k].Region.FullText);
+                Assert.Equal(singleResults[origIdx].Region.IsPass, batchRes[k].Region.IsPass);
+                Assert.Equal(singleResults[origIdx].Region.MeanConfidence, batchRes[k].Region.MeanConfidence, precision: 5);
+                Assert.Equal(singleResults[origIdx].Region.MinConfidence, batchRes[k].Region.MinConfidence, precision: 5);
+            }
+        }
+    }
+
+    [Fact]
+    public void P3_DbPostProcessor_MinRectUnclipDistance_UsesMinAreaRectDimensions()
+    {
+        float dist = PpOcrDbPostProcessor.ComputeMinRectUnclipDistance(new Size2f(100f, 20f), unclipRatio: 1.5f);
+        // Official PaddleOCR formula: (100 * 20 * 1.5) / (2 * (100 + 20)) = 3000 / 240 = 12.5
+        Assert.Equal(12.5f, dist, precision: 5);
+    }
+
+    [Fact]
+    public void P4_And_P5_SessionLifecycle_DisposedStatus_PartialInitCleanup_AndVocabularyValidation()
+    {
+        (_, string repoRootPath, _) = OcrBenchmarkDataset.LoadFromDefaultLocation();
+        string modelDir = Path.Combine(repoRootPath, "models", "ppocr");
+
+        // P4(a): Dispose transitions Status to PpOcrModelStatus.Disposed
+        var service = new PpOcrInferenceService(PpOcrModelOptions.FromDirectory(modelDir, PpOcrExecutionDevice.Cpu));
+        Assert.Equal(PpOcrModelStatus.Ready, service.Status);
+        service.Dispose();
+        Assert.Equal(PpOcrModelStatus.Disposed, service.Status);
+
+        // P4(b) & P5: Valid det model + valid en model + mismatched/corrupt dict throws InvalidDataException cleanly without leaking det/en sessions
+        string tempDir = Path.Combine(Path.GetTempPath(), $"PpOcr_P4P5_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            string badDictPath = Path.Combine(tempDir, "bad_mid_empty_dict.txt");
+            File.WriteAllText(badDictPath, "0\n\n1\n2\n", Encoding.UTF8);
+
+            InvalidDataException midEmptyEx = Assert.Throws<InvalidDataException>(
+                () => PpOcrSessionHost.LoadAndValidateCtcVocabulary(badDictPath, modelOutputClasses: 0));
+            Assert.Contains("비어 있어", midEmptyEx.Message, StringComparison.Ordinal);
+
+            string shortDictPath = Path.Combine(tempDir, "short_dict.txt");
+            File.WriteAllText(shortDictPath, "0\n1\n2\n", Encoding.UTF8);
+            InvalidDataException mismatchEx = Assert.Throws<InvalidDataException>(
+                () => PpOcrSessionHost.LoadAndValidateCtcVocabulary(shortDictPath, modelOutputClasses: 97));
+            Assert.Contains("일치하지 않습니다", mismatchEx.Message, StringComparison.Ordinal);
+
+            // Partial init failure: valid Det model + corrupt English model throws InvalidDataException after disposing Det session
+            string corruptEnPath = Path.Combine(tempDir, "corrupt_en.onnx");
+            File.WriteAllBytes(corruptEnPath, [0x00, 0x01, 0x02, 0x03]);
+            var partialFailOpts = new PpOcrModelOptions(
+                DetectionModelPath: Path.Combine(modelDir, "ch_PP-OCRv4_det_mobile.onnx"),
+                EnglishRecModelPath: corruptEnPath,
+                EnglishDictionaryPath: Path.Combine(modelDir, "en_dict.txt"),
+                KoreanRecModelPath: null,
+                KoreanDictionaryPath: null,
+                Device: PpOcrExecutionDevice.Cpu);
+            Assert.Throws<InvalidDataException>(() => new PpOcrInferenceService(partialFailOpts));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void PpOcrMinors_OrientationInverseMapping_RecOnlyDetScoreZero_AndHighSpeedKoreanPreserved()
+    {
+        // Minor 3: CreateHighSpeedProduction preserves Korean instead of forcing English
+        PpOcrRunOptions koFast = PpOcrRunOptions.CreateHighSpeedProduction(language: PpOcrLanguage.Korean);
+        Assert.Equal(PpOcrLanguage.Korean, koFast.Language);
+        PpOcrRunOptions multiFast = PpOcrRunOptions.CreateHighSpeedProduction(language: PpOcrLanguage.MultilingualConfidenceSelect);
+        Assert.Equal(PpOcrLanguage.English, multiFast.Language);
+
+        // Minor 1: Inverse coordinate mapping for Rotate180, Rotate90CCW, Rotate90CW stays inside [0..origW-1] x [0..origH-1]
+        const int origW = 40;
+        const int origH = 120;
+        // For Rotate90CCW, rotated crop has width = origH (120), height = origW (40)
+        var rotLine = new PpOcrCtcDecoder.DecodedCropLine(
+            "V",
+            [new PpOcrCharacterBox('V', 0.99f, 0, StartCol: 10, EndCol: 30, TopRow: 0, BottomRow: 39, PrecededBySpace: false)],
+            0.99f,
+            0.99f);
+
+        PpOcrCtcDecoder.DecodedCropLine ccwMapped = PpOcrCtcDecoder.RemapOrientationToOriginalFrame(
+            rotLine,
+            PpOcrCtcDecoder.CropOrientation.Rotate90Counterclockwise,
+            origW,
+            origH);
+        PpOcrCharacterBox ccwChar = Assert.Single(ccwMapped.Characters);
+        Assert.InRange(ccwChar.StartCol, 0, origW - 1);
+        Assert.InRange(ccwChar.EndCol, ccwChar.StartCol, origW - 1);
+        Assert.Equal(10, ccwChar.TopRow);
+        Assert.Equal(30, ccwChar.BottomRow);
+
+        PpOcrCtcDecoder.DecodedCropLine cwMapped = PpOcrCtcDecoder.RemapOrientationToOriginalFrame(
+            rotLine,
+            PpOcrCtcDecoder.CropOrientation.Rotate90Clockwise,
+            origW,
+            origH);
+        PpOcrCharacterBox cwChar = Assert.Single(cwMapped.Characters);
+        Assert.InRange(cwChar.StartCol, 0, origW - 1);
+        Assert.InRange(cwChar.EndCol, cwChar.StartCol, origW - 1);
+        Assert.Equal((origH - 1) - 30, cwChar.TopRow);
+        Assert.Equal((origH - 1) - 10, cwChar.BottomRow);
+
+        var rot180Input = new PpOcrCtcDecoder.DecodedCropLine(
+            "R",
+            [new PpOcrCharacterBox('R', 0.99f, 0, StartCol: 5, EndCol: 15, TopRow: 2, BottomRow: 18, PrecededBySpace: false)],
+            0.99f,
+            0.99f);
+        PpOcrCtcDecoder.DecodedCropLine r180Mapped = PpOcrCtcDecoder.RemapOrientationToOriginalFrame(
+            rot180Input,
+            PpOcrCtcDecoder.CropOrientation.Rotate180,
+            originalWidth: 100,
+            originalHeight: 30);
+        PpOcrCharacterBox r180Char = Assert.Single(r180Mapped.Characters);
+        Assert.Equal(99 - 15, r180Char.StartCol);
+        Assert.Equal(99 - 5, r180Char.EndCol);
+        Assert.Equal(29 - 18, r180Char.TopRow);
+        Assert.Equal(29 - 2, r180Char.BottomRow);
+
+        // Minor 2: RecOnly reports DetScore == 0f and IsDetectedQuad == false (never fake DetScore == 1.0f)
+        (_, string repoRootPath, _) = OcrBenchmarkDataset.LoadFromDefaultLocation();
+        string modelDir = Path.Combine(repoRootPath, "models", "ppocr");
+        using var service = new PpOcrInferenceService(PpOcrModelOptions.FromDirectory(modelDir, PpOcrExecutionDevice.Cpu));
+        (byte[] px, int w, int h) = RenderSyntheticGrayLine("LOT2026", darkOnLight: true);
+        PpOcrRecognitionResult recOnlyRes = service.RecognizeRoi(
+            new ReadOnlyImageView2D<byte>(px, w, h, w),
+            new PpOcrRunOptions(PipelineMode: PpOcrPipelineMode.RecOnly));
+        Assert.False(recOnlyRes.UsedDetectionStage);
+        PpOcrBoxResult recBox = Assert.Single(recOnlyRes.Boxes);
+        Assert.Equal(0f, recBox.DetScore);
+        Assert.False(recBox.IsDetectedQuad);
     }
 
     private static double MeasureMedianMs(int iterations, Action action)

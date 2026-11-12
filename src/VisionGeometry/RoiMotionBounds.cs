@@ -109,7 +109,7 @@ public static class RoiMotionBounds
             return 1;
         }
 
-        var parentTolerance = Math.Max(1e-6, Math.Max(Math.Abs(parent.Center.X), Math.Abs(parent.Center.Y)) * 1e-12);
+        var parentTolerance = GeometryTolerance.Scaled(parent.Center);
         var needsParentBoundary = parent.Radius == 0 && parent.Shape.Kind != RoiShapeKind.Rectangle;
         var parentCount = needsParentBoundary ? parent.VertexCount : 0;
         Span<PointD> boundary = parentCount <= 64 ? stackalloc PointD[parentCount] : new PointD[parentCount];
@@ -293,15 +293,15 @@ public static class RoiMotionBounds
         }
 
         var direction = Math.Sign(degrees);
-        var end = Math.Min(Math.Abs(degrees), 360) * Math.PI / 180;
+        var end = Math.Min(Math.Abs(degrees), GeometryConstants.FullCircleDegrees) * Math.PI / GeometryConstants.HalfCircleDegrees;
         var contacts = CollectRotationContacts(parent, child, pivot, direction, end);
         contacts.Sort();
         for (var i = 1; i < contacts.Count; i++)
         {
             var middle = (contacts[i - 1] + contacts[i]) / 2;
-            if (!parent.Covers(child.RotateAround(pivot, direction * middle * 180 / Math.PI)))
+            if (!parent.Covers(child.RotateAround(pivot, direction * middle * GeometryConstants.HalfCircleDegrees / Math.PI)))
             {
-                return direction * contacts[i - 1] * 180 / Math.PI;
+                return direction * contacts[i - 1] * GeometryConstants.HalfCircleDegrees / Math.PI;
             }
         }
 
@@ -421,7 +421,7 @@ public static class RoiMotionBounds
     private static void AddRotationRoots(List<double> contacts, double cosine, double sine, double limit, int direction, double end)
     {
         var magnitude = double.Hypot(cosine, sine);
-        if (magnitude < 1e-12 || Math.Abs(limit) > magnitude)
+        if (magnitude < GeometryTolerance.Squared || Math.Abs(limit) > magnitude)
         {
             return;
         }

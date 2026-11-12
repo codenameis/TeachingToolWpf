@@ -16,23 +16,6 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.ViewModels;
 
-public enum PatternMaskDrawTool
-{
-    Select = 0,
-    Rectangle = 1,
-    Ellipse = 2,
-    Polygon = 3,
-    Brush = 4,
-    Eraser = 5
-}
-
-public sealed record PatternMaskFeaturePoint(
-    double LocalX,
-    double LocalY,
-    double NormalX,
-    double NormalY,
-    bool IsExcluded);
-
 /// <summary>
 /// 기존 VisionCanvas와 분리된 전용 패턴 마스크 페이지 ViewModel.
 /// 선택된 ROI의 회전 보정된(Rectified) 기준 패턴 영상과 경계 특징점(에지 다이폴)을 추출하고,
@@ -62,6 +45,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
     private readonly IImageLoader _loader;
     private Func<VideoFrame?> _retainFrame;
     private readonly Action<string>? _statusCallback;
+    private readonly IPreInspectionFilterPipeline? _preFilterPipeline;
 
     private Guid? _roiId;
     private string _roiName = "";
@@ -112,7 +96,8 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
         EditorSession session,
         IImageLoader loader,
         Func<VideoFrame?> retainFrame,
-        Action<string>? statusCallback = null)
+        Action<string>? statusCallback = null,
+        IPreInspectionFilterPipeline? preFilterPipeline = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(loader);
@@ -122,6 +107,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
         _loader = loader;
         _retainFrame = retainFrame;
         _statusCallback = statusCallback;
+        _preFilterPipeline = preFilterPipeline;
 
         SelectToolCommand = new(() => ActiveTool = PatternMaskDrawTool.Select);
         RectangleToolCommand = new(() => ActiveTool = PatternMaskDrawTool.Rectangle);
@@ -2005,7 +1991,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
         RoiGeometry roi,
         CancellationToken token)
     {
-        using var reader = await MatchingImageReader.OpenAsync(image, live, _loader, _retainFrame, token).ConfigureAwait(false);
+        using var reader = await MatchingImageReader.OpenAsync(image, live, _loader, _retainFrame, token, _preFilterPipeline).ConfigureAwait(false);
         reader.PreferDirectGray = true;
 
         var bounds = roi.Bounds;
@@ -2070,7 +2056,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
         return (rectified, shapeMask, dstW, dstH);
     }
 
-    private static VisionAlgorithm.GrayImage ReadChunkedGrayImage(
+    private static VisionAlgorithm.ShapeGrayImage ReadChunkedGrayImage(
         MatchingImageReader reader,
         int left,
         int top,
@@ -2103,7 +2089,7 @@ public sealed class PatternMaskEditorViewModel : ObservableObject
             }
         }
 
-        return new VisionAlgorithm.GrayImage(pixels, width, height, width);
+        return new VisionAlgorithm.ShapeGrayImage(pixels, width, height, width);
     }
 
     private static byte[]? BuildLocalShapeInsideMask(RoiGeometry roi, int dstW, int dstH)

@@ -139,7 +139,7 @@ public sealed class VerificationCandidateSchedulerTests
     private static PoseCandidate Candidate(double x, double angle = 0, double scale = 1)
         => new(new(x, 100, angle, scale), 1, 0);
 
-    private static GrayImage RepeatTile(GrayImage tile, int columns, int rows)
+    private static ShapeGrayImage RepeatTile(ShapeGrayImage tile, int columns, int rows)
     {
         var width = tile.Width * columns;
         var height = tile.Height * rows;

@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using VisionAlgorithm.OpenSrc.Common;
 
 namespace VisionAlgorithm.OpenSrc.DataCode2D;
 
@@ -9,25 +10,65 @@ namespace VisionAlgorithm.OpenSrc.DataCode2D;
 /// </summary>
 public static class Barcode1DDecoder
 {
+    public const int DefaultMaxSymbols = 32;
+
     private const int Code128StartCodeB = 104;
     private const int Code128StopCode = 106;
     private const int Code128Modulo = 103;
     private const int ModulesPerCharacter = 11;
     private const int ElementsPerCharacter = 6;
     private const int StopPatternElements = 7;
-    private const int MaxRunsPerScanline = 512;
+    private const int MaxRunsPerScanline = 1024;
     private const int MaxScanlineSamples = 4096;
     private const int MinScanlines = 3;
     private const int MaxScanlines = 25;
     private const int DefaultScanlineCount = 9;
+    private const int ProposalCellShift = 3;
+    private const int ProposalMinEdgeCountPerCell = 4;
+    private const int ProposalQuietMarginPx = 22;
+    private const int MaxCandidateBarcodeBoxes = 48;
+    private const int MaxMultiSweepScanlines = 36;
+    private const int MaxActiveScanlineClusters = 24;
     private const byte MaxByteIntensity = byte.MaxValue;
     private const double HalfFactor = 0.5;
     private const double DegreesToRadians = Math.PI / 180.0;
     private const double ReorientThresholdRad = 1.0 * DegreesToRadians;
     private const double MinVarianceEpsilon = 1e-6;
+    private const double GradientEdgeMagnitudeSqThreshold = 900.0;
+    private const double DuplicateCenterDistanceRatio = 0.38;
+    private const double ReadingOrderRowBandRatio = 0.55;
+
+    private sealed class ScanlineBarcodeCluster
+    {
+        public required string Symbology { get; init; }
+
+        public required string Payload { get; init; }
+
+        public int ChecksumValue { get; set; }
+
+        public bool IsChecksumValid { get; set; }
+
+        public bool IsReversed { get; init; }
+
+        public int HitCount { get; set; }
+
+        public double LastV { get; set; }
+
+        public double SumContrast { get; set; }
+
+        public double SumModulation { get; set; }
+
+        public double SumDecodability { get; set; }
+
+        public readonly List<double> HitVs = new(16);
+
+        public readonly List<double> HitUStarts = new(16);
+
+        public readonly List<double> HitUEnds = new(16);
+    }
 
     // Official ISO/IEC 15417 Code 128 bar/space width patterns (packed as 6 decimal digits: B1 S1 B2 S2 B3 S3).
-    private static readonly int[] Code128Patterns =
+    internal static readonly int[] Code128Patterns =
     [
         212222, 222122, 222221, 121223, 121322, 131222, 122213, 122312, 132212, 221213,
         221312, 231212, 112232, 122132, 122231, 113222, 123122, 123221, 223211, 221132,
@@ -47,172 +88,6 @@ public static class Barcode1DDecoder
     private static readonly int[] EanGPatterns = [1123, 1222, 2212, 1141, 2311, 1321, 4111, 2131, 3121, 2113];
     // 6-bit L(0)/G(1) parity masks for EAN-13 first digit 0..9
     private static readonly int[] EanFirstDigitParityMasks = [0b000000, 0b001011, 0b001101, 0b001110, 0b010011, 0b011001, 0b011100, 0b010101, 0b010110, 0b011010];
-
-    /// <summary>
-    /// Renders an axis-aligned ISO/IEC 15417 Code 128 Set B barcode into an 8-bit grayscale image buffer.
-    /// </summary>
-    public static void RenderCode128Symbol(
-        Span<byte> canvas,
-        int width,
-        int height,
-        int stride,
-        string payload,
-        int barLeftX,
-        int barTopY,
-        int barHeight,
-        int moduleWidthPx = 2,
-        byte backgroundIntensity = 238,
-        byte barIntensity = 22)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(payload);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        ArgumentOutOfRangeException.ThrowIfLessThan(stride, width);
-
-        var safeModuleWidth = Math.Clamp(moduleWidthPx, 1, 8);
-        Span<int> codes = stackalloc int[payload.Length + 3];
-        BuildCode128Symbols(payload, codes);
-
-        var y0 = Math.Clamp(barTopY, 0, height - 1);
-        var y1 = Math.Clamp(barTopY + barHeight, y0 + 1, height);
-        var cursorX = barLeftX;
-        Span<int> widths = stackalloc int[StopPatternElements];
-
-        for (var c = 0; c < codes.Length; c++)
-        {
-            var elementCount = UnpackCode128Widths(codes[c], isStop: c == codes.Length - 1, widths);
-            for (var e = 0; e < elementCount; e++)
-            {
-                var isBar = (e & 1) == 0;
-                var pxWidth = widths[e] * safeModuleWidth;
-                var color = isBar ? barIntensity : backgroundIntensity;
-
-                for (var y = y0; y < y1; y++)
-                {
-                    var row = y * stride;
-                    for (var dx = 0; dx < pxWidth; dx++)
-                    {
-                        var x = cursorX + dx;
-                        if ((uint)x < (uint)width)
-                        {
-                            canvas[row + x] = color;
-                        }
-                    }
-                }
-
-                cursorX += pxWidth;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Renders an arbitrarily rotated ISO/IEC 15417 Code 128 Set B barcode with 4x4 sub-pixel anti-aliasing
-    /// centered at <paramref name="centerX"/>, <paramref name="centerY"/> with angle <paramref name="angleRad"/>.
-    /// </summary>
-    public static void RenderRotatedCode128Symbol(
-        Span<byte> canvas,
-        int width,
-        int height,
-        int stride,
-        string payload,
-        float centerX,
-        float centerY,
-        int barHeight,
-        float angleRad,
-        float moduleWidthPx = 2.5f,
-        byte backgroundIntensity = 236,
-        byte barIntensity = 22)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(payload);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        ArgumentOutOfRangeException.ThrowIfLessThan(stride, width);
-
-        float safeModule = Math.Clamp(moduleWidthPx, 1.5f, 10.0f);
-        Span<int> codes = stackalloc int[payload.Length + 3];
-        BuildCode128Symbols(payload, codes);
-
-        int totalModules = ((codes.Length - 1) * ModulesPerCharacter) + 13;
-        Span<bool> moduleIsBar = stackalloc bool[totalModules];
-        Span<int> widths = stackalloc int[StopPatternElements];
-        int mCursor = 0;
-        for (int c = 0; c < codes.Length; c++)
-        {
-            int elemCount = UnpackCode128Widths(codes[c], isStop: c == codes.Length - 1, widths);
-            for (int e = 0; e < elemCount; e++)
-            {
-                bool isBar = (e & 1) == 0;
-                for (int k = 0; k < widths[e]; k++)
-                {
-                    moduleIsBar[mCursor++] = isBar;
-                }
-            }
-        }
-
-        float totalBarWidth = totalModules * safeModule;
-        float halfW = totalBarWidth * 0.5f;
-        float halfH = barHeight * 0.5f;
-        float quietMargin = safeModule * 10.0f;
-        float boxHalfU = halfW + quietMargin;
-        float boxHalfV = halfH + 6.0f;
-
-        (float sinA, float cosA) = MathF.SinCos(angleRad);
-        float radX = (boxHalfU * MathF.Abs(cosA)) + (boxHalfV * MathF.Abs(sinA)) + 2.0f;
-        float radY = (boxHalfU * MathF.Abs(sinA)) + (boxHalfV * MathF.Abs(cosA)) + 2.0f;
-
-        int x0 = Math.Clamp((int)MathF.Floor(centerX - radX), 0, width - 1);
-        int x1 = Math.Clamp((int)MathF.Ceiling(centerX + radX), 0, width - 1);
-        int y0 = Math.Clamp((int)MathF.Floor(centerY - radY), 0, height - 1);
-        int y1 = Math.Clamp((int)MathF.Ceiling(centerY + radY), 0, height - 1);
-
-        const int subSamples = 4;
-        const float invSub = 1.0f / subSamples;
-        const float invTotalSamples = 1.0f / (subSamples * subSamples);
-
-        for (int y = y0; y <= y1; y++)
-        {
-            int rowOffset = y * stride;
-            for (int x = x0; x <= x1; x++)
-            {
-                int touched = 0;
-                float accum = 0.0f;
-                for (int sy = 0; sy < subSamples; sy++)
-                {
-                    float dy = (y + ((sy + 0.5f) * invSub)) - centerY;
-                    for (int sx = 0; sx < subSamples; sx++)
-                    {
-                        float dx = (x + ((sx + 0.5f) * invSub)) - centerX;
-                        float u = (dx * cosA) + (dy * sinA);
-                        float v = (-dx * sinA) + (dy * cosA);
-                        if (MathF.Abs(u) <= boxHalfU && MathF.Abs(v) <= boxHalfV)
-                        {
-                            touched++;
-                            bool dark = false;
-                            if (MathF.Abs(u) <= halfW && MathF.Abs(v) <= halfH)
-                            {
-                                int modIdx = (int)MathF.Floor((u + halfW) / safeModule);
-                                if ((uint)modIdx < (uint)totalModules)
-                                {
-                                    dark = moduleIsBar[modIdx];
-                                }
-                            }
-                            accum += dark ? barIntensity : backgroundIntensity;
-                        }
-                    }
-                }
-
-                if (touched == subSamples * subSamples)
-                {
-                    canvas[rowOffset + x] = (byte)Math.Clamp((int)MathF.Round(accum * invTotalSamples), 0, MaxByteIntensity);
-                }
-                else if (touched > 0)
-                {
-                    float existing = canvas[rowOffset + x] * ((subSamples * subSamples) - touched);
-                    canvas[rowOffset + x] = (byte)Math.Clamp((int)MathF.Round((accum + existing) * invTotalSamples), 0, MaxByteIntensity);
-                }
-            }
-        }
-    }
 
     /// <summary>
     /// Decodes a 1D barcode (Code 128 Set B or EAN-13) across multiple parallel scanlines at arbitrary orientation
@@ -310,6 +185,814 @@ public static class Barcode1DDecoder
             StartX: 0.0,
             EndX: 0.0,
             ScanlineY: height * HalfFactor);
+    }
+
+    /// <summary>
+    /// Decodes all distinct 1D barcodes (Code 128 Set B / EAN-13) inside <paramref name="imageView"/> across arbitrary orientations
+    /// (-180°..+180°), returning every symbol's decoded payload, world center <c>(X, Y)</c>, rotation angle, and ISO/IEC 15416 grade.
+    /// </summary>
+    public static Barcode1DDecodeResult[] DecodeAllMultiScanline(
+        ReadOnlyImageView2D<byte> imageView,
+        int scanlineCount = DefaultScanlineCount,
+        int maxSymbols = DefaultMaxSymbols)
+    {
+        imageView.EnsureValid();
+        return DecodeAllMultiScanline(
+            imageView.Buffer,
+            imageView.Width,
+            imageView.Height,
+            imageView.Stride,
+            scanlineCount,
+            maxSymbols);
+    }
+
+    /// <summary>
+    /// Decodes all 1D barcodes in <paramref name="imageView"/> and returns a standardized <see cref="VisionMultiResult{TItem}"/>
+    /// supporting lossless multi-envelope SPC &amp; <c>VisionCanvas</c> replay export.
+    /// </summary>
+    public static VisionMultiResult<Barcode1DDecodeResult> DecodeMulti(
+        ReadOnlyImageView2D<byte> imageView,
+        int scanlineCount = DefaultScanlineCount,
+        int maxSymbols = DefaultMaxSymbols)
+    {
+        Barcode1DDecodeResult[] items = DecodeAllMultiScanline(imageView, scanlineCount, maxSymbols);
+        return VisionMultiResult<Barcode1DDecodeResult>.Create(VisionToolCategory.OcrVerification, items);
+    }
+
+    /// <summary>
+    /// Decodes all distinct 1D barcodes (Code 128 Set B / EAN-13) inside <paramref name="image"/> across arbitrary orientations
+    /// (-180°..+180°), sorted deterministically in reading order (top-to-bottom row band, left-to-right).
+    /// </summary>
+    public static Barcode1DDecodeResult[] DecodeAllMultiScanline(
+        ReadOnlySpan<byte> image,
+        int width,
+        int height,
+        int stride,
+        int scanlineCount = DefaultScanlineCount,
+        int maxSymbols = DefaultMaxSymbols)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfLessThan(stride, width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSymbols);
+        if (image.Length < ((height - 1) * stride) + width)
+        {
+            throw new ArgumentException("Image buffer is smaller than (height - 1) * stride + width.", nameof(image));
+        }
+
+        int safeScanlines = Math.Clamp(scanlineCount, MinScanlines, MaxScanlines);
+        var accepted = new List<Barcode1DDecodeResult>(Math.Min(maxSymbols, 8));
+
+        // Stage 1: 2D High-Gradient Bar-Region Connected-Component Proposal
+        // Isolates spatially separated 1D barcodes (each at its own arbitrary rotation angle) and decodes each sub-window locally.
+        Span<(int X0, int Y0, int X1, int Y1)> candidateBoxes = stackalloc (int X0, int Y0, int X1, int Y1)[MaxCandidateBarcodeBoxes];
+        int boxCount = ExtractCandidateBarcodeBoxes(image, width, height, stride, candidateBoxes);
+        for (int i = 0; i < boxCount && accepted.Count < maxSymbols; i++)
+        {
+            var box = candidateBoxes[i];
+            int subW = (box.X1 - box.X0) + 1;
+            int subH = (box.Y1 - box.Y0) + 1;
+            if (subW < 24 || subH < 6)
+            {
+                continue;
+            }
+
+            ReadOnlySpan<byte> subSlice = image.Slice((box.Y0 * stride) + box.X0, ((subH - 1) * stride) + subW);
+            Barcode1DDecodeResult localDecoded = DecodeMultiScanline(subSlice, subW, subH, stride, safeScanlines);
+            if (localDecoded.IsDecoded)
+            {
+                Barcode1DDecodeResult worldDecoded = OffsetBarcodeResult(in localDecoded, box.X0, box.Y0);
+                MergeOrAppendBarcode1D(accepted, in worldDecoded, maxSymbols);
+            }
+
+            if (accepted.Count < maxSymbols)
+            {
+                CollectMultiBarcodesAlongAxis(subSlice, subW, subH, stride, box.X0, box.Y0, axisAngleRad: 0.0, safeScanlines, maxSymbols, accepted);
+                double localTensorAxis = EstimateDominantGradientAxis(subSlice, subW, subH, stride);
+                if (Math.Abs(localTensorAxis) > (1.5 * DegreesToRadians))
+                {
+                    CollectMultiBarcodesAlongAxis(subSlice, subW, subH, stride, box.X0, box.Y0, localTensorAxis, safeScanlines, maxSymbols, accepted);
+                }
+            }
+        }
+
+        // Stage 2: Full-frame multi-run scanline sweep along dominant gradient axis and cardinal axes
+        // Separates colinear side-by-side or closely stacked barcodes even if their gradient halos touch into a single proposal box.
+        if (accepted.Count < maxSymbols)
+        {
+            int fullSweepLines = Math.Clamp(Math.Max(safeScanlines * 2, height / 24), safeScanlines, MaxMultiSweepScanlines);
+            double globalAxis = EstimateDominantGradientAxis(image, width, height, stride);
+            CollectMultiBarcodesAlongAxis(image, width, height, stride, 0, 0, axisAngleRad: 0.0, fullSweepLines, maxSymbols, accepted);
+            if (Math.Abs(globalAxis) > (1.5 * DegreesToRadians))
+            {
+                CollectMultiBarcodesAlongAxis(image, width, height, stride, 0, 0, globalAxis, fullSweepLines, maxSymbols, accepted);
+            }
+
+            if (accepted.Count == 0)
+            {
+                Barcode1DDecodeResult fallbackSingle = DecodeMultiScanline(image, width, height, stride, safeScanlines);
+                if (fallbackSingle.IsDecoded)
+                {
+                    MergeOrAppendBarcode1D(accepted, in fallbackSingle, maxSymbols);
+                }
+            }
+        }
+
+        if (accepted.Count == 0)
+        {
+            return [];
+        }
+
+        SortBarcode1DResultsInReadingOrder(accepted);
+        return accepted.ToArray();
+    }
+
+    private static Barcode1DDecodeResult OffsetBarcodeResult(in Barcode1DDecodeResult item, int offsetX, int offsetY)
+    {
+        if (offsetX == 0 && offsetY == 0)
+        {
+            return item;
+        }
+
+        return item with
+        {
+            StartX = item.StartX + offsetX,
+            EndX = item.EndX + offsetX,
+            ScanlineY = item.ScanlineY + offsetY,
+            TopY = item.TopY + offsetY,
+            BottomY = item.BottomY + offsetY,
+            OrientedCenterX = !double.IsNaN(item.OrientedCenterX) ? item.OrientedCenterX + offsetX : double.NaN,
+            OrientedCenterY = !double.IsNaN(item.OrientedCenterY) ? item.OrientedCenterY + offsetY : double.NaN
+        };
+    }
+
+    private static int ExtractCandidateBarcodeBoxes(
+        ReadOnlySpan<byte> image,
+        int width,
+        int height,
+        int stride,
+        Span<(int X0, int Y0, int X1, int Y1)> boxes)
+    {
+        if (width < 24 || height < 6)
+        {
+            return 0;
+        }
+
+        int cellSize = 1 << ProposalCellShift;
+        int gridW = (width + cellSize - 1) >> ProposalCellShift;
+        int gridH = (height + cellSize - 1) >> ProposalCellShift;
+        int cellCount = gridW * gridH;
+        if (cellCount < 2)
+        {
+            boxes[0] = (0, 0, width - 1, height - 1);
+            return 1;
+        }
+
+        int[] edgeHitsPooled = ArrayPool<int>.Shared.Rent(cellCount);
+        byte[] maskPooled = ArrayPool<byte>.Shared.Rent(cellCount);
+        int[] queuePooled = ArrayPool<int>.Shared.Rent(cellCount);
+        int boxCount = 0;
+
+        try
+        {
+            Span<int> edgeHits = edgeHitsPooled.AsSpan(0, cellCount);
+            Span<byte> mask = maskPooled.AsSpan(0, cellCount);
+            edgeHits.Clear();
+            mask.Clear();
+
+            for (int y = 1; y < height - 1; y++)
+            {
+                ReadOnlySpan<byte> rowPrev = image.Slice((y - 1) * stride, width);
+                ReadOnlySpan<byte> rowCurr = image.Slice(y * stride, width);
+                ReadOnlySpan<byte> rowNext = image.Slice((y + 1) * stride, width);
+                int gyOffset = (y >> ProposalCellShift) * gridW;
+
+                for (int x = 1; x < width - 1; x++)
+                {
+                    double gx = rowCurr[x + 1] - rowCurr[x - 1];
+                    double gy = rowNext[x] - rowPrev[x];
+                    if (((gx * gx) + (gy * gy)) >= GradientEdgeMagnitudeSqThreshold)
+                    {
+                        edgeHits[gyOffset + (x >> ProposalCellShift)]++;
+                    }
+                }
+            }
+
+            // Bridge 1-cell quiet-space gaps between wide bars via 3x3 dilation over dense edge cells
+            for (int gy = 0; gy < gridH; gy++)
+            {
+                int rowOff = gy * gridW;
+                for (int gx = 0; gx < gridW; gx++)
+                {
+                    if (edgeHits[rowOff + gx] < ProposalMinEdgeCountPerCell)
+                    {
+                        continue;
+                    }
+
+                    int ny0 = Math.Max(0, gy - 1);
+                    int ny1 = Math.Min(gridH - 1, gy + 1);
+                    int nx0 = Math.Max(0, gx - 1);
+                    int nx1 = Math.Min(gridW - 1, gx + 1);
+                    for (int ny = ny0; ny <= ny1; ny++)
+                    {
+                        int nRow = ny * gridW;
+                        for (int nx = nx0; nx <= nx1; nx++)
+                        {
+                            mask[nRow + nx] = 1;
+                        }
+                    }
+                }
+            }
+
+            Span<int> queue = queuePooled.AsSpan(0, cellCount);
+            for (int gy = 0; gy < gridH && boxCount < boxes.Length; gy++)
+            {
+                for (int gx = 0; gx < gridW && boxCount < boxes.Length; gx++)
+                {
+                    int startIdx = (gy * gridW) + gx;
+                    if (mask[startIdx] != 1)
+                    {
+                        continue;
+                    }
+
+                    int head = 0;
+                    int tail = 0;
+                    queue[tail++] = startIdx;
+                    mask[startIdx] = 2;
+
+                    int minGx = gx;
+                    int maxGx = gx;
+                    int minGy = gy;
+                    int maxGy = gy;
+
+                    while (head < tail)
+                    {
+                        int curr = queue[head++];
+                        int cy = curr / gridW;
+                        int cx = curr - (cy * gridW);
+                        if (cx < minGx) minGx = cx;
+                        if (cx > maxGx) maxGx = cx;
+                        if (cy < minGy) minGy = cy;
+                        if (cy > maxGy) maxGy = cy;
+
+                        int ny0 = Math.Max(0, cy - 1);
+                        int ny1 = Math.Min(gridH - 1, cy + 1);
+                        int nx0 = Math.Max(0, cx - 1);
+                        int nx1 = Math.Min(gridW - 1, cx + 1);
+                        for (int ny = ny0; ny <= ny1; ny++)
+                        {
+                            int nRow = ny * gridW;
+                            for (int nx = nx0; nx <= nx1; nx++)
+                            {
+                                int nIdx = nRow + nx;
+                                if (mask[nIdx] == 1)
+                                {
+                                    mask[nIdx] = 2;
+                                    queue[tail++] = nIdx;
+                                }
+                            }
+                        }
+                    }
+
+                    int x0 = Math.Max(0, (minGx << ProposalCellShift) - ProposalQuietMarginPx);
+                    int y0 = Math.Max(0, (minGy << ProposalCellShift) - ProposalQuietMarginPx);
+                    int x1 = Math.Min(width - 1, ((maxGx + 1) << ProposalCellShift) + ProposalQuietMarginPx - 1);
+                    int y1 = Math.Min(height - 1, ((maxGy + 1) << ProposalCellShift) + ProposalQuietMarginPx - 1);
+
+                    if ((x1 - x0 + 1) >= 24 && (y1 - y0 + 1) >= 6)
+                    {
+                        boxes[boxCount++] = (x0, y0, x1, y1);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(queuePooled);
+            ArrayPool<byte>.Shared.Return(maskPooled);
+            ArrayPool<int>.Shared.Return(edgeHitsPooled);
+        }
+
+        return boxCount;
+    }
+
+    private static void CollectMultiBarcodesAlongAxis(
+        ReadOnlySpan<byte> image,
+        int width,
+        int height,
+        int stride,
+        int offsetX,
+        int offsetY,
+        double axisAngleRad,
+        int scanlineCount,
+        int maxSymbols,
+        List<Barcode1DDecodeResult> accepted)
+    {
+        (double sinA, double cosA) = Math.SinCos(axisAngleRad);
+        double cx0 = (width - 1) * HalfFactor;
+        double cy0 = (height - 1) * HalfFactor;
+        double maxHalfV = ((width * Math.Abs(sinA)) + (height * Math.Abs(cosA))) * 0.46;
+        if (maxHalfV < 2.0)
+        {
+            return;
+        }
+
+        double maxClusterGapV = Math.Max(18.0, (2.0 * maxHalfV / Math.Max(1, scanlineCount - 1)) * 2.5);
+        var clusters = new List<ScanlineBarcodeCluster>(4);
+
+        byte[] rentedLine = ArrayPool<byte>.Shared.Rent(MaxScanlineSamples);
+        byte[] rentedRev = ArrayPool<byte>.Shared.Rent(MaxScanlineSamples);
+        try
+        {
+            for (int s = 0; s < scanlineCount; s++)
+            {
+                double t = scanlineCount == 1 ? 0.0 : (-1.0 + ((2.0 * s) / (scanlineCount - 1)));
+                double vOffset = t * maxHalfV * 0.88;
+
+                if (!SampleOrientedScanline(image, width, height, stride, cx0, cy0, cosA, sinA, vOffset, rentedLine, out int lineLen, out double uMin))
+                {
+                    continue;
+                }
+
+                ReadOnlySpan<byte> forwardSpan = rentedLine.AsSpan(0, lineLen);
+                Span<byte> revSpan = rentedRev.AsSpan(0, lineLen);
+                for (int k = 0; k < lineLen; k++)
+                {
+                    revSpan[k] = forwardSpan[lineLen - 1 - k];
+                }
+
+                AccumulateAllScanlineMatches(forwardSpan, isReversed: false, lineLen, uMin, vOffset, maxClusterGapV, clusters);
+                AccumulateAllScanlineMatches(revSpan, isReversed: true, lineLen, uMin, vOffset, maxClusterGapV, clusters);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rentedRev);
+            ArrayPool<byte>.Shared.Return(rentedLine);
+        }
+
+        for (int c = 0; c < clusters.Count && accepted.Count < maxSymbols; c++)
+        {
+            ScanlineBarcodeCluster cluster = clusters[c];
+            if (cluster.HitCount == 0 || !cluster.IsChecksumValid)
+            {
+                continue;
+            }
+
+            Barcode1DDecodeResult built = BuildBarcodeResultFromCluster(
+                image,
+                width,
+                height,
+                stride,
+                cx0,
+                cy0,
+                axisAngleRad,
+                cosA,
+                sinA,
+                cluster);
+            Barcode1DDecodeResult worldBuilt = OffsetBarcodeResult(in built, offsetX, offsetY);
+            MergeOrAppendBarcode1D(accepted, in worldBuilt, maxSymbols);
+        }
+    }
+
+    private static void AccumulateAllScanlineMatches(
+        ReadOnlySpan<byte> row,
+        bool isReversed,
+        int lineLen,
+        double uMin,
+        double vOffset,
+        double maxClusterGapV,
+        List<ScanlineBarcodeCluster> clusters)
+    {
+        int runCount = ExtractSubpixelRuns(
+            row,
+            stackalloc double[MaxRunsPerScanline],
+            stackalloc bool[MaxRunsPerScanline],
+            stackalloc double[MaxRunsPerScanline],
+            stackalloc double[MaxRunsPerScanline],
+            out Span<double> widths,
+            out Span<bool> isBar,
+            out Span<double> startEdges,
+            out Span<double> peakDeltas,
+            out int dynamicRange);
+
+        if (runCount < (ElementsPerCharacter * 3) + 1)
+        {
+            return;
+        }
+
+        double symbolContrast = (double)dynamicRange / MaxByteIntensity;
+
+        // 1. Scan all sequential Code 128B barcodes along this scanline
+        int minRunIndex = 0;
+        while (minRunIndex <= runCount - ElementsPerCharacter && clusters.Count < MaxActiveScanlineClusters)
+        {
+            if (!TryDecodeCode128FromRuns(
+                widths,
+                isBar,
+                startEdges,
+                peakDeltas,
+                runCount,
+                dynamicRange,
+                minRunIndex,
+                out int nextRunIndex,
+                out string payload,
+                out int checksumValue,
+                out bool isChecksumValid,
+                out double modulation,
+                out double decodability,
+                out double localStart,
+                out double localEnd))
+            {
+                break;
+            }
+
+            minRunIndex = Math.Max(minRunIndex + ElementsPerCharacter, nextRunIndex);
+            if (!isChecksumValid)
+            {
+                continue;
+            }
+
+            double uStart = isReversed ? uMin + ((lineLen - 1) - localEnd) : uMin + localStart;
+            double uEnd = isReversed ? uMin + ((lineLen - 1) - localStart) : uMin + localEnd;
+            AddHitToScanlineCluster(
+                clusters,
+                "Code 128B",
+                payload,
+                checksumValue,
+                isChecksumValid,
+                isReversed,
+                vOffset,
+                uStart,
+                uEnd,
+                symbolContrast,
+                modulation,
+                decodability,
+                maxClusterGapV);
+        }
+
+        // 2. Scan all sequential EAN-13 barcodes along this scanline
+        const int eanTotalElements = 59;
+        int eanCursor = 0;
+        while (eanCursor <= runCount - eanTotalElements && clusters.Count < MaxActiveScanlineClusters)
+        {
+            if (!TryDecodeEan13FromRuns(
+                widths,
+                isBar,
+                startEdges,
+                peakDeltas,
+                runCount,
+                dynamicRange,
+                eanCursor,
+                out int nextEanRun,
+                out string eanPayload,
+                out int eanCheck,
+                out double eanMod,
+                out double eanDec,
+                out double eanStart,
+                out double eanEnd))
+            {
+                break;
+            }
+
+            eanCursor = Math.Max(eanCursor + eanTotalElements, nextEanRun);
+            double uStart = isReversed ? uMin + ((lineLen - 1) - eanEnd) : uMin + eanStart;
+            double uEnd = isReversed ? uMin + ((lineLen - 1) - eanStart) : uMin + eanEnd;
+            AddHitToScanlineCluster(
+                clusters,
+                "EAN-13",
+                eanPayload,
+                eanCheck,
+                isChecksumValid: true,
+                isReversed,
+                vOffset,
+                uStart,
+                uEnd,
+                symbolContrast,
+                eanMod,
+                eanDec,
+                maxClusterGapV);
+        }
+    }
+
+    private static void AddHitToScanlineCluster(
+        List<ScanlineBarcodeCluster> clusters,
+        string symbology,
+        string payload,
+        int checksumValue,
+        bool isChecksumValid,
+        bool isReversed,
+        double vOffset,
+        double uStart,
+        double uEnd,
+        double contrast,
+        double modulation,
+        double decodability,
+        double maxClusterGapV)
+    {
+        double uLo = Math.Min(uStart, uEnd);
+        double uHi = Math.Max(uStart, uEnd);
+        double spanU = Math.Max(1.0, uHi - uLo);
+
+        for (int i = 0; i < clusters.Count; i++)
+        {
+            ScanlineBarcodeCluster c = clusters[i];
+            if (c.IsReversed != isReversed ||
+                !string.Equals(c.Payload, payload, StringComparison.Ordinal) ||
+                !string.Equals(c.Symbology, symbology, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (Math.Abs(vOffset - c.LastV) > maxClusterGapV)
+            {
+                continue;
+            }
+
+            double prevLo = Math.Min(c.HitUStarts[^1], c.HitUEnds[^1]);
+            double prevHi = Math.Max(c.HitUStarts[^1], c.HitUEnds[^1]);
+            double overlap = Math.Min(uHi, prevHi) - Math.Max(uLo, prevLo);
+            if (overlap < (spanU * 0.35))
+            {
+                continue;
+            }
+
+            // Prevent duplicate hit from forward+reverse symmetric EAN-13 or same scanline
+            if (Math.Abs(vOffset - c.LastV) < 1e-4)
+            {
+                return;
+            }
+
+            c.HitCount++;
+            c.LastV = vOffset;
+            c.SumContrast += contrast;
+            c.SumModulation += modulation;
+            c.SumDecodability += decodability;
+            c.HitVs.Add(vOffset);
+            c.HitUStarts.Add(uStart);
+            c.HitUEnds.Add(uEnd);
+            return;
+        }
+
+        // Also suppress identical spatial hit on the same scanline in opposite direction (e.g. symmetric guard)
+        for (int i = 0; i < clusters.Count; i++)
+        {
+            ScanlineBarcodeCluster c = clusters[i];
+            if (Math.Abs(vOffset - c.LastV) < 1e-4)
+            {
+                double prevLo = Math.Min(c.HitUStarts[^1], c.HitUEnds[^1]);
+                double prevHi = Math.Max(c.HitUStarts[^1], c.HitUEnds[^1]);
+                double overlap = Math.Min(uHi, prevHi) - Math.Max(uLo, prevLo);
+                if (overlap >= (spanU * 0.60))
+                {
+                    return;
+                }
+            }
+        }
+
+        if (clusters.Count >= MaxActiveScanlineClusters)
+        {
+            return;
+        }
+
+        var created = new ScanlineBarcodeCluster
+        {
+            Symbology = symbology,
+            Payload = payload,
+            ChecksumValue = checksumValue,
+            IsChecksumValid = isChecksumValid,
+            IsReversed = isReversed,
+            HitCount = 1,
+            LastV = vOffset,
+            SumContrast = contrast,
+            SumModulation = modulation,
+            SumDecodability = decodability
+        };
+        created.HitVs.Add(vOffset);
+        created.HitUStarts.Add(uStart);
+        created.HitUEnds.Add(uEnd);
+        clusters.Add(created);
+    }
+
+    private static Barcode1DDecodeResult BuildBarcodeResultFromCluster(
+        ReadOnlySpan<byte> image,
+        int width,
+        int height,
+        int stride,
+        double cx0,
+        double cy0,
+        double axisAngleRad,
+        double cosA,
+        double sinA,
+        ScanlineBarcodeCluster cluster)
+    {
+        int n = cluster.HitCount;
+        double sumV = 0.0;
+        double sumUS = 0.0;
+        double sumUE = 0.0;
+        for (int i = 0; i < n; i++)
+        {
+            sumV += cluster.HitVs[i];
+            sumUS += cluster.HitUStarts[i];
+            sumUE += cluster.HitUEnds[i];
+        }
+
+        double meanV = sumV / n;
+        double meanUStart = sumUS / n;
+        double meanUEnd = sumUE / n;
+        double deltaTheta = 0.0;
+
+        if (n >= 2)
+        {
+            double varV = 0.0;
+            double covVS = 0.0;
+            double covVE = 0.0;
+            for (int i = 0; i < n; i++)
+            {
+                double dv = cluster.HitVs[i] - meanV;
+                varV += dv * dv;
+                covVS += dv * (cluster.HitUStarts[i] - meanUStart);
+                covVE += dv * (cluster.HitUEnds[i] - meanUEnd);
+            }
+
+            if (varV > 4.0)
+            {
+                double slope = ((covVS / varV) + (covVE / varV)) * HalfFactor;
+                if (Math.Abs(slope) < 0.45)
+                {
+                    deltaTheta = -Math.Atan(slope);
+                }
+            }
+        }
+
+        double trueAxisAngle = axisAngleRad + deltaTheta;
+        double fullAngleRad = NormalizeAngleRad(cluster.IsReversed ? (trueAxisAngle + Math.PI) : trueAxisAngle);
+
+        double uMid = (meanUStart + meanUEnd) * HalfFactor;
+        double seedWorldX = cx0 + (uMid * cosA) - (meanV * sinA);
+        double seedWorldY = cy0 + (uMid * sinA) + (meanV * cosA);
+
+        (double sinTrue, double cosTrue) = Math.SinCos(trueAxisAngle);
+        double orientedW = Math.Max(1.0, Math.Abs(meanUEnd - meanUStart) * Math.Cos(deltaTheta));
+        double halfTrueW = orientedW * HalfFactor;
+        double seedTrueU = ((seedWorldX - cx0) * cosTrue) + ((seedWorldY - cy0) * sinTrue);
+        double seedTrueV = (-(seedWorldX - cx0) * sinTrue) + ((seedWorldY - cy0) * cosTrue);
+
+        RefineOrientedBarExtent(
+            image,
+            width,
+            height,
+            stride,
+            cx0,
+            cy0,
+            cosTrue,
+            sinTrue,
+            seedTrueU - halfTrueW,
+            seedTrueU + halfTrueW,
+            seedTrueV,
+            out double vMinBar,
+            out double vMaxBar);
+
+        double vMid = (vMinBar + vMaxBar) * HalfFactor;
+        double worldCenterX = cx0 + (seedTrueU * cosTrue) - (vMid * sinTrue);
+        double worldCenterY = cy0 + (seedTrueU * sinTrue) + (vMid * cosTrue);
+        double orientedH = Math.Max(1.0, vMaxBar - vMinBar);
+
+        (double sinFull, double cosFull) = Math.SinCos(fullAngleRad);
+        double hw = orientedW * HalfFactor;
+        double hh = orientedH * HalfFactor;
+        double dxU = hw * Math.Abs(cosFull);
+        double dxV = hh * Math.Abs(sinFull);
+        double dyU = hw * Math.Abs(sinFull);
+        double dyV = hh * Math.Abs(cosFull);
+
+        double avgContrast = cluster.SumContrast / n;
+        double avgModulation = cluster.SumModulation / n;
+        double avgDecodability = cluster.SumDecodability / n;
+        double overallGrade = Math.Min(ScoreContrast(avgContrast), Math.Min(ScoreModulation(avgModulation), ScoreDecodability(avgDecodability)));
+        if (!cluster.IsChecksumValid)
+        {
+            overallGrade = Math.Min(overallGrade, 1.0);
+        }
+
+        string gradeLetter = overallGrade switch
+        {
+            >= 3.5 => $"A ({overallGrade:F1})",
+            >= 2.5 => $"B ({overallGrade:F1})",
+            >= 1.5 => $"C ({overallGrade:F1})",
+            >= 0.5 => $"D ({overallGrade:F1})",
+            _ => $"F ({overallGrade:F1})"
+        };
+
+        return new Barcode1DDecodeResult(
+            IsDecoded: true,
+            Symbology: cluster.Symbology,
+            Payload: cluster.Payload,
+            ChecksumValue: cluster.ChecksumValue,
+            IsChecksumValid: cluster.IsChecksumValid,
+            DecodedScanlineCount: n,
+            SymbolContrast: avgContrast,
+            Modulation: avgModulation,
+            Decodability: avgDecodability,
+            OverallGradeScore: overallGrade,
+            IsoGradeLetter: gradeLetter,
+            StartX: worldCenterX - dxU - dxV,
+            EndX: worldCenterX + dxU + dxV,
+            ScanlineY: worldCenterY,
+            TopY: worldCenterY - dyU - dyV,
+            BottomY: worldCenterY + dyU + dyV,
+            AngleRad: fullAngleRad,
+            OrientedCenterX: worldCenterX,
+            OrientedCenterY: worldCenterY,
+            OrientedWidth: orientedW,
+            OrientedHeight: orientedH);
+    }
+
+    private static void MergeOrAppendBarcode1D(
+        List<Barcode1DDecodeResult> accepted,
+        in Barcode1DDecodeResult candidate,
+        int maxSymbols)
+    {
+        if (!candidate.IsDecoded)
+        {
+            return;
+        }
+
+        double candMinDim = Math.Max(12.0, Math.Min(candidate.WidthPixels, candidate.HeightPixels));
+        double candMaxDim = Math.Max(24.0, Math.Max(candidate.WidthPixels, candidate.HeightPixels));
+
+        for (int i = 0; i < accepted.Count; i++)
+        {
+            Barcode1DDecodeResult existing = accepted[i];
+            double dx = candidate.CenterX - existing.CenterX;
+            double dy = candidate.CenterY - existing.CenterY;
+            double dist = Math.Sqrt((dx * dx) + (dy * dy));
+            double refSpan = Math.Max(candMinDim, Math.Min(candMaxDim, Math.Max(existing.WidthPixels, existing.HeightPixels)) * DuplicateCenterDistanceRatio);
+
+            bool sameLocation = dist <= refSpan;
+            if (!sameLocation && string.Equals(candidate.Payload, existing.Payload, StringComparison.Ordinal))
+            {
+                double overlapX = Math.Min(candidate.EndX, existing.EndX) - Math.Max(candidate.StartX, existing.StartX);
+                double overlapY = Math.Min(candidate.EffectiveBottomY, existing.EffectiveBottomY) - Math.Max(candidate.EffectiveTopY, existing.EffectiveTopY);
+                if (overlapX > 0.0 && overlapY > 0.0)
+                {
+                    double interArea = overlapX * overlapY;
+                    double minArea = Math.Max(1.0, Math.Min((candidate.EndX - candidate.StartX) * (candidate.EffectiveBottomY - candidate.EffectiveTopY),
+                                                            (existing.EndX - existing.StartX) * (existing.EffectiveBottomY - existing.EffectiveTopY)));
+                    sameLocation = (interArea / minArea) >= 0.35;
+                }
+            }
+
+            if (sameLocation)
+            {
+                if (IsBetterBarcode1DResult(in candidate, in existing))
+                {
+                    accepted[i] = candidate;
+                }
+
+                return;
+            }
+        }
+
+        if (accepted.Count < maxSymbols)
+        {
+            accepted.Add(candidate);
+        }
+    }
+
+    private static bool IsBetterBarcode1DResult(in Barcode1DDecodeResult candidate, in Barcode1DDecodeResult existing)
+    {
+        if (candidate.IsChecksumValid != existing.IsChecksumValid)
+        {
+            return candidate.IsChecksumValid;
+        }
+
+        if (Math.Abs(candidate.OverallGradeScore - existing.OverallGradeScore) > 0.25)
+        {
+            return candidate.OverallGradeScore > existing.OverallGradeScore;
+        }
+
+        return candidate.DecodedScanlineCount > existing.DecodedScanlineCount;
+    }
+
+    private static void SortBarcode1DResultsInReadingOrder(List<Barcode1DDecodeResult> results)
+    {
+        if (results.Count <= 1)
+        {
+            return;
+        }
+
+        results.Sort(static (a, b) =>
+        {
+            double rowBand = Math.Max(16.0, Math.Min(a.HeightPixels, b.HeightPixels) * ReadingOrderRowBandRatio);
+            double dy = a.CenterY - b.CenterY;
+            if (Math.Abs(dy) > rowBand)
+            {
+                return dy < 0.0 ? -1 : 1;
+            }
+
+            return a.CenterX.CompareTo(b.CenterX);
+        });
     }
 
     private static bool TryDecodeAtAxisAngle(
@@ -867,39 +1550,6 @@ public static class Barcode1DDecoder
         return rad;
     }
 
-    private static void BuildCode128Symbols(string payload, Span<int> codes)
-    {
-        codes[0] = Code128StartCodeB;
-        int checksum = Code128StartCodeB;
-        for (int i = 0; i < payload.Length; i++)
-        {
-            int codeVal = Math.Clamp(payload[i] - 32, 0, 94);
-            codes[i + 1] = codeVal;
-            checksum += codeVal * (i + 1);
-        }
-
-        codes[payload.Length + 1] = checksum % Code128Modulo;
-        codes[payload.Length + 2] = Code128StopCode;
-    }
-
-    private static int UnpackCode128Widths(int code, bool isStop, Span<int> widths)
-    {
-        int temp = Code128Patterns[code];
-        for (int e = ElementsPerCharacter - 1; e >= 0; e--)
-        {
-            widths[e] = temp % 10;
-            temp /= 10;
-        }
-
-        if (isStop)
-        {
-            widths[6] = 2;
-            return StopPatternElements;
-        }
-
-        return ElementsPerCharacter;
-    }
-
     private static bool TryDecodeScanlineCode128(
         ReadOnlySpan<byte> row,
         out string payload,
@@ -938,96 +1588,144 @@ public static class Barcode1DDecoder
         }
 
         symbolContrast = (double)dynamicRange / MaxByteIntensity;
+        return TryDecodeCode128FromRuns(
+            widths,
+            isBar,
+            startEdges,
+            peakDeltas,
+            runCount,
+            dynamicRange,
+            minStartRunIndex: 0,
+            out _,
+            out payload,
+            out checksumValue,
+            out isChecksumValid,
+            out modulation,
+            out decodability,
+            out startX,
+            out endX);
+    }
 
-        var startRunIdx = -1;
-        for (var r = 0; r <= runCount - ElementsPerCharacter; r++)
+    private static bool TryDecodeCode128FromRuns(
+        ReadOnlySpan<double> widths,
+        ReadOnlySpan<bool> isBar,
+        ReadOnlySpan<double> startEdges,
+        ReadOnlySpan<double> peakDeltas,
+        int runCount,
+        int dynamicRange,
+        int minStartRunIndex,
+        out int nextRunIndex,
+        out string payload,
+        out int checksumValue,
+        out bool isChecksumValid,
+        out double modulation,
+        out double decodability,
+        out double startX,
+        out double endX)
+    {
+        nextRunIndex = runCount;
+        payload = string.Empty;
+        checksumValue = 0;
+        isChecksumValid = false;
+        modulation = 0.0;
+        decodability = 0.0;
+        startX = 0.0;
+        endX = 0.0;
+
+        Span<int> decodedCodes = stackalloc int[64];
+
+        for (int r = Math.Max(0, minStartRunIndex); r <= runCount - ElementsPerCharacter; r++)
         {
             if (!isBar[r])
             {
                 continue;
             }
 
-            var code = MatchCode128Character(widths.Slice(r, ElementsPerCharacter), out var charDecodability);
-            if (code == Code128StartCodeB && charDecodability >= 0.22)
+            int startCode = MatchCode128Character(widths.Slice(r, ElementsPerCharacter), out double startDec);
+            if (startCode != Code128StartCodeB || startDec < 0.22)
             {
-                startRunIdx = r;
-                break;
-            }
-        }
-
-        if (startRunIdx < 0)
-        {
-            return false;
-        }
-
-        Span<int> decodedCodes = stackalloc int[64];
-        var codeCount = 0;
-        var cursor = startRunIdx;
-        var minDecodability = 1.0;
-        var minPeakDelta = dynamicRange * HalfFactor;
-        var foundStop = false;
-
-        while (cursor + ElementsPerCharacter <= runCount && codeCount < decodedCodes.Length)
-        {
-            var code = MatchCode128Character(widths.Slice(cursor, ElementsPerCharacter), out var charDecodability);
-            if (code < 0)
-            {
-                break;
+                continue;
             }
 
-            for (var e = 0; e < ElementsPerCharacter; e++)
+            int codeCount = 0;
+            int cursor = r;
+            double minDecodability = 1.0;
+            double minPeakDelta = dynamicRange * HalfFactor;
+            bool foundStop = false;
+
+            while (cursor + ElementsPerCharacter <= runCount && codeCount < decodedCodes.Length)
             {
-                if (peakDeltas[cursor + e] < minPeakDelta)
+                int code = MatchCode128Character(widths.Slice(cursor, ElementsPerCharacter), out double charDecodability);
+                if (code < 0)
                 {
-                    minPeakDelta = peakDeltas[cursor + e];
+                    break;
                 }
+
+                for (int e = 0; e < ElementsPerCharacter; e++)
+                {
+                    if (peakDeltas[cursor + e] < minPeakDelta)
+                    {
+                        minPeakDelta = peakDeltas[cursor + e];
+                    }
+                }
+
+                if (charDecodability < minDecodability)
+                {
+                    minDecodability = charDecodability;
+                }
+
+                decodedCodes[codeCount++] = code;
+                if (code == Code128StopCode)
+                {
+                    foundStop = true;
+                    cursor += Math.Min(StopPatternElements, runCount - cursor);
+                    break;
+                }
+
+                cursor += ElementsPerCharacter;
             }
 
-            if (charDecodability < minDecodability)
+            if (!foundStop || codeCount < 4)
             {
-                minDecodability = charDecodability;
+                continue;
             }
 
-            decodedCodes[codeCount++] = code;
-            if (code == Code128StopCode)
+            int dataCount = codeCount - 3;
+            Span<char> chars = stackalloc char[dataCount];
+            int computedSum = decodedCodes[0];
+            bool validAscii = true;
+
+            for (int i = 0; i < dataCount; i++)
             {
-                foundStop = true;
-                cursor += Math.Min(StopPatternElements, runCount - cursor);
-                break;
+                int codeVal = decodedCodes[i + 1];
+                if (codeVal is < 0 or > 94)
+                {
+                    validAscii = false;
+                    break;
+                }
+
+                chars[i] = (char)(codeVal + 32);
+                computedSum += codeVal * (i + 1);
             }
 
-            cursor += ElementsPerCharacter;
+            if (!validAscii)
+            {
+                continue;
+            }
+
+            checksumValue = decodedCodes[codeCount - 2];
+            isChecksumValid = (computedSum % Code128Modulo) == checksumValue;
+            payload = new string(chars);
+            decodability = Math.Clamp(minDecodability, 0.0, 1.0);
+            modulation = Math.Clamp((2.0 * minPeakDelta) / Math.Max(1.0, dynamicRange), 0.0, 1.0);
+            startX = startEdges[r];
+            int lastElem = Math.Min(cursor - 1, runCount - 1);
+            endX = startEdges[lastElem] + widths[lastElem];
+            nextRunIndex = cursor;
+            return true;
         }
 
-        if (!foundStop || codeCount < 4)
-        {
-            return false;
-        }
-
-        var dataCount = codeCount - 3;
-        Span<char> chars = stackalloc char[dataCount];
-        var computedSum = decodedCodes[0];
-
-        for (var i = 0; i < dataCount; i++)
-        {
-            var codeVal = decodedCodes[i + 1];
-            if (codeVal is < 0 or > 94)
-            {
-                return false;
-            }
-
-            chars[i] = (char)(codeVal + 32);
-            computedSum += codeVal * (i + 1);
-        }
-
-        checksumValue = decodedCodes[codeCount - 2];
-        isChecksumValid = (computedSum % Code128Modulo) == checksumValue;
-        payload = new string(chars);
-        decodability = Math.Clamp(minDecodability, 0.0, 1.0);
-        modulation = Math.Clamp((2.0 * minPeakDelta) / Math.Max(1.0, dynamicRange), 0.0, 1.0);
-        startX = startEdges[startRunIdx];
-        endX = startEdges[Math.Min(cursor - 1, runCount - 1)] + widths[Math.Min(cursor - 1, runCount - 1)];
-        return true;
+        return false;
     }
 
     private static bool TryDecodeScanlineEan13(
@@ -1070,9 +1768,57 @@ public static class Barcode1DDecoder
         }
 
         symbolContrast = (double)dynamicRange / MaxByteIntensity;
+        if (!TryDecodeEan13FromRuns(
+            widths,
+            isBar,
+            startEdges,
+            peakDeltas,
+            runCount,
+            dynamicRange,
+            minStartRunIndex: 0,
+            out _,
+            out payload,
+            out checksumValue,
+            out modulation,
+            out decodability,
+            out startX,
+            out endX))
+        {
+            return false;
+        }
+
+        isChecksumValid = true;
+        return true;
+    }
+
+    private static bool TryDecodeEan13FromRuns(
+        ReadOnlySpan<double> widths,
+        ReadOnlySpan<bool> isBar,
+        ReadOnlySpan<double> startEdges,
+        ReadOnlySpan<double> peakDeltas,
+        int runCount,
+        int dynamicRange,
+        int minStartRunIndex,
+        out int nextRunIndex,
+        out string payload,
+        out int checksumValue,
+        out double modulation,
+        out double decodability,
+        out double startX,
+        out double endX)
+    {
+        const int eanTotalElements = 59;
+        nextRunIndex = runCount;
+        payload = string.Empty;
+        checksumValue = 0;
+        modulation = 0.0;
+        decodability = 0.0;
+        startX = 0.0;
+        endX = 0.0;
+
         Span<int> digits = stackalloc int[13];
 
-        for (int r = 0; r <= runCount - eanTotalElements; r++)
+        for (int r = Math.Max(0, minStartRunIndex); r <= runCount - eanTotalElements; r++)
         {
             if (!isBar[r])
             {
@@ -1182,11 +1928,11 @@ public static class Barcode1DDecoder
 
             payload = new string(chars);
             checksumValue = digits[12];
-            isChecksumValid = true;
             decodability = Math.Clamp(minDec, 0.0, 1.0);
             modulation = Math.Clamp((2.0 * minPeak) / Math.Max(1.0, dynamicRange), 0.0, 1.0);
             startX = startEdges[r];
             endX = startEdges[r + eanTotalElements - 1] + widths[r + eanTotalElements - 1];
+            nextRunIndex = r + eanTotalElements;
             return true;
         }
 

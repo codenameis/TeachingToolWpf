@@ -428,7 +428,9 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
         Assert.Equal(2, suite.OcrLiveRoiItems.Count);
         Assert.False(string.IsNullOrWhiteSpace(suite.OcrLiveRecognizedText));
         AssertAllOcrItemsHaveValidDiagnostics(suite.LastOutput!.Items);
+        Assert.Equal(2, suite.LastOutput!.Items.Length);
         Assert.Contains("LOT-2026-A09", suite.LastOutput!.Items[0].OcrDiagnostic!.RecognizedText, StringComparison.Ordinal);
+        Assert.Contains("EXP.2027.11.24", suite.LastOutput!.Items[1].OcrDiagnostic!.RecognizedText, StringComparison.Ordinal);
         Assert.All(suite.LastOutput!.Items, item => Assert.Equal(
             !string.IsNullOrWhiteSpace(item.OcrDiagnostic!.RecognizedText)
             && item.OcrDiagnostic!.MeanConfidence >= suite.PpOcrMinConfidence
@@ -436,7 +438,9 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             item.IsPass));
 
         // Legacy classical OCR kinds normalize seamlessly to the unified PpOcrOnnx workflow
+#pragma warning disable CS0618
         await studio.LoadInspectionSuiteSampleAsync(InspectionSuiteAlgorithmKind.IndustrialOcrOcv, placePresetRois: true);
+#pragma warning restore CS0618
         Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
         Assert.True(suite.IsPpOcrOnnxSelected);
         Assert.Equal(2, studio.Session.State.RoiCount);
@@ -459,7 +463,7 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
         Assert.Equal(3, suite.RegisteredReferenceItems.Count);
 
         // Verify every ComboBox algorithm selection exposes its dedicated teaching parameter summary & header
-        Assert.Equal(18, suite.Algorithms.Count);
+        Assert.Equal(19, suite.Algorithms.Count);
         foreach (InspectionSuiteAlgorithmOption option in suite.Algorithms)
         {
             suite.SelectedAlgorithm = option.Kind;
@@ -476,7 +480,7 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             60,
             0.0,
             [new PointD(80, 90), new PointD(320, 90), new PointD(320, 150), new PointD(80, 150)]);
-        var ocrGuides = InspectionSuiteService.BuildGeometricGuidesForRoi(
+        var ocrGuides = suite.Registry.BuildGeometricGuides(
             sampleRoi,
             InspectionSuiteAlgorithmKind.PpOcrOnnx,
             new InspectionSuiteParameters());
@@ -971,12 +975,12 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
         studio.Filters.AddStepToPipeline.Execute(null);
 
         Assert.Equal(3, studio.Filters.PipelineSteps.Count);
-        Assert.Equal(3, PreInspectionFilterPipeline.ActiveSteps.Length);
+        Assert.Equal(3, studio.PreFilterPipeline.ActiveSteps.Length);
         Assert.True(studio.Inspections.HasActivePreFilterPipeline);
 
         // Disable the second step -> active steps immediately reflect 2 steps
         studio.Filters.PipelineSteps[1].IsEnabled = false;
-        Assert.Equal(2, PreInspectionFilterPipeline.ActiveSteps.Length);
+        Assert.Equal(2, studio.PreFilterPipeline.ActiveSteps.Length);
 
         // Verify PreInspectionFilterPipeline executes enabled steps in order on a grayscale buffer
         byte[] testPixels = new byte[64 * 64];
@@ -985,7 +989,7 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             testPixels[i] = (byte)((i * 17) & 0xFF);
         }
 
-        int executedSteps = PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(testPixels, 64, 64);
+        int executedSteps = studio.PreFilterPipeline.ApplyInPlaceIfConfigured(testPixels, 64, 64);
         Assert.Equal(2, executedSteps);
 
         // Clear registration -> 0 active steps
@@ -1064,11 +1068,12 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             vm => vm.IsBarcode1DSelected,
             vm => vm.IsPhotometricStereoSelected,
             vm => vm.IsGeometricTolerancingSelected,
-            vm => vm.IsPpOcrOnnxSelected
+            vm => vm.IsPpOcrOnnxSelected,
+            vm => vm.IsQrCode2DSelected
         ];
 
         HashSet<string> summaries = new HashSet<string>(StringComparer.Ordinal);
-        Assert.Equal(18, suite.Algorithms.Count);
+        Assert.Equal(19, suite.Algorithms.Count);
         foreach (InspectionSuiteAlgorithmOption option in suite.Algorithms)
         {
             suite.SelectedAlgorithm = option.Kind;
@@ -1078,12 +1083,14 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
         }
 
         // Verify legacy OCR enum values normalize to the unified PpOcrOnnx panel
+#pragma warning disable CS0618
         suite.SelectedAlgorithm = InspectionSuiteAlgorithmKind.IndustrialOcrOcv;
         Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
         suite.SelectedAlgorithm = InspectionSuiteAlgorithmKind.LightweightOcr;
         Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
         suite.SelectedAlgorithm = InspectionSuiteAlgorithmKind.CpuDeepOcr;
         Assert.Equal(InspectionSuiteAlgorithmKind.PpOcrOnnx, suite.SelectedAlgorithm);
+#pragma warning restore CS0618
 
         // Verify PP-OCRv4 preset and OCV contrast properties update cleanly and independently
         suite.PpOcrPreset = PpOcrSpeedPreset.HighSpeedProduction;
@@ -1129,7 +1136,7 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
         Assert.True(suite.IsBarcodeCategorySelected);
         Assert.False(suite.IsAnyOcrSelected);
         Assert.Equal(InspectionSuiteAlgorithmKind.Barcode1DReader, suite.SelectedAlgorithm);
-        Assert.Equal(2, suite.CategoryAlgorithms.Count);
+        Assert.Equal(3, suite.CategoryAlgorithms.Count);
         Assert.All(suite.CategoryAlgorithms, a => Assert.Equal(InspectionSuiteCategory.Barcode1D2D, a.Category));
 
         viewModel.SelectAiAutoTeachingCategoryStage.Execute(null);
@@ -1146,7 +1153,7 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
 
         suite.SelectAllCategories.Execute(null);
         Assert.True(suite.IsAllCategoriesSelected);
-        Assert.Equal(18, suite.CategoryAlgorithms.Count);
+        Assert.Equal(19, suite.CategoryAlgorithms.Count);
     }
 
     [Fact]
@@ -1360,16 +1367,24 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             Assert.InRange(Math.Abs(dmOut.Items[1].ReferencePoint.Y - 384.0), 0.0, 2.0);
             Assert.Contains("바코드 중심좌표=(844.0, 384.0)", dmOut.Items[1].DetailLine, StringComparison.Ordinal);
 
-            // Wide ROI covering both symbols still isolates and decodes DataMatrix with exact world coordinates
-            Assert.True(dmOut.Items[2].BadgeLabel.Contains("LOT26A", StringComparison.Ordinal) || dmOut.Items[2].BadgeLabel.Contains("OK9912", StringComparison.Ordinal));
-            Assert.Contains("바코드 중심좌표=", dmOut.Items[2].DetailLine, StringComparison.Ordinal);
+            // Wide ROI covering both symbols isolates and decodes BOTH DataMatrix codes with exact world coordinates in reading order
+            Assert.Equal(5, dmOut.Items.Length);
+            Assert.Equal("DM_Wide_Both #1", dmOut.Items[2].Name);
+            Assert.Contains("LOT26A", dmOut.Items[2].BadgeLabel, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(dmOut.Items[2].ReferencePoint.X - 324.0), 0.0, 2.0);
+            Assert.InRange(Math.Abs(dmOut.Items[2].ReferencePoint.Y - 384.0), 0.0, 2.0);
+
+            Assert.Equal("DM_Wide_Both #2", dmOut.Items[3].Name);
+            Assert.Contains("OK9912", dmOut.Items[3].BadgeLabel, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(dmOut.Items[3].ReferencePoint.X - 844.0), 0.0, 2.0);
+            Assert.InRange(Math.Abs(dmOut.Items[3].ReferencePoint.Y - 384.0), 0.0, 2.0);
 
             // Rotated 2D DataMatrix (+22.5 deg) inside a 0-deg ROI outputs true world center (584, 656) and true rotation (+22.5 deg)
-            Assert.Contains("ROT23", dmOut.Items[3].BadgeLabel, StringComparison.Ordinal);
-            Assert.Contains("회전각=", dmOut.Items[3].DetailLine, StringComparison.Ordinal);
-            Assert.InRange(Math.Abs(dmOut.Items[3].ReferencePoint.X - 584.0), 0.0, 2.5);
-            Assert.InRange(Math.Abs(dmOut.Items[3].ReferencePoint.Y - 656.0), 0.0, 2.5);
-            double dmRotDeg = dmOut.Items[3].AngleRadians * (180.0 / Math.PI);
+            Assert.Contains("ROT23", dmOut.Items[4].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("회전각=", dmOut.Items[4].DetailLine, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(dmOut.Items[4].ReferencePoint.X - 584.0), 0.0, 2.5);
+            Assert.InRange(Math.Abs(dmOut.Items[4].ReferencePoint.Y - 656.0), 0.0, 2.5);
+            double dmRotDeg = dmOut.Items[4].AngleRadians * (180.0 / Math.PI);
             Assert.InRange(dmRotDeg, 21.3, 23.7);
 
             // 3. 1D Linear Barcode sample scene: 0 deg & -18.0 deg rotated Code 128B symbols
@@ -1406,6 +1421,139 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             Assert.InRange(Math.Abs(bar1dOut.Items[2].ReferencePoint.Y - 648.0), 0.0, 4.0);
             double bar1dRotDeg = bar1dOut.Items[2].AngleRadians * (180.0 / Math.PI);
             Assert.InRange(bar1dRotDeg, -19.2, -16.8);
+
+            // 4. 2D QR Code (ISO 18004) sample scene: 0 deg, -32.5 deg rotated, and +135.0 deg inverted symbols
+            ImageReference qrRef = new ImageReference(
+                $"{InspectionSuiteSampleTileSource.KeyPrefix}qrcode",
+                "21. [본검사] 산업용 2D QR 코드(ISO 18004) 360° 위치·각도 리더 샘플 (1200×800)",
+                InspectionSuiteSampleTileSource.DefaultWidth,
+                InspectionSuiteSampleTileSource.DefaultHeight);
+            InspectionSuiteRoiInput[] qrRois =
+            [
+                CreateRectRoiInput("QR_0Deg", 306, 326, 200, 200),
+                CreateRectRoiInput("QR_Rot_Neg32_5", 872, 334, 240, 240),
+                CreateRectRoiInput("QR_Inv_Pos135", 584, 620, 224, 224)
+            ];
+
+            var qrOut = await suiteService.ExecuteRoiInspectionAsync(
+                qrRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.QrCode2DReader,
+                qrRois,
+                [],
+                defaultParams,
+                CancellationToken.None);
+
+            Assert.All(qrOut.Items, item => Assert.True(item.IsPass, item.DetailLine));
+
+            Assert.Contains("QR26A", qrOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(qrOut.Items[0].ReferencePoint.X - 306.0), 0.0, 1.5);
+            Assert.InRange(Math.Abs(qrOut.Items[0].ReferencePoint.Y - 326.0), 0.0, 1.5);
+            Assert.InRange(Math.Abs(qrOut.Items[0].AngleRadians * (180.0 / Math.PI)), 0.0, 1.0);
+
+            // Even when ROI #2 is offset at (872, 334), ReferencePoint must be the actual QR world center (860, 326) and angle -32.5 deg
+            Assert.Contains("ROT-325", qrOut.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(qrOut.Items[1].ReferencePoint.X - 860.0), 0.0, 1.5);
+            Assert.InRange(Math.Abs(qrOut.Items[1].ReferencePoint.Y - 326.0), 0.0, 1.5);
+            double qrRotDeg1 = qrOut.Items[1].AngleRadians * (180.0 / Math.PI);
+            Assert.InRange(qrRotDeg1, -33.7, -31.3);
+
+            // Inverted Light-on-Dark QR at +135.0 deg recovers exact world center (584, 620) and +135.0 deg angle
+            Assert.Contains("INV135", qrOut.Items[2].BadgeLabel, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(qrOut.Items[2].ReferencePoint.X - 584.0), 0.0, 1.5);
+            Assert.InRange(Math.Abs(qrOut.Items[2].ReferencePoint.Y - 620.0), 0.0, 1.5);
+            double qrRotDeg2 = qrOut.Items[2].AngleRadians * (180.0 / Math.PI);
+            Assert.InRange(qrRotDeg2, 133.8, 136.2);
+
+            // 5. Full-frame SINGLE ROI multi-barcode decoding across ALL 3 readers (QR, DataMatrix, 1D Barcode):
+            //    1 ROI covering the entire 1200x800 scene must return all 3 symbols with individual tight Bounds, world pose, and reading order.
+            InspectionSuiteRoiInput[] fullFrameSingleRoi =
+            [
+                CreateRectRoiInput("FullFrame_AllCodes", 600, 400, 1140, 740)
+            ];
+
+            var qrFullOut = await suiteService.ExecuteRoiInspectionAsync(
+                qrRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.QrCode2DReader,
+                fullFrameSingleRoi,
+                [],
+                defaultParams,
+                CancellationToken.None);
+            Assert.Equal(3, qrFullOut.Items.Length);
+            Assert.Contains("ROI 1개", qrFullOut.SummaryTitle, StringComparison.Ordinal);
+            Assert.Contains("QR26A", qrFullOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("ROT-325", qrFullOut.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("INV135", qrFullOut.Items[2].BadgeLabel, StringComparison.Ordinal);
+            Assert.All(qrFullOut.Items, item => Assert.Equal(fullFrameSingleRoi[0].RoiId, item.RoiId));
+            Assert.NotEqual(qrFullOut.Items[0].Bounds[0], qrFullOut.Items[1].Bounds[0]);
+
+            var dmFullOut = await suiteService.ExecuteRoiInspectionAsync(
+                dmRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.DataMatrix2DReader,
+                fullFrameSingleRoi,
+                [],
+                defaultParams,
+                CancellationToken.None);
+            Assert.Equal(3, dmFullOut.Items.Length);
+            Assert.Contains("LOT26A", dmFullOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("OK9912", dmFullOut.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("ROT23", dmFullOut.Items[2].BadgeLabel, StringComparison.Ordinal);
+
+            var bar1dFullOut = await suiteService.ExecuteRoiInspectionAsync(
+                bar1dRef,
+                live: false,
+                InspectionSuiteAlgorithmKind.Barcode1DReader,
+                fullFrameSingleRoi,
+                [],
+                defaultParams,
+                CancellationToken.None);
+            Assert.Equal(3, bar1dFullOut.Items.Length);
+            Assert.Contains("LOT26A", bar1dFullOut.Items[0].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("OK99", bar1dFullOut.Items[1].BadgeLabel, StringComparison.Ordinal);
+            Assert.Contains("ANG18", bar1dFullOut.Items[2].BadgeLabel, StringComparison.Ordinal);
+
+            // 6. ViewModel shared pipeline verification:
+            //    3 results from 1 ROI must emit 3 structured logs, 1 aggregated ROI assignment (never overwriting NG),
+            //    and 0ms live-preview pose projection without collapsing markers or blinking on ROI move!
+            using StubDisplay vmDisplay = new StubDisplay();
+            using MainWindowViewModel studio = CreateStudio(vmDisplay);
+            studio.Session.InitializeImage(qrRef, new ViewportTransform(1, default));
+            Guid singleRoiId = studio.Session.Add(new RoiGeometry(new PointD(600, 400), 1140, 740, 0));
+            studio.Session.Select([singleRoiId]);
+
+            studio.Inspections.Selected = InspectionToolKind.InspectionSuite;
+            var suiteVm = studio.Inspections.Suite!;
+            suiteVm.AutoPreview = false;
+            suiteVm.SelectedAlgorithm = InspectionSuiteAlgorithmKind.QrCode2DReader;
+
+            await suiteVm.ExecuteSelected.ExecuteAsync();
+
+            Assert.NotNull(suiteVm.Overlay);
+            Assert.Equal(3, suiteVm.Overlay!.Matches.Length);
+            Assert.All(suiteVm.Overlay.Matches, m => Assert.Equal(singleRoiId, m.SourceRoiId));
+            Assert.Equal(3, studio.Inspections.TotalLogCount);
+            Assert.Equal("PASS (3/3)", studio.FindRow(singleRoiId)?.VerdictBadge);
+
+            // Drag/nudge ROI by (+12, -8): 0ms live preview projection must preserve all 3 markers and shift each barcode center by (+12, -8)
+            PointD beforeRef0 = suiteVm.Overlay.Matches[0].ReferencePoint;
+            PointD beforeRef2 = suiteVm.Overlay.Matches[2].ReferencePoint;
+            studio.Session.SetGeometry(singleRoiId, new RoiGeometry(new PointD(612, 392), 1140, 740, 0));
+
+            Assert.NotNull(suiteVm.Overlay);
+            Assert.Equal(3, suiteVm.Overlay!.Matches.Length);
+            Assert.DoesNotContain("[가이드 미리보기]", suiteVm.Overlay.Summary, StringComparison.Ordinal);
+            Assert.InRange(Math.Abs(suiteVm.Overlay.Matches[0].ReferencePoint.X - (beforeRef0.X + 12.0)), 0.0, 1e-3);
+            Assert.InRange(Math.Abs(suiteVm.Overlay.Matches[0].ReferencePoint.Y - (beforeRef0.Y - 8.0)), 0.0, 1e-3);
+            Assert.InRange(Math.Abs(suiteVm.Overlay.Matches[2].ReferencePoint.X - (beforeRef2.X + 12.0)), 0.0, 1e-3);
+            Assert.InRange(Math.Abs(suiteVm.Overlay.Matches[2].ReferencePoint.Y - (beforeRef2.Y - 8.0)), 0.0, 1e-3);
+
+            // Also verify mixed PASS/NG aggregation: if MinIsoContrast is raised to 0.99f so symbols fail contrast,
+            // the aggregated ROI badge must be NG (0/3), never masking failures!
+            suiteVm.QrCodeMinIsoContrast = 0.99f;
+            await suiteVm.ExecuteSelected.ExecuteAsync();
+            Assert.Equal("NG (0/3)", studio.FindRow(singleRoiId)?.VerdictBadge);
         }
         finally
         {
@@ -1491,16 +1639,17 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
     {
         StubLoader rawLoader = new StubLoader();
         IImageLoader loader = new SourceImageLoader(rawLoader);
-        TaughtFontOcvService ocvService = new TaughtFontOcvService(loader, () => null);
+        PreInspectionFilterPipeline preFilterPipeline = new PreInspectionFilterPipeline();
+        TaughtFontOcvService ocvService = new TaughtFontOcvService(loader, () => null, preFilterPipeline);
         InspectionToolsViewModel inspections = new InspectionToolsViewModel(
             new ShapeMatchingViewModel(
-                new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper),
-                new TemplateMatchingService(loader, () => null),
-                new CpuTemplateMatchingService(loader, () => null),
-                new PatMaxMatchingService(loader, () => null)),
-            new PrimitiveShapeDetectionViewModel(primitiveOverride ?? new PrimitiveShapeDetectionService(loader, () => null)),
-            new EdgeFewShotViewModel(new EdgeFewShotService(loader, () => null)),
-            new InspectionSuiteViewModel(new InspectionSuiteService(loader, () => null, _ppOcrFixture.Service), ocvService));
+                new ShapeMatchingService(loader, () => null, pipeline: ShapeSearchPipeline.Paper, preFilterPipeline: preFilterPipeline),
+                new TemplateMatchingService(loader, () => null, preFilterPipeline),
+                new CpuTemplateMatchingService(loader, () => null, preFilterPipeline: preFilterPipeline),
+                new PatMaxMatchingService(loader, () => null, preFilterPipeline)),
+            new PrimitiveShapeDetectionViewModel(primitiveOverride ?? new PrimitiveShapeDetectionService(loader, () => null, preFilterPipeline: preFilterPipeline)),
+            new EdgeFewShotViewModel(new EdgeFewShotService(loader, () => null, preFilterPipeline)),
+            new InspectionSuiteViewModel(new InspectionSuiteService(loader, () => null, _ppOcrFixture.Service, preFilterPipeline), ocvService));
 
         return new MainWindowViewModel(
             display,
@@ -1508,7 +1657,8 @@ public sealed class Fluent2StudioViewModelTests(SharedPpOcrFixture ppOcrFixture)
             loader,
             new LivePreview(display, _ => throw new NotSupportedException()),
             new StubFilterPreview(),
-            inspections);
+            inspections,
+            preFilterPipeline: preFilterPipeline);
     }
 
     private sealed class RecordingPrimitiveService : IPrimitiveShapeDetectionService

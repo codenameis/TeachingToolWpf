@@ -11,7 +11,7 @@ namespace TeachingToolWpf.Imaging.Matching;
 /// <summary>원본 타일의 반복 2×2 반올림 평균을 독립 소유 결과 버퍼에 직접 기록한다.</summary>
 internal static class InspectionTileReducer
 {
-    public static PixelBuffer Reduce(GrayImage source, int factor, CancellationToken token)
+    public static PixelBuffer Reduce(ShapeGrayImage source, int factor, CancellationToken token)
     {
         if (factor is < 1 or > 32 || (factor & (factor - 1)) != 0)
         {
@@ -54,7 +54,7 @@ internal static class InspectionTileReducer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private static void ReduceTwo(GrayImage source, PixelBuffer target, CancellationToken token)
+    private static void ReduceTwo(ShapeGrayImage source, PixelBuffer target, CancellationToken token)
     {
         var input = source.Pixels.Span;
         var output = target.Span;
@@ -79,7 +79,7 @@ internal static class InspectionTileReducer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private static void ReduceFour(GrayImage source, PixelBuffer target, CancellationToken token)
+    private static void ReduceFour(ShapeGrayImage source, PixelBuffer target, CancellationToken token)
     {
         var input = source.Pixels.Span;
         var output = target.Span;

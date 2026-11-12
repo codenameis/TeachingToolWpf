@@ -3,17 +3,21 @@ using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
-internal sealed class DrawGesture(InteractionController controller, PointD dragStartScreen) : IGesture
+internal sealed class DrawGesture(IGestureContext context, PointD dragStartScreen) : IGesture
 {
     private const double MinimumDrawDistanceDip = 4;
     private const double MinimumSizeInImage = .01;
 
-    private readonly ViewportTransform _initialViewport = controller.Editor.State.Viewport;
+    private readonly ViewportTransform _initialViewport = context.State.Viewport;
     private RoiGeometry? _draft;
+
+    public void Start()
+    {
+    }
 
     public void Move(PointD screen, InputModifiers modifiers)
     {
-        var image = controller.Editor.State.Image;
+        var image = context.State.Image;
         var startInImage = RoiImageBounds.Clamp(_initialViewport.ScreenToImage(dragStartScreen), image);
         var endInImage = RoiImageBounds.Clamp(_initialViewport.ScreenToImage(screen), image);
         if ((screen - dragStartScreen).Length < MinimumDrawDistanceDip ||
@@ -24,15 +28,15 @@ internal sealed class DrawGesture(InteractionController controller, PointD dragS
         }
         else
         {
-            _draft = RoiGeometry.Create(controller.DrawShape, (startInImage + endInImage) / 2,
+            _draft = RoiGeometry.Create(context.DrawShape, (startInImage + endInImage) / 2,
                 Math.Abs(startInImage.X - endInImage.X), Math.Abs(startInImage.Y - endInImage.Y));
         }
 
         var startOnScreen = _initialViewport.ImageToScreen(startInImage);
         var endOnScreen = _initialViewport.ImageToScreen(endInImage);
-        controller.Show(new(Draft: _draft)
+        context.Show(new(Draft: _draft)
         {
-            DraftIsGroup = controller.DrawAsGroup,
+            DraftIsGroup = context.DrawAsGroup,
             DragArea = _draft is null ? null : new(
                 Math.Min(startOnScreen.X, endOnScreen.X), Math.Min(startOnScreen.Y, endOnScreen.Y),
                 Math.Max(startOnScreen.X, endOnScreen.X), Math.Max(startOnScreen.Y, endOnScreen.Y))
@@ -46,8 +50,8 @@ internal sealed class DrawGesture(InteractionController controller, PointD dragS
             return;
         }
 
-        controller.AddDrawnRoi(_draft);
-        controller.Tool = EditorTool.Select;
+        context.AddDrawnRoi(_draft);
+        context.Tool = EditorTool.Select;
     }
 
     public void Cancel()

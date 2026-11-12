@@ -132,9 +132,9 @@ public sealed class CornerAlignmentToolNode : IToolBlockNode
         Vector2 dir1 = leg1.GetUnitLegDirection(out _);
         Vector2 dir2 = leg2.GetUnitLegDirection(out _);
 
-        VisionAlgorithm.OpenSrc.CornerAlignment.Domain.FittedLine2D fitted1 =
+        HessianLine2D fitted1 =
             HessianNormalLineFitter.FitLine(pts1.Slice(0, count1), _spec.DetectionOptions, dir1);
-        VisionAlgorithm.OpenSrc.CornerAlignment.Domain.FittedLine2D fitted2 =
+        HessianLine2D fitted2 =
             HessianNormalLineFitter.FitLine(pts2.Slice(0, count2), _spec.DetectionOptions, dir2);
 
         int totalCalipers = _spec.CaliperCountPerLeg * 2;

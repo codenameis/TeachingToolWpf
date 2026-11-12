@@ -1,4 +1,3 @@
-// File: src/VisionInspection/Matching/PatMaxMatchingService.cs
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
@@ -9,74 +8,10 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record PatMaxTrainedTemplate(
-    PatMaxModel Model,
-    RoiGeometry TeachingRegion,
-    PatMaxTrainParams TrainParams,
-    ImmutableArray<PointD> PreviewPoints,
-    ImmutableArray<PointD> PreviewNormals,
-    ImmutableArray<PointD> CoarsePreviewPoints,
-    double ReadMilliseconds,
-    double TrainMilliseconds,
-    byte[]? FilteredPreviewGray8 = null,
-    int PreviewWidth = 0,
-    int PreviewHeight = 0,
-    byte[]? PreviewMask = null,
-    byte[]? RawPreviewGray8 = null,
-    int RawPreviewWidth = 0,
-    int RawPreviewHeight = 0) : IDisposable
-{
-    public void Dispose() => Model.Dispose();
-}
-
-public sealed record PatMaxSearchMatch(
-    double X,
-    double Y,
-    double AngleDegrees,
-    double Scale,
-    double AspectRatio,
-    float Score,
-    float Coverage,
-    float Clutter,
-    int MatchedDipoles,
-    int Iterations);
-
-public sealed record PatMaxSearchOutput(
-    ImmutableArray<PatMaxSearchMatch> Matches,
-    double ReadMilliseconds,
-    double SearchMilliseconds,
-    double TotalMilliseconds,
-    bool MatchLimitExceeded);
-
-public interface IPatMaxMatchingService
-{
-    Task<PatMaxTrainedTemplate> TrainAsync(
-        ImageReference image,
-        bool live,
-        RoiGeometry roi,
-        PatMaxTrainParams trainParams,
-        CancellationToken token,
-        RoiExclusion? exclusion = null);
-
-    Task<PatMaxTrainedTemplate?> PreviewAsync(
-        ImageReference image,
-        bool live,
-        RoiGeometry roi,
-        PatMaxTrainParams trainParams,
-        CancellationToken token,
-        RoiExclusion? exclusion = null);
-
-    Task<PatMaxSearchOutput> SearchAsync(
-        ImageReference image,
-        bool live,
-        PatMaxTrainedTemplate template,
-        RoiGeometry? searchRegion,
-        PatMaxSearchParams searchParams,
-        CancellationToken token,
-        RoiExclusion? exclusion = null);
-}
-
-public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame) : IPatMaxMatchingService, IDisposable
+public sealed class PatMaxMatchingService(
+    IImageLoader loader,
+    Func<VideoFrame?> retainFrame,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : IPatMaxMatchingService, IDisposable
 {
     private const int MaxPixelsBudget = 67_108_864;
     private const int ReaderWindowBudgetPixels = VisionAlgorithm.OpenSrc.PatternMatching.PreparedSearchImage.MaximumPixels;
@@ -90,13 +25,7 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
 
     private readonly ConcurrentBag<PatMaxEngine> _enginePool = [];
     private readonly MatchingPreviewCache _previewCache = new();
-    private readonly object _searchCacheGate = new();
-    private ImageReference? _cachedSearchImage;
-    private int _cachedLeft;
-    private int _cachedTop;
-    private int _cachedWidth;
-    private int _cachedHeight;
-    private VisionAlgorithm.GrayImage? _cachedSearchGray;
+    private readonly SearchImageCache _searchImageCache = new();
     private bool _disposed;
 
     public Task<PatMaxTrainedTemplate> TrainAsync(
@@ -130,18 +59,17 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
         RoiExclusion? exclusion,
         bool isPreviewOnly)
     {
-        ShapeMatchingService.ValidateRegion(image, roi);
+        MatchingRegionValidator.ValidateTeachingRegion(image, roi);
         var sw = Stopwatch.StartNew();
 
         var pad = Math.Max(MinTemplateCropPaddingPixels, trainParams.CoarseGranularity * 2);
-        var left = Math.Max(0, (int)Math.Floor(roi.Bounds.Left) - pad);
-        var top = Math.Max(0, (int)Math.Floor(roi.Bounds.Top) - pad);
-        var right = Math.Min(image.Width, (int)Math.Ceiling(roi.Bounds.Right) + pad);
-        var bottom = Math.Min(image.Height, (int)Math.Ceiling(roi.Bounds.Bottom) + pad);
-        var cropW = right - left;
-        var cropH = bottom - top;
+        var crop = MatchingCropWindow.Expand(image, roi.Bounds, pad);
+        var left = crop.Left;
+        var top = crop.Top;
+        var cropW = crop.Width;
+        var cropH = crop.Height;
 
-        VisionAlgorithm.GrayImage gray;
+        VisionAlgorithm.ShapeGrayImage gray;
         if ((long)cropW * cropH <= ReaderWindowBudgetPixels)
         {
             gray = await _previewCache.ReadAsync(
@@ -156,11 +84,12 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
                 null,
                 token,
                 ReaderWindowBudgetPixels,
-                preferDirectGray: true).ConfigureAwait(false);
+                preferDirectGray: true,
+                preFilterPipeline: preFilterPipeline).ConfigureAwait(false);
         }
         else
         {
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
             gray = ReadChunkedGrayImage(reader, left, top, cropW, cropH, token);
         }
@@ -250,7 +179,7 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (searchRegion is not null)
             {
-                ShapeMatchingService.ValidateSearchRegion(image, searchRegion);
+                MatchingRegionValidator.ValidateSearchRegion(image, searchRegion);
             }
 
             var totalSw = Stopwatch.StartNew();
@@ -260,15 +189,15 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
             var w = template.TeachingRegion.Width;
             var h = template.TeachingRegion.Height;
             var pad = (int)Math.Ceiling(0.5 * Math.Sqrt((w * w) + (h * h)) * Math.Max(1.0, searchParams.ScaleMax)) + SearchCropSafetyMarginPixels;
-            var left = Math.Max(0, (int)Math.Floor(bounds.Left) - pad);
-            var top = Math.Max(0, (int)Math.Floor(bounds.Top) - pad);
-            var right = Math.Min(image.Width, (int)Math.Ceiling(bounds.Right) + pad);
-            var bottom = Math.Min(image.Height, (int)Math.Ceiling(bounds.Bottom) + pad);
-            var searchW = right - left;
-            var searchH = bottom - top;
+            var searchWindow = MatchingCropWindow.Expand(image, bounds, pad);
+            var left = searchWindow.Left;
+            var top = searchWindow.Top;
+            var searchW = searchWindow.Width;
+            var searchH = searchWindow.Height;
 
-            VisionAlgorithm.GrayImage gray;
-            if (!live && TryGetCachedSearchImage(image, left, top, searchW, searchH, out var cachedGray))
+            VisionAlgorithm.ShapeGrayImage gray;
+            ImmutableArray<PreInspectionFilterStep> activeFilterSteps = preFilterPipeline?.ActiveSteps ?? [];
+            if (!live && _searchImageCache.TryGet(image, activeFilterSteps, searchWindow, out var cachedGray))
             {
                 gray = cachedGray;
             }
@@ -286,16 +215,17 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
                     null,
                     token,
                     ReaderWindowBudgetPixels,
-                    preferDirectGray: true).ConfigureAwait(false);
+                    preferDirectGray: true,
+                    preFilterPipeline: preFilterPipeline).ConfigureAwait(false);
             }
             else
             {
-                using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+                using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
                 reader.PreferDirectGray = true;
                 gray = ReadChunkedGrayImage(reader, left, top, searchW, searchH, token);
                 if (!live)
                 {
-                    StoreCachedSearchImage(image, left, top, searchW, searchH, gray);
+                    _searchImageCache.Store(image, activeFilterSteps, searchWindow, gray);
                 }
             }
 
@@ -306,19 +236,7 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
             var maxReq = hasSpatialFilter
                 ? Math.Clamp(Math.Max(searchParams.MaxResults * 2, searchParams.MaxCandidates), 1, MaxRequestedMatchesLimit)
                 : Math.Clamp(searchParams.MaxResults + 1, 1, MaxRequestedMatchesLimit);
-            var engineSearchParams = maxReq == searchParams.MaxResults
-                ? searchParams
-                : PatMaxSearchParams.Create(
-                    acceptThreshold: searchParams.AcceptThreshold,
-                    angleStartRadians: searchParams.AngleStartRadians,
-                    angleExtentRadians: searchParams.AngleExtentRadians,
-                    scaleMin: searchParams.ScaleMin,
-                    scaleMax: searchParams.ScaleMax,
-                    runtimeEdgeThreshold: searchParams.RuntimeEdgeThreshold,
-                    ignorePolarity: searchParams.IgnorePolarity,
-                    maxCandidates: Math.Max(searchParams.MaxCandidates, maxReq),
-                    maxResults: maxReq,
-                    minSeparationPixels: searchParams.MinSeparationPixels);
+            var engineSearchParams = searchParams.WithCapacity(maxReq);
             var rawResults = new PatMaxResult[maxReq];
             var foundCount = ExecutePooledSearch(
                 template.Model,
@@ -378,51 +296,6 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
                 totalSw.Elapsed.TotalMilliseconds,
                 limitExceeded);
         }, token);
-
-    private bool TryGetCachedSearchImage(
-        ImageReference image,
-        int left,
-        int top,
-        int width,
-        int height,
-        out VisionAlgorithm.GrayImage gray)
-    {
-        lock (_searchCacheGate)
-        {
-            if (_cachedSearchImage == image &&
-                _cachedLeft == left &&
-                _cachedTop == top &&
-                _cachedWidth == width &&
-                _cachedHeight == height &&
-                _cachedSearchGray is { } existing)
-            {
-                gray = existing;
-                return true;
-            }
-        }
-
-        gray = default!;
-        return false;
-    }
-
-    private void StoreCachedSearchImage(
-        ImageReference image,
-        int left,
-        int top,
-        int width,
-        int height,
-        VisionAlgorithm.GrayImage gray)
-    {
-        lock (_searchCacheGate)
-        {
-            _cachedSearchImage = image;
-            _cachedLeft = left;
-            _cachedTop = top;
-            _cachedWidth = width;
-            _cachedHeight = height;
-            _cachedSearchGray = gray;
-        }
-    }
 
     private static (byte[]? Gray8, int Width, int Height, byte[]? Mask) BuildRectifiedFilterPreview(
         ReadOnlySpan<byte> cropPixels,
@@ -525,7 +398,7 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
         }
     }
 
-    private static VisionAlgorithm.GrayImage ReadChunkedGrayImage(
+    private static VisionAlgorithm.ShapeGrayImage ReadChunkedGrayImage(
         MatchingImageReader reader,
         int left,
         int top,
@@ -558,7 +431,7 @@ public sealed class PatMaxMatchingService(IImageLoader loader, Func<VideoFrame?>
             }
         }
 
-        return new VisionAlgorithm.GrayImage(pixels, width, height, width);
+        return new VisionAlgorithm.ShapeGrayImage(pixels, width, height, width);
     }
 
     internal static byte[] BuildExcludedMaskFast(

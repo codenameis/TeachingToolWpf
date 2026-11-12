@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 
 namespace VisionCanvas.Rendering;

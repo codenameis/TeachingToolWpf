@@ -4,7 +4,7 @@ using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
-internal sealed class ResizeGesture(InteractionController controller, Roi originalRoi, int handleIndex, PointD dragStartScreen) : EditGesture(controller)
+internal sealed class ResizeGesture(IGestureContext context, Roi originalRoi, int handleIndex, PointD dragStartScreen) : EditGesture(context)
 {
     protected override string Name => "ROI 크기 조절";
 
@@ -20,6 +20,6 @@ internal sealed class ResizeGesture(InteractionController controller, Roi origin
             previewGeometry = HandleGeometry.Resize(originalRoi.Geometry, handleIndex, InitialViewport.ScreenToImage(screen));
         }
 
-        Editor.PreviewResize(originalRoi.Id, previewGeometry);
+        Commands.PreviewResize(originalRoi.Id, previewGeometry);
     }
 }

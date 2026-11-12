@@ -94,7 +94,7 @@ public sealed class HalconCognexExpansionAlgorithmsTests
         byte[] canvas = new byte[width * height];
         Array.Fill(canvas, (byte)238);
 
-        Barcode1DDecoder.RenderCode128Symbol(
+        Code128SymbolRenderer.RenderCode128Symbol(
             canvas,
             width,
             height,
@@ -132,7 +132,7 @@ public sealed class HalconCognexExpansionAlgorithmsTests
         Array.Fill(canvas, (byte)238);
 
         float expectedRad = (float)(expectedAngleDeg * (Math.PI / 180.0));
-        Barcode1DDecoder.RenderRotatedCode128Symbol(
+        Code128SymbolRenderer.RenderRotatedCode128Symbol(
             canvas,
             width,
             height,

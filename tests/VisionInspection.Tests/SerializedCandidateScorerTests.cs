@@ -51,7 +51,7 @@ public sealed class SerializedCandidateScorerTests
         public ImagePreprocessingDiagnostics Diagnostics => new("test", "test", 0, 0, 0);
         public CandidateScoringDiagnostics CandidateDiagnostics => new("test", "test", 1, 64, 1, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("This test must use candidate scoring.");
 
         public ShapeCandidateScoreBatch Score(ShapeCandidateScoreRequest request, CancellationToken cancellationToken = default)

@@ -207,6 +207,9 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
             case "geomtolerance":
                 RenderGeometricToleranceScene(canvas, width, height);
                 break;
+            case "qrcode":
+                RenderQrCodeScene(canvas, width, height);
+                break;
             default:
                 RenderMetrologyScene(canvas, width, height);
                 break;
@@ -1700,5 +1703,316 @@ public sealed class InspectionSuiteSampleTileSource : ITileSource, IOriginalGray
         Vector2 innerBoreCenter = new(outerBoreCenter.X + boreOffsetX, outerBoreCenter.Y + boreOffsetY);
         DrawCircle(canvas, width, height, outerBoreCenter, 74.0f, DarkFeatureGray);
         DrawCircle(canvas, width, height, innerBoreCenter, 36.0f, BrightPadGray);
+    }
+
+    private static void RenderQrCodeScene(Span<byte> canvas, int width, int height)
+    {
+        canvas.Fill(232);
+
+        // QR 1 (Top-Left, center=(306, 326), 21x21 * 8px = 168x168px, 0.0 deg): Payload = "QR26A"
+        RenderRotatedQrVersion1M(
+            canvas,
+            width,
+            height,
+            centerX: 306.0f,
+            centerY: 326.0f,
+            moduleSize: 8.0f,
+            angleRad: 0.0f,
+            asciiPayload: "QR26A"u8,
+            darkGray: 24,
+            lightGray: 232);
+
+        // QR 2 (Top-Right, center=(860, 326), 21x21 * 7px = 147x147px, -32.5 deg): Payload = "ROT-325"
+        RenderRotatedQrVersion1M(
+            canvas,
+            width,
+            height,
+            centerX: 860.0f,
+            centerY: 326.0f,
+            moduleSize: 7.0f,
+            angleRad: -32.5f * (MathF.PI / 180.0f),
+            asciiPayload: "ROT-325"u8,
+            darkGray: 26,
+            lightGray: 232);
+
+        // QR 3 (Bottom-Center, center=(584, 620), 21x21 * 6.5px = 136.5x136.5px, +135.0 deg): Payload = "INV135"
+        RenderRotatedQrVersion1M(
+            canvas,
+            width,
+            height,
+            centerX: 584.0f,
+            centerY: 620.0f,
+            moduleSize: 6.5f,
+            angleRad: 135.0f * (MathF.PI / 180.0f),
+            asciiPayload: "INV135"u8,
+            darkGray: 24,
+            lightGray: 232);
+    }
+
+    private static void RenderRotatedQrVersion1M(
+        Span<byte> canvas,
+        int width,
+        int height,
+        float centerX,
+        float centerY,
+        float moduleSize,
+        float angleRad,
+        ReadOnlySpan<byte> asciiPayload,
+        byte darkGray,
+        byte lightGray)
+    {
+        const int n = 21;
+        const int dataCount = 16;
+        const int eccCount = 10;
+        const ushort formatMask2EccM = 0x5E7C; // ECC-M (00) + Mask 2 (010) BCH(15,5) ^ 0x5412
+
+        Span<byte> codewords = stackalloc byte[dataCount + eccCount];
+        codewords.Clear();
+
+        // Encode Byte mode (0100) + 8-bit length + bytes + 4-bit terminator + 0xEC/0x11 pad
+        int bitPos = 0;
+        WriteQrBits(codewords, ref bitPos, 0b0100, 4);
+        WriteQrBits(codewords, ref bitPos, asciiPayload.Length, 8);
+        for (int i = 0; i < asciiPayload.Length; i++)
+        {
+            WriteQrBits(codewords, ref bitPos, asciiPayload[i], 8);
+        }
+
+        WriteQrBits(codewords, ref bitPos, 0, 4);
+        int padIdx = bitPos >> 3;
+        bool evenPad = true;
+        while (padIdx < dataCount)
+        {
+            codewords[padIdx++] = evenPad ? (byte)0xEC : (byte)0x11;
+            evenPad = !evenPad;
+        }
+
+        ComputeQrRsEcc10(codewords.Slice(0, dataCount), codewords.Slice(dataCount, eccCount));
+
+        Span<bool> isFunc = stackalloc bool[n * n];
+        Span<bool> grid = stackalloc bool[n * n];
+        isFunc.Clear();
+        grid.Clear();
+
+        PlaceQrFinderSample(n, 0, 0, isFunc, grid);
+        PlaceQrFinderSample(n, 0, n - 7, isFunc, grid);
+        PlaceQrFinderSample(n, n - 7, 0, isFunc, grid);
+
+        for (int i = 8; i < n - 8; i++)
+        {
+            bool dark = (i & 1) == 0;
+            isFunc[(6 * n) + i] = true;
+            grid[(6 * n) + i] = dark;
+            isFunc[(i * n) + 6] = true;
+            grid[(i * n) + 6] = dark;
+        }
+
+        for (int i = 0; i <= 8; i++)
+        {
+            if (i != 6)
+            {
+                isFunc[(8 * n) + i] = true;
+                isFunc[(i * n) + 8] = true;
+            }
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            isFunc[(8 * n) + (n - 1 - i)] = true;
+            isFunc[((n - 1 - i) * n) + 8] = true;
+        }
+
+        isFunc[((n - 8) * n) + 8] = true;
+        grid[((n - 8) * n) + 8] = true;
+
+        int totalBits = codewords.Length * 8;
+        int bitCursor = 0;
+        bool upward = true;
+        for (int rightCol = n - 1; rightCol >= 1; rightCol -= 2)
+        {
+            if (rightCol == 6)
+            {
+                rightCol = 5;
+            }
+
+            for (int step = 0; step < n; step++)
+            {
+                int r = upward ? (n - 1 - step) : step;
+                for (int dx = 0; dx < 2; dx++)
+                {
+                    int c = rightCol - dx;
+                    int idx = (r * n) + c;
+                    if (isFunc[idx])
+                    {
+                        continue;
+                    }
+
+                    bool bit = bitCursor < totalBits && (((codewords[bitCursor >> 3] >> (7 - (bitCursor & 7))) & 1) != 0);
+                    bitCursor++;
+                    grid[idx] = bit ^ ((c % 3) == 0); // Mask 2: col % 3 == 0
+                }
+            }
+
+            upward = !upward;
+        }
+
+        ReadOnlySpan<int> c1Cols = [0, 1, 2, 3, 4, 5, 7, 8, 8, 8, 8, 8, 8, 8, 8];
+        ReadOnlySpan<int> c1Rows = [8, 8, 8, 8, 8, 8, 8, 8, 7, 5, 4, 3, 2, 1, 0];
+        for (int i = 0; i < 15; i++)
+        {
+            grid[(c1Rows[i] * n) + c1Cols[i]] = ((formatMask2EccM >> (14 - i)) & 1) != 0;
+        }
+
+        for (int i = 0; i < 7; i++)
+        {
+            grid[((n - 1 - i) * n) + 8] = ((formatMask2EccM >> (14 - i)) & 1) != 0;
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            grid[(8 * n) + (n - 8 + i)] = ((formatMask2EccM >> (7 - i)) & 1) != 0;
+        }
+
+        float symSpan = n * moduleSize;
+        float halfSpan = symSpan * 0.5f;
+        float quiet = moduleSize * 4.0f;
+        float bound = halfSpan + quiet;
+        float radius = MathF.Sqrt((bound * bound) + (bound * bound)) + 2.0f;
+
+        int minPx = Math.Max(0, (int)MathF.Floor(centerX - radius));
+        int maxPx = Math.Min(width - 1, (int)MathF.Ceiling(centerX + radius));
+        int minPy = Math.Max(0, (int)MathF.Floor(centerY - radius));
+        int maxPy = Math.Min(height - 1, (int)MathF.Ceiling(centerY + radius));
+
+        (float sinA, float cosA) = MathF.SinCos(angleRad);
+        const int sub = 4;
+        const float stepSub = 1.0f / sub;
+        const float invSub = 1.0f / (sub * sub);
+
+        for (int py = minPy; py <= maxPy; py++)
+        {
+            for (int px = minPx; px <= maxPx; px++)
+            {
+                byte bg = canvas[(py * width) + px];
+                float acc = 0.0f;
+                bool touched = false;
+
+                for (int sy = 0; sy < sub; sy++)
+                {
+                    float wy = py + ((sy + 0.5f) * stepSub) - centerY;
+                    for (int sx = 0; sx < sub; sx++)
+                    {
+                        float wx = px + ((sx + 0.5f) * stepSub) - centerX;
+                        float lu = (wx * cosA) + (wy * sinA) + halfSpan;
+                        float lv = (-wx * sinA) + (wy * cosA) + halfSpan;
+
+                        if (lu >= 0.0f && lu < symSpan && lv >= 0.0f && lv < symSpan)
+                        {
+                            int mc = Math.Clamp((int)(lu / moduleSize), 0, n - 1);
+                            int mr = Math.Clamp((int)(lv / moduleSize), 0, n - 1);
+                            acc += grid[(mr * n) + mc] ? darkGray : lightGray;
+                            touched = true;
+                        }
+                        else if (lu >= -quiet && lu < symSpan + quiet && lv >= -quiet && lv < symSpan + quiet)
+                        {
+                            acc += lightGray;
+                            touched = true;
+                        }
+                        else
+                        {
+                            acc += bg;
+                        }
+                    }
+                }
+
+                if (touched)
+                {
+                    canvas[(py * width) + px] = (byte)Math.Clamp((int)MathF.Round(acc * invSub), 0, 255);
+                }
+            }
+        }
+    }
+
+    private static void PlaceQrFinderSample(int n, int topR, int leftC, Span<bool> isFunc, Span<bool> grid)
+    {
+        for (int dr = -1; dr <= 7; dr++)
+        {
+            int r = topR + dr;
+            if ((uint)r >= (uint)n)
+            {
+                continue;
+            }
+
+            for (int dc = -1; dc <= 7; dc++)
+            {
+                int c = leftC + dc;
+                if ((uint)c >= (uint)n)
+                {
+                    continue;
+                }
+
+                isFunc[(r * n) + c] = true;
+                grid[(r * n) + c] = (uint)dr < 7u && (uint)dc < 7u && Math.Max(Math.Abs(dr - 3), Math.Abs(dc - 3)) != 2;
+            }
+        }
+    }
+
+    private static void WriteQrBits(Span<byte> dst, ref int bitPos, int val, int count)
+    {
+        for (int i = count - 1; i >= 0; i--)
+        {
+            if (((val >> i) & 1) != 0)
+            {
+                dst[bitPos >> 3] |= (byte)(1 << (7 - (bitPos & 7)));
+            }
+
+            bitPos++;
+        }
+    }
+
+    private static void ComputeQrRsEcc10(ReadOnlySpan<byte> data, Span<byte> ecc)
+    {
+        ecc.Clear();
+        Span<byte> exp = stackalloc byte[512];
+        Span<byte> log = stackalloc byte[256];
+        int v = 1;
+        for (int i = 0; i < 255; i++)
+        {
+            exp[i] = (byte)v;
+            exp[i + 255] = (byte)v;
+            log[v] = (byte)i;
+            v <<= 1;
+            if (v >= 256)
+            {
+                v ^= 0x11D;
+            }
+        }
+
+        Span<byte> gen = stackalloc byte[10];
+        gen.Clear();
+        gen[9] = 1;
+        for (int i = 0; i < 10; i++)
+        {
+            byte root = exp[i];
+            for (int j = 0; j < 9; j++)
+            {
+                byte prod = (gen[j] == 0 || root == 0) ? (byte)0 : exp[log[gen[j]] + log[root]];
+                gen[j] = (byte)(prod ^ gen[j + 1]);
+            }
+
+            gen[9] = gen[9] == 0 ? (byte)0 : exp[log[gen[9]] + log[root]];
+        }
+
+        for (int i = 0; i < data.Length; i++)
+        {
+            byte factor = (byte)(data[i] ^ ecc[0]);
+            for (int j = 0; j < 9; j++)
+            {
+                byte prod = (gen[j] == 0 || factor == 0) ? (byte)0 : exp[log[gen[j]] + log[factor]];
+                ecc[j] = (byte)(ecc[j + 1] ^ prod);
+            }
+
+            ecc[9] = (gen[9] == 0 || factor == 0) ? (byte)0 : exp[log[gen[9]] + log[factor]];
+        }
     }
 }

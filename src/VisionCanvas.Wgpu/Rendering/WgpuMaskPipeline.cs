@@ -1,11 +1,14 @@
 using System.Numerics;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using static WebGPU.WebGPU;
 
 namespace VisionCanvas.Wgpu.Rendering;
 
 internal sealed class WgpuMaskPipeline : IDisposable
 {
+    private const int StackAllocThreshold = 128;
+    private const uint FullscreenQuadVertices = 6;
     private readonly WgpuDevice _gpu;
     private readonly WgpuPipeline _pipeline;
 
@@ -17,19 +20,19 @@ internal sealed class WgpuMaskPipeline : IDisposable
 
     public void Draw(RenderScene scene, WgpuSurface surface, WgpuFrameResources frame)
     {
-        if (!MaskDrawConstants.TryResolveActiveMaskTarget(scene, out var roi, out var geometry, out var draft, out var maskCount, out var vertexCount))
+        if (MaskDrawConstants.TryResolveActiveTarget(scene) is not { } target)
         {
             return;
         }
 
-        var maskVectorCount = maskCount * 2;
-        Span<Vector4> masks = maskVectorCount <= 128 ? stackalloc Vector4[maskVectorCount] : new Vector4[maskVectorCount];
-        Span<Vector2> points = vertexCount <= 128 ? stackalloc Vector2[vertexCount] : new Vector2[vertexCount];
-        MaskDrawConstants.Pack(scene, roi, geometry, draft, maskCount, masks, points, out var constants);
+        var maskVectorCount = target.MaskCount * 2;
+        Span<Vector4> masks = maskVectorCount <= StackAllocThreshold ? stackalloc Vector4[maskVectorCount] : new Vector4[maskVectorCount];
+        Span<Vector2> points = target.VertexCount <= StackAllocThreshold ? stackalloc Vector2[target.VertexCount] : new Vector2[target.VertexCount];
+        var constants = MaskDrawConstants.Pack(scene, in target, masks, points);
 
         _pipeline.Bind(surface);
         frame.BindBuffers(_pipeline, surface, in constants, frame.Write<Vector4>(masks), frame.Write<Vector2>(points));
-        wgpuRenderPassEncoderDraw(surface.Pass, 6, 1, 0, 0);
+        wgpuRenderPassEncoderDraw(surface.Pass, FullscreenQuadVertices, 1, 0, 0);
     }
 
     public void Dispose() => _pipeline.Dispose();

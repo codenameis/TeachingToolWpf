@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using VisionAlgorithm.OpenSrc.Common;
 
 namespace VisionAlgorithm.OpenSrc.EdgeFewShot.Math;
 
@@ -161,7 +162,7 @@ public sealed class KMeansPlusPlusClusterer
             }
 
             var chosenSample = 0;
-            if (totalWeight <= SimpleShotNormalizer.MinNormEpsilon)
+            if (totalWeight <= SimpleShotNormalizer.MinSquaredNormEpsilon)
             {
                 chosenSample = c % sampleCount;
             }
@@ -239,7 +240,7 @@ public sealed class KMeansPlusPlusClusterer
         if (MathF.Abs(refNormSq - 1f) <= UnitNormTolerance)
         {
             var centroidNormSq = SimpleShotNormalizer.ComputeSquaredL2Norm(centroid);
-            if (centroidNormSq > SimpleShotNormalizer.MinNormEpsilon)
+            if (centroidNormSq > SimpleShotNormalizer.MinSquaredNormEpsilon)
             {
                 SimpleShotNormalizer.ScaleInPlace(centroid, 1f / MathF.Sqrt(centroidNormSq));
             }

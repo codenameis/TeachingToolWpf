@@ -8,20 +8,20 @@ internal sealed class ClutterModel
 {
     public const int MaximumContourPoints = 262_144;
     public const int MaximumContrastReferences = 128;
-    private readonly EdgePoint[] _contour;
-    private readonly EdgePoint[] _contrastReferences;
+    private readonly ShapeEdgePoint[] _contour;
+    private readonly ShapeEdgePoint[] _contrastReferences;
     private readonly int[] _rowStarts;
     private readonly byte[] _mask;
     private readonly int _width;
     private readonly int _height;
 
-    public ReadOnlySpan<EdgePoint> ContrastReferences => _contrastReferences;
+    public ReadOnlySpan<ShapeEdgePoint> ContrastReferences => _contrastReferences;
     internal ReadOnlyMemory<byte> OwnedMask => _mask;
 
-    public long EstimatedBytes => ((_contour.LongLength + _contrastReferences.LongLength) * Unsafe.SizeOf<EdgePoint>()) +
+    public long EstimatedBytes => ((_contour.LongLength + _contrastReferences.LongLength) * Unsafe.SizeOf<ShapeEdgePoint>()) +
         (_rowStarts.LongLength * sizeof(int)) + _mask.LongLength;
 
-    public ClutterModel(int width, int height, ReadOnlyMemory<byte> mask, List<EdgePoint> contour,
+    public ClutterModel(int width, int height, ReadOnlyMemory<byte> mask, List<ShapeEdgePoint> contour,
         CancellationToken token)
     {
         if (width < 1 || height < 1 || (long)width * height > ShapeTrainer.MaximumPixels ||
@@ -41,7 +41,7 @@ internal sealed class ClutterModel
         var maximumStrength = contour.Count == 0 ? 0 : contour.Max(edge => edge.Strength);
         var strongContour = _contour.Where(edge => edge.Strength >= maximumStrength * .5).ToArray();
         var referenceCount = Math.Min(MaximumContrastReferences, strongContour.Length);
-        _contrastReferences = new EdgePoint[referenceCount];
+        _contrastReferences = new ShapeEdgePoint[referenceCount];
         for (var reference = 0; reference < referenceCount; reference++)
         {
             _contrastReferences[reference] = strongContour[(int)((long)reference * strongContour.Length / referenceCount)];

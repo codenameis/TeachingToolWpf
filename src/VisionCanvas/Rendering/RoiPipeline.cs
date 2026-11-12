@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using VisionCanvas.Core.Geometry;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 using Vortice.Direct3D;
 using Vortice.Direct3D12;
@@ -19,8 +20,6 @@ internal sealed class RoiPipeline : IDisposable
     private const int RolesShaderRegister = 1;
     private const int OptionsShaderRegister = 0;
     private const int RegisterSpace = 0;
-    // 사각형은 네 변, 선분/원은 첫 여섯 정점만 사용한다. 하나의 보관 배치로 제출한다.
-    private const int VerticesPerInstance = 4 * 6;
 
     private sealed class Block(
         RoiBufferArena.Lease geometryAllocation,
@@ -124,7 +123,7 @@ internal sealed class RoiPipeline : IDisposable
         UploadMilliseconds = 0;
         _uploads[surface.FrameIndex].Reset();
 
-        RoiSpatialTraversal.GetLodMetrics(scene, out var visible, out var level, out var aggregateSize);
+        var lod = RoiSpatialTraversal.ComputeLodMetrics(scene);
 
         surface.Commands.SetGraphicsRootSignature(_root);
         surface.Commands.SetPipelineState(_pipeline);
@@ -140,13 +139,13 @@ internal sealed class RoiPipeline : IDisposable
 
         void DrawIndex(RoiSpatialIndex index, bool selected, RigidTransform2D transform, bool searchRange)
         {
-            var query = transform.InverseTransformBounds(visible);
+            var query = transform.InverseTransformBounds(lod.VisibleBounds);
             foreach (var region in index.Blocks(query))
             {
                 var block = _cache.GetOrUpload(
                     region,
-                    level,
-                    aggregateSize,
+                    lod.Level,
+                    lod.AggregateSize,
                     scene.Document,
                     (r, agg, instances, roles) => UploadBlock(r, agg, instances, roles, surface),
                     b => UploadRoleChanges(b, surface));
@@ -265,7 +264,7 @@ internal sealed class RoiPipeline : IDisposable
         surface.Commands.SetGraphicsRoot32BitConstants(DrawConstantsRootParameter, RoiDrawConstants.RootConstantCount, &constants, 0);
         surface.Commands.SetGraphicsRootShaderResourceView(GeometryRootParameter, block.GeometryAllocation.Buffer.GPUVirtualAddress + block.GeometryAllocation.Offset);
         surface.Commands.SetGraphicsRootShaderResourceView(RolesRootParameter, block.RoleAllocation.Buffer.GPUVirtualAddress + block.RoleAllocation.Offset);
-        surface.Commands.DrawInstanced(VerticesPerInstance, (uint)block.Count, 0, 0);
+        surface.Commands.DrawInstanced(RoiDrawConstants.VerticesPerInstance, (uint)block.Count, 0, 0);
     }
 
     public void Dispose()

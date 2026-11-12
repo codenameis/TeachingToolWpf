@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows.Input;
+using VisionCanvas.Commands;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 
@@ -11,14 +12,18 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
     private readonly EditorSession _editor;
     private readonly InteractionController _input;
     private readonly Func<bool> _available;
-    private readonly NavigationCommand _focus;
-    private readonly NavigationCommand _fit;
+    private readonly RelayCommand _focus;
+    private readonly RelayCommand _fit;
     private object? _rowVersion;
     private RoiNavigationItem? _target;
     private bool _refreshingTargets;
 
     public ViewportNavigationViewModel(EditorSession editor, InteractionController input, ViewportLayout layout, Func<bool> available)
     {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(layout);
+        ArgumentNullException.ThrowIfNull(available);
         _editor = editor;
         _input = input;
         _available = available;
@@ -28,6 +33,7 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
     public bool IsLocked
     {
         get => !_input.IsEnabled;
@@ -37,9 +43,12 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
             Refresh();
         }
     }
+
     public bool CanNavigate => _input.IsEnabled && _available() && !_input.IsDragging &&
         !_editor.IsPreviewing && _input.PolygonPointCount == 0 && _editor.State.Image is not null;
+
     public IReadOnlyList<RoiNavigationItem> Targets { get; private set; } = [];
+
     public RoiNavigationItem? Target
     {
         get => _target;
@@ -49,13 +58,16 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
             {
                 return;
             }
+
             _target = value;
             PropertyChanged?.Invoke(this, new(nameof(Target)));
             _focus.Refresh();
             _focus.Execute(null);
         }
     }
+
     public ICommand FocusCommand => _focus;
+
     public ICommand FitCommand => _fit;
 
     public void RefreshTargets()
@@ -65,6 +77,7 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
         {
             return;
         }
+
         _rowVersion = state.Snapshot.RowVersion;
         Targets = state.Rois.Values
             .Select(roi => new RoiNavigationItem(roi.Id, roi.Name, roi.Order))
@@ -81,6 +94,7 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
         {
             _refreshingTargets = false;
         }
+
         Refresh();
     }
 
@@ -91,6 +105,7 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
             _target = null;
             PropertyChanged?.Invoke(this, new(nameof(Target)));
         }
+
         PropertyChanged?.Invoke(this, new(nameof(IsLocked)));
         PropertyChanged?.Invoke(this, new(nameof(CanNavigate)));
         _focus.Refresh();
@@ -98,20 +113,4 @@ public sealed class ViewportNavigationViewModel : INotifyPropertyChanged
     }
 
     private bool Contains(Guid id) => _editor.State.Rois.ContainsKey(id);
-
-    private sealed class NavigationCommand(Action execute, Func<bool> available) : ICommand
-    {
-        public event EventHandler? CanExecuteChanged;
-        public bool CanExecute(object? parameter) => available();
-        public void Execute(object? parameter)
-        {
-            if (CanExecute(parameter))
-            {
-                execute();
-            }
-        }
-        public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
 }
-
-public sealed record RoiNavigationItem(Guid Id, string Name, long Order);

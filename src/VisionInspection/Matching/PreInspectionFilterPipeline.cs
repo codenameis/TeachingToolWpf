@@ -7,30 +7,41 @@ namespace TeachingToolWpf.Imaging.Matching;
 /// <summary>
 /// Executes the ordered pre-inspection preprocessing filter pipeline on grayscale image buffers
 /// before core vision inspection or training algorithms run ("미리 필터가 들어가 있는 경우는 필터를 먼저 하고 본검사가 들어가야됨").
-/// When the pipeline is empty or all steps are unchecked, zero work is performed.
+/// Instance service managed at the application composition root; zero global mutable static state.
 /// </summary>
-public static class PreInspectionFilterPipeline
+public sealed class PreInspectionFilterPipeline : IPreInspectionFilterPipeline
 {
     private const byte MaxByteValue = 255;
-    private static ImmutableArray<PreInspectionFilterStep> _activeSteps = [];
-    private static long _totalExecutions;
-    private static double _lastElapsedMilliseconds;
+    private const int MinimumDimension = 3;
+    private readonly object _stepsSync = new();
+    private ImmutableArray<PreInspectionFilterStep> _activeSteps = [];
+    private long _totalExecutions;
+    private double _lastElapsedMilliseconds;
 
-    public static ImmutableArray<PreInspectionFilterStep> ActiveSteps => _activeSteps;
-
-    public static bool HasEnabledSteps
+    public ImmutableArray<PreInspectionFilterStep> ActiveSteps
     {
         get
         {
-            var steps = _activeSteps;
+            lock (_stepsSync)
+            {
+                return _activeSteps;
+            }
+        }
+    }
+
+    public bool HasEnabledSteps
+    {
+        get
+        {
+            ImmutableArray<PreInspectionFilterStep> steps = ActiveSteps;
             if (steps.IsDefaultOrEmpty)
             {
                 return false;
             }
 
-            foreach (var s in steps)
+            foreach (PreInspectionFilterStep step in steps)
             {
-                if (s.IsEnabled && s.Kind != PreInspectionFilterKind.None)
+                if (step.IsEnabled && step.Kind != PreInspectionFilterKind.None)
                 {
                     return true;
                 }
@@ -40,28 +51,34 @@ public static class PreInspectionFilterPipeline
         }
     }
 
-    public static long TotalExecutions => Interlocked.Read(ref _totalExecutions);
+    public long TotalExecutions => Interlocked.Read(ref _totalExecutions);
 
-    public static double LastElapsedMilliseconds => Volatile.Read(ref _lastElapsedMilliseconds);
+    public double LastElapsedMilliseconds => Volatile.Read(ref _lastElapsedMilliseconds);
 
-    public static void SetActivePipeline(ImmutableArray<PreInspectionFilterStep> steps)
+    public void SetActivePipeline(ImmutableArray<PreInspectionFilterStep> steps)
     {
-        _activeSteps = steps.IsDefault ? [] : steps;
+        lock (_stepsSync)
+        {
+            _activeSteps = steps.IsDefault ? [] : steps;
+        }
     }
 
-    public static void ClearActivePipeline()
+    public void ClearActivePipeline()
     {
-        _activeSteps = [];
+        lock (_stepsSync)
+        {
+            _activeSteps = [];
+        }
     }
 
     /// <summary>
     /// Applies all enabled filter steps in <see cref="ActiveSteps"/> sequentially in-place to <paramref name="pixels"/>.
     /// Returns the number of filter steps executed.
     /// </summary>
-    public static int ApplyInPlaceIfConfigured(Span<byte> pixels, int width, int height)
+    public int ApplyInPlaceIfConfigured(Span<byte> pixels, int width, int height)
     {
-        var steps = _activeSteps;
-        if (steps.IsDefaultOrEmpty || width <= 2 || height <= 2)
+        ImmutableArray<PreInspectionFilterStep> steps = ActiveSteps;
+        if (steps.IsDefaultOrEmpty || width < MinimumDimension || height < MinimumDimension)
         {
             return 0;
         }

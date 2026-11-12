@@ -18,7 +18,7 @@ public sealed class ShapeCandidateRefinementTests
         var loader = new ObservedLoader(scene);
         var reference = new ImageReference("fixture", "fixture", scene.Width, scene.Height);
         var service = new ShapeMatchingService(loader, () => null);
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             MaximumMatches = 16,
             MaximumCandidates = constrainBudget ? 1 : 2048,
@@ -67,7 +67,7 @@ public sealed class ShapeCandidateRefinementTests
             MinimumScale = Scale,
             MaximumScale = Scale,
         });
-        var scene = new GrayImage(new byte[8192 * 2400], 8192, 2400, 8192);
+        var scene = new ShapeGrayImage(new byte[8192 * 2400], 8192, 2400, 8192);
         var loader = new ObservedLoader(scene);
         var reference = new ImageReference("fixture", "fixture", scene.Width, scene.Height);
         using var reader = await MatchingImageReader.OpenAsync(reference, false, loader, () => null, default);
@@ -86,7 +86,7 @@ public sealed class ShapeCandidateRefinementTests
                 Assert.Contains(keys, key => key.X >= 8);
             }
         });
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             MaximumParallelism = 4,
             ComputeMode = InspectionComputeMode.GpuPreprocessing,
@@ -135,7 +135,7 @@ public sealed class ShapeCandidateRefinementTests
                 thirdEntered.TrySetResult();
             }
         });
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             MaximumParallelism = 2,
             ComputeMode = InspectionComputeMode.GpuPreprocessing,
@@ -200,7 +200,7 @@ public sealed class ShapeCandidateRefinementTests
         using var provider = new BlockingPreprocessor();
         using var serialized = new SerializedImagePreprocessor(provider);
         using var cancellation = new CancellationTokenSource();
-        var pixels = new GrayImage(new byte[64], 8, 8, 8);
+        var pixels = new ShapeGrayImage(new byte[64], 8, 8, 8);
         var prepare = Task.Run(() => serialized.Prepare(pixels, 8, cancellation.Token));
         await provider.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         var disposing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -227,14 +227,14 @@ public sealed class ShapeCandidateRefinementTests
         Assert.Throws<ObjectDisposedException>(() => serialized.Prepare(pixels, 8));
     }
 
-    private static object BudgetState(SearchDiagnostics diagnostics)
+    private static object BudgetState(ShapeSearchDiagnostics diagnostics)
         => (diagnostics.Candidates, diagnostics.CandidateBudgetExceeded,
             diagnostics.VerificationBudgetExceeded, diagnostics.MatchLimitExceeded);
 
     private static ShapeMatch Seed(MatchPose pose)
         => new(pose, 1, 1, 1, 4, new(RefinementStatus.Disabled, pose, double.NaN, double.NaN, 0, 0, true));
 
-    private static (GrayImage Scene, ShapeModel Model) CreateScene()
+    private static (ShapeGrayImage Scene, ShapeModel Model) CreateScene()
     {
         var patch = SyntheticScene.Create(160, 160, new MatchPose(80, 80, 0, 3));
         var model = ShapeTrainer.Train(patch, new(ReadOnlyMemory<byte>.Empty, new(80, 80)), new()
@@ -260,7 +260,7 @@ public sealed class ShapeCandidateRefinementTests
         return (new(pixels, Width, Height, Width), model);
     }
 
-    private sealed class ObservedLoader(GrayImage image) : IImageLoader
+    private sealed class ObservedLoader(ShapeGrayImage image) : IImageLoader
     {
         public ConcurrentBag<ObservedSource> Sources { get; } = [];
 
@@ -272,7 +272,7 @@ public sealed class ShapeCandidateRefinementTests
         }
     }
 
-    private sealed class ObservedSource(GrayImage image) : ITileSource
+    private sealed class ObservedSource(ShapeGrayImage image) : ITileSource
     {
         private int _activeReads;
         public ImageInfo Info { get; } = new("fixture", "fixture", image.Width, image.Height, PixelKind.Gray8, 1);
@@ -315,12 +315,12 @@ public sealed class ShapeCandidateRefinementTests
         }
     }
 
-    private sealed class ProbePreprocessor(Action<GrayImage, int> observe) : IImagePreprocessor
+    private sealed class ProbePreprocessor(Action<ShapeGrayImage, int> observe) : IImagePreprocessor
     {
         public int Calls;
         public ImagePreprocessingDiagnostics Diagnostics => new("probe", "test", Calls, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             observe(image, Interlocked.Increment(ref Calls));
             var length = image.Width * image.Height;
@@ -342,7 +342,7 @@ public sealed class ShapeCandidateRefinementTests
         public bool DisposedDuringPrepare;
         public ImagePreprocessingDiagnostics Diagnostics => new("blocking", "test", 0, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _active);
             try

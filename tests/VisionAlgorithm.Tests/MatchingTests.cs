@@ -25,7 +25,7 @@ public sealed class MatchingTests
     public void JacobianMatchesIndependentFiniteDifference()
     {
         var feature = new ModelFeature(12.3, -7.1, 0.6, 0.8);
-        var edge = new EdgePoint(26, 11, 0.6, 0.8, 50);
+        var edge = new ShapeEdgePoint(26, 11, 0.6, 0.8, 50);
         var pose = new MatchPose(15, 22, 0.3, 1.2);
         var (_, jacobian) = PointToLineRefiner.ResidualAndJacobian(feature, edge, pose);
         double Residual(MatchPose p) => (0.6 * (p.X + (p.Scale * ((12.3 * Math.Cos(p.Angle)) + (7.1 * Math.Sin(p.Angle)))) - 26)) +

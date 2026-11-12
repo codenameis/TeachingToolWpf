@@ -2,11 +2,12 @@ using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
-internal sealed class RotateGesture(InteractionController controller, PointD dragStartScreen, PointD pivotInImage) : EditGesture(controller)
+internal sealed class RotateGesture(IGestureContext context, PointD dragStartScreen, PointD pivotInImage) : EditGesture(context)
 {
     private const double AngleSnapDegrees = 15;
+    private const double MinimumDirectionLength = GeometryTolerance.Squared;
 
-    private PointD _previousDirection = controller.Editor.State.Viewport.ScreenToImage(dragStartScreen) - pivotInImage;
+    private PointD _previousDirection = context.State.Viewport.ScreenToImage(dragStartScreen) - pivotInImage;
     private double _accumulatedDegrees;
 
     protected override string Name => "ROI 회전";
@@ -14,7 +15,7 @@ internal sealed class RotateGesture(InteractionController controller, PointD dra
     public override void Move(PointD screen, InputModifiers modifiers)
     {
         var currentDirection = InitialViewport.ScreenToImage(screen) - pivotInImage;
-        if (currentDirection.Length < 1e-12)
+        if (currentDirection.Length < MinimumDirectionLength)
         {
             return;
         }
@@ -30,6 +31,6 @@ internal sealed class RotateGesture(InteractionController controller, PointD dra
             previewDegrees = Math.Round(previewDegrees / AngleSnapDegrees) * AngleSnapDegrees;
         }
 
-        Controller.PreviewRotation(pivotInImage, previewDegrees);
+        Commands.PreviewRotation(pivotInImage, previewDegrees);
     }
 }

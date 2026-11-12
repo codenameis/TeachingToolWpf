@@ -78,7 +78,7 @@ public sealed class FineDetailMatchingTests
         var image = CreateText();
         var model = Train(image);
         var matcher = new ShapeMatcher();
-        var options = new SearchOptions { ClutterWeight = 1, MinimumScore = .5, MinimumSupport = .2 };
+        var options = new ShapeSearchOptions { ClutterWeight = 1, MinimumScore = .5, MinimumSupport = .2 };
         var result = Assert.Single(matcher.RefineCandidate(image, model, new(43.5, 37, 0), 1, options).Matches);
         Assert.Equal(model.FineDetail!.Score(image, result.Pose, model.Options.Polarity), result.DetailConsistency!.Value, 10);
         Assert.Equal(result.DirectionScore * (1 - result.ClutterPenaltyRatio!.Value) * result.DetailConsistency.Value, result.Score, 10);
@@ -136,7 +136,7 @@ public sealed class FineDetailMatchingTests
         Assert.Equal(1, detail.Score(new(scaled, 192, 160, 192), new(87, 74, .37, 2), ContrastPolarity.Preserve), 10);
     }
 
-    private static ShapeModel Train(GrayImage image, double minimumAngle = -180, double maximumAngle = 180)
+    private static ShapeModel Train(ShapeGrayImage image, double minimumAngle = -180, double maximumAngle = 180)
         => ShapeTrainer.Train(image, Region(), new()
         {
             PyramidLevels = 1,
@@ -160,7 +160,7 @@ public sealed class FineDetailMatchingTests
         return new(mask, new(43.5, 37));
     }
 
-    private static GrayImage CreateText(bool removeStroke = false)
+    private static ShapeGrayImage CreateText(bool removeStroke = false)
     {
         string[] rows = ["  #   ###  #   #", " ##   # #  #   #", "  #   # #  #   #", "  #   ###   # # ", "  #   # #   # # ", "  #   # #   # # ", " ###  ###    #  "];
         var pixels = Enumerable.Repeat((byte)20, 96 * 80).ToArray();

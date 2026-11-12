@@ -9,7 +9,7 @@ using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
 using VisionCanvas.Rendering;
 using VisionCanvas.Wgpu.Controls;
-using VisionCanvas.WgpuSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.WgpuSample.ViewModels;
 using VisionCanvas.WgpuSample.Views;
 using VisionGeometry;

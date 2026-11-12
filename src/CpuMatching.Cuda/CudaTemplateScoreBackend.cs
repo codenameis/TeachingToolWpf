@@ -118,7 +118,7 @@ internal sealed class CudaTemplateScoreBackend : IDisposable
         Complete(output, uploadMs, timer.Elapsed.TotalMilliseconds, token);
     }
 
-    public void ScoreCorrelation(GrayImage image, CorrelationSample[] points, double templateEnergy, double[] output, CancellationToken token)
+    public void ScoreCorrelation(CpuGrayImage image, CorrelationSample[] points, double templateEnergy, double[] output, CancellationToken token)
     {
         ValidateGrid(image.Width, image.Height, output, token);
         if (points.Length is < 1 or > 262_144 || !double.IsFinite(templateEnergy) || templateEnergy < 0 ||

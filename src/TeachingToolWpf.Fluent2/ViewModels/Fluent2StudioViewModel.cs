@@ -703,7 +703,7 @@ public sealed class Fluent2StudioViewModel : ObservableObject, IDisposable
         if (Studio.Inspections.Suite is { } suite)
         {
             suite.SelectedCategory = category;
-            if (InspectionSuiteViewModel.ResolveCategoryForAlgorithm(suite.SelectedAlgorithm) != category)
+            if (suite.Registry.ResolveCategory(suite.SelectedAlgorithm) != category)
             {
                 suite.SelectedAlgorithm = defaultAlgorithm;
             }

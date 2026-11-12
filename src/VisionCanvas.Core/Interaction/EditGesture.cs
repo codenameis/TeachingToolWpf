@@ -1,44 +1,28 @@
-using VisionCanvas.Core.Editing;
 using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
-internal abstract class EditGesture : IGesture
+internal abstract class EditGesture(IGestureContext context) : IGesture
 {
     protected const double MinimumDragDistanceDip = 2;
 
-    protected InteractionController Controller
-    {
-        get;
-    }
+    protected IGestureContext Context { get; } = context;
 
-    protected EditorSession Editor
-    {
-        get;
-    }
+    protected IEditorCommandSink Commands => Context.Commands;
 
-    protected ViewportTransform InitialViewport
-    {
-        get;
-    }
+    protected ViewportTransform InitialViewport { get; } = context.State.Viewport;
 
-    protected EditGesture(InteractionController controller)
+    public virtual void Start()
     {
-        Controller = controller;
-        Editor = controller.Editor;
-        InitialViewport = Editor.State.Viewport;
         // 드래그 시작 상태를 한 번 기억하고, 포인터를 놓을 때 하나의 편집으로 확정한다.
-        Editor.BeginPreview();
+        Commands.BeginPreview();
     }
 
     public abstract void Move(PointD screen, InputModifiers modifiers);
 
-    protected abstract string Name
-    {
-        get;
-    }
+    protected abstract string Name { get; }
 
-    public void Complete() => Controller.CommitPreview(Name);
+    public void Complete() => Commands.CommitPreview(Name);
 
-    public void Cancel() => Editor.CancelPreview();
+    public void Cancel() => Commands.CancelPreview();
 }

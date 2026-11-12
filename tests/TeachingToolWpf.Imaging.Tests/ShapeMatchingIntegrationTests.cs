@@ -240,7 +240,7 @@ public sealed class ShapeMatchingIntegrationTests
         public TaskCompletionSource<ShapeTrainingOutput> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<ShapeTrainingOutput> TrainAsync(ImageReference image, bool live, RoiGeometry roi, TrainingOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => Completion.Task;
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => throw new NotSupportedException();
     }
 
@@ -248,7 +248,7 @@ public sealed class ShapeMatchingIntegrationTests
     {
         public int Opened;
         public int Disposed;
-        private readonly GrayImage _image = SyntheticScene.Create(1536, 256, new MatchPose(80, 90, 0.1), new MatchPose(769.3, 140.7, -0.1));
+        private readonly ShapeGrayImage _image = SyntheticScene.Create(1536, 256, new MatchPose(80, 90, 0.1), new MatchPose(769.3, 140.7, -0.1));
         public Task<ITileSource> LoadAsync(ImageReference reference, IProgress<string> progress, CancellationToken cancellationToken)
         {
             Opened++;
@@ -256,7 +256,7 @@ public sealed class ShapeMatchingIntegrationTests
         }
     }
 
-    private sealed class Source(GrayImage image, Action disposed) : ITileSource
+    private sealed class Source(ShapeGrayImage image, Action disposed) : ITileSource
     {
         public ImageInfo Info { get; } = new("fixture", "fixture", image.Width, image.Height, PixelKind.Gray8, 1);
         public PixelBuffer Read(TileKey key, CancellationToken cancellationToken)

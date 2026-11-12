@@ -98,7 +98,7 @@ public sealed class VerifierBoundTests
 
     private static (MatchPose Pose, VerifiedScore Score) OptimizeWithoutPruning(GradientImage image, ShapeModel model, MatchPose initial)
     {
-        var options = new SearchOptions();
+        var options = new ShapeSearchOptions();
         var pose = initial;
         var best = ContinuousVerifier.Score(image, model, pose);
         var radius = model.Levels[0].Features.Max(feature => Math.Sqrt((feature.X * feature.X) + (feature.Y * feature.Y)));

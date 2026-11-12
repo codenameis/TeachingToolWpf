@@ -12,8 +12,8 @@ public readonly record struct VirtualCornerResult(
     float CornerY,
     float OrientationRad,
     float IncludedAngleDeg,
-    FittedLine2D Line1,
-    FittedLine2D Line2,
+    HessianLine2D Line1,
+    HessianLine2D Line2,
     float InlierRatio,
     bool IsValid) : IVisionToolResult
 {
@@ -28,8 +28,8 @@ public readonly record struct VirtualCornerResult(
         CornerY: float.NaN,
         OrientationRad: 0f,
         IncludedAngleDeg: 0f,
-        Line1: FittedLine2D.Invalid,
-        Line2: FittedLine2D.Invalid,
+        Line1: HessianLine2D.Invalid,
+        Line2: HessianLine2D.Invalid,
         InlierRatio: 0f,
         IsValid: false);
 

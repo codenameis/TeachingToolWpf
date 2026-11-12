@@ -5,10 +5,12 @@ namespace CpuMatching.SubNcc;
 /// <summary>축소 원판의 선택 픽셀 ZNCC → 원본 사각형 전체 내부 픽셀 정밀화.</summary>
 public sealed class SubNccMatcher : ITemplateMatcher
 {
-    private readonly GrayImage _template;
+    private static readonly PyramidSearchPlan SearchPlan = new(RefineCoarsePositions: true);
+
+    private readonly CpuGrayImage _template;
     private readonly SubNccOptions _parameters;
 
-    public SubNccMatcher(GrayImage template, SubNccOptions? parameters = null)
+    public SubNccMatcher(CpuGrayImage template, SubNccOptions? parameters = null)
     {
         ArgumentNullException.ThrowIfNull(template);
         _parameters = parameters ?? new SubNccOptions();
@@ -31,7 +33,7 @@ public sealed class SubNccMatcher : ITemplateMatcher
 
     public IReadOnlyList<(double X, double Y)> PreviewPoints { get; }
 
-    private static (double X, double Y)[] ExtractPreviewPoints(GrayImage template, SubNccOptions parameters)
+    private static (double X, double Y)[] ExtractPreviewPoints(CpuGrayImage template, SubNccOptions parameters)
     {
         var cx = (template.Width - 1) / 2.0;
         var cy = (template.Height - 1) / 2.0;
@@ -44,33 +46,33 @@ public sealed class SubNccMatcher : ITemplateMatcher
         return points;
     }
 
-    public SearchResult Find(GrayImage image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+    public SearchResult Find(CpuGrayImage image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
-        return PyramidSearch.Find(_template, image, options ?? new SearchOptions(),
+        return PyramidSearch.Find(_template, image, options ?? new CpuSearchOptions(),
             (template, scene, cx, cy, fine) => new CorrelationLevel(template, scene, cx, cy, fine, _parameters), cancellationToken,
-            acceptCenter: acceptCenter, accelerator: accelerator, refineCoarsePositions: true);
+            plan: SearchPlan, acceptCenter: acceptCenter, accelerator: accelerator);
     }
 
-    public SearchResult FindWindowed(IGrayImageSource image, SearchOptions? options = null, CancellationToken cancellationToken = default,
+    public SearchResult FindWindowed(IGrayImageSource image, CpuSearchOptions? options = null, CancellationToken cancellationToken = default,
         Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
         ArgumentNullException.ThrowIfNull(image);
-        return PyramidSearch.FindWindowed(_template, image, options ?? new SearchOptions(),
+        return PyramidSearch.FindWindowed(_template, image, options ?? new CpuSearchOptions(),
             (template, scene, cx, cy, fine) => new CorrelationLevel(template, scene, cx, cy, fine, _parameters), cancellationToken,
-            acceptCenter: acceptCenter, accelerator: accelerator, refineCoarsePositions: true);
+            plan: SearchPlan, acceptCenter: acceptCenter, accelerator: accelerator);
     }
 
     private sealed class CorrelationLevel : IScoreLevel
     {
         public bool SupportsParallelEvaluation => true;
 
-        private readonly GrayImage _scene;
+        private readonly CpuGrayImage _scene;
         private readonly CorrelationSample[] _samples;
         private readonly double _energy;
 
-        public CorrelationLevel(GrayImage template, GrayImage scene, double cx, double cy, bool fine, SubNccOptions parameters)
+        public CorrelationLevel(CpuGrayImage template, CpuGrayImage scene, double cx, double cy, bool fine, SubNccOptions parameters)
         {
             _scene = scene;
             var points = SelectPixels(template, cx, cy, fine, parameters.CoarseSamples);
@@ -80,7 +82,7 @@ public sealed class SubNccMatcher : ITemplateMatcher
         }
 
         // 축소 영상에서는 밝기와 경계 표본을 섞고, 원본에서는 내부 픽셀을 모두 쓴다.
-        internal static List<CorrelationSample> SelectPixels(GrayImage template, double cx, double cy, bool fine, int coarseSamples)
+        internal static List<CorrelationSample> SelectPixels(CpuGrayImage template, double cx, double cy, bool fine, int coarseSamples)
         {
             var radius = (Math.Min(template.Width, template.Height) - 3) / 2.0;
             var points = new List<CorrelationSample>();
@@ -129,7 +131,7 @@ public sealed class SubNccMatcher : ITemplateMatcher
         }
     }
 
-    private sealed class CorrelationPose(GrayImage image, CorrelationSample[] samples, double templateEnergy) : IPoseScore, IAcceleratedPoseScore
+    private sealed class CorrelationPose(CpuGrayImage image, CorrelationSample[] samples, double templateEnergy) : IPoseScore, IAcceleratedPoseScore
     {
         private readonly (double Left, double Top, double Right, double Bottom) _bounds = GetBounds(samples);
 
@@ -169,7 +171,7 @@ public sealed class SubNccMatcher : ITemplateMatcher
                 var px = x + point.X;
                 var py = y + point.Y;
                 // 회전된 전체 표본의 경계를 먼저 확인했다. 표본별 검사와 Clamp를 반복하지 않는다.
-                // Bilinear의 연산 순서는 GrayImage.Sample 및 CUDA와 동일하다.
+                // Bilinear의 연산 순서는 CpuGrayImage.Sample 및 CUDA와 동일하다.
                 var ix = (int)px;
                 var iy = (int)py;
                 var dx = px - ix;

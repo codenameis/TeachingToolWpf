@@ -4,9 +4,6 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Core.Editing;
 
-/// <summary>하나의 ROI가 편집 전후에 어떻게 달라졌는지 보관한다. null은 해당 ROI가 없음을 뜻한다.</summary>
-public sealed record RoiChange(Guid Id, Roi? Before, Roi? After);
-
 /// <summary>한 번의 편집 차이와 선택·이미지 정보를 보관하고, 정방향 또는 역방향으로 적용한다.</summary>
 public sealed class DocumentEdit
 {
@@ -35,8 +32,9 @@ public sealed class DocumentEdit
         Name = name;
         _refitSpatial = after.Snapshot.IsRigidUpdate && ReferenceEquals(after.Snapshot.PreviousRois, before.Rois);
         var candidates = ResolveCandidateIds(before, after);
-        var initialCapacity = candidates.TryGetNonEnumeratedCount(out var count) ? count : 0;
-        var changes = ImmutableArray.CreateBuilder<RoiChange>(initialCapacity);
+        var changes = candidates.TryGetNonEnumeratedCount(out var count)
+            ? ImmutableArray.CreateBuilder<RoiChange>(count)
+            : ImmutableArray.CreateBuilder<RoiChange>();
         var estimatedBytes = 256L;
         foreach (var id in candidates)
         {
@@ -52,7 +50,7 @@ public sealed class DocumentEdit
             estimatedBytes += EstimateChangeBytes(old, next);
         }
 
-        Changes = changes.Count == changes.Capacity ? changes.MoveToImmutable() : changes.ToImmutable();
+        Changes = changes.ToImmutable();
         _beforeSelection = before.Selection;
         _afterSelection = after.Selection;
         _beforeImage = before.Image;
@@ -88,8 +86,10 @@ public sealed class DocumentEdit
         var nextPolygonVertices = next?.Geometry.Shape.Kind == RoiShapeKind.Polygon ? next.Geometry.Shape.Vertices.Length : 0;
         var ocvChars = (old?.Ocv.ExpectedText.Length ?? 0)
             + (old?.Ocv.FormatMask.Length ?? 0)
+            + (old?.Ocv.FontId.Length ?? 0)
             + (next?.Ocv.ExpectedText.Length ?? 0)
-            + (next?.Ocv.FormatMask.Length ?? 0);
+            + (next?.Ocv.FormatMask.Length ?? 0)
+            + (next?.Ocv.FontId.Length ?? 0);
 
         return 352L
             + (nameChars * 2L)

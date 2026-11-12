@@ -16,7 +16,7 @@ public sealed class MatchingTests
         {
             pixels[(300 * 2052) + 800] = 255;
         }
-        var image = new GrayImage(2052, 1024, pixels);
+        var image = new CpuGrayImage(2052, 1024, pixels);
         var baseline = Run(false);
         var shared = Run(true);
         Assert.Equal(4, baseline.Preparations);
@@ -31,7 +31,7 @@ public sealed class MatchingTests
         {
             var preparations = 0;
             var result = PyramidSearch.Find(new(32, 32, new byte[1024]), image,
-                new SearchOptions { MinimumAngle = 0, MaximumAngle = 0 },
+                new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 0 },
                 (_, scene, _, _, fine) =>
                 {
                     if (fine)
@@ -39,7 +39,7 @@ public sealed class MatchingTests
                         preparations++;
                     }
                     return new RepeatedLevel(fine, scene.Pixels.Span.Contains((byte)255) ? .95 : .9);
-                }, default, reuseIdenticalTiles: reuse);
+                }, default, plan: new PyramidSearchPlan(ReuseIdenticalTiles: reuse));
             return (result, preparations);
         }
     }
@@ -64,7 +64,7 @@ public sealed class MatchingTests
         var ownerThread = Environment.CurrentManagedThreadId;
         var rows = 0;
         var result = PyramidSearch.Find(new(16, 16, new byte[256]), new(256, 128, new byte[256 * 128]),
-            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0, PyramidLevels = 1 },
+            new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 0, PyramidLevels = 1 },
             (_, _, _, _, _) => new SerialRowLevel(() =>
             {
                 Assert.Equal(ownerThread, Environment.CurrentManagedThreadId);
@@ -95,18 +95,18 @@ public sealed class MatchingTests
         var callbackThread = Environment.CurrentManagedThreadId;
         var callbacks = 0;
         var result = PyramidSearch.Find(new(32, 32, new byte[1024]), new(2052, 1024, new byte[2052 * 1024]),
-            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0 },
+            new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 0 },
             (_, _, _, _, fine) => new SerialLevel(fine, () =>
             {
                 Assert.Equal(0, Interlocked.Exchange(ref active, 1));
                 Thread.Yield();
                 Volatile.Write(ref active, 0);
-            }), default, acceptCenter: (_, _) =>
+            }), default, plan: new PyramidSearchPlan(ReuseIdenticalTiles: reuseIdenticalTiles), acceptCenter: (_, _) =>
             {
                 Assert.Equal(callbackThread, Environment.CurrentManagedThreadId);
                 callbacks++;
                 return true;
-            }, reuseIdenticalTiles: reuseIdenticalTiles);
+            });
         Assert.Equal(4, result.Matches.Count);
         Assert.Equal(4, callbacks);
     }
@@ -141,7 +141,7 @@ public sealed class MatchingTests
                 }
             }
         }
-        var template = new GrayImage(33, 29, pixels);
+        var template = new CpuGrayImage(33, 29, pixels);
         ITemplateMatcher matcher = algorithm switch
         {
             0 => new Line2DMatcher(template),
@@ -157,8 +157,8 @@ public sealed class MatchingTests
                 buffer[((x + 48) * 128) + 100 - y] = pixels[(y * 33) + x];
             }
         }
-        var image = new GrayImage(128, 100, buffer);
-        var options = new SearchOptions { MinimumAngle = -180, MaximumAngle = 180, SuppressionRadius = 16 };
+        var image = new CpuGrayImage(128, 100, buffer);
+        var options = new CpuSearchOptions { MinimumAngle = -180, MaximumAngle = 180, SuppressionRadius = 16 };
         var result = matcher.Find(image, options);
         Assert.Equal(2, result.Matches.Count);
         Assert.Contains(result.Matches, match => Math.Abs(match.X - 31) < 1 && Math.Abs(match.Y - 26) < 1 && Math.Abs(match.AngleDegrees) < 1);
@@ -170,7 +170,7 @@ public sealed class MatchingTests
         Assert.Single(limited.Matches);
         Assert.True(limited.MatchLimitExceeded);
         Assert.False(result.CandidatesTruncated);
-        Assert.Throws<ArgumentOutOfRangeException>(() => matcher.Find(image, options with { Region = new SearchRegion(120, 0, 20, 20) }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => matcher.Find(image, options with { Region = new CpuSearchRegion(120, 0, 20, 20) }));
         Assert.Throws<ArgumentOutOfRangeException>(() => matcher.Find(image, options with { AngleStep = double.NaN }));
     }
 
@@ -178,10 +178,10 @@ public sealed class MatchingTests
     public void GrayImagePreservesOwnershipAndRejectsInvalidBuffers()
     {
         var pixels = new byte[16];
-        var image = new GrayImage(4, 4, pixels);
+        var image = new CpuGrayImage(4, 4, pixels);
         pixels[0] = 255;
         Assert.Equal(0, image[0, 0]);
-        Assert.Throws<ArgumentException>(() => new GrayImage(4, 4, new byte[15]));
+        Assert.Throws<ArgumentException>(() => new CpuGrayImage(4, 4, new byte[15]));
         Assert.Throws<ArgumentException>(() => new Line2DMatcher(image));
         Assert.Throws<ArgumentException>(() => new SubNccMatcher(image));
     }
@@ -202,7 +202,7 @@ public sealed class MatchingTests
                 }
             }
         }
-        var template = new GrayImage(32, 32, pixels);
+        var template = new CpuGrayImage(32, 32, pixels);
         var scene = new byte[96 * 80];
         for (var y = 0; y < 32; y++)
         {
@@ -213,17 +213,17 @@ public sealed class MatchingTests
             0 => new Line2DMatcher(template),
             _ => new SubNccMatcher(template)
         };
-        var result = matcher.Find(new GrayImage(96, 80, scene), new SearchOptions
+        var result = matcher.Find(new CpuGrayImage(96, 80, scene), new CpuSearchOptions
         {
             MinimumAngle = -15,
             MaximumAngle = 15,
-            Region = new SearchRegion(25, 15, 65, 60)
+            Region = new CpuSearchRegion(25, 15, 65, 60)
         });
         var match = Assert.Single(result.Matches);
         Assert.InRange(Math.Abs(match.X - 54.5), 0, 1);
         Assert.InRange(Math.Abs(match.Y - 42.5), 0, 1);
         Assert.InRange(Math.Abs(match.AngleDegrees), 0, 1);
-        Assert.Empty(matcher.Find(new GrayImage(96, 80, new byte[96 * 80])).Matches);
-        Assert.Throws<OperationCanceledException>(() => matcher.Find(new GrayImage(96, 80, scene), cancellationToken: new CancellationToken(true)));
+        Assert.Empty(matcher.Find(new CpuGrayImage(96, 80, new byte[96 * 80])).Matches);
+        Assert.Throws<OperationCanceledException>(() => matcher.Find(new CpuGrayImage(96, 80, scene), cancellationToken: new CancellationToken(true)));
     }
 }

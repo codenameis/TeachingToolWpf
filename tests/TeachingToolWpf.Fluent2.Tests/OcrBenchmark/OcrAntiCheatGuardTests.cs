@@ -52,7 +52,7 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
                 (["sample count"], false, "ArgumentException message ('ROI interior sample count')."),
             ["src/TeachingToolWpf.Fluent2/ViewModels/Fluent2StudioViewModel.cs::ApplyReadinessReport"] =
                 (["LOW CONTRAST"], false, "UI teaching readiness badge label 'LOW CONTRAST · {score}%'."),
-            ["src/TeachingToolWpf.Presentation/Models/AlgorithmHelpCatalog.cs::ForInspectionSuite"] =
+            ["src/VisionInspection/SuiteAlgorithms/CalibrationRoiAlgorithm.cs::CalibrationRoiAlgorithm"] =
                 (["Linear Transform"], false, "Calibration help text sharing 'r Tran'/' Trans' with 'Customer Transaction'."),
             ["src/TeachingToolWpf.Presentation/ViewModels/MainWindowViewModel.Commands.cs::LoadInspectionSuiteSampleAsync"] =
                 (["EXP.2027.11.24"], false, "Procedural sample menu display label '도트 매트릭스 잉크젯 (EXP.2027.11.24)'."),
@@ -64,17 +64,17 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
                 (["training example "], false, "Non-OCR few-shot exception message."),
             ["src/VisionAlgorithm/OpenSrc/GoldenVariation/VariationModelTrainer.cs::Train"] =
                 (["training sample "], false, "Non-OCR golden variation exception message."),
-            ["src/VisionAlgorithm/OpenSrc/IndustrialOcrOcv/IndustrialOcrFontModel.cs::QuadrantDensities"] =
+            ["src/VisionAlgorithm/OpenSrc/IndustrialOcrOcv/IndustrialOcrGlyphTemplate.cs::QuadrantDensities"] =
                 (["Projection profile"], true, "ArgumentException message ('Projection profile dimensions')."),
             ["src/VisionAlgorithm/OpenSrc/IndustrialOcrOcv/IndustrialOcrTrainer.cs::Train"] =
                 (["character sample "], true, "ArgumentException message ('golden character sample')."),
-            ["src/VisionAlgorithm/OpenSrc/LightweightOcr/LightweightOcrEngine.cs::TrainPrototypeSequenceModel"] =
-                (["character sample "], true, "ArgumentException message ('character sample is required')."),
-            ["src/VisionAlgorithm/OpenSrc/Synthetic8kTestGen/UnifiedNewSubsystems8kRunner.cs::RunIndustrialOcrOcvSuite"] =
+            ["src/VisionAlgorithm/OpenSrc/IndustrialOcrOcv/IndustrialOcrTrainer.cs::TrainOrMerge"] =
+                (["character sample "], true, "ArgumentException message ('golden character sample')."),
+            ["src/VisionAlgorithm.Verification/Synthetic8kTestGen/UnifiedNewSubsystems8kRunner.cs::RunIndustrialOcrOcvSuite"] =
                 (["EXP.2027.11.24"], false, "Synthetic 8K procedural test string 'EXP.2027.11.24'."),
-            ["src/VisionAlgorithm/OpenSrc/Synthetic8kTestGen/UnifiedTestImageSuiteGenerator.cs::UnifiedTestImageSuiteGenerator"] =
+            ["src/VisionAlgorithm.Verification/Synthetic8kTestGen/UnifiedTestImageSuiteGenerator.cs::UnifiedTestImageSuiteGenerator"] =
                 (["0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.-/"], false, "Synthetic font atlas character catalog."),
-            ["src/VisionAlgorithm/OpenSrc/Synthetic8kTestGen/UnifiedTestImageSuiteGenerator.cs::ExportAllTestSuitesToDisk"] =
+            ["src/VisionAlgorithm.Verification/Synthetic8kTestGen/UnifiedTestImageSuiteGenerator.cs::ExportAllTestSuitesToDisk"] =
                 (["EXP.2027.11.24"], false, "Synthetic 8K procedural manifest string."),
             ["src/VisionAlgorithm/OpenSrc/ToolBlock/CaliperLineCircleToolSpec.cs::CaliperLineCircleToolSpec"] =
                 (["ransacInlierThresholdPixels"], false, "Non-OCR caliper parameter exception message."),
@@ -144,7 +144,8 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
                 relPath.StartsWith("src/VisionAlgorithm/OpenSrc/LightweightOcr/", StringComparison.OrdinalIgnoreCase) ||
                 relPath.StartsWith("src/VisionOcr.PpOcr/", StringComparison.OrdinalIgnoreCase);
             bool isSuiteServiceFile =
-                string.Equals(relPath, "src/VisionInspection/Matching/InspectionSuiteService.cs", StringComparison.OrdinalIgnoreCase);
+                string.Equals(relPath, "src/VisionInspection/Matching/InspectionSuiteService.cs", StringComparison.OrdinalIgnoreCase) ||
+                relPath.StartsWith("src/VisionInspection/SuiteAlgorithms/", StringComparison.OrdinalIgnoreCase);
 
             AnalyzeSourceText(
                 sourceText,
@@ -371,7 +372,7 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
         {
             int lineNo = GetLineNumberAtOffset(stripped, im.Index);
             string member = memberByLine[Math.Clamp(lineNo - 1, 0, memberByLine.Length - 1)];
-            bool strictCi = isOcrEngineFile || (isSuiteServiceFile && IsOcrMethodInInspectionSuiteService(member));
+            bool strictCi = isOcrEngineFile || (isSuiteServiceFile && IsOcrSuitePathOrMethod(relPath, member));
             HashSet<string> activeSet = strictCi ? caseInsensitiveSubstrings : caseSensitiveOrCodeSubstrings;
 
             string body = im.Groups[1].Success ? im.Groups[1].Value : im.Groups[2].Value;
@@ -404,7 +405,7 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
         {
             int lineNo = GetLineNumberAtOffset(foldedConcat, sm.Index);
             string member = memberByLine[Math.Clamp(lineNo - 1, 0, memberByLine.Length - 1)];
-            bool strictCi = isOcrEngineFile || (isSuiteServiceFile && IsOcrMethodInInspectionSuiteService(member));
+            bool strictCi = isOcrEngineFile || (isSuiteServiceFile && IsOcrSuitePathOrMethod(relPath, member));
             HashSet<string> activeSet = strictCi ? caseInsensitiveSubstrings : caseSensitiveOrCodeSubstrings;
 
             string val = sm.Groups[1].Success ? sm.Groups[1].Value.Replace("\"\"", "\"", StringComparison.Ordinal) : sm.Groups[2].Value;
@@ -432,7 +433,7 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
                 if (charSeq.Length >= MinAnswerSubstringLength)
                 {
                     string member = memberByLine[i];
-                    bool strictCi = isOcrEngineFile || (isSuiteServiceFile && IsOcrMethodInInspectionSuiteService(member));
+                    bool strictCi = isOcrEngineFile || (isSuiteServiceFile && IsOcrSuitePathOrMethod(relPath, member));
                     HashSet<string> activeSet = strictCi ? caseInsensitiveSubstrings : caseSensitiveOrCodeSubstrings;
 
                     for (int s = 0; s <= charSeq.Length - MinAnswerSubstringLength; s++)
@@ -459,7 +460,7 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
             }
 
             string member = memberByLine[i];
-            bool isOcrSuiteMethod = isSuiteServiceFile && IsOcrMethodInInspectionSuiteService(member);
+            bool isOcrSuiteMethod = isSuiteServiceFile && IsOcrSuitePathOrMethod(relPath, member);
 
             if ((isOcrEngineFile || isOcrSuiteMethod) && RoiNameBranchRegex.IsMatch(line))
             {
@@ -482,9 +483,10 @@ public sealed class OcrAntiCheatGuardTests(ITestOutputHelper output)
         }
     }
 
-    private static bool IsOcrMethodInInspectionSuiteService(string memberName)
+    private static bool IsOcrSuitePathOrMethod(string relPath, string memberName)
     {
-        return memberName.Contains("Ocr", StringComparison.OrdinalIgnoreCase);
+        return relPath.EndsWith("/PpOcrRoiAlgorithm.cs", StringComparison.OrdinalIgnoreCase) ||
+               memberName.Contains("Ocr", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void CheckCandidateStringForForbiddenSubstrings(

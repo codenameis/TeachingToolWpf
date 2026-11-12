@@ -28,7 +28,7 @@ public sealed class RoiMaskCudaTests
             BuildClutterModel = true
         }, default);
         var exclusion = new RoiExclusion(new(new(160, 64), 320, 128, 0), [new(MaskShape.Rectangle, new(0, 0, .5, 1))]);
-        var options = new SearchOptions();
+        var options = new ShapeSearchOptions();
         var cpu = await service.SearchAsync(image, true, trained.Model, null, options, default, exclusion);
         await compute.PrepareAsync(default);
         var cuda = await service.SearchAsync(image, true, trained.Model, null, options with

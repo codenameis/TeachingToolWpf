@@ -31,7 +31,7 @@ internal static class RotationDiagnosisBenchmark
                 };
                 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
                 var trained = await service.TrainAsync(image, false, roi, training, timeout.Token);
-                var options = new SearchOptions
+                var options = new ShapeSearchOptions
                 {
                     ClutterWeight = 1,
                     MaximumMatches = 256,

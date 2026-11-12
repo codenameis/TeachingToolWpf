@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionCanvas.Wgpu.Rendering;
 using VisionImaging.Abstractions;
 

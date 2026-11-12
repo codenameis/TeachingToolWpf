@@ -5,14 +5,18 @@ using VisionImaging.Abstractions;
 namespace VisionCanvas.Core.Interaction;
 
 /// <summary>초안은 문서와 분리하고 포인터를 놓을 때 한 번만 이력에 등록한다.</summary>
-internal sealed class MaskDrawGesture(InteractionController controller, Roi targetRoi, PointD dragStartScreen) : IGesture
+internal sealed class MaskDrawGesture(IGestureContext context, Roi targetRoi, PointD dragStartScreen) : IGesture
 {
     private const double MinimumDrawDistanceDip = 4;
     private const double MinimumSizeInImage = .01;
 
-    private readonly ViewportTransform _initialViewport = controller.Editor.State.Viewport;
-    private readonly ImageReference? _initialImage = controller.Editor.State.Image;
+    private readonly ViewportTransform _initialViewport = context.State.Viewport;
+    private readonly ImageReference? _initialImage = context.State.Image;
     private MaskRegion? _draft;
+
+    public void Start()
+    {
+    }
 
     public void Move(PointD screen, InputModifiers modifiers)
     {
@@ -20,9 +24,10 @@ internal sealed class MaskDrawGesture(InteractionController controller, Roi targ
         if (!targetRoi.Geometry.Contains(startInImage) || (screen - dragStartScreen).Length < MinimumDrawDistanceDip)
         {
             _draft = null;
-            controller.Show(new());
+            context.Show(new());
             return;
         }
+
         var normalizedStart = Normalize(startInImage);
         var normalizedEnd = Normalize(_initialViewport.ScreenToImage(screen));
         var normalizedBounds = new BoundsD(Math.Min(normalizedStart.X, normalizedEnd.X), Math.Min(normalizedStart.Y, normalizedEnd.Y), Math.Max(normalizedStart.X, normalizedEnd.X), Math.Max(normalizedStart.Y, normalizedEnd.Y));
@@ -33,9 +38,10 @@ internal sealed class MaskDrawGesture(InteractionController controller, Roi targ
         }
         else
         {
-            _draft = new(controller.MaskShape, normalizedBounds);
+            _draft = new(context.MaskShape, normalizedBounds);
         }
-        controller.Show(new()
+
+        context.Show(new()
         {
             MaskDraft = _draft
         });
@@ -50,14 +56,14 @@ internal sealed class MaskDrawGesture(InteractionController controller, Roi targ
 
     public void Complete()
     {
-        var state = controller.Editor.State;
+        var state = context.State;
         if (_draft is not null && ReferenceEquals(_initialImage, state.Image) && state.Selection.Count == 1 &&
             state.Selection.Contains(targetRoi.Id) && state.Rois.TryGetValue(targetRoi.Id, out var currentRoi) && currentRoi == targetRoi)
         {
-            controller.Editor.AddMask(targetRoi.Id, _draft);
-            controller.ValidateDraftImage();
+            context.Commands.AddMask(targetRoi.Id, _draft);
+            context.ReconcileToolWithDocument();
         }
     }
 
-    public void Cancel() => controller.Show(new());
+    public void Cancel() => context.Show(new());
 }

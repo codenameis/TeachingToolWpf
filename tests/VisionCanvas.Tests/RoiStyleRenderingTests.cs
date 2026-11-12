@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Geometry;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 
 namespace TeachingToolWpf.Imaging.Tests;

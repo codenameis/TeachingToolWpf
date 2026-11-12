@@ -1,10 +1,13 @@
 using System.Numerics;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Vulkan.Rendering;
 
 internal sealed class VulkanMaskPipeline : IDisposable
 {
+    private const int StackAllocThreshold = 128;
+    private const uint FullscreenQuadVertices = 6;
     private readonly VulkanDevice _gpu;
     private readonly VulkanPipeline _pipeline;
 
@@ -16,19 +19,19 @@ internal sealed class VulkanMaskPipeline : IDisposable
 
     public void Draw(RenderScene scene, VulkanSurface surface, VulkanFrameResources frame)
     {
-        if (!MaskDrawConstants.TryResolveActiveMaskTarget(scene, out var roi, out var geometry, out var draft, out var maskCount, out var vertexCount))
+        if (MaskDrawConstants.TryResolveActiveTarget(scene) is not { } target)
         {
             return;
         }
 
-        var maskVectorCount = maskCount * 2;
-        Span<Vector4> masks = maskVectorCount <= 128 ? stackalloc Vector4[maskVectorCount] : new Vector4[maskVectorCount];
-        Span<Vector2> points = vertexCount <= 128 ? stackalloc Vector2[vertexCount] : new Vector2[vertexCount];
-        MaskDrawConstants.Pack(scene, roi, geometry, draft, maskCount, masks, points, out var constants);
+        var maskVectorCount = target.MaskCount * 2;
+        Span<Vector4> masks = maskVectorCount <= StackAllocThreshold ? stackalloc Vector4[maskVectorCount] : new Vector4[maskVectorCount];
+        Span<Vector2> points = target.VertexCount <= StackAllocThreshold ? stackalloc Vector2[target.VertexCount] : new Vector2[target.VertexCount];
+        var constants = MaskDrawConstants.Pack(scene, in target, masks, points);
 
         _pipeline.Bind(surface);
         frame.BindBuffers(_pipeline, surface, in constants, frame.Write<Vector4>(masks).Descriptor, frame.Write<Vector2>(points).Descriptor);
-        _gpu.Api.vkCmdDraw(surface.Commands, 6, 1, 0, 0);
+        _gpu.Api.vkCmdDraw(surface.Commands, FullscreenQuadVertices, 1, 0, 0);
     }
 
     public void Dispose() => _pipeline.Dispose();

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using VisionKernels;
 
 namespace CpuMatching.Core;
 
@@ -7,17 +8,41 @@ public static partial class PyramidSearch
     /// <summary>연속 버퍼 경로의 예산. 더 큰 원본은 FindWindowed로 검색한다.</summary>
     public const int MaximumSearchPixels = 8192 * 8192;
 
+    private const int MaximumTemplateSidePixels = 512;
+    private const int MinimumPyramidTemplateSidePixels = 24;
+    private const int MinimumPyramidImageSidePixels = 32;
+    private const int FullFrameScorePixelBudget = 2_097_152; // [Math Why]: 2Mpx 이하 레벨은 전체 프레임을 한 번에 준비하고, 초과 시 타일 맵으로 분할한다.
+    private const int PoseCachePixelBudget = 65_536;
+    private const int MinimumPoseCacheCapacity = 1;
+    private const int MaximumPoseCacheCapacity = 128;
+    private const int LocalTileSafetyMarginPixels = 36; // [Math Why]: 최대 거리 전파 반경(32px) + Sobel/봉우리 3x3 이웃 여백(4px)을 합산한다.
+    private const double CoarseScoreFloor = 0.2;
+    private const double CoarseScoreSlack = 0.25;
+    private const int ParallelRowPixelThreshold = 16_384;
+    private const int ParallelCandidateCountThreshold = 4;
+    private const int LocalEdgeRefinementMarginPixels = 12;
+    private const double FullRotationSpanDegrees = 360.0;
+    private const double UnboundedAngleSuppressionDegrees = 361.0; // [Math Why]: Wrap 거리 상한(180°)보다 크게 두어 최종 NMS에서 모든 각도를 공간 반경만으로 억제한다.
+    private const double UnboundedScaleSuppressionDelta = 10.0; // [Math Why]: 허용 스케일 차이 상한을 넘어 최종 NMS에서 모든 스케일을 공간 반경만으로 억제한다.
+
     /// <summary>동일 타일 공유는 prepare가 템플릿과 입력 픽셀만으로 읽기 전용 점수 맵을 만들 때만 허용한다.</summary>
-    public static SearchResult Find(GrayImage template, GrayImage image, SearchOptions options,
-        Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, CancellationToken token, bool refineEdges = false,
-        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null, bool refineCoarsePositions = false,
-        bool reuseIdenticalTiles = false)
+    public static SearchResult Find(CpuGrayImage template, CpuGrayImage image, CpuSearchOptions options,
+        Func<CpuGrayImage, CpuGrayImage, double, double, bool, IScoreLevel> prepare, CancellationToken token,
+        PyramidSearchPlan? plan = null,
+        Func<double, double, bool>? acceptCenter = null, ICoarseScoreAccelerator? accelerator = null)
     {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(prepare);
+        var activePlan = plan ?? PyramidSearchPlan.Default;
         options.Validate();
         token.ThrowIfCancellationRequested();
-        var region = options.Region ?? new SearchRegion(0, 0, image.Width, image.Height);
+        var region = options.Region ?? new CpuSearchRegion(0, 0, image.Width, image.Height);
         region.Validate(image);
-        if ((long)region.Width * region.Height > MaximumSearchPixels || template.Width > 512 || template.Height > 512)
+        if ((long)region.Width * region.Height > MaximumSearchPixels ||
+            template.Width > MaximumTemplateSidePixels ||
+            template.Height > MaximumTemplateSidePixels)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "Search region must be <=8192x8192 pixels; template <=512px per side.");
         }
@@ -25,7 +50,8 @@ public static partial class PyramidSearch
         var timer = Stopwatch.StartNew();
         var searchImage = image.Crop(region);
         var original = new SearchImage(searchImage);
-        var (images, levels) = PreparePyramid(template, searchImage, options, prepare, refineCoarsePositions, reuseIdenticalTiles, token);
+        var (images, levels) = PreparePyramid(template, searchImage, options, prepare,
+            activePlan.RefineCoarsePositions, activePlan.ReuseIdenticalTiles, token);
         var preparationMs = timer.Elapsed.TotalMilliseconds;
         long evaluations = 0;
         var refinementMs = 0d;
@@ -34,16 +60,16 @@ public static partial class PyramidSearch
         var coarse = VisitCoarseCandidates(images[^1], levels[^1], options, accelerator, token, candidates =>
         {
             timer.Restart();
-            var (current, angleRadius) = RefinePyramid(levels, candidates, options, refineCoarsePositions, token, ref evaluations);
+            var (current, angleRadius) = RefinePyramid(levels, candidates, options, activePlan.RefineCoarsePositions, token, ref evaluations);
             refinementMs += timer.Elapsed.TotalMilliseconds;
             timer.Restart();
             refined.AddRange(VerifyOriginal(template, original, levels[0], current, region, options,
-                angleRadius, refineEdges, acceptCenter, token, ref evaluations));
+                angleRadius, activePlan.RefineEdges, acceptCenter, token, ref evaluations));
             verificationMs += timer.Elapsed.TotalMilliseconds;
         });
         evaluations += coarse.Evaluations;
         timer.Restart();
-        var final = Suppress(refined, options.SuppressionRadius, 361, 10);
+        var final = Suppress(refined, options.SuppressionRadius, UnboundedAngleSuppressionDegrees, UnboundedScaleSuppressionDelta);
         return new SearchResult(final.Take(options.MaximumMatches).ToArray(), false, final.Count > options.MaximumMatches, evaluations)
         {
             CandidateCount = coarse.Candidates,
@@ -52,14 +78,15 @@ public static partial class PyramidSearch
         };
     }
 
-    private static (List<GrayImage> Images, IScoreLevel[] Levels) PreparePyramid(GrayImage template, GrayImage image,
-        SearchOptions options, Func<GrayImage, GrayImage, double, double, bool, IScoreLevel> prepare, bool denseIntermediate,
+    private static (List<CpuGrayImage> Images, IScoreLevel[] Levels) PreparePyramid(CpuGrayImage template, CpuGrayImage image,
+        CpuSearchOptions options, Func<CpuGrayImage, CpuGrayImage, double, double, bool, IScoreLevel> prepare, bool denseIntermediate,
         bool reuseIdenticalTiles, CancellationToken token)
     {
-        var images = new List<GrayImage> { image };
-        var templates = new List<GrayImage> { template };
-        while (images.Count < options.PyramidLevels && Math.Min(templates[^1].Width, templates[^1].Height) >= 24 &&
-            Math.Min(images[^1].Width, images[^1].Height) >= 32)
+        var images = new List<CpuGrayImage> { image };
+        var templates = new List<CpuGrayImage> { template };
+        while (images.Count < options.PyramidLevels &&
+            Math.Min(templates[^1].Width, templates[^1].Height) >= MinimumPyramidTemplateSidePixels &&
+            Math.Min(images[^1].Width, images[^1].Height) >= MinimumPyramidImageSidePixels)
         {
             token.ThrowIfCancellationRequested();
             images.Add(images[^1].Half());
@@ -71,16 +98,17 @@ public static partial class PyramidSearch
             token.ThrowIfCancellationRequested();
             var factor = 1 << level;
             // 큰 NCC 템플릿은 pose당 표본 배열도 크다. 한 검사/레벨 안에서만 제한해 재사용한다.
-            var capacity = Math.Clamp(65_536 / (templates[level].Width * templates[level].Height), 1, 128);
+            var capacity = Math.Clamp(PoseCachePixelBudget / (templates[level].Width * templates[level].Height),
+                MinimumPoseCacheCapacity, MaximumPoseCacheCapacity);
             var levelTemplate = templates[level];
             var fine = level == 0 || (denseIntermediate && level < images.Count - 1);
-            IScoreLevel Prepare(GrayImage scene) => new CachedLevel(prepare(levelTemplate, scene,
+            IScoreLevel Prepare(CpuGrayImage scene) => new CachedLevel(prepare(levelTemplate, scene,
                 (template.Width / (2.0 * factor)) - 0.5, (template.Height / (2.0 * factor)) - 0.5, fine), capacity);
-            if (level < levels.Length - 1 && (long)images[level].Width * images[level].Height > 2_097_152)
+            if (level < levels.Length - 1 && (long)images[level].Width * images[level].Height > FullFrameScorePixelBudget)
             {
                 // 최대 템플릿 반경과 거리 맵의 최대 전파 거리(32px), 미분 여백을 함께 보존한다.
                 var margin = (int)Math.Ceiling(Math.Sqrt((levelTemplate.Width * levelTemplate.Width) +
-                    (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + 36;
+                    (levelTemplate.Height * levelTemplate.Height)) * options.MaximumScale / 2) + LocalTileSafetyMarginPixels;
                 levels[level] = new CachedLevel(new LocalScoreLevel(images[level], margin, Prepare, token, reuseIdenticalTiles), capacity);
             }
             else
@@ -91,8 +119,8 @@ public static partial class PyramidSearch
         return (images, levels);
     }
 
-    private static (long Evaluations, long Candidates, int Batches, double Milliseconds) VisitCoarseCandidates(GrayImage image, IScoreLevel level,
-        SearchOptions options, ICoarseScoreAccelerator? accelerator, CancellationToken token, Action<List<Match>> inspect)
+    private static (long Evaluations, long Candidates, int Batches, double Milliseconds) VisitCoarseCandidates(CpuGrayImage image, IScoreLevel level,
+        CpuSearchOptions options, ICoarseScoreAccelerator? accelerator, CancellationToken token, Action<List<Match>> inspect)
     {
         var candidates = new List<Match>(options.CandidateLimit);
         var timer = Stopwatch.StartNew();
@@ -100,7 +128,7 @@ public static partial class PyramidSearch
         long count = 0;
         var batches = 0;
         // 조잡한 레벨의 점수는 최종 합격 점수가 아니다. 최종 원본 점수는 그대로 유지한다.
-        var coarseThreshold = Math.Max(0.2, options.MinimumScore - 0.25);
+        var coarseThreshold = Math.Max(CoarseScoreFloor, options.MinimumScore - CoarseScoreSlack);
         var width = image.Width;
         var height = image.Height;
         // 매 pose에서 모든 행을 덮어쓰므로 같은 응답 버퍼를 재사용할 수 있다.
@@ -164,7 +192,7 @@ public static partial class PyramidSearch
         }
         // 행 내부의 누적 순서는 유지하고, 독립 버퍼를 쓰는 행만 병렬로 계산한다.
         var independentRows = scorer is not IRowScore row || row.SupportsParallelRows;
-        if (workers > 1 && supportsParallel && independentRows && scores.Length >= 16_384)
+        if (workers > 1 && supportsParallel && independentRows && scores.Length >= ParallelRowPixelThreshold)
         {
             Parallel.For(0, height, ParallelOptions(workers, token), ScoreRow);
         }
@@ -192,7 +220,7 @@ public static partial class PyramidSearch
     }
 
     private static (List<Match> Matches, double AngleRadius) RefinePyramid(IScoreLevel[] levels, IEnumerable<Match> candidates,
-        SearchOptions options, bool refineCoarsePositions, CancellationToken token, ref long evaluations, bool skipOriginal = false)
+        CpuSearchOptions options, bool refineCoarsePositions, CancellationToken token, ref long evaluations, bool skipOriginal = false)
     {
         var top = levels.Length - 1;
         var angleRadius = options.AngleStep;
@@ -225,8 +253,8 @@ public static partial class PyramidSearch
         return (current, angleRadius);
     }
 
-    private static List<Match> VerifyOriginal(GrayImage template, SearchImage image, IScoreLevel level, List<Match> candidates,
-        SearchRegion region, SearchOptions options, double angleRadius, bool refineEdges,
+    private static List<Match> VerifyOriginal(CpuGrayImage template, SearchImage image, IScoreLevel level, List<Match> candidates,
+        CpuSearchRegion region, CpuSearchOptions options, double angleRadius, bool refineEdges,
         Func<double, double, bool>? acceptCenter, CancellationToken token, ref long evaluations)
     {
         var checkedMatches = new Match[candidates.Count];
@@ -241,10 +269,10 @@ public static partial class PyramidSearch
         return FilterOriginalMatches(checkedMatches, region, options, acceptCenter, token);
     }
 
-    private static EdgePoseRefiner? CreateOriginalRefiner(GrayImage template, SearchImage image, bool refineEdges)
-        => refineEdges && (long)image.Width * image.Height <= 2_097_152 ? new EdgePoseRefiner(template, image.ReadAll()) : null;
+    private static EdgePoseRefiner? CreateOriginalRefiner(CpuGrayImage template, SearchImage image, bool refineEdges)
+        => refineEdges && (long)image.Width * image.Height <= FullFrameScorePixelBudget ? new EdgePoseRefiner(template, image.ReadAll()) : null;
 
-    private static Match VerifyPose(GrayImage template, SearchImage image, IScoreLevel level, Match seed, SearchOptions options,
+    private static Match VerifyPose(CpuGrayImage template, SearchImage image, IScoreLevel level, Match seed, CpuSearchOptions options,
         double angleRadius, bool refineEdges, EdgePoseRefiner? refiner, ref long evaluations)
     {
         var match = Refine(level, seed, options, angleRadius, 0.5, 1, ref evaluations);
@@ -263,10 +291,10 @@ public static partial class PyramidSearch
         };
     }
 
-    private static List<Match> FilterOriginalMatches(Match[] checkedMatches, SearchRegion region, SearchOptions options,
+    private static List<Match> FilterOriginalMatches(Match[] checkedMatches, CpuSearchRegion region, CpuSearchOptions options,
         Func<double, double, bool>? acceptCenter, CancellationToken token)
     {
-        SearchDiagnostics.Write("Verified", checkedMatches);
+        CpuSearchDiagnostics.Write("Verified", checkedMatches);
         var refined = new List<Match>();
         foreach (var match in checkedMatches)
         {
@@ -285,9 +313,9 @@ public static partial class PyramidSearch
         return refined;
     }
 
-    private static Match RefineLocalEdges(GrayImage template, SearchImage image, Match match, SearchOptions options)
+    private static Match RefineLocalEdges(CpuGrayImage template, SearchImage image, Match match, CpuSearchOptions options)
     {
-        var radius = Math.Ceiling(Math.Sqrt((template.Width * template.Width) + (template.Height * template.Height)) * options.MaximumScale / 2) + 12;
+        var radius = Math.Ceiling(Math.Sqrt((template.Width * template.Width) + (template.Height * template.Height)) * options.MaximumScale / 2) + LocalEdgeRefinementMarginPixels;
         var left = Math.Max(0, (int)Math.Floor(match.X - radius));
         var top = Math.Max(0, (int)Math.Floor(match.Y - radius));
         var right = Math.Min(image.Width, (int)Math.Ceiling(match.X + radius));
@@ -309,7 +337,7 @@ public static partial class PyramidSearch
     private static void ForEachCandidate(IReadOnlyList<Match> candidates, IScoreLevel level, int workers, CancellationToken token, Action<int> evaluate)
     {
         var count = candidates.Count;
-        if (count >= 4 && level.SupportsParallelEvaluation)
+        if (count >= ParallelCandidateCountThreshold && level.SupportsParallelEvaluation)
         {
             // 같은 지역의 맵을 연달아 사용하되 출력은 원래 후보 번호에 저장한다.
             var keys = new long[count];
@@ -340,9 +368,9 @@ public static partial class PyramidSearch
         CancellationToken = token
     };
 
-    public static double Wrap(double angle) => ((angle + 540) % 360) - 180;
+    public static double Wrap(double angle) => AngleMath.WrapDegrees180(angle);
 
-    public static double AngleDistance(double left, double right) => Math.Abs(Wrap(left - right));
+    public static double AngleDistance(double left, double right) => AngleMath.DistanceDegrees(left, right);
 
     private sealed class CachedLevel(IScoreLevel inner, int capacity) : IScoreLevel
     {
@@ -374,7 +402,7 @@ public static partial class PyramidSearch
         public double Verify(Match match) => inner.Verify(match);
     }
 
-    private static Match Refine(IScoreLevel level, Match seed, SearchOptions options, double angleRadius,
+    private static Match Refine(IScoreLevel level, Match seed, CpuSearchOptions options, double angleRadius,
         double positionStep, int positionRadius, ref long evaluations)
     {
         var best = seed with
@@ -385,7 +413,7 @@ public static partial class PyramidSearch
         Span<double> scaleBuffer = stackalloc double[5];
         var scaleCount = FillSamples(Math.Max(options.MinimumScale, seed.Scale - scaleRadius),
             Math.Min(options.MaximumScale, seed.Scale + scaleRadius), Math.Max(0.01, scaleRadius), scaleBuffer);
-        var fullRotation = options.MaximumAngle - options.MinimumAngle == 360;
+        var fullRotation = options.MaximumAngle - options.MinimumAngle == FullRotationSpanDegrees;
         Span<double> angleBuffer = stackalloc double[5];
         var angleCount = FillSamples(fullRotation ? seed.AngleDegrees - angleRadius : Math.Max(options.MinimumAngle, seed.AngleDegrees - angleRadius),
             fullRotation ? seed.AngleDegrees + angleRadius : Math.Min(options.MaximumAngle, seed.AngleDegrees + angleRadius), Math.Max(0.25, angleRadius / 2), angleBuffer);
@@ -417,24 +445,10 @@ public static partial class PyramidSearch
     }
 
     private static int FillSamples(double minimum, double maximum, double step, Span<double> buffer)
-    {
-        var count = (int)Math.Ceiling((maximum - minimum) / step);
-        var total = count + 1;
-        for (var i = 0; i <= count && i < buffer.Length; i++)
-        {
-            buffer[i] = Math.Min(maximum, minimum + (i * step));
-        }
-        return Math.Min(total, buffer.Length);
-    }
+        => RangeSampler.FillSamples(minimum, maximum, step, buffer);
 
     private static IEnumerable<double> Samples(double minimum, double maximum, double step)
-    {
-        var count = (int)Math.Ceiling((maximum - minimum) / step);
-        for (var i = 0; i <= count; i++)
-        {
-            yield return Math.Min(maximum, minimum + (i * step));
-        }
-    }
+        => RangeSampler.EnumerateSamples(minimum, maximum, step);
 
     private static bool IsPeak(double[] scores, int width, int x, int y)
     {

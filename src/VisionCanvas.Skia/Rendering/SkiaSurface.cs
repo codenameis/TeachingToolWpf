@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using SkiaSharp;
-using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Skia.Rendering;
 

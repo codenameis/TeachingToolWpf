@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/VisionCanvas.Vulkan/VisionCanvas.Vulkan.csproj" />
     <ProjectReference Include="../../src/VisionImaging/VisionImaging.csproj" />
+    <ProjectReference Include="../VisionCanvas.SampleShell/VisionCanvas.SampleShell.csproj" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="../../manual/vulkan/README.md" Link="VULKAN-MANUAL.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

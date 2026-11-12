@@ -2,6 +2,7 @@
 using System.Numerics;
 using SkiaSharp;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionCanvas.Skia.Rendering;
 
 namespace VisionCanvas.Skia.Tests;

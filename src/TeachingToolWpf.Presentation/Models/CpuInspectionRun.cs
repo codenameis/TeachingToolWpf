@@ -5,7 +5,7 @@ using VisionGeometry;
 namespace TeachingToolWpf.Models;
 
 public sealed record CpuInspectionRun(Guid RunId, long StartedTimestamp, CpuTemplateMethod Method, string ImageId,
-    int Width, int Height, RoiGeometry TeachingRegion, RoiGeometry? Region, SearchOptions Options)
+    int Width, int Height, RoiGeometry TeachingRegion, RoiGeometry? Region, CpuSearchOptions Options)
 {
     public CpuTemplateParameters Parameters { get; init; } = new();
     public bool UseCuda

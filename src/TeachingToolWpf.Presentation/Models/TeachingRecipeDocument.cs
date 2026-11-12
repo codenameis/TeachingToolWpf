@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TeachingToolWpf.Imaging.Matching;
 using VisionCanvas.Core.Editing;
 
 namespace TeachingToolWpf.Models;
@@ -16,7 +17,7 @@ public sealed record TeachingRecipeDocument
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public string RecipeVersion { get; init; } = "2.0";
+    public string RecipeVersion { get; init; } = "2.1";
 
     public string SavedAtUtc { get; init; } = DateTime.UtcNow.ToString("O");
 
@@ -27,6 +28,10 @@ public sealed record TeachingRecipeDocument
     public List<FilterSettings> SessionFilterPipeline { get; init; } = [];
 
     public List<TeachingRecipeRoiEntry> Rois { get; init; } = [];
+
+    public Dictionary<string, string> OcvFontModels { get; init; } = [];
+
+    public InspectionSuiteParameters? SuiteParameters { get; init; }
 
     public string ToJson() => JsonSerializer.Serialize(this, SerializerOptions);
 

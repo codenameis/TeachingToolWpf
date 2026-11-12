@@ -210,7 +210,7 @@ public sealed class CudaInspectionSessionTests
         Assert.Equal(1, backend.Disposals);
     }
 
-    private static GrayImage Image() => new(new byte[64], 8, 8, 8);
+    private static ShapeGrayImage Image() => new(new byte[64], 8, 8, 8);
 
     private static ShapeCandidateScoreRequest Request() => new(new byte[64], 8, 8, 2, 4, [[new(0, 0, 0)]]);
 
@@ -231,7 +231,7 @@ public sealed class CudaInspectionSessionTests
         public ImagePreprocessingDiagnostics Diagnostics { get; private set; } = new("recording", "test", 0, 0, 0);
         public CandidateScoringDiagnostics CandidateDiagnostics { get; private set; } = new("recording", "test", 0, 0, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             OnPrepare?.Invoke();

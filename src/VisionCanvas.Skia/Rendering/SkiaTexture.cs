@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 using SkiaSharp;
-using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Skia.Rendering;
@@ -8,6 +8,9 @@ namespace VisionCanvas.Skia.Rendering;
 /// <summary>타일·표시용 프레임만 소유한다. Gray16 원본은 보존하고 표시 복사본에서 8비트로 정규화한다.</summary>
 internal sealed class SkiaTexture : IRenderTexture
 {
+    private const int HalfUshortDivisorRounding = 128;
+    private const int UshortToByteDivisor = 257;
+
     public SkiaTexture(int width, int height, PixelKind kind)
     {
         Kind = kind;
@@ -44,6 +47,7 @@ internal sealed class SkiaTexture : IRenderTexture
         {
             throw new ArgumentException("표시 타일의 크기와 픽셀 형식이 일치해야 합니다.", nameof(pixels));
         }
+
         var target = Bitmap.GetPixelSpan();
         IsOpaque = true;
         for (var row = 0; row < Height; row++)
@@ -55,7 +59,7 @@ internal sealed class SkiaTexture : IRenderTexture
                 var values = MemoryMarshal.Cast<byte, ushort>(source[..(Width * 2)]);
                 for (var column = 0; column < Width; column++)
                 {
-                    destination[column] = (byte)((values[column] + 128) / 257);
+                    destination[column] = (byte)((values[column] + HalfUshortDivisorRounding) / UshortToByteDivisor);
                 }
             }
             else
@@ -66,36 +70,15 @@ internal sealed class SkiaTexture : IRenderTexture
                 {
                     for (var column = 3; column < bytes; column += 4)
                     {
-                        IsOpaque &= source[column] == 255;
+                        IsOpaque &= source[column] == byte.MaxValue;
                     }
                 }
             }
         }
+
         Bitmap.NotifyPixelsChanged();
         HasPixels = true;
     }
 
     public void Dispose() => Bitmap.Dispose();
-}
-
-internal sealed class SkiaTexturePipeline : ITexturePipeline
-{
-    public IRenderTexture CreateTexture(int width, int height, PixelKind kind) => new SkiaTexture(width, height, kind);
-
-    public IRenderTexture Upload(PixelBuffer pixels, IRenderSurface surface)
-    {
-        var texture = new SkiaTexture(pixels.Width, pixels.Height, pixels.Kind);
-        try
-        {
-            texture.Update(pixels);
-            return texture;
-        }
-        catch
-        {
-            texture.Dispose();
-            throw;
-        }
-    }
-
-    public void Update(IRenderTexture texture, PixelBuffer pixels, IRenderSurface surface) => ((SkiaTexture)texture).Update(pixels);
 }

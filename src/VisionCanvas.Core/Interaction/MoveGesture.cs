@@ -2,7 +2,7 @@ using VisionGeometry;
 
 namespace VisionCanvas.Core.Interaction;
 
-internal sealed class MoveGesture(InteractionController controller, PointD dragStartScreen) : EditGesture(controller)
+internal sealed class MoveGesture(IGestureContext context, PointD dragStartScreen) : EditGesture(context)
 {
     private (PointD Translation, bool AllowSlide)? _lastRequest;
 
@@ -27,7 +27,8 @@ internal sealed class MoveGesture(InteractionController controller, PointD dragS
             // 같은 위치의 Mouse Up은 벽 접촉 계산을 반복하지 않고 표시한 결과를 그대로 확정한다.
             return;
         }
-        Controller.PreviewTranslation(request.Translation, request.AllowSlide);
+
+        Commands.PreviewTranslation(request.Translation, request.AllowSlide);
         _lastRequest = request;
     }
 }

@@ -23,7 +23,7 @@ public static class HessianNormalLineFitter
     /// 추출된 서브픽셀 에지 점군에 대해 2-Point RANSAC으로 칩핑/버 이상치를 제거한 뒤,
     /// Tukey Biweight IRLS 직교 거리 회귀를 수행하고 각 점의 인라이어 여부를 갱신한다.
     /// </summary>
-    public static FittedLine2D FitLine(
+    public static HessianLine2D FitLine(
         Span<SubpixelEdgePoint> points,
         CornerDetectionOptions options,
         Vector2 preferredTangentDirection = default)
@@ -31,7 +31,7 @@ public static class HessianNormalLineFitter
         int n = points.Length;
         if (n < MinPointsForLine)
         {
-            return FittedLine2D.Invalid;
+            return HessianLine2D.Invalid;
         }
 
         float ransacThreshold = MathF.Max(0.05f, options.RansacInlierThresholdPixels);
@@ -43,7 +43,7 @@ public static class HessianNormalLineFitter
         // 1단계: 2-Point 최소 샘플링 RANSAC (MSAC 손실 기반 타이브레이킹)
         if (!TryFindBestRansacHypothesis(points, ransacThreshold, out float bestNx, out float bestNy, out float bestRho))
         {
-            return FittedLine2D.Invalid;
+            return HessianLine2D.Invalid;
         }
 
         int initialInliers = 0;
@@ -63,7 +63,7 @@ public static class HessianNormalLineFitter
 
         if (initialInliers < MinPointsForLine)
         {
-            return FittedLine2D.Invalid;
+            return HessianLine2D.Invalid;
         }
 
         // RANSAC 인라이어 초기 직교 거리 회귀(ODR)
@@ -156,7 +156,7 @@ public static class HessianNormalLineFitter
 
         if (finalInlierCount < MinPointsForLine)
         {
-            return FittedLine2D.Invalid;
+            return HessianLine2D.Invalid;
         }
 
         Vector2 referenceDir = preferredTangentDirection;
@@ -177,7 +177,7 @@ public static class HessianNormalLineFitter
         }
 
         float rms = weightSum > 1e-9 ? (float)Math.Sqrt(sumSqError / weightSum) : 0.0f;
-        return new FittedLine2D(
+        return new HessianLine2D(
             Nx: nx,
             Ny: ny,
             Rho: rho,

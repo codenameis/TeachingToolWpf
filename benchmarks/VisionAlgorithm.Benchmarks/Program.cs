@@ -15,7 +15,7 @@ MatchPose[] expected = [new(103.3, 101.7, 0.234, 1.13), new(313.2, 210.4, -0.21,
 var scene = SyntheticScene.Create(641, 385, expected);
 var negative = SyntheticScene.Create(641, 385);
 var matcher = new ShapeMatcher();
-var configurations = new Dictionary<string, SearchOptions>
+var configurations = new Dictionary<string, ShapeSearchOptions>
 {
     ["candidate"] = new() { Verify = false, Refine = false, MaximumVerifiedCandidates = 256 },
     ["verified"] = new() { Refine = false, MaximumVerifiedCandidates = 256 },
@@ -34,7 +34,7 @@ foreach (var (name, options) in configurations)
     }
     var times = new List<double>();
     var allocations = new List<long>();
-    var diagnostics = new List<SearchDiagnostics>();
+    var diagnostics = new List<ShapeSearchDiagnostics>();
     MatchResult? last = null;
     for (var i = 0; i < 5; i++)
     {

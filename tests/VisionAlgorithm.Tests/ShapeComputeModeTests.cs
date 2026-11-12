@@ -10,7 +10,7 @@ public sealed class ShapeComputeModeTests
         var model = MatchingTests.Train();
         var image = SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0));
         var matcher = new ShapeMatcher();
-        var options = new SearchOptions { ComputeMode = InspectionComputeMode.GpuPreprocessing };
+        var options = new ShapeSearchOptions { ComputeMode = InspectionComputeMode.GpuPreprocessing };
 
         Assert.Throws<InvalidOperationException>(() => matcher.Search(image, model, options));
         Assert.Throws<InvalidOperationException>(() => matcher.RefineCandidate(image, model, new(48, 48, 0), 1, options));
@@ -51,7 +51,7 @@ public sealed class ShapeComputeModeTests
         var model = MatchingTests.Train();
         var image = SyntheticScene.Create(96, 96, new MatchPose(48, 48, 0));
         var matcher = new ShapeMatcher(preprocessor);
-        var options = new SearchOptions { ComputeMode = InspectionComputeMode.GpuPreprocessing };
+        var options = new ShapeSearchOptions { ComputeMode = InspectionComputeMode.GpuPreprocessing };
 
         Assert.Equal("GPU test failure", Assert.Throws<InvalidOperationException>(() => matcher.Search(image, model, options)).Message);
         Assert.Equal("GPU test failure", Assert.Throws<InvalidOperationException>(() => matcher.RefineCandidate(
@@ -62,7 +62,7 @@ public sealed class ShapeComputeModeTests
 
     [Fact]
     public void UndefinedComputeModeIsRejected()
-        => Assert.Throws<ArgumentOutOfRangeException>(() => (new SearchOptions { ComputeMode = (InspectionComputeMode)2 }).Validate());
+        => Assert.Throws<ArgumentOutOfRangeException>(() => (new ShapeSearchOptions { ComputeMode = (InspectionComputeMode)2 }).Validate());
 
     private sealed class FailingPreprocessor : IImagePreprocessor
     {
@@ -76,7 +76,7 @@ public sealed class ShapeComputeModeTests
         }
         public ImagePreprocessingDiagnostics Diagnostics => new("Test", "Test", Calls, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             Calls++;
             throw new InvalidOperationException("GPU test failure");

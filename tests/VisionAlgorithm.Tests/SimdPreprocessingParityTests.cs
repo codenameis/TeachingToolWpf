@@ -56,7 +56,7 @@ public sealed class SimdPreprocessingParityTests
         var stride = width + padding;
         var pixels = new byte[stride * height];
         new Random((width * 65537) + height).NextBytes(pixels);
-        var image = new GrayImage(pixels, width, height, stride);
+        var image = new ShapeGrayImage(pixels, width, height, stride);
         using var reference = new DirectConvolutionPreprocessor();
 
         var expected = GradientImage.Create(image, 8, default, reference);
@@ -115,7 +115,7 @@ public sealed class SimdPreprocessingParityTests
     {
         public ImagePreprocessingDiagnostics Diagnostics => new("Test", "Integer convolution", 0, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             var smooth = new float[image.Width * image.Height];
             int[] weights = [1, 4, 6, 4, 1];

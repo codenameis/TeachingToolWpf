@@ -75,11 +75,3 @@ public sealed class VideoFrame : IDisposable
         }
     }
 }
-public interface IFrameSource
-{
-    ImageInfo Info
-    {
-        get;
-    }
-    IAsyncEnumerable<VideoFrame> Frames(CancellationToken cancellationToken);
-}

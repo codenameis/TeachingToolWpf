@@ -6,7 +6,7 @@ using TeachingToolWpf.Imaging.Matching;
 using VisionAlgorithm.OpenSrc.PatternMatching;
 using VisionCanvas.Rendering;
 using VisionGeometry;
-using CpuSearchOptions = CpuMatching.Core.SearchOptions;
+using CpuMatching.Core;
 
 namespace TeachingToolWpf.ViewModels;
 

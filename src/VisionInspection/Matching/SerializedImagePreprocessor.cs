@@ -35,7 +35,7 @@ internal sealed class SerializedImagePreprocessor(IImagePreprocessor inner) : II
         }
     }
 
-    public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+    public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)

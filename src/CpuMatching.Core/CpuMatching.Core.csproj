@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\VisionKernels\VisionKernels.csproj" />
     <InternalsVisibleTo Include="CpuMatching.Tests" />
   </ItemGroup>
 </Project>

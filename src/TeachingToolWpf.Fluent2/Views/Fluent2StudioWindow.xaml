@@ -906,7 +906,7 @@
                                     </Button>
                                 </UniformGrid>
                                 <UniformGrid Columns="4" Rows="1">
-                                    <Button Content="⑥ 1D·2D 바코드 (2)" Command="{Binding SelectBarcodeCategoryStage}" Margin="0,2,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="1D 바코드 (Code 128 멀티스캔) / 2D DataMatrix (ECC 200 Reed-Solomon)">
+                                    <Button Content="⑥ 1D·2D 바코드 (3)" Command="{Binding SelectBarcodeCategoryStage}" Margin="0,2,2,0" Padding="5,4" MinHeight="28" FontSize="10.5" ToolTip="1D 바코드 (Code 128 멀티스캔) / 2D DataMatrix (ECC 200) / 2D QR 코드 (ISO 18004 360° 위치·각도)">
                                         <Button.Style>
                                             <Style TargetType="Button" BasedOn="{StaticResource StageTabButton}">
                                                 <Style.Triggers>

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Numerics;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 using VisionImaging.Abstractions;
 

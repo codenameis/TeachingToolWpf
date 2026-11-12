@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Immutable;
 using VisionAlgorithm.OpenSrc.Common;
 using VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
+using VisionOcr.PpOcr;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
@@ -48,7 +49,7 @@ public static class OcrDiagnosticPreviewBuilder
     /// </summary>
     public static OcrDiagnosticSnapshot Build(
         ReadOnlyImageView2D<byte> roiView,
-        UniversalOcrRegionResult ocrResult,
+        PpOcrRegionResult ocrResult,
         InspectionSuiteAlgorithmKind algorithm,
         InspectionSuiteParameters parameters)
     {
@@ -298,7 +299,7 @@ public static class OcrDiagnosticPreviewBuilder
         int srcH,
         float contrastOffset,
         float acceptThreshold,
-        UniversalOcrRegionResult ocrResult,
+        PpOcrRegionResult ocrResult,
         InspectionSuiteAlgorithmKind algorithm,
         InspectionSuiteParameters parameters,
         Span<byte> outBgra)
@@ -369,7 +370,7 @@ public static class OcrDiagnosticPreviewBuilder
         // Draw recognized character bounding boxes (emerald for pass confidence, amber for low confidence)
         for (int i = 0; i < ocrResult.Characters.Count; i++)
         {
-            RecognizedCharBox ch = ocrResult.Characters[i];
+            PpOcrCharacterBox ch = ocrResult.Characters[i];
             int x0 = Math.Clamp((int)MathF.Floor(ch.StartCol * scaleX), 0, dstW - 1);
             int x1 = Math.Clamp((int)MathF.Ceiling(ch.EndCol * scaleX), x0, dstW - 1);
             int y0 = Math.Clamp((int)MathF.Floor(ch.TopRow * scaleY), 0, dstH - 1);

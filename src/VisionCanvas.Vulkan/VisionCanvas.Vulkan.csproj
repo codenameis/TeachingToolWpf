@@ -12,6 +12,6 @@
     <PackageReference Include="Vortice.Vulkan" Version="3.2.3" />
     <PackageReference Include="Vortice.ShaderCompiler" Version="1.9.0" />
     <InternalsVisibleTo Include="VisionCanvas.Vulkan.Tests" />
-    <None Update="Shaders/*.hlsl" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../VisionCanvas/Shaders/*.hlsl" Link="Shaders/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

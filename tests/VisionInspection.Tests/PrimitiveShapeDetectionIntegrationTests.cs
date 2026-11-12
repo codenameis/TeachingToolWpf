@@ -67,7 +67,7 @@ public sealed class PrimitiveShapeDetectionIntegrationTests
     {
         public int Disposals;
         public PrimitivePreprocessingDiagnostics Diagnostics { get; } = new("cancellation probe", 0, 0, 0, 0, 0);
-        public GrayImage Median3x3(GrayImage image, CancellationToken token, Memory<byte> destination = default)
+        public ShapeGrayImage Median3x3(ShapeGrayImage image, CancellationToken token, Memory<byte> destination = default)
         {
             cancellation.Cancel();
             token.ThrowIfCancellationRequested();
@@ -275,7 +275,7 @@ public sealed class PrimitiveShapeDetectionIntegrationTests
         Assert.Empty((await service.DetectAsync(reference, false, concave, new(), default)).Shapes);
     }
 
-    private sealed class Loader(GrayImage image) : IImageLoader
+    private sealed class Loader(ShapeGrayImage image) : IImageLoader
     {
         public int Disposed;
 
@@ -283,7 +283,7 @@ public sealed class PrimitiveShapeDetectionIntegrationTests
             => Task.FromResult<ITileSource>(new Source(this, image));
     }
 
-    private sealed class Source(Loader owner, GrayImage image) : ITileSource
+    private sealed class Source(Loader owner, ShapeGrayImage image) : ITileSource
     {
         public ImageInfo Info { get; } = new("fixture", "fixture", image.Width, image.Height, PixelKind.Gray8, 1);
 

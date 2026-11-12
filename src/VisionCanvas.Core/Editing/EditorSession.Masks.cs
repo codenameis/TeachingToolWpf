@@ -21,13 +21,15 @@ public sealed partial class EditorSession
         {
             return;
         }
+
         SetMasks(id, masks.SetItem(index, mask), "마스크 변경");
     }
 
     public void RemoveMask(Guid id, int index)
         => SetMasks(id, State.Rois[id].Masks.RemoveAt(index), "마스크 삭제");
 
-    public void ClearMasks(Guid id) => SetMasks(id, [], "마스크 모두 삭제");
+    public void ClearMasks(Guid id)
+        => SetMasks(id, [], "마스크 모두 삭제");
 
     public void ReplaceAllMasks(Guid id, ImmutableArray<MaskRegion> masks, string name = "패턴 마스크 일괄 편집")
     {
@@ -46,22 +48,7 @@ public sealed partial class EditorSession
 
     private void SetMasks(Guid id, ImmutableArray<MaskRegion> masks, string name)
     {
-        if (IsPreviewing || State.IsGroupRoi(id))
-        {
-            throw new InvalidOperationException("편집 중이 아닌 검사 ROI 하나를 선택하세요.");
-        }
-        if (masks.Length > MaximumMasksPerRoi)
-        {
-            throw new InvalidOperationException($"ROI 하나에 마스크는 최대 {MaximumMasksPerRoi}개입니다.");
-        }
-        var roi = State.Rois[id];
-        if (roi.Masks.SequenceEqual(masks))
-        {
-            return;
-        }
-        Commit(name, State.WithRois(State.Rois.SetItem(id, roi with
-        {
-            Masks = masks
-        }), [id]));
+        ThrowIfPreviewing("편집 중이 아닌 검사 ROI 하나를 선택하세요.");
+        Execute(new EditorOperations.SetMasksOperation(id, masks, name));
     }
 }

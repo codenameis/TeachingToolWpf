@@ -6,8 +6,8 @@ internal static class PolygonClosure
 {
     private static double Cross(PointD a, PointD b) => (a.X * b.Y) - (a.Y * b.X);
 
-    private const double PointTolerance = 1e-6;
-    private const double ParameterTolerance = 1e-12;
+    private const double PointTolerance = GeometryTolerance.Base;
+    private const double ParameterTolerance = GeometryTolerance.Squared;
 
     public static PointD[]? Find(IReadOnlyList<PointD> points, PointD end)
     {

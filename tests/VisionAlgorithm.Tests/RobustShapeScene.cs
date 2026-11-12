@@ -46,7 +46,7 @@ internal static class RobustShapeScene
     public static MatchPose ExpectedPose(ShapeScenario scenario)
         => new(ExpectedX, ExpectedY, scenario.Degrees * Math.PI / 180, scenario.Scale);
 
-    public static GrayImage Create(ShapeScenario scenario)
+    public static ShapeGrayImage Create(ShapeScenario scenario)
     {
         var expected = ExpectedPose(scenario);
         var source = SyntheticScene.Create(Width, Height,

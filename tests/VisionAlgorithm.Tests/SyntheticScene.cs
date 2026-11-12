@@ -5,7 +5,7 @@ namespace VisionAlgorithm.Tests;
 internal static class SyntheticScene
 {
     // 독립 역변환과 4×4 면적 샘플링으로 비정수 자세의 생성 오차를 줄인다.
-    public static GrayImage Create(int width, int height, params MatchPose[] poses)
+    public static ShapeGrayImage Create(int width, int height, params MatchPose[] poses)
     {
         var pixels = new byte[width * height];
         for (var y = 0; y < height; y++)

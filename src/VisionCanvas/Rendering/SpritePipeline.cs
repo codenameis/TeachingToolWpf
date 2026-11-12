@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using VisionCanvas.Rendering.Abstractions;
 using VisionImaging.Abstractions;
 using Vortice.Direct3D;
 using Vortice.Direct3D12;
@@ -7,57 +8,19 @@ using Vortice.DXGI;
 
 namespace VisionCanvas.Rendering;
 
-internal sealed class GpuTexture(ID3D12Resource resource, int slot, PixelKind kind, int width, int height, Action<int> releaseSlot) : IRenderTexture
-{
-    public ID3D12Resource Resource { get; } = resource;
-
-    public int Slot { get; } = slot;
-
-    public PixelKind Kind { get; } = kind;
-
-    public int Width { get; } = width;
-
-    public int Height { get; } = height;
-
-    public bool HasPixels
-    {
-        get;
-        set;
-    }
-
-    public bool IsOpaque
-    {
-        get;
-        set;
-    }
-
-    public long Bytes => (long)Width * Height * Kind switch
-    {
-        PixelKind.Gray8 => 1,
-        PixelKind.Gray16 => 2,
-        _ => 4
-    };
-
-    public long AllocatedBytes
-    {
-        get; init;
-    }
-
-    public void Dispose()
-    {
-        Resource.Dispose();
-        releaseSlot(Slot);
-    }
-}
-
 /// <summary>Owns descriptor allocation and frame-local vertex buffers. Called only by the render thread.</summary>
-internal sealed class SpritePipeline : ITexturePipeline, IDisposable
+internal sealed class SpritePipeline : TexturePipelineBase<GpuTexture, Dx12Surface>, IDisposable
 {
+    private const int DescriptorSlotCapacity = 2048;
+    private const int MinimumVertexBufferCapacityBytes = 1024 * 1024;
+    private const uint VertexStrideBytes = 32;
+    private const int DefaultShaderComponentMapping = 5768;
+
     private readonly Dx12Device _gpu;
     private readonly ID3D12RootSignature _root;
     private readonly ID3D12PipelineState _pipeline;
     private readonly ID3D12DescriptorHeap _heap;
-    private readonly Stack<int> _free = new(Enumerable.Range(0, 2048).Reverse());
+    private readonly Stack<int> _free = new(Enumerable.Range(0, DescriptorSlotCapacity).Reverse());
     private readonly ID3D12Resource?[] _vertices = new ID3D12Resource[2];
     private readonly int[] _capacities = new int[2];
     private readonly uint _increment;
@@ -67,7 +30,7 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
     {
         _gpu = gpu;
         _uploads = [new(gpu), new(gpu)];
-        _heap = gpu.Device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, 2048, DescriptorHeapFlags.ShaderVisible));
+        _heap = gpu.Device.CreateDescriptorHeap(new(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView, DescriptorSlotCapacity, DescriptorHeapFlags.ShaderVisible));
         try
         {
             _increment = gpu.Device.GetDescriptorHandleIncrementSize(DescriptorHeapType.ConstantBufferViewShaderResourceViewUnorderedAccessView);
@@ -106,7 +69,7 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
 
     public void BeginFrame(Dx12Surface surface) => _uploads[surface.FrameIndex].Reset();
 
-    public GpuTexture CreateTexture(int width, int height, PixelKind kind)
+    public override GpuTexture CreateTypedTexture(int width, int height, PixelKind kind)
     {
         if (_free.Count == 0)
         {
@@ -129,7 +92,7 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
             {
                 Format = format,
                 ViewDimension = Vortice.Direct3D12.ShaderResourceViewDimension.Texture2D,
-                Shader4ComponentMapping = 5768,
+                Shader4ComponentMapping = DefaultShaderComponentMapping,
                 Texture2D = new Texture2DShaderResourceView { MipLevels = 1 }
             }, Cpu(slot));
             return new(texture, slot, kind, width, height, _free.Push)
@@ -144,14 +107,14 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
         }
     }
 
-    public GpuTexture Upload(PixelBuffer pixels, Dx12Surface surface)
+    public override GpuTexture UploadTyped(PixelBuffer pixels, Dx12Surface surface)
     {
-        var texture = CreateTexture(pixels.Width, pixels.Height, pixels.Kind);
+        var texture = CreateTypedTexture(pixels.Width, pixels.Height, pixels.Kind);
         try
         {
-            Update(texture, pixels, surface);
+            UpdateTyped(texture, pixels, surface);
             // 정적 업로드에서 한 번만 검사한다. 라이브 프레임마다 알파를 순회하지 않는다.
-            texture.IsOpaque = PixelsAreOpaque(pixels);
+            texture.IsOpaque = TextureTransparency.PixelsAreOpaque(pixels);
             return texture;
         }
         catch
@@ -161,7 +124,7 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
         }
     }
 
-    public unsafe void Update(GpuTexture texture, PixelBuffer pixels, Dx12Surface surface)
+    public override unsafe void UpdateTyped(GpuTexture texture, PixelBuffer pixels, Dx12Surface surface)
     {
         if (texture.Width != pixels.Width || texture.Height != pixels.Height || texture.Kind != pixels.Kind)
         {
@@ -196,22 +159,7 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
         texture.IsOpaque = pixels.Kind is PixelKind.Gray8 or PixelKind.Gray16;
     }
 
-    internal static bool PixelsAreOpaque(PixelBuffer pixels)
-    {
-        if (pixels.Kind is PixelKind.Gray8 or PixelKind.Gray16)
-        {
-            return true;
-        }
-        var bytes = pixels.Span;
-        for (var alpha = 3; alpha < bytes.Length; alpha += 4)
-        {
-            if (bytes[alpha] != byte.MaxValue)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
+    internal static bool PixelsAreOpaque(PixelBuffer pixels) => TextureTransparency.PixelsAreOpaque(pixels);
 
     public unsafe void Draw(SpriteMesh mesh, Dx12Surface surface, int middleBatch = -1, Action? middle = null)
     {
@@ -220,14 +168,16 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
             middle?.Invoke();
             return;
         }
+
         var index = surface.FrameIndex;
-        var size = checked(mesh.Vertices.Count * 32);
+        var size = checked(mesh.Vertices.Count * (int)VertexStrideBytes);
         if (_capacities[index] < size)
         {
             _vertices[index]?.Dispose();
-            _capacities[index] = Math.Max(size * 2, 1024 * 1024);
+            _capacities[index] = Math.Max(size * 2, MinimumVertexBufferCapacityBytes);
             _vertices[index] = _gpu.Device.CreateCommittedResource(HeapType.Upload, ResourceDescription.Buffer((ulong)_capacities[index]), ResourceStates.GenericRead);
         }
+
         var buffer = _vertices[index]!;
         CollectionsMarshal.AsSpan(mesh.Vertices).CopyTo(new Span<SpriteVertex>(buffer.Map<SpriteVertex>(0), mesh.Vertices.Count));
         buffer.Unmap(0);
@@ -240,12 +190,15 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
                 middle?.Invoke();
                 Bind();
             }
+
             var batch = mesh.Batches[i];
-            commands.SetGraphicsRootDescriptorTable(0, Gpu(((GpuTexture)batch.Texture).Slot));
-            commands.SetGraphicsRoot32BitConstant(1, batch.Texture.Kind is PixelKind.Gray8 or PixelKind.Gray16 ? 1u : 0u, 0);
+            var texture = RequireTexture(batch.Texture);
+            commands.SetGraphicsRootDescriptorTable(0, Gpu(texture.Slot));
+            commands.SetGraphicsRoot32BitConstant(1, texture.Kind is PixelKind.Gray8 or PixelKind.Gray16 ? 1u : 0u, 0);
             commands.SetGraphicsRoot32BitConstant(1, batch.PointSampling ? 1u : 0u, 1);
             commands.DrawInstanced((uint)batch.Count, 1, (uint)batch.Start, 0);
         }
+
         if (middleBatch == mesh.Batches.Count)
         {
             middle?.Invoke();
@@ -257,7 +210,7 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
             commands.SetGraphicsRootSignature(_root);
             commands.SetPipelineState(_pipeline);
             commands.IASetPrimitiveTopology(PrimitiveTopology.TriangleList);
-            commands.IASetVertexBuffers(0, new VertexBufferView(buffer.GPUVirtualAddress, (uint)size, 32));
+            commands.IASetVertexBuffers(0, new VertexBufferView(buffer.GPUVirtualAddress, (uint)size, VertexStrideBytes));
         }
     }
 
@@ -277,11 +230,4 @@ internal sealed class SpritePipeline : ITexturePipeline, IDisposable
         _root.Dispose();
         _heap.Dispose();
     }
-
-    IRenderTexture ITexturePipeline.CreateTexture(int width, int height, PixelKind kind) => CreateTexture(width, height, kind);
-
-    IRenderTexture ITexturePipeline.Upload(PixelBuffer pixels, IRenderSurface surface) => Upload(pixels, (Dx12Surface)surface);
-
-    void ITexturePipeline.Update(IRenderTexture texture, PixelBuffer pixels, IRenderSurface surface)
-        => Update((GpuTexture)texture, pixels, (Dx12Surface)surface);
 }

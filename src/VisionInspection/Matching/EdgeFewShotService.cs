@@ -9,58 +9,19 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public sealed record EdgeFewShotSampleInput(Guid RoiId, string Name, RoiFixturePose Pose, FewShotClassId ClassId);
-
-public sealed record EdgeFewShotTargetInput(Guid RoiId, string Name, RoiFixturePose Pose, ImmutableArray<VisionGeometry.PointD> Outline);
-
-public sealed record EdgeFewShotItemOutput(
-    Guid RoiId,
-    string Name,
-    RoiFixturePose Pose,
-    ImmutableArray<VisionGeometry.PointD> Outline,
-    FewShotPredictionResult Prediction,
-    double Microseconds);
-
-public sealed record EdgeFewShotTrainingOutput(
-    ClassPrototypeModel Model,
-    int SampleCount,
-    int GoodCount,
-    int DefectCount,
-    double Milliseconds);
-
-public sealed record EdgeFewShotClassificationOutput(
-    ImmutableArray<EdgeFewShotItemOutput> Items,
-    double TotalMilliseconds,
-    double MeanMicroseconds);
-
-public interface IEdgeFewShotService
-{
-    Task<EdgeFewShotTrainingOutput> TrainAsync(
-        ImageReference image,
-        bool live,
-        IReadOnlyList<EdgeFewShotSampleInput> samples,
-        FewShotTrainOptions options,
-        CancellationToken token);
-
-    Task<EdgeFewShotClassificationOutput> ClassifyAsync(
-        ImageReference image,
-        bool live,
-        ClassPrototypeModel model,
-        IReadOnlyList<EdgeFewShotTargetInput> targets,
-        CancellationToken token);
-}
-
 /// <summary>
 /// 원본 영상에서 각 ROI 주변 로컬 창만 읽어 소량 샘플 학습(EdgeFewShotTrainer)과
 /// Zero-Allocation 마할라노비스 추론(EdgeFewShotClassifier)을 수행한다.
 /// </summary>
-public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> retainFrame) : IEdgeFewShotService
+public sealed class EdgeFewShotService(
+    IImageLoader loader,
+    Func<VideoFrame?> retainFrame,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : IEdgeFewShotService
 {
     private readonly SimdAffineRoiExtractor _roiExtractor = new();
     private readonly IlluminationNormalizer _illuminationNormalizer = new();
     private readonly MultiScaleGaborHogExtractor _featureExtractor = new();
     private readonly GemSpatialPooler _gemPooler = new();
-    private readonly SimpleShotNormalizer _simpleShotNormalizer = new();
     private readonly KMeansPlusPlusClusterer _clusterer = new();
     private readonly LedoitWolfCovariance _covarianceEstimator = new();
 
@@ -79,7 +40,7 @@ public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> re
                 throw new ArgumentException("최소 2개 이상의 ROI 샘플을 등록해 주세요.");
             }
 
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
 
             var trainer = new EdgeFewShotTrainer(
@@ -87,7 +48,6 @@ public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> re
                 _illuminationNormalizer,
                 _featureExtractor,
                 _gemPooler,
-                _simpleShotNormalizer,
                 _clusterer,
                 _covarianceEstimator);
 
@@ -149,7 +109,7 @@ public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> re
                 throw new ArgumentException("분류할 대상 ROI가 없습니다.");
             }
 
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
 
             var classifier = new EdgeFewShotClassifier(
@@ -157,7 +117,6 @@ public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> re
                 _illuminationNormalizer,
                 _featureExtractor,
                 _gemPooler,
-                _simpleShotNormalizer,
                 _covarianceEstimator);
             using var workspace = new ClassifierWorkspace();
             workspace.EnsureCapacity(model.RoiWidth, model.RoiHeight, _featureExtractor, model.TotalPrototypeCount, model.FeatureDimension);
@@ -167,7 +126,7 @@ public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> re
             long inferenceTicks = 0;
 
             bool canReadFull = (long)image.Width * image.Height <= VisionAlgorithm.OpenSrc.PatternMatching.PreparedSearchImage.MaximumPixels;
-            VisionAlgorithm.GrayImage? fullImage = canReadFull ? reader.Read(0, 0, image.Width, image.Height, token) : null;
+            VisionAlgorithm.ShapeGrayImage? fullImage = canReadFull ? reader.Read(0, 0, image.Width, image.Height, token) : null;
 
             for (int i = 0; i < targets.Count; i++)
             {
@@ -217,7 +176,7 @@ public sealed class EdgeFewShotService(IImageLoader loader, Func<VideoFrame?> re
             return new EdgeFewShotClassificationOutput(results.MoveToImmutable(), totalTimer.Elapsed.TotalMilliseconds, meanUs);
         }, token);
 
-    private static (VisionAlgorithm.GrayImage Crop, RoiFixturePose LocalPose) ReadLocalWindow(
+    private static (VisionAlgorithm.ShapeGrayImage Crop, RoiFixturePose LocalPose) ReadLocalWindow(
         MatchingImageReader reader,
         int imageWidth,
         int imageHeight,

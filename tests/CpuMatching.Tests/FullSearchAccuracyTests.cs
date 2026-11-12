@@ -12,7 +12,7 @@ public sealed class FullSearchAccuracyTests
         var template = Read("pin-template-106x129.gray", 106, 129);
         ITemplateMatcher matcher = new Line2DMatcher(template);
         var image = Read("pin-crossing-256x256.gray", 256, 256);
-        var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6 };
+        var options = new CpuSearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6 };
         var parallel = matcher.Find(image, options);
         var serial = matcher.Find(image, options with
         {
@@ -32,7 +32,7 @@ public sealed class FullSearchAccuracyTests
     {
         var matcher = new SubNccMatcher(Read("pin-template-106x129.gray", 106, 129));
         var image = Read(file, 256, 256);
-        var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6 };
+        var options = new CpuSearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6 };
         var parallel = matcher.Find(image, options);
         var serial = matcher.Find(image, options with
         {
@@ -50,7 +50,7 @@ public sealed class FullSearchAccuracyTests
     [InlineData(65)]
     public void WorkerCountMustBeBounded(int workers)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SearchOptions { MaximumDegreeOfParallelism = workers }.Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CpuSearchOptions { MaximumDegreeOfParallelism = workers }.Validate());
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class FullSearchAccuracyTests
         }
         var prepared = 0;
         var result = PyramidSearch.Find(new(32, 32, new byte[1024]), new(Width, 1024, pixels),
-            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0, CandidateLimit = 16 },
+            new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 0, CandidateLimit = 16 },
             (_, scene, _, _, fine) =>
             {
                 if (fine)
@@ -72,7 +72,7 @@ public sealed class FullSearchAccuracyTests
                     prepared++;
                 }
                 return new RepeatedMapPeaks(fine, .9 + (scene[0, 0] * .01));
-            }, default, reuseIdenticalTiles: true);
+            }, default, plan: new PyramidSearchPlan(ReuseIdenticalTiles: true));
         Assert.Equal(49, result.CandidateCount);
         Assert.Equal(41, result.Matches.Count);
         Assert.Equal(2, prepared);
@@ -99,10 +99,10 @@ public sealed class FullSearchAccuracyTests
     [Fact]
     public void CandidateBatchSizeDoesNotDiscardWeakerValidTargets()
     {
-        var image = new GrayImage(420, 32, new byte[420 * 32]);
-        var template = new GrayImage(8, 8, new byte[64]);
+        var image = new CpuGrayImage(420, 32, new byte[420 * 32]);
+        var template = new CpuGrayImage(8, 8, new byte[64]);
         SearchResult Find(int batchSize) => PyramidSearch.Find(template, image,
-            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0, CandidateLimit = batchSize },
+            new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 0, CandidateLimit = batchSize },
             (_, _, _, _, _) => new TwentyPeaks(), default);
 
         var small = Find(16);
@@ -129,7 +129,7 @@ public sealed class FullSearchAccuracyTests
         using var cancellation = new CancellationTokenSource();
         Assert.Throws<OperationCanceledException>(() => PyramidSearch.Find(
             new(8, 8, new byte[64]), new(420, 32, new byte[420 * 32]),
-            new SearchOptions { MinimumAngle = 0, MaximumAngle = 0, CandidateLimit = 16 },
+            new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 0, CandidateLimit = 16 },
             (_, _, _, _, _) => new TwentyPeaks(), cancellation.Token, acceptCenter: (_, _) =>
             {
                 cancellation.Cancel();
@@ -146,7 +146,7 @@ public sealed class FullSearchAccuracyTests
         // 기존 8K 샘플의 원본 Gray8 타일에서 추출했다. 정답은 생성기의 핀 위치이며 검색 결과가 아니다.
         var template = Read("pin-template-106x129.gray", 106, 129);
         var scene = Read(file, 256, 256);
-        var result = new SubNccMatcher(template).Find(scene, new SearchOptions
+        var result = new SubNccMatcher(template).Find(scene, new CpuSearchOptions
         {
             MinimumAngle = -30,
             MaximumAngle = 30,
@@ -159,6 +159,6 @@ public sealed class FullSearchAccuracyTests
         Assert.False(result.CandidatesTruncated);
     }
 
-    private static GrayImage Read(string file, int width, int height)
+    private static CpuGrayImage Read(string file, int width, int height)
         => new(width, height, File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Data", file)));
 }

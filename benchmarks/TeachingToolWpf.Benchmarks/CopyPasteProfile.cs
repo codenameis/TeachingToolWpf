@@ -54,10 +54,7 @@ internal static class CopyPasteProfile
 
             // PreparePasteAsync already warms every index. Recreate its output snapshot before separate attribution.
             var added = prepared.State.Rois.Keys.Where(id => !before.Rois.ContainsKey(id)).ToImmutableArray();
-            var replay = before.WithRois(prepared.State.Rois, added) with
-            {
-                Selection = prepared.State.Selection
-            };
+            var replay = before.WithRois(prepared.State.Rois, added).WithSelection(prepared.State.Selection);
             var replayStages = new List<Stage>();
             var content = clipboard.Capture();
             _ = Measure(replayStages, "place", () => content.Place(before.Image!, new(20, 20)));

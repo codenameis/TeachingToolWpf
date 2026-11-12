@@ -64,7 +64,7 @@ internal static class FullImageDataset
             warped.CopyTo(destination);
         }
         Cv2.ImWrite(Path.Combine(folder, "8k-full-eight.png"), canvas);
-        Case[] cases = [new("8k-full-eight", "template.png", "8k-full-eight.png", new SearchOptions
+        Case[] cases = [new("8k-full-eight", "template.png", "8k-full-eight.png", new CpuSearchOptions
         {
             MinimumAngle = -30, MaximumAngle = 30, MinimumScore = .75,
             CandidateLimit = 2048, MaximumMatches = 256, SuppressionRadius = 31.2

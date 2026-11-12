@@ -7,7 +7,7 @@ using System.Windows.Threading;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
-using VisionCanvas.WgpuSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.WgpuSample.ViewModels;
 using VisionCanvas.WgpuSample.Views;
 using VisionImaging;

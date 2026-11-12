@@ -1,4 +1,5 @@
 using VisionCanvas.Layers;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 
 namespace VisionCanvas.Rendering;

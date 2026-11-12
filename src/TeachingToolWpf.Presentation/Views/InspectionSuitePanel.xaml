@@ -555,6 +555,31 @@
                             </Grid>
                         </StackPanel>
 
+                        <!-- 21. 2D QR 코드 (ISO/IEC 18004) 360° 위치·각도 리더 전용 설정 -->
+                        <StackPanel Visibility="{Binding IsQrCode2DSelected, Converter={StaticResource BoolVisibility}}">
+                            <TextBlock Text="ISO 15415 최소 심볼 대비 (0.05 ~ 0.90 · 기본 0.20)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0.05" Maximum="0.90" TickFrequency="0.01"
+                                        Value="{Binding QrCodeMinIsoContrast, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding QrCodeMinIsoContrast, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+
+                            <TextBlock Text="Reed-Solomon(GF 2^8 · 0x11D) 최대 허용 정정 바이트 (0 ~ 32 · 기본 8)" Style="{StaticResource Caption}"/>
+                            <Grid Margin="0,4,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="68"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Grid.Column="0" Minimum="0" Maximum="32" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding QrCodeMaxEccErrors, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBox Grid.Column="1" Text="{Binding QrCodeMaxEccErrors, UpdateSourceTrigger=PropertyChanged, Converter={controls:NumericTextConverter}, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                            </Grid>
+                        </StackPanel>
+
                         <!-- 17. 2D FFT 노치 · 호모모픽 · Gabor 전용 설정 -->
                         <StackPanel Visibility="{Binding IsPreprocessingFftGaborSelected, Converter={StaticResource BoolVisibility}}">
                             <TextBlock Text="노치/Gabor 주파수 대역폭 σ (0.6 ~ 10.0 · 기본 2.5)" Style="{StaticResource Caption}"/>
@@ -757,16 +782,29 @@
                                 </DockPanel>
                                 <TextBlock Text="{Binding OcvFontStatusBadge}" FontSize="10" Foreground="#0369A1" TextWrapping="Wrap" Margin="0,0,0,6"/>
 
-                                <TextBlock Text="선택 ROI 기대 문자열 (문서·Undo 보존)" Style="{StaticResource Caption}"/>
-                                <TextBox Text="{Binding SelectedRoiOcvExpectedText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas, Malgun Gothic" Margin="0,3,0,4"/>
+                                <TextBlock Text="선택 ROI 기대 문자열 (단일 ROI 선택 · 포커스 이동 시 문서·Undo 보존)" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding SelectedRoiOcvExpectedText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                         IsEnabled="{Binding CanEditSelectedRoiOcvSettings}"
+                                         FontFamily="Consolas, Malgun Gothic"
+                                         Margin="0,3,0,4"/>
                                 <Button Content="PP-OCR 판독값 → 기대 문자열 채우기"
                                         Command="{Binding ApplyPpOcrTextToOcvExpectedText}"
                                         Style="{StaticResource SecondaryButton}"
                                         Margin="0,0,0,6"
                                         FontSize="9.8"/>
 
-                                <TextBlock Text="필드 형식 마스크 (선택 · 예: AAAA9999 또는 정규식)" Style="{StaticResource Caption}"/>
-                                <TextBox Text="{Binding SelectedRoiOcvFormatMask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas, Malgun Gothic" Margin="0,3,0,6"/>
+                                <TextBlock Text="필드 형식 마스크 (선택 · 예: AAAADDDD 또는 LOT\-DDDD\-ADD)" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding SelectedRoiOcvFormatMask, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                         IsEnabled="{Binding CanEditSelectedRoiOcvSettings}"
+                                         ToolTip="기호: D=숫자(0-9), A=영문대문자, a=영문소문자, X=영숫자, #=공백제외 임의문자, [0-9A-F]=문자범위, \문자=리터럴 (정규식 미지원)"
+                                         FontFamily="Consolas, Malgun Gothic"
+                                         Margin="0,3,0,6"/>
+
+                                <TextBlock Text="ROI 전용 폰트 ID (기본: default · 공정별 다중 폰트 분리)" Style="{StaticResource Caption}"/>
+                                <TextBox Text="{Binding SelectedRoiOcvFontId, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                         IsEnabled="{Binding CanEditSelectedRoiOcvSettings}"
+                                         FontFamily="Consolas, Malgun Gothic"
+                                         Margin="0,3,0,6"/>
 
                                 <TextBlock Text="OCV 전경 최소 대비 오프셋 (2 ~ 80 GV · 기본 14)" Style="{StaticResource Caption}"/>
                                 <Grid Margin="0,3,0,6">

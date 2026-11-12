@@ -91,7 +91,7 @@ internal static class InspectionResultPresentation
 
     /// <summary>학습 직후 또는 파라미터 변경 시 선택한 ROI 위에 추출된 모델 특징점, 비대칭 문맥 키(AsymX, AsymY), 허용 거리 대역, 회전·배율 가이드를 즉시 시각적으로 미리 보여 준다.</summary>
     public static ImmutableArray<MatchMarker> TrainingPreviewMarkers(ShapeModel model, RoiGeometry teachingRegion,
-        SearchOptions? searchOptions = null)
+        ShapeSearchOptions? searchOptions = null)
     {
         var angleRad = teachingRegion.Angle * Math.PI / 180;
         var cos = Math.Cos(angleRad);

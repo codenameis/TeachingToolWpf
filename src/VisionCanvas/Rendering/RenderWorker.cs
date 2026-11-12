@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using VisionCanvas.Diagnostics;
 using VisionCanvas.Imaging;
-using VisionImaging.Abstractions;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Rendering;
 
@@ -9,6 +8,9 @@ namespace VisionCanvas.Rendering;
 public sealed class RenderWorker : RenderWorkerBase
 {
     private const double BytesPerGibibyte = 1024d * 1024 * 1024;
+    private const long BytesPerMebibyte = 1024L * 1024;
+    private const int PacingWaitTimeoutMilliseconds = 1000;
+
     private readonly nint _hwnd;
     private readonly ITextRasterizer _textRasterizer;
     private readonly IFramePreparer _framePreparer;
@@ -19,10 +21,17 @@ public sealed class RenderWorker : RenderWorkerBase
     {
     }
 
-    public RenderWorker(nint hwnd, TileWorker tiles, ITextRasterizer textRasterizer, LatestFrameMailbox frames,
-        IFramePreparer framePreparer, RenderDevicePreference devicePreference)
+    public RenderWorker(
+        nint hwnd,
+        TileWorker tiles,
+        ITextRasterizer textRasterizer,
+        LatestFrameMailbox frames,
+        IFramePreparer framePreparer,
+        RenderDevicePreference devicePreference)
         : base(tiles, frames, "DX12 renderer", useStaApartment: true)
     {
+        ArgumentNullException.ThrowIfNull(textRasterizer);
+        ArgumentNullException.ThrowIfNull(framePreparer);
         if (!Enum.IsDefined(devicePreference))
         {
             throw new ArgumentOutOfRangeException(nameof(devicePreference));
@@ -34,146 +43,49 @@ public sealed class RenderWorker : RenderWorkerBase
         _devicePreference = devicePreference;
     }
 
-    private protected override void RunCore()
+    protected override void RunCore()
     {
         try
         {
             using var gpu = new Dx12Device(Environment.GetCommandLineArgs().Contains("--gpu-debug"), _devicePreference);
             using var surface = new Dx12Surface(gpu, _hwnd, TargetWidth, TargetHeight);
-            WaitHandle[] frameSignals = [surface.FrameReady, StopHandle];
             using var pipeline = new SpritePipeline(gpu);
             using var profile = new RenderProfile();
-            using var roiPipeline = new RoiPipeline(gpu, profile.Enabled);
+            using var roiPipeline = new RoiPipeline(gpu, profile.IsEnabled);
             using var maskPipeline = new MaskPipeline(gpu);
             using var gpuTimer = gpu.IsSoftware ? null : new GpuTimer(gpu);
-            using var metrics = new FrameMetrics();
-            var painter = new ScenePainter();
-            using var labels = new GpuLabelCache(_textRasterizer);
-            using var resultLabels = new GpuResultLabels(_textRasterizer);
-            using var images = new GpuImageResources(gpu.TileBudgetBytes, pipeline, Tiles, _framePreparer);
-            using var filters = new GpuFilterPreview();
-            IRenderTexture? white = null;
-            VideoFrame? retainedFrame = null;
-            long frame = 0;
-            var frameReady = false;
-            RenderScene? presentedScene = null;
-            var presentedOverlay = Guid.Empty;
+
             RaiseStatusChanged(gpu.IsSoftware
-                ? $"DX12 · CPU (WARP) · {gpu.AdapterName} · Tile cache {gpu.TileBudgetBytes / (1024 * 1024)} MiB · Debug: {gpu.DebugEnabled}"
+                ? $"DX12 · CPU (WARP) · {gpu.AdapterName} · Tile cache {gpu.TileBudgetBytes / BytesPerMebibyte} MiB · Debug: {gpu.DebugEnabled}"
                 : $"DX12 · GPU · {gpu.AdapterName} · VRAM {gpu.DedicatedMemoryBytes / BytesPerGibibyte:F1} GiB · Budget {gpu.LocalMemoryBudget / BytesPerGibibyte:F1} GiB · Debug: {gpu.DebugEnabled}");
+
+            var backend = new Dx12FrameBackend(
+                gpu,
+                surface,
+                pipeline,
+                roiPipeline,
+                maskPipeline,
+                profile,
+                gpuTimer,
+                _textRasterizer,
+                _framePreparer,
+                StopHandle,
+                RaiseStatusChanged);
+
             try
             {
-                while (WaitForWake())
-                {
-                    var targetWidth = TargetWidth;
-                    var targetHeight = TargetHeight;
-                    if (targetWidth <= 0 || targetHeight <= 0)
-                    {
-                        continue;
-                    }
-
-                    var submission = LatestSubmission;
-                    var current = submission?.Scene;
-                    if (RenderWorkerLoop.IsNothingChanged(current, presentedScene, targetWidth, targetHeight,
-                        surface.Width, surface.Height, Frames, Tiles, labels, roiPipeline.HasPendingDetails, PendingCapture, white))
-                    {
-                        continue;
-                    }
-
-                    var cpuStart = Stopwatch.GetTimestamp();
-                    var allocationStart = profile.Enabled ? GC.GetAllocatedBytesForCurrentThread() : 0;
-                    var gcPauseStart = profile.Enabled ? GC.GetTotalPauseDuration() : default;
-                    var pacingStart = Stopwatch.GetTimestamp();
-                    if (!frameReady && WaitHandle.WaitAny(frameSignals, 1000) != 0)
-                    {
-                        gpu.Device.DeviceRemovedReason.CheckError();
-                        Invalidate();
-                        continue;
-                    }
-
-                    var pacingElapsed = Stopwatch.GetElapsedTime(pacingStart).TotalMilliseconds;
-                    if (IsStopping)
-                    {
-                        break;
-                    }
-
-                    frameReady = true;
-                    targetWidth = TargetWidth;
-                    targetHeight = TargetHeight;
-                    if (targetWidth <= 0 || targetHeight <= 0)
-                    {
-                        continue;
-                    }
-
-                    surface.Resize(targetWidth, targetHeight);
-                    surface.Begin();
-                    submission = LatestSubmission;
-                    current = submission?.Scene;
-                    frame++;
-                    var gpuElapsed = gpuTimer?.Begin(surface);
-                    pipeline.BeginFrame(surface);
-                    var whiteTexture = RenderWorkerLoop.EnsureWhiteTexture(ref white, pipeline, surface);
-                    var videoFrame = Frames.Take();
-                    retainedFrame = RenderWorkerLoop.UpdateRetainedFrame(current?.IsLive == true, retainedFrame, videoFrame, Frames);
-                    if (current is { Width: > 0, Height: > 0 })
-                    {
-                        DrawScene(current, retainedFrame, surface, pipeline, roiPipeline, maskPipeline,
-                            painter, labels, resultLabels, images, filters, whiteTexture, profile, cpuStart, allocationStart, gcPauseStart, frame);
-                    }
-
-                    var capture = TryTakeCapture(submission, images, labels, roiPipeline.HasPendingDetails, requireVisibleTiles: false);
-                    using var readback = capture is null ? null : new FrameReadback(gpu, surface);
-                    gpuTimer?.End(surface);
-                    var cpuElapsed = Stopwatch.GetElapsedTime(cpuStart).TotalMilliseconds;
-                    var presentStart = Stopwatch.GetTimestamp();
-                    var completionFence = surface.Present();
-                    frameReady = false;
-                    presentedScene = current;
-                    if (RenderWorkerLoop.ShouldNotifyOverlayPresented(current, presentedOverlay, labels, roiPipeline.HasPendingDetails, out presentedOverlay))
-                    {
-                        gpu.Wait(completionFence);
-                        RaiseOverlayPresented(new(presentedOverlay, Stopwatch.GetTimestamp()));
-                    }
-
-                    RenderWorkerLoop.RecordAndNotifyMetrics(
-                        metrics,
-                        frame,
-                        notifyFirstFrame: false,
-                        MetricsChangedHandler,
-                        cpuElapsed,
-                        gpuElapsed,
-                        Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds,
-                        videoFrame,
-                        Frames.Dropped,
-                        images.Bytes,
-                        surface.FenceWaitMilliseconds,
-                        submission,
-                        metrics.Enabled ? surface.ReadPresentationStatistics() : null,
-                        pacingElapsed);
-
-                    foreach (var message in gpu.ReadDebugMessages())
-                    {
-                        RaiseStatusChanged("D3D12 " + message);
-                    }
-
-                    if (readback is not null)
-                    {
-                        gpu.Flush();
-                        readback.Save(capture!);
-                    }
-                }
+                FrameLoop.Run(
+                    this,
+                    backend,
+                    new FrameLoopOptions(
+                        gpu.TileBudgetBytes,
+                        RequireVisibleTilesBeforeCapture: false,
+                        NotifyFirstFrame: false,
+                        CaptureBeforePresent: true));
             }
             finally
             {
-                try
-                {
-                    gpu.Flush();
-                }
-                finally
-                {
-                    white?.Dispose();
-                    retainedFrame?.Dispose();
-                }
+                gpu.Flush();
             }
         }
         catch (Exception ex)
@@ -182,57 +94,141 @@ public sealed class RenderWorker : RenderWorkerBase
         }
     }
 
-    private void DrawScene(
-        RenderScene current,
-        VideoFrame? retainedFrame,
+    private sealed class Dx12FrameBackend(
+        Dx12Device gpu,
         Dx12Surface surface,
-        SpritePipeline pipeline,
+        SpritePipeline sprites,
         RoiPipeline roiPipeline,
         MaskPipeline maskPipeline,
-        ScenePainter painter,
-        GpuLabelCache labels,
-        GpuResultLabels resultLabels,
-        GpuImageResources images,
-        GpuFilterPreview filters,
-        IRenderTexture white,
         RenderProfile profile,
-        long cpuStart,
-        long allocationStart,
-        TimeSpan gcPauseStart,
-        long frame)
+        GpuTimer? gpuTimer,
+        ITextRasterizer textRasterizer,
+        IFramePreparer framePreparer,
+        WaitHandle stopHandle,
+        Action<string> reportStatus)
+        : IFrameBackend, IFramePacing, IFrameProfiler
     {
-        var paintStart = Stopwatch.GetTimestamp();
-        var mesh = RenderWorkerLoop.BuildSceneMesh(
-            current,
-            retainedFrame,
-            surface,
-            pipeline,
-            painter,
-            images,
-            filters,
-            labels,
-            resultLabels,
-            white,
-            frame,
-            Invalidate);
-        var submitStart = Stopwatch.GetTimestamp();
-        pipeline.Draw(mesh, surface, painter.RoiBatchBoundary, () =>
+        private readonly WaitHandle[] _frameSignals = [surface.FrameReady, stopHandle];
+        private bool _frameReady;
+
+        public IRenderSurface Surface => surface;
+
+        public ITexturePipeline Textures => sprites;
+
+        public ITextRasterizer TextRasterizer => textRasterizer;
+
+        public IFramePreparer FramePreparer => framePreparer;
+
+        public bool HasPendingRoiDetails => roiPipeline.HasPendingDetails;
+
+        public double LastFenceWaitMilliseconds => surface.FenceWaitMilliseconds;
+
+        public bool IsProfileEnabled => profile.IsEnabled;
+
+        public FramePacingResult WaitForNextFrame()
         {
-            maskPipeline.Draw(current, surface);
-            roiPipeline.Draw(current, surface);
-        });
-        var submitEnd = Stopwatch.GetTimestamp();
-        var gcPauseDelta = profile.Enabled ? GC.GetTotalPauseDuration() - gcPauseStart : default;
-        var roiStats = new RoiRenderStats(
-            roiPipeline.InstanceCount,
-            roiPipeline.UploadedBytes,
-            roiPipeline.CacheBytes,
-            roiPipeline.PackMilliseconds,
-            roiPipeline.CreateMilliseconds,
-            roiPipeline.UploadMilliseconds,
-            roiPipeline.HasPendingDetails,
-            roiPipeline.DeferredBlocks);
-        profile.Record(current, cpuStart, paintStart, submitStart, submitEnd, allocationStart, mesh, roiStats, labels, gcPauseDelta);
-        RenderWorkerLoop.FinishSceneLabels(labels, surface, roiPipeline.HasPendingDetails, Invalidate);
+            var pacingStart = Stopwatch.GetTimestamp();
+            if (!_frameReady && WaitHandle.WaitAny(_frameSignals, PacingWaitTimeoutMilliseconds) != 0)
+            {
+                gpu.Device.DeviceRemovedReason.CheckError();
+                return new FramePacingResult(false, Stopwatch.GetElapsedTime(pacingStart).TotalMilliseconds);
+            }
+
+            _frameReady = true;
+            return new FramePacingResult(true, Stopwatch.GetElapsedTime(pacingStart).TotalMilliseconds);
+        }
+
+        public bool TryBeginFrame(int width, int height)
+        {
+            surface.Resize(width, height);
+            surface.Begin();
+            sprites.BeginFrame(surface);
+            return true;
+        }
+
+        public double? BeginGpuTiming() => gpuTimer?.Begin(surface);
+
+        public void BeginDrawing()
+        {
+        }
+
+        public void DrawScene(RenderScene scene, SpriteMesh mesh, int roiBatchBoundary)
+        {
+            sprites.Draw(mesh, surface, roiBatchBoundary, () =>
+            {
+                maskPipeline.Draw(scene, surface);
+                roiPipeline.Draw(scene, surface);
+            });
+        }
+
+        public void EndDrawing()
+        {
+        }
+
+        public void RecordScene(
+            RenderScene scene,
+            long cpuStartTicks,
+            long paintStartTicks,
+            long submitStartTicks,
+            long submitEndTicks,
+            long allocatedBytesStart,
+            TimeSpan gcPauseStart,
+            SpriteMesh mesh,
+            LabelCacheStats labels)
+        {
+            var gcPauseDelta = profile.IsEnabled ? GC.GetTotalPauseDuration() - gcPauseStart : default;
+            var roiStats = new RoiRenderStats(
+                roiPipeline.InstanceCount,
+                roiPipeline.UploadedBytes,
+                roiPipeline.CacheBytes,
+                roiPipeline.PackMilliseconds,
+                roiPipeline.CreateMilliseconds,
+                roiPipeline.UploadMilliseconds,
+                roiPipeline.HasPendingDetails,
+                roiPipeline.DeferredBlocks);
+            profile.Record(scene, cpuStartTicks, paintStartTicks, submitStartTicks, submitEndTicks, allocatedBytesStart, mesh, roiStats, labels, gcPauseDelta);
+        }
+
+        public IDisposable? CreateCaptureReadback() => new FrameReadback(gpu, surface);
+
+        public void EndGpuTiming() => gpuTimer?.End(surface);
+
+        public ulong Present()
+        {
+            var fence = surface.Present();
+            _frameReady = false;
+            return fence;
+        }
+
+        public void WaitForCompletion(ulong completionToken) => gpu.Wait(completionToken);
+
+        public DisplayPresentStatistics? ReadPresentationStatistics() => surface.ReadPresentationStatistics();
+
+        public void OnAfterFrame()
+        {
+            foreach (var message in gpu.ReadDebugMessages())
+            {
+                reportStatus("D3D12 " + message);
+            }
+        }
+
+        public void SaveCapture(IDisposable? readback, string path)
+        {
+            if (readback is not FrameReadback dx12Readback)
+            {
+                readback?.Dispose();
+                return;
+            }
+
+            try
+            {
+                gpu.Flush();
+                dx12Readback.Save(path);
+            }
+            finally
+            {
+                dx12Readback.Dispose();
+            }
+        }
     }
 }

@@ -3,7 +3,7 @@ using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
 using VisionCanvas.Wgpu.Controls;
-using VisionCanvas.WgpuSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.WgpuSample.ViewModels;
 using VisionImaging;
 using VisionImaging.Abstractions;

@@ -7,42 +7,10 @@ using VisionImaging.Abstractions;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
-public enum CpuTemplateMethod
-{
-    Line2D,
-    SubNcc
-}
-
-public sealed record CpuTemplate(CpuTemplateMethod Method, ITemplateMatcher Matcher, RoiGeometry TeachingRegion)
-{
-    public CpuTemplateParameters Parameters { get; init; } = new();
-    public byte[]? PreviewGray8 { get; init; }
-    public int PreviewWidth { get; init; }
-    public int PreviewHeight { get; init; }
-}
-public sealed record CpuSearchOutput(SearchResult Result, double TotalMilliseconds, double ReadMilliseconds, double SearchMilliseconds)
-{
-    public long CompletedTimestamp
-    {
-        get; init;
-    }
-    public CoarseScoreDiagnostics? Acceleration
-    {
-        get; init;
-    }
-}
-
-public interface ICpuTemplateMatchingService
-{
-    Task<CpuTemplate> TrainAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method, CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null);
-    Task<CpuSearchOutput> SearchAsync(ImageReference image, bool live, CpuTemplate template, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false);
-    Task<CpuTemplate?> PreviewAsync(ImageReference image, bool live, RoiGeometry roi, CpuTemplateMethod method, CancellationToken token, RoiExclusion? exclusion = null, CpuTemplateParameters? parameters = null)
-        => Task.FromResult<CpuTemplate?>(null);
-}
-
 /// <summary>원본 읽기/회전 학습 ROI와 CPU 라이브러리의 픽셀 인덱스 좌표를 연결한다.</summary>
 public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFrame?> retainFrame,
-    Func<ICoarseScoreAccelerator>? rentAccelerator = null) : ICpuTemplateMatchingService
+    Func<ICoarseScoreAccelerator>? rentAccelerator = null,
+    IPreInspectionFilterPipeline? preFilterPipeline = null) : ICpuTemplateMatchingService
 {
     private readonly MatchingPreviewCache _previewCache = new();
 
@@ -63,7 +31,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
     {
         parameters ??= new CpuTemplateParameters();
         parameters.Validate(method);
-        ShapeMatchingService.ValidateRegion(image, roi);
+        MatchingRegionValidator.ValidateTeachingRegion(image, roi);
         if (roi.Shape.Kind != RoiShapeKind.Rectangle || exclusion is not null)
         {
             throw new NotSupportedException("CPU 방식의 학습은 마스크 없는 사각형 ROI를 지원합니다.");
@@ -80,23 +48,22 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
         var height = (int)Math.Round(roi.Height);
         // 재표본화의 배율을 숨기지 않고 1픽셀 간격으로 학습한다. 표시 경계도 이 크기다.
         var teaching = new RoiGeometry(roi.Center, width, height, roi.Angle);
-        var left = Math.Max(0, (int)Math.Floor(teaching.Bounds.Left) - 1);
-        var top = Math.Max(0, (int)Math.Floor(teaching.Bounds.Top) - 1);
-        var right = Math.Min(image.Width, (int)Math.Ceiling(teaching.Bounds.Right) + 1);
-        var bottom = Math.Min(image.Height, (int)Math.Ceiling(teaching.Bounds.Bottom) + 1);
-        GrayImage crop;
+        var cropWindow = MatchingCropWindow.Expand(image, teaching.Bounds, padding: 1);
+        var left = cropWindow.Left;
+        var top = cropWindow.Top;
+        CpuGrayImage crop;
         if (usePreviewCache)
         {
-            var raw = await _previewCache.ReadAsync(image, live, loader, retainFrame, left, top, right - left, bottom - top, null, token, preferDirectGray: true).ConfigureAwait(false);
+            var raw = await _previewCache.ReadAsync(image, live, loader, retainFrame, left, top, cropWindow.Width, cropWindow.Height, null, token, preferDirectGray: true, preFilterPipeline: preFilterPipeline).ConfigureAwait(false);
             var rawBytes = new byte[raw.Width * raw.Height];
             raw.Pixels.Span.Slice(0, rawBytes.Length).CopyTo(rawBytes);
-            crop = new GrayImage(raw.Width, raw.Height, rawBytes);
+            crop = new CpuGrayImage(raw.Width, raw.Height, rawBytes);
         }
         else
         {
-            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+            using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
             reader.PreferDirectGray = true;
-            crop = Read(reader, left, top, right - left, bottom - top, token);
+            crop = Read(reader, left, top, cropWindow.Width, cropWindow.Height, token);
         }
         var pixels = new byte[width * height];
         for (var y = 0; y < height; y++)
@@ -109,7 +76,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
                     Math.Clamp(world.X - left - .5, 0, crop.Width - 1), Math.Clamp(world.Y - top - .5, 0, crop.Height - 1)));
             }
         }
-        var gray = new GrayImage(width, height, pixels);
+        var gray = new CpuGrayImage(width, height, pixels);
         ITemplateMatcher matcher = method switch
         {
             CpuTemplateMethod.Line2D => new Line2DMatcher(gray, parameters.Line2D),
@@ -126,7 +93,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
     }
 
     public async Task<CpuSearchOutput> SearchAsync(ImageReference image, bool live, CpuTemplate template, RoiGeometry? region,
-        SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false)
+        CpuSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null, bool useCuda = false)
     {
         var total = Stopwatch.StartNew();
         var output = await Task.Run(async () =>
@@ -142,22 +109,23 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
             }
             if (region is not null)
             {
-                ShapeMatchingService.ValidateSearchRegion(image, region);
+                MatchingRegionValidator.ValidateSearchRegion(image, region);
             }
             var teaching = template.TeachingRegion;
             var bounds = region?.Bounds ?? new BoundsD(0, 0, image.Width, image.Height);
             // ROI는 기준점의 검색 범위다. 경계의 대상도 전체 템플릿으로 평가하도록 원본 여백을 읽는다.
-            var halo = Math.Ceiling(Math.Sqrt((teaching.Width * teaching.Width) + (teaching.Height * teaching.Height)) * options.MaximumScale / 2) + 3;
-            var left = Math.Max(0, (int)Math.Floor(bounds.Left - halo));
-            var top = Math.Max(0, (int)Math.Floor(bounds.Top - halo));
-            var right = Math.Min(image.Width, (int)Math.Ceiling(bounds.Right + halo));
-            var bottom = Math.Min(image.Height, (int)Math.Ceiling(bounds.Bottom + halo));
+            var halo = (int)Math.Ceiling(Math.Sqrt((teaching.Width * teaching.Width) + (teaching.Height * teaching.Height)) * options.MaximumScale / 2) + 3;
+            var searchWindow = MatchingCropWindow.Expand(image, bounds, halo);
+            var left = searchWindow.Left;
+            var top = searchWindow.Top;
+            var right = searchWindow.Right;
+            var bottom = searchWindow.Bottom;
             var readTimer = Stopwatch.StartNew();
             SearchResult result;
             double readMs;
             double searchMs;
             CoarseScoreDiagnostics? acceleration = null;
-            using (var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false))
+            using (var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false))
             {
                 reader.PreferDirectGray = true;
                 var windowed = (long)(right - left) * (bottom - top) > PyramidSearch.MaximumSearchPixels;
@@ -173,15 +141,15 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
                     // UI 각도는 학습 ROI에 대한 상대 각도, 결과는 영상 기준 절대 각도다.
                     var middle = (options.MinimumAngle + options.MaximumAngle) / 2;
                     var offset = PyramidSearch.Wrap(middle + teaching.Angle) - middle;
-                    var searchOptions = options with
+                    var CpuSearchOptions = options with
                     {
                         MinimumAngle = options.MinimumAngle + offset,
                         MaximumAngle = options.MaximumAngle + offset
                     };
                     Func<double, double, bool>? accept = region is null ? null
                         : (x, y) => region.Contains(new PointD(x + left + .5, y + top + .5));
-                    result = windowed ? template.Matcher.FindWindowed(source, searchOptions, token, accept, accelerator)
-                        : template.Matcher.Find(gray!, searchOptions, token, accept, accelerator);
+                    result = windowed ? template.Matcher.FindWindowed(source, CpuSearchOptions, token, accept, accelerator)
+                        : template.Matcher.Find(gray!, CpuSearchOptions, token, accept, accelerator);
                     acceleration = accelerator?.Diagnostics;
                 }
                 readMs += source.ReadMilliseconds;
@@ -204,7 +172,7 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
         };
     }
 
-    private static GrayImage Read(MatchingImageReader reader, int left, int top, int width, int height, CancellationToken token)
+    private static CpuGrayImage Read(MatchingImageReader reader, int left, int top, int width, int height, CancellationToken token)
     {
         var pixels = new byte[checked(width * height)];
         // 원본은 모두 읽되 중간 읽기 버퍼만 약 2Mpx씩 제한한다. 검색 좌표/해상도는 바꾸지 않는다.
@@ -219,6 +187,6 @@ public sealed class CpuTemplateMatchingService(IImageLoader loader, Func<VideoFr
                 raw.Pixels.Span.Slice(y * raw.Stride, width).CopyTo(pixels.AsSpan((row + y) * width, width));
             }
         }
-        return new GrayImage(width, height, pixels);
+        return new CpuGrayImage(width, height, pixels);
     }
 }

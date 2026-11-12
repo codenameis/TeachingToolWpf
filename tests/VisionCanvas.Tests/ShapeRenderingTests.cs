@@ -1,6 +1,7 @@
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 using VisionImaging.Abstractions;
 

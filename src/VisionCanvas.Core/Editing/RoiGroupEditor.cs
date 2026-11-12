@@ -167,7 +167,7 @@ internal static class RoiGroupEditor
         var level = roots.Max(id => before.Snapshot.GroupLevels.GetValueOrDefault(id)) + 1;
         var group = new Roi(
             Guid.NewGuid(),
-            $"{RoiHierarchy.LevelName(level)} {order:000}",
+            RoiName.CreateGroupDefault(level, order),
             RoiImageBounds.ClipNew(new(bounds.Center, bounds.Width + (padding * 2), bounds.Height + (padding * 2), 0), before.Image),
             null,
             true,

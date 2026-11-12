@@ -1,4 +1,3 @@
-// File: src/VisionOcr.PpOcr/PpOcrRunOptions.cs
 using VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
 
 namespace VisionOcr.PpOcr;
@@ -35,6 +34,11 @@ public sealed record PpOcrRunOptions(
 
     public static PpOcrRunOptions Default { get; } = new();
 
+    /// <summary>
+    /// Creates the high-speed production preset (<c>RecOnly</c>, single-pass polarity, exact-width batching),
+    /// preserving an explicit <see cref="PpOcrLanguage.Korean"/> selection and only collapsing
+    /// <see cref="PpOcrLanguage.MultilingualConfidenceSelect"/> to <see cref="PpOcrLanguage.English"/> for single-model speed.
+    /// </summary>
     public static PpOcrRunOptions CreateHighSpeedProduction(
         PpOcrLanguage language = PpOcrLanguage.English,
         PpOcrPolarityMode polarityMode = PpOcrPolarityMode.Auto,
@@ -43,7 +47,7 @@ public sealed record PpOcrRunOptions(
         float minCharacterConfidence = DefaultMinCharacterConfidence,
         int maxBatchSize = DefaultMaxBatchSize)
         => new(
-            Language: language == PpOcrLanguage.MultilingualConfidenceSelect ? PpOcrLanguage.English : language,
+            Language: language == PpOcrLanguage.Korean ? PpOcrLanguage.Korean : PpOcrLanguage.English,
             PipelineMode: PpOcrPipelineMode.RecOnly,
             PolarityMode: polarityMode,
             AllowedCharacterSet: allowedCharacterSet,

@@ -3,7 +3,7 @@ using System.Windows;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Presentation;
-using VisionCanvas.VulkanSample.Services;
+using VisionCanvas.SampleShell.Services;
 using VisionCanvas.VulkanSample.ViewModels;
 using VisionCanvas.VulkanSample.Views;
 using VisionImaging;
@@ -19,9 +19,12 @@ public partial class App : Application
         var editor = new EditorSession();
         var input = new InteractionController(editor);
         var layout = new ViewportLayout();
-        var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VisionCanvas.VulkanSample", "ImageCache");
+        string cache = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "VisionCanvas.VulkanSample",
+            "ImageCache");
         var images = new ImageCoordinator(editor, window.Viewport, layout, new ImageLoader(cache));
-        var model = new EditorViewModel(editor, input, layout, images, new ImageFilePicker(window));
+        var model = new EditorViewModel(editor, input, layout, images, new ImageFilePicker(window, "Vulkan Canvas · 이미지 열기"));
         window.DataContext = model;
         window.Closing += (_, _) => model.Dispose();
         MainWindow = window;

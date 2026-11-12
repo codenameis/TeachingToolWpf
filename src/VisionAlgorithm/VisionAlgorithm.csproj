@@ -6,6 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\VisionKernels\VisionKernels.csproj" />
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.24.4" />
     <InternalsVisibleTo Include="VisionAlgorithm.Tests" />

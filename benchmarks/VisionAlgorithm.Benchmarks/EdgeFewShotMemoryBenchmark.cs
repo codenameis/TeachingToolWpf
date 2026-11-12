@@ -35,12 +35,11 @@ public sealed class EdgeFewShotMemoryBenchmark : IDisposable
         var normalizer = new IlluminationNormalizer();
         var backbone = new MultiScaleGaborHogExtractor();
         var gemPooler = new GemSpatialPooler();
-        var simpleShot = new SimpleShotNormalizer();
         var clusterer = new KMeansPlusPlusClusterer();
         var covariance = new LedoitWolfCovariance();
 
-        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, simpleShot, clusterer, covariance);
-        _classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, simpleShot, covariance);
+        var trainer = new EdgeFewShotTrainer(roiExtractor, normalizer, backbone, gemPooler, clusterer, covariance);
+        _classifier = new EdgeFewShotClassifier(roiExtractor, normalizer, backbone, gemPooler, covariance);
 
         var goodClass = FewShotClassId.Create(0, "Good");
         var badClass = FewShotClassId.Create(1, "BackBad");

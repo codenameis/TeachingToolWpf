@@ -32,7 +32,7 @@ internal static class KensaTextBenchmark
             MaximumAngleDegrees = 180,
             AngleStepDegrees = 10
         };
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             MaximumParallelism = 12,
             MaximumMatches = 256,

@@ -39,7 +39,7 @@ public sealed class ShapeMatchLimitTests
             MinimumAngleDegrees = 0,
             MaximumAngleDegrees = 0,
         }, default);
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             MinimumScore = .8,
             MaximumMatches = 1,

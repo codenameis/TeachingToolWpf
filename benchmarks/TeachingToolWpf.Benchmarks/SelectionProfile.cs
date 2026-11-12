@@ -46,10 +46,7 @@ internal static class SelectionProfile
 
                 var stages = new List<object>();
                 var selected = Measure("query-and-set", () => RoiIdSet.CreateRange(Ids().Where(source.Rois.ContainsKey)));
-                var state = source with
-                {
-                    Selection = selected
-                };
+                var state = source.WithSelection(selected);
                 _ = Measure("selection-facts", () => state.SelectionFacts.HasMultipleRoots);
                 _ = Measure("selected-spatial", () => state.SelectedSpatial);
                 var transform = Measure("transform-membership", () => state.TransformSelection);

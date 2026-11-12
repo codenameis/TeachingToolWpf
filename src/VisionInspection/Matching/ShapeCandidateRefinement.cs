@@ -20,7 +20,7 @@ internal static class ShapeCandidateRefinement
     }
 
     public static Output Run(MatchingImageReader reader, ImageReference image, ShapeModel model,
-        RoiGeometry? region, SearchOptions options, ShapeMatch[] seeds, CancellationToken token, ShapeMatcher matcher)
+        RoiGeometry? region, ShapeSearchOptions options, ShapeMatch[] seeds, CancellationToken token, ShapeMatcher matcher)
     {
         var factor = model.Levels[^1].Factor;
         var jobs = seeds.Select((seed, index) =>
@@ -36,7 +36,7 @@ internal static class ShapeCandidateRefinement
             new(options.MaximumParallelism, ParallelPixelBudget, ShapeTrainer.MaximumPixels), token);
         return new(results, readTime);
 
-        MatchResult Execute(Job job, GrayImage crop, CancellationToken workToken)
+        MatchResult Execute(Job job, ShapeGrayImage crop, CancellationToken workToken)
         {
             var result = matcher.RefineCandidate(crop, model,
                 job.Seed.Pose with

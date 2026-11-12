@@ -159,7 +159,7 @@ public sealed class PatternMatchingModeTests
     [InlineData(PatternMatchingMethod.Shape)]
     public async Task ShapeModesDefaultTo256ResultsWithoutChangingLibraryOrOtherModeSettings(PatternMatchingMethod method)
     {
-        Assert.Equal(16, new SearchOptions().MaximumMatches);
+        Assert.Equal(16, new ShapeSearchOptions().MaximumMatches);
         var (service, _, viewModel) = Create();
         using var lifetime = viewModel;
         viewModel.Method = method;
@@ -322,7 +322,7 @@ public sealed class PatternMatchingModeTests
         viewModel.Refine = false;
         Assert.False(viewModel.IsTrainingDirty);
         await viewModel.Search.ExecuteAsync();
-        var search = Assert.IsType<SearchOptions>(service.SearchOptions);
+        var search = Assert.IsType<ShapeSearchOptions>(service.SearchOptions);
         Assert.Equal(.5, search.CandidateThreshold);
         Assert.Equal(.75, search.Greediness);
         Assert.Equal(5000, search.MaximumCandidates);
@@ -681,7 +681,7 @@ public sealed class PatternMatchingModeTests
         {
             get; private set;
         }
-        public SearchOptions? SearchOptions
+        public ShapeSearchOptions? SearchOptions
         {
             get; private set;
         }
@@ -723,7 +723,7 @@ public sealed class PatternMatchingModeTests
             return PendingTraining?.Task ?? Task.FromResult(CreateModel(options));
         }
 
-        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        public Task<ShapeSearchOutput> SearchAsync(ImageReference image, bool live, ShapeModel model, RoiGeometry? region, ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
         {
             SearchRegion = region;
             options.Validate();
@@ -743,7 +743,7 @@ public sealed class PatternMatchingModeTests
             => Task.FromResult(new TemplateTrainingOutput(CorrelationTemplate.Train(new(new byte[] { 10, 80, 30, 170, 60, 200 }, 3, 2, 3),
                 new(ReadOnlyMemory<byte>.Empty, new(1.5, 1))), 0));
 
-        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, SearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
+        public Task<TemplateSearchOutput> SearchAsync(ImageReference image, bool live, CorrelationTemplate model, RoiGeometry? region, ShapeSearchOptions options, CancellationToken token, RoiExclusion? exclusion = null)
             => Task.FromResult(new TemplateSearchOutput([new(new(120, 130), .95)], 1, false, 0, 0));
     }
 }

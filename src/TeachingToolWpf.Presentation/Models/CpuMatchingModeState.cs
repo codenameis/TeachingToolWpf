@@ -1,3 +1,4 @@
+using CpuMatching.Core;
 using TeachingToolWpf.Imaging.Matching;
 
 namespace TeachingToolWpf.Models;
@@ -17,7 +18,7 @@ internal sealed class CpuMatchingModeState
     {
         get; set;
     }
-    public CpuMatching.Core.SearchOptions Options { get; set; } = new() { MinimumAngle = -30, MaximumAngle = 30 };
+    public CpuSearchOptions Options { get; set; } = new() { MinimumAngle = -30, MaximumAngle = 30 };
     public MatchingSearchSettings Search
     {
         get; set;

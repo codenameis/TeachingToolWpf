@@ -4,7 +4,7 @@ namespace VisionAlgorithm.Tests;
 
 internal static class PcbMarkFixture
 {
-    public static GrayImage Create(PrimitiveShapeKind kind, double angle = 0, double scale = 1, bool dark = false,
+    public static ShapeGrayImage Create(PrimitiveShapeKind kind, double angle = 0, double scale = 1, bool dark = false,
         int rays = 6, Func<double, double, bool>? contains = null)
     {
         const int Size = 240;

@@ -28,28 +28,28 @@
                     <TextBox Text="{Binding DeltaXText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Width="68" MinHeight="28" VerticalContentAlignment="Center" Margin="0,0,4,4"
                              AutomationProperties.Name="X 픽셀 보정값" />
-                    <Button Content="-10" Command="{Binding StepXMinus10Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="-1" Command="{Binding StepXMinus1Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="+1" Command="{Binding StepXPlus1Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="+10" Command="{Binding StepXPlus10Command}" Padding="6,4" Margin="0,0,14,4" />
+                    <Button Content="-10" Command="{Binding NudgeCommand}" CommandParameter="X:-10" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="-1" Command="{Binding NudgeCommand}" CommandParameter="X:-1" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="+1" Command="{Binding NudgeCommand}" CommandParameter="X:1" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="+10" Command="{Binding NudgeCommand}" CommandParameter="X:10" Padding="6,4" Margin="0,0,14,4" />
 
                     <TextBlock Text="Y (px):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,4,4" />
                     <TextBox Text="{Binding DeltaYText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Width="68" MinHeight="28" VerticalContentAlignment="Center" Margin="0,0,4,4"
                              AutomationProperties.Name="Y 픽셀 보정값" />
-                    <Button Content="-10" Command="{Binding StepYMinus10Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="-1" Command="{Binding StepYMinus1Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="+1" Command="{Binding StepYPlus1Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="+10" Command="{Binding StepYPlus10Command}" Padding="6,4" Margin="0,0,14,4" />
+                    <Button Content="-10" Command="{Binding NudgeCommand}" CommandParameter="Y:-10" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="-1" Command="{Binding NudgeCommand}" CommandParameter="Y:-1" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="+1" Command="{Binding NudgeCommand}" CommandParameter="Y:1" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="+10" Command="{Binding NudgeCommand}" CommandParameter="Y:10" Padding="6,4" Margin="0,0,14,4" />
 
                     <TextBlock Text="Theta (°):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,4,4" />
                     <TextBox Text="{Binding DeltaThetaText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Width="68" MinHeight="28" VerticalContentAlignment="Center" Margin="0,0,4,4"
                              AutomationProperties.Name="Theta 회전 각도 보정값" />
-                    <Button Content="-5°" Command="{Binding StepThetaMinus5Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="-1°" Command="{Binding StepThetaMinus1Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="+1°" Command="{Binding StepThetaPlus1Command}" Padding="6,4" Margin="0,0,2,4" />
-                    <Button Content="+5°" Command="{Binding StepThetaPlus5Command}" Padding="6,4" Margin="0,0,14,4" />
+                    <Button Content="-5°" Command="{Binding NudgeCommand}" CommandParameter="Theta:-5" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="-1°" Command="{Binding NudgeCommand}" CommandParameter="Theta:-1" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="+1°" Command="{Binding NudgeCommand}" CommandParameter="Theta:1" Padding="6,4" Margin="0,0,2,4" />
+                    <Button Content="+5°" Command="{Binding NudgeCommand}" CommandParameter="Theta:5" Padding="6,4" Margin="0,0,14,4" />
 
                     <Button Content="보정 적용" Command="{Binding ApplyCommand}" Padding="12,5" Margin="0,0,6,4" FontWeight="SemiBold" />
                     <Button Content="선택 범위 초기화" Command="{Binding ResetScopeCommand}" Padding="10,5" Margin="0,0,6,4" />

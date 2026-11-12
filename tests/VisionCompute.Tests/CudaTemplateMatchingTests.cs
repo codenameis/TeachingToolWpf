@@ -26,7 +26,7 @@ public sealed class CudaTemplateMatchingTests
             0 => new Line2DMatcher(template),
             _ => new SubNccMatcher(template)
         };
-        var options = new SearchOptions { MinimumAngle = 0, MaximumAngle = 90, PyramidLevels = levels, SuppressionRadius = 16 };
+        var options = new CpuSearchOptions { MinimumAngle = 0, MaximumAngle = 90, PyramidLevels = levels, SuppressionRadius = 16 };
         var cpu = matcher.FindWindowed(source, options);
         using var session = new CudaTemplateScoreSession();
         using var accelerator = session.Rent();
@@ -37,11 +37,11 @@ public sealed class CudaTemplateMatchingTests
         Assert.Equal(cpu.CandidateCount, cuda.CandidateCount);
     }
 
-    private sealed class WindowedSource(GrayImage image) : IGrayImageSource
+    private sealed class WindowedSource(CpuGrayImage image) : IGrayImageSource
     {
         public int Width => image.Width;
         public int Height => image.Height;
-        public GrayImage Read(SearchRegion region, int reduction, CancellationToken token)
+        public CpuGrayImage Read(CpuSearchRegion region, int reduction, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             var crop = image.Crop(region);
@@ -60,10 +60,10 @@ public sealed class CudaTemplateMatchingTests
     public void AmbiguousPinPeaksKeepAccuratePositionsOnCuda(string file, double x, double y)
     {
         var folder = Path.Combine(AppContext.BaseDirectory, "Data");
-        var template = new GrayImage(106, 129, File.ReadAllBytes(Path.Combine(folder, "pin-template-106x129.gray")));
-        var image = new GrayImage(256, 256, File.ReadAllBytes(Path.Combine(folder, file)));
+        var template = new CpuGrayImage(106, 129, File.ReadAllBytes(Path.Combine(folder, "pin-template-106x129.gray")));
+        var image = new CpuGrayImage(256, 256, File.ReadAllBytes(Path.Combine(folder, file)));
         var matcher = new SubNccMatcher(template);
-        var options = new SearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6, CandidateLimit = 16 };
+        var options = new CpuSearchOptions { MinimumAngle = -30, MaximumAngle = 30, SuppressionRadius = 63.6, CandidateLimit = 16 };
         var cpu = matcher.Find(image, options);
         using var session = new CudaTemplateScoreSession();
         using var accelerator = session.Rent();
@@ -89,7 +89,7 @@ public sealed class CudaTemplateMatchingTests
             0 => new Line2DMatcher(template, new() { CoarseFeatures = 80, FineFeatures = 256 }),
             _ => new SubNccMatcher(template, new() { CoarseSamples = 128, MinimumContrast = 16 })
         };
-        var options = new SearchOptions { MinimumAngle = -180, MaximumAngle = 180, SuppressionRadius = 16 };
+        var options = new CpuSearchOptions { MinimumAngle = -180, MaximumAngle = 180, SuppressionRadius = 16 };
         var cpu = matcher.Find(image, options);
         using var session = new CudaTemplateScoreSession();
         using var accelerator = session.Rent();
@@ -114,7 +114,7 @@ public sealed class CudaTemplateMatchingTests
             _ => new SubNccMatcher(template)
         };
         using var session = new CudaTemplateScoreSession();
-        var options = new SearchOptions { MinimumAngle = -180, MaximumAngle = 180, PyramidLevels = levels, SuppressionRadius = 16 };
+        var options = new CpuSearchOptions { MinimumAngle = -180, MaximumAngle = 180, PyramidLevels = levels, SuppressionRadius = 16 };
         Compare(options);
         Compare(options with
         {
@@ -130,7 +130,7 @@ public sealed class CudaTemplateMatchingTests
             Region = new(60, 35, 60, 60)
         }, (x, y) => x > 80 && y > 55);
 
-        void Compare(SearchOptions settings, Func<double, double, bool>? acceptCenter = null)
+        void Compare(CpuSearchOptions settings, Func<double, double, bool>? acceptCenter = null)
         {
             var cpu = matcher.Find(image, settings, acceptCenter: acceptCenter);
             using var accelerator = session.Rent();
@@ -176,7 +176,7 @@ public sealed class CudaTemplateMatchingTests
     {
         var session = new CudaTemplateScoreSession();
         var accelerator = session.Rent();
-        var image = new GrayImage(8, 8, Enumerable.Range(0, 64).Select(i => (byte)(i * 3)).ToArray());
+        var image = new CpuGrayImage(8, 8, Enumerable.Range(0, 64).Select(i => (byte)(i * 3)).ToArray());
         CorrelationSample[] points = [new(-1, 0, -3), new(1, 0, 3)];
         var output = new double[64];
         Assert.Throws<InvalidOperationException>(() => session.Rent());
@@ -196,7 +196,7 @@ public sealed class CudaTemplateMatchingTests
         session.Dispose();
     }
 
-    private static (GrayImage Template, GrayImage Image) Scene()
+    private static (CpuGrayImage Template, CpuGrayImage Image) Scene()
     {
         var pixels = new byte[33 * 29];
         var scene = new byte[128 * 100];

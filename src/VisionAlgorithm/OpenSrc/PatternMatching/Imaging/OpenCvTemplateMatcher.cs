@@ -9,7 +9,7 @@ namespace VisionAlgorithm.OpenSrc.PatternMatching.Imaging;
 /// <summary>Mat과 네이티브 호출 수명은 이 경계에만 둔다. 호출 중 취소되어도 반환 후 자원을 해제한다.</summary>
 internal static class OpenCvTemplateMatcher
 {
-    public static CorrelationResult Search(GrayImage image, CorrelationTemplate template, SearchOptions options, CancellationToken token)
+    public static CorrelationResult Search(ShapeGrayImage image, CorrelationTemplate template, ShapeSearchOptions options, CancellationToken token)
     {
         options.Validate();
         if ((long)image.Width * image.Height > CorrelationTemplate.MaximumSearchPixels)
@@ -88,7 +88,7 @@ internal static class OpenCvTemplateMatcher
         return new(selected, truncated, timer.Elapsed.TotalMilliseconds);
     }
 
-    private static bool OverlapsMask(GrayImage image, CorrelationTemplate template, int left, int top, CancellationToken token)
+    private static bool OverlapsMask(ShapeGrayImage image, CorrelationTemplate template, int left, int top, CancellationToken token)
     {
         if (image.ExcludedPixels.IsEmpty)
         {

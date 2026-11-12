@@ -1,8 +1,7 @@
-using System.Diagnostics;
-using VisionCanvas.Diagnostics;
+using SkiaSharp;
 using VisionCanvas.Imaging;
 using VisionCanvas.Rendering;
-using VisionImaging.Abstractions;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Skia.Rendering;
 
@@ -16,11 +15,12 @@ internal sealed class SkiaRenderWorker : RenderWorkerBase
     public SkiaRenderWorker(nint window, TileWorker tiles, LatestFrameMailbox frames, IFramePreparer preparer)
         : base(tiles, frames, "Skia renderer", useStaApartment: false)
     {
+        ArgumentNullException.ThrowIfNull(preparer);
         _window = window;
         _preparer = preparer;
     }
 
-    private protected override void RunCore()
+    protected override void RunCore()
     {
         try
         {
@@ -30,104 +30,97 @@ internal sealed class SkiaRenderWorker : RenderWorkerBase
             using var rois = new SkiaRois();
             using var masks = new SkiaMasks();
             using var text = new SkiaTextRasterizer();
-            using var labels = new GpuLabelCache(text);
-            using var resultLabels = new GpuResultLabels(text);
-            using var images = new GpuImageResources(TileBudgetBytes, textures, Tiles, _preparer);
-            using var filters = new GpuFilterPreview();
-            using var metrics = new FrameMetrics();
-            var painter = new ScenePainter();
-            IRenderTexture? white = null;
-            VideoFrame? retained = null;
-            RenderScene? presented = null;
-            var overlayId = Guid.Empty;
-            long frameNumber = 0;
+
             RaiseStatusChanged("Skia · CPU raster · 타일 캐시 256 MiB · Gray16 원본 보존 / 8비트 표시");
-            try
-            {
-                while (WaitForWake())
-                {
-                    var width = TargetWidth;
-                    var height = TargetHeight;
-                    if (width <= 0 || height <= 0)
-                    {
-                        continue;
-                    }
 
-                    var submission = LatestSubmission;
-                    var scene = submission?.Scene;
-                    if (RenderWorkerLoop.IsNothingChanged(scene, presented, width, height,
-                        surface.Width, surface.Height, Frames, Tiles, labels, rois.HasPendingDetails, PendingCapture, white))
-                    {
-                        continue;
-                    }
-
-                    var started = Stopwatch.GetTimestamp();
-                    var canvas = surface.Begin(width, height);
-                    var whiteTexture = RenderWorkerLoop.EnsureWhiteTexture(ref white, textures, surface);
-                    var next = Frames.Take();
-                    retained = RenderWorkerLoop.UpdateRetainedFrame(scene?.IsLive == true, retained, next, Frames);
-                    frameNumber++;
-                    if (scene is { Width: > 0, Height: > 0 })
-                    {
-                        var mesh = RenderWorkerLoop.BuildSceneMesh(
-                            scene,
-                            retained,
-                            surface,
-                            textures,
-                            painter,
-                            images,
-                            filters,
-                            labels,
-                            resultLabels,
-                            whiteTexture,
-                            frameNumber,
-                            Invalidate);
-                        canvas.Scale((float)(width / scene.Width), (float)(height / scene.Height));
-                        sprites.Draw(canvas, mesh, 0, painter.RoiBatchBoundary, scene.Width, scene.Height);
-                        masks.Draw(canvas, scene);
-                        rois.Draw(canvas, scene);
-                        sprites.Draw(canvas, mesh, painter.RoiBatchBoundary, mesh.Batches.Count, scene.Width, scene.Height);
-                        RenderWorkerLoop.FinishSceneLabels(labels, surface, rois.HasPendingDetails, Invalidate);
-                    }
-
-                    var cpuMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-                    var presentStart = Stopwatch.GetTimestamp();
-                    surface.Present();
-                    presented = scene;
-                    if (RenderWorkerLoop.ShouldNotifyOverlayPresented(scene, overlayId, labels, rois.HasPendingDetails, out overlayId))
-                    {
-                        RaiseOverlayPresented(new(overlayId, Stopwatch.GetTimestamp()));
-                    }
-
-                    if (TryTakeCapture(submission, images, labels, rois.HasPendingDetails, requireVisibleTiles: true) is { } path)
-                    {
-                        surface.Save(path);
-                    }
-
-                    RenderWorkerLoop.RecordAndNotifyMetrics(
-                        metrics,
-                        frameNumber,
-                        notifyFirstFrame: true,
-                        MetricsChangedHandler,
-                        cpuMilliseconds,
-                        gpuMilliseconds: null,
-                        Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds,
-                        next,
-                        Frames.Dropped,
-                        images.Bytes,
-                        fenceWaitMilliseconds: 0,
-                        submission);
-                }
-            }
-            finally
-            {
-                white?.Dispose();
-                retained?.Dispose();
-            }
+            var backend = new SkiaFrameBackend(surface, textures, sprites, rois, masks, text, _preparer);
+            FrameLoop.Run(
+                this,
+                backend,
+                new FrameLoopOptions(
+                    TileBudgetBytes,
+                    RequireVisibleTilesBeforeCapture: true,
+                    NotifyFirstFrame: true,
+                    CaptureBeforePresent: false));
         }
         catch (Exception error)
         {
             RaiseStatusChanged($"렌더 오류: Skia · {error.Message}");
+        }
+    }
+
+    private sealed class SkiaFrameBackend(
+        SkiaSurface surface,
+        SkiaTexturePipeline textures,
+        SkiaSprites sprites,
+        SkiaRois rois,
+        SkiaMasks masks,
+        SkiaTextRasterizer textRasterizer,
+        IFramePreparer framePreparer)
+        : IFrameBackend
+    {
+        private SKCanvas? _canvas;
+        private int _width;
+        private int _height;
+
+        public IRenderSurface Surface => surface;
+
+        public ITexturePipeline Textures => textures;
+
+        public ITextRasterizer TextRasterizer => textRasterizer;
+
+        public IFramePreparer FramePreparer => framePreparer;
+
+        public bool HasPendingRoiDetails => rois.HasPendingDetails;
+
+        public double LastFenceWaitMilliseconds => 0;
+
+        public bool TryBeginFrame(int width, int height)
+        {
+            _width = width;
+            _height = height;
+            _canvas = surface.Begin(width, height);
+            return true;
+        }
+
+        public void BeginDrawing()
+        {
+        }
+
+        public void DrawScene(RenderScene scene, SpriteMesh mesh, int roiBatchBoundary)
+        {
+            var canvas = _canvas!;
+            canvas.Scale((float)(_width / scene.Width), (float)(_height / scene.Height));
+            sprites.Draw(canvas, mesh, 0, roiBatchBoundary, scene.Width, scene.Height);
+            masks.Draw(canvas, scene);
+            rois.Draw(canvas, scene);
+            sprites.Draw(canvas, mesh, roiBatchBoundary, mesh.Batches.Count, scene.Width, scene.Height);
+        }
+
+        public void EndDrawing()
+        {
+        }
+
+        public IDisposable? CreateCaptureReadback() => null;
+
+        public ulong Present()
+        {
+            surface.Present();
+            return 0;
+        }
+
+        public void WaitForCompletion(ulong completionToken)
+        {
+        }
+
+        public void SaveCapture(IDisposable? readback, string path)
+        {
+            readback?.Dispose();
+            surface.Save(path);
+        }
+
+        public void OnAfterFrame()
+        {
         }
     }
 }

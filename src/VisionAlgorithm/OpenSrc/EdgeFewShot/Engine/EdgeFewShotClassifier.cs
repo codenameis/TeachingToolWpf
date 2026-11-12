@@ -1,5 +1,6 @@
 // File: src/VisionAlgorithm/OpenSrc/EdgeFewShot/Engine/EdgeFewShotClassifier.cs
 using System.Runtime.CompilerServices;
+using VisionAlgorithm.OpenSrc.Common;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Backbone;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Domain;
 using VisionAlgorithm.OpenSrc.EdgeFewShot.Math;
@@ -21,7 +22,6 @@ public sealed class EdgeFewShotClassifier
     private readonly IlluminationNormalizer _illuminationNormalizer;
     private readonly IFeatureMapExtractor _featureExtractor;
     private readonly GemSpatialPooler _gemPooler;
-    private readonly SimpleShotNormalizer _simpleShotNormalizer;
     private readonly LedoitWolfCovariance _covarianceSolver;
 
     public EdgeFewShotClassifier(
@@ -29,21 +29,18 @@ public sealed class EdgeFewShotClassifier
         IlluminationNormalizer illuminationNormalizer,
         IFeatureMapExtractor featureExtractor,
         GemSpatialPooler gemPooler,
-        SimpleShotNormalizer simpleShotNormalizer,
         LedoitWolfCovariance covarianceSolver)
     {
         ArgumentNullException.ThrowIfNull(roiExtractor);
         ArgumentNullException.ThrowIfNull(illuminationNormalizer);
         ArgumentNullException.ThrowIfNull(featureExtractor);
         ArgumentNullException.ThrowIfNull(gemPooler);
-        ArgumentNullException.ThrowIfNull(simpleShotNormalizer);
         ArgumentNullException.ThrowIfNull(covarianceSolver);
 
         _roiExtractor = roiExtractor;
         _illuminationNormalizer = illuminationNormalizer;
         _featureExtractor = featureExtractor;
         _gemPooler = gemPooler;
-        _simpleShotNormalizer = simpleShotNormalizer;
         _covarianceSolver = covarianceSolver;
     }
 
@@ -128,7 +125,7 @@ public sealed class EdgeFewShotClassifier
         workspace.EnsureCapacity(model.RoiWidth, model.RoiHeight, _featureExtractor, prototypeCount, dimension);
 
         var normalizedFeature = workspace.NormalizedFeatureSpan;
-        _simpleShotNormalizer.CenterAndNormalizeInto(rawFeature.Slice(0, dimension), model.GlobalMean, normalizedFeature);
+        SimpleShotNormalizer.CenterAndL2Normalize(rawFeature.Slice(0, dimension), model.GlobalMean, normalizedFeature);
 
         var choleskyInv = model.CholeskyInverseFactor;
         var prototypes = model.FlattenedPrototypes;

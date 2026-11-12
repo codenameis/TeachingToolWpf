@@ -1,21 +1,9 @@
-// File: src/VisionAlgorithm/OpenSrc/IndustrialOcrOcv/IndustrialOcrTrainer.cs
 using VisionAlgorithm.OpenSrc.Common;
 
 namespace VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
 
 /// <summary>
-/// Golden character training sample pairing a character label with its cropped grayscale patch.
-/// </summary>
-public readonly record struct GoldenCharSample(
-    char Character,
-    byte[] Pixels,
-    int Width,
-    int Height,
-    int Stride,
-    bool DarkOnLight = true);
-
-/// <summary>
-/// Builds an <see cref="IndustrialOcrFontModel"/> from golden character ROIs or procedural stroke definitions,
+/// Builds or merges an <see cref="IndustrialOcrFontModel"/> from golden character ROIs,
 /// integrating <see cref="SimpleShotNormalizer"/> for centered L2 normalization (CL2N) and precomputing
 /// horizontal/vertical projection profiles and $4 \times 4$ quadrant stroke coverage densities.
 /// </summary>
@@ -23,28 +11,68 @@ public static class IndustrialOcrTrainer
 {
     private const float StrokeActivationThreshold = 0.32f;
     private const float MinStdDevFloor = 1e-4f;
+    private const float PixelMaxIntensity = byte.MaxValue;
+    private const float PixelCenterOffset = 0.5f;
 
     /// <summary>
-    /// Trains an <see cref="IndustrialOcrFontModel"/> from a list of golden character image samples.
+    /// Trains an <see cref="IndustrialOcrFontModel"/> from golden character image patches.
     /// </summary>
     public static IndustrialOcrFontModel Train(ReadOnlySpan<GoldenCharSample> samples)
     {
         if (samples.IsEmpty)
         {
-            throw new ArgumentException("At least one golden character sample is required.", nameof(samples));
+            throw new ArgumentException("At least one golden glyph patch is required.", nameof(samples));
         }
 
-        int count = samples.Length;
-        int dim = IndustrialOcrGlyphTemplate.GridLength;
-        float[] allGrids = new float[count * dim];
-        float[][] rawGrids = new float[count][];
-        float[][] hProjs = new float[count][];
-        float[][] vProjs = new float[count][];
-        float[][] quadDensities = new float[count][];
+        return TrainOrMerge(existingModel: null, samples, samples[0].DarkOnLight);
+    }
 
-        for (int i = 0; i < count; i++)
+    /// <summary>
+    /// Merges an optional existing <see cref="IndustrialOcrFontModel"/> (including models loaded from <c>.ocvfont</c> files
+    /// where raw pixel patches are no longer retained) with newly taught <paramref name="newSamples"/>, recomputing
+    /// the global mean vector and all CL2N features coherently across the combined template set.
+    /// </summary>
+    public static IndustrialOcrFontModel TrainOrMerge(
+        IndustrialOcrFontModel? existingModel,
+        ReadOnlySpan<GoldenCharSample> newSamples,
+        bool darkOnLight = true)
+    {
+        int existingCount = existingModel?.Count ?? 0;
+        int newCount = newSamples.Length;
+        int totalCount = existingCount + newCount;
+        if (totalCount == 0)
         {
-            GoldenCharSample s = samples[i];
+            throw new ArgumentException("At least one golden glyph patch is required.", nameof(newSamples));
+        }
+
+        int dim = IndustrialOcrGlyphTemplate.GridLength;
+        float[] allGrids = new float[totalCount * dim];
+        char[] characters = new char[totalCount];
+        float[][] rawGrids = new float[totalCount][];
+        float[][] hProjs = new float[totalCount][];
+        float[][] vProjs = new float[totalCount][];
+        float[][] quadDensities = new float[totalCount][];
+
+        if (existingModel is not null)
+        {
+            ReadOnlySpan<IndustrialOcrGlyphTemplate> prevTemplates = existingModel.Templates;
+            for (int i = 0; i < prevTemplates.Length; i++)
+            {
+                IndustrialOcrGlyphTemplate prev = prevTemplates[i];
+                float[] gridCopy = prev.NormalizedGrid.ToArray();
+                characters[i] = prev.Character;
+                rawGrids[i] = gridCopy;
+                hProjs[i] = prev.HorizontalProjection.ToArray();
+                vProjs[i] = prev.VerticalProjection.ToArray();
+                quadDensities[i] = prev.QuadrantDensities.ToArray();
+                gridCopy.AsSpan().CopyTo(allGrids.AsSpan(i * dim, dim));
+            }
+        }
+
+        for (int j = 0; j < newCount; j++)
+        {
+            int dstIndex = existingCount + j;
+            GoldenCharSample s = newSamples[j];
             float[] grid = new float[dim];
             float[] hProj = new float[IndustrialOcrGlyphTemplate.GridHeight];
             float[] vProj = new float[IndustrialOcrGlyphTemplate.GridWidth];
@@ -59,23 +87,24 @@ public static class IndustrialOcrTrainer
                 quads,
                 out _);
 
-            rawGrids[i] = grid;
-            hProjs[i] = hProj;
-            vProjs[i] = vProj;
-            quadDensities[i] = quads;
-            grid.AsSpan().CopyTo(allGrids.AsSpan(i * dim, dim));
+            characters[dstIndex] = s.Character;
+            rawGrids[dstIndex] = grid;
+            hProjs[dstIndex] = hProj;
+            vProjs[dstIndex] = vProj;
+            quadDensities[dstIndex] = quads;
+            grid.AsSpan().CopyTo(allGrids.AsSpan(dstIndex * dim, dim));
         }
 
         float[] globalMean = new float[dim];
-        SimpleShotNormalizer.ComputeGlobalMean(allGrids, count, dim, globalMean);
+        SimpleShotNormalizer.ComputeGlobalMean(allGrids, totalCount, dim, globalMean);
 
-        var templates = new IndustrialOcrGlyphTemplate[count];
-        for (int i = 0; i < count; i++)
+        var templates = new IndustrialOcrGlyphTemplate[totalCount];
+        for (int i = 0; i < totalCount; i++)
         {
             float[] cl2n = new float[dim];
             SimpleShotNormalizer.CenterAndL2Normalize(rawGrids[i], globalMean, cl2n);
             templates[i] = new IndustrialOcrGlyphTemplate(
-                samples[i].Character,
+                characters[i],
                 rawGrids[i],
                 cl2n,
                 hProjs[i],
@@ -83,13 +112,15 @@ public static class IndustrialOcrTrainer
                 quadDensities[i]);
         }
 
-        return new IndustrialOcrFontModel(templates, globalMean);
+        bool resolvedPolarity = newCount > 0
+            ? newSamples[0].DarkOnLight
+            : (existingModel?.DarkOnLight ?? darkOnLight);
+        return new IndustrialOcrFontModel(templates, globalMean, resolvedPolarity);
     }
 
     /// <summary>
-    /// Resamples an arbitrary character patch onto the canonical $16 \times 24$ glyph grid using
-    /// <see cref="SubpixelInterpolator.SampleBilinearPixelCenter"/>, normalizes foreground ink response to $[0, 1]$,
-    /// and extracts 1D projections and $4 \times 4$ quadrant stroke coverage ratios.
+    /// Resamples an arbitrary character patch onto the canonical $16 \times 24$ glyph grid,
+    /// normalizes foreground ink response to $[0, 1]$, and extracts 1D projections and $4 \times 4$ quadrant densities.
     /// </summary>
     public static void ExtractNormalizedGlyphFeatures(
         ReadOnlyImageView2D<byte> charPatch,
@@ -104,17 +135,17 @@ public static class IndustrialOcrTrainer
         const int gw = IndustrialOcrGlyphTemplate.GridWidth;
         const int gh = IndustrialOcrGlyphTemplate.GridHeight;
 
-        float minVal = 255f;
+        float minVal = PixelMaxIntensity;
         float maxVal = 0f;
 
         for (int gy = 0; gy < gh; gy++)
         {
-            float wy = ((gy + 0.5f) / gh) * charPatch.Height;
+            float wy = ((gy + PixelCenterOffset) / gh) * charPatch.Height;
             for (int gx = 0; gx < gw; gx++)
             {
-                float wx = ((gx + 0.5f) / gw) * charPatch.Width;
+                float wx = ((gx + PixelCenterOffset) / gw) * charPatch.Width;
                 float sample = SubpixelInterpolator.SampleBilinear(charPatch, wx, wy);
-                float ink = darkOnLight ? (255f - sample) : sample;
+                float ink = darkOnLight ? (PixelMaxIntensity - sample) : sample;
                 normalizedGridOut[(gy * gw) + gx] = ink;
                 if (ink < minVal)
                 {
@@ -135,8 +166,8 @@ public static class IndustrialOcrTrainer
         verticalProjOut.Clear();
         quadrantDensitiesOut.Clear();
 
-        int cellW = gw / IndustrialOcrGlyphTemplate.QuadrantCols; // 4
-        int cellH = gh / IndustrialOcrGlyphTemplate.QuadrantRows; // 6
+        int cellW = gw / IndustrialOcrGlyphTemplate.QuadrantCols;
+        int cellH = gh / IndustrialOcrGlyphTemplate.QuadrantRows;
         float invCellArea = 1.0f / (cellW * cellH);
 
         for (int gy = 0; gy < gh; gy++)

@@ -26,6 +26,8 @@ public sealed record OcvVerificationOptions
     public const bool DefaultDarkOnLight = true;
     public const int DefaultMaxLineCharacters = 64;
     public const int UpperBoundMaxLineCharacters = 255;
+    public const int DefaultRectifiedWidth = 0;
+    public const int DefaultRectifiedHeight = 0;
 
     public OcvVerificationOptions(
         float PassMatchScore = DefaultPassMatchScore,
@@ -45,7 +47,9 @@ public sealed record OcvVerificationOptions
         int DotClosingRadiusY = DefaultDotClosingRadius,
         float ForegroundContrastOffset = DefaultForegroundContrastOffset,
         bool DarkOnLight = DefaultDarkOnLight,
-        int MaxLineCharacters = DefaultMaxLineCharacters)
+        int MaxLineCharacters = DefaultMaxLineCharacters,
+        int RectifiedWidth = DefaultRectifiedWidth,
+        int RectifiedHeight = DefaultRectifiedHeight)
     {
         this.PassMatchScore = PassMatchScore;
         this.ReviewMatchScore = ReviewMatchScore;
@@ -65,6 +69,8 @@ public sealed record OcvVerificationOptions
         this.ForegroundContrastOffset = ForegroundContrastOffset;
         this.DarkOnLight = DarkOnLight;
         this.MaxLineCharacters = MaxLineCharacters;
+        this.RectifiedWidth = RectifiedWidth;
+        this.RectifiedHeight = RectifiedHeight;
 
         EnsureValid();
     }
@@ -87,6 +93,8 @@ public sealed record OcvVerificationOptions
     public float ForegroundContrastOffset { get; init; }
     public bool DarkOnLight { get; init; }
     public int MaxLineCharacters { get; init; }
+    public int RectifiedWidth { get; init; }
+    public int RectifiedHeight { get; init; }
 
     public void EnsureValid()
     {
@@ -142,5 +150,7 @@ public sealed record OcvVerificationOptions
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(ForegroundContrastOffset, 0f);
         ArgumentOutOfRangeException.ThrowIfLessThan(MaxLineCharacters, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(MaxLineCharacters, UpperBoundMaxLineCharacters);
+        ArgumentOutOfRangeException.ThrowIfLessThan(RectifiedWidth, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThan(RectifiedHeight, 0);
     }
 }

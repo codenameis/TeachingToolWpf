@@ -40,7 +40,7 @@ public sealed class MassiveRoiModelFile
     private const ulong Upper16BitMask = 0xFFFF_0000_0000_0000uL; // [Math Why]: Masks bits [48..63] so bits [0..47] hold up to 281 trillion ROI indices without collision.
     private const int GuidByteLength = 16; // [Domain Why]: Standard 128-bit GUID byte count.
     private const int HalfGuidByteLength = 8; // [Domain Why]: 64-bit half-word byte length within a 16-byte GUID.
-    public const int TotalAlgorithmCatalogCount = 27; // [Domain Why]: Total number of distinct vision algorithms across Pattern(5), Shapes(1), FewShot(1), and Suite(20).
+    public static int TotalAlgorithmCatalogCount => AlgorithmCatalog.Length; // [Domain Why]: Derived dynamically from registered vision algorithms so adding/removing an algorithm never desynchronizes slot modulo bounds.
     public const int ShapeKindModulus = 3; // [Domain Why]: Cycles across Rectangle, Circle, and Triangle shapes per random ROI.
 
     private static readonly (InspectionToolKind Tool, PatternMatchingMethod? Pattern, InspectionSuiteAlgorithmKind? Suite, string Badge, string Accent, string Summary)[] AlgorithmCatalog =
@@ -213,7 +213,7 @@ public sealed class MassiveRoiModelFile
 
         RoiGeometry geometry = new RoiGeometry(new PointD(centerX, centerY), width, height, angle, ResolveRoiShape(shapeKind));
 
-        int algorithmSlot = (int)((sector.BaseAlgorithmSlot + (ulong)index + (mix0 >> AlgorithmMixShift)) % TotalAlgorithmCatalogCount);
+        int algorithmSlot = (int)((sector.BaseAlgorithmSlot + (ulong)index + (mix0 >> AlgorithmMixShift)) % (ulong)AlgorithmCatalog.Length);
         var alg = AlgorithmCatalog[algorithmSlot];
 
         Guid id = CreateDeterministicGuid(header.ModelNumber, header.MasterSeed, index);
@@ -290,7 +290,7 @@ public sealed class MassiveRoiModelFile
 
     private static (InspectionToolKind Tool, PatternMatchingMethod? Pattern, InspectionSuiteAlgorithmKind? Suite, string Badge, string Accent, string Summary)[] BuildAlgorithmCatalog()
     {
-        List<(InspectionToolKind, PatternMatchingMethod?, InspectionSuiteAlgorithmKind?, string, string, string)> list = new(TotalAlgorithmCatalogCount);
+        List<(InspectionToolKind, PatternMatchingMethod?, InspectionSuiteAlgorithmKind?, string, string, string)> list = [];
 
         PatternMatchingMethod[] patternMethods =
         [
@@ -320,12 +320,13 @@ public sealed class MassiveRoiModelFile
             list.Add((InspectionToolKind.EdgeFewShot, null, null, badge, accent, $"{badge} · 소량 정상/불량 에지 특징 분류"));
         }
 
-        InspectionSuiteAlgorithmKind[] suiteKinds = Enum.GetValues<InspectionSuiteAlgorithmKind>();
-        foreach (InspectionSuiteAlgorithmKind kind in suiteKinds)
+        var registry = InspectionAlgorithmRegistry.CreateDefault();
+        foreach (IRoiInspectionAlgorithm alg in registry.All)
         {
-            string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, kind);
+            InspectionSuiteAlgorithmKind kind = alg.Kind;
+            string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, kind, registry);
             string accent = RoiAlgorithmAssignment.GetAlgorithmAccent(InspectionToolKind.InspectionSuite, null, kind);
-            InspectionSuiteCategory cat = InspectionSuiteViewModel.ResolveCategoryForAlgorithm(kind);
+            InspectionSuiteCategory cat = alg.Category;
             list.Add((InspectionToolKind.InspectionSuite, null, kind, badge, accent, $"[{cat}] {badge} 정밀 검사"));
         }
 

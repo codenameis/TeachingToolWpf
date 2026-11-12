@@ -43,7 +43,7 @@ internal static class PaperLatencyBenchmark
             {
                 var preparation = backend == InspectionComputeMode.GpuPreprocessing
                     ? await service.PrepareGpuAsync(cancellation.Token) : 0;
-                var options = new SearchOptions
+                var options = new ShapeSearchOptions
                 {
                     MaximumMatches = 256,
                     ClutterWeight = 1,

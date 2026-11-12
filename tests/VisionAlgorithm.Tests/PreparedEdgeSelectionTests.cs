@@ -14,7 +14,7 @@ public sealed class PreparedEdgeSelectionTests
         const int Stride = 280;
         var pixels = new byte[Stride * Height];
         new Random(14317).NextBytes(pixels);
-        var image = new GrayImage(pixels, Width, Height, Stride);
+        var image = new ShapeGrayImage(pixels, Width, Height, Stride);
         var full = tiled ? GradientImage.CreateTiled(image, 8, default) : GradientImage.Create(image, 8, default);
         var withoutEdges = tiled ? GradientImage.CreateTiled(image, 8, default, extractEdges: false)
             : GradientImage.Create(image, 8, default, extractEdges: false);
@@ -70,7 +70,7 @@ public sealed class PreparedEdgeSelectionTests
         var full = PreparedSearchImage.Create(image, 8, model.Levels.Length);
         var selected = PreparedSearchImage.CreateForSearch(image, 8, model.Levels.Length, needsEdges,
             default, false, null);
-        var options = new SearchOptions
+        var options = new ShapeSearchOptions
         {
             Verify = verify,
             Refine = refine,

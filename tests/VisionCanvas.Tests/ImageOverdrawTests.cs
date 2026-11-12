@@ -3,6 +3,7 @@ using VisionCanvas.Core.Geometry;
 using VisionCanvas.Core.Interaction;
 using VisionCanvas.Imaging;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionGeometry;
 using VisionImaging.Abstractions;
 

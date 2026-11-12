@@ -80,10 +80,10 @@ internal sealed class FineDetailModel
 
     public long EstimatedBytes => samples.Length * 36L;
 
-    public static FineDetailModel? Create(GrayImage image, TrainingRegion region, CancellationToken token)
+    public static FineDetailModel? Create(ShapeGrayImage image, TrainingRegion region, CancellationToken token)
         => Create(image, region, hasAsymmetricContext: false, isRotationallySymmetric: false, token);
 
-    public static FineDetailModel? Create(GrayImage image, TrainingRegion region, bool hasAsymmetricContext, bool isRotationallySymmetric, CancellationToken token)
+    public static FineDetailModel? Create(ShapeGrayImage image, TrainingRegion region, bool hasAsymmetricContext, bool isRotationallySymmetric, CancellationToken token)
     {
         var samples = ImmutableArray.CreateBuilder<Sample>();
         var energy = 0d;
@@ -154,11 +154,11 @@ internal sealed class FineDetailModel
     public double Radius => _radius;
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public double Score(GrayImage image, MatchPose pose, ContrastPolarity polarity)
+    public double Score(ShapeGrayImage image, MatchPose pose, ContrastPolarity polarity)
         => ScoreCore(image, pose, polarity, allowElastic: true);
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private double ScoreCore(GrayImage image, MatchPose pose, ContrastPolarity polarity, bool allowElastic)
+    private double ScoreCore(ShapeGrayImage image, MatchPose pose, ContrastPolarity polarity, bool allowElastic)
     {
         var cos = Math.Cos(pose.Angle - referenceAngle) * pose.Scale;
         var sin = Math.Sin(pose.Angle - referenceAngle) * pose.Scale;
@@ -422,8 +422,8 @@ internal sealed class FineDetailModel
         return Math.Max(rigidScore, phaseCompensated);
     }
 
-    public (MatchPose Pose, double Score) Optimize(GrayImage image, ShapeModel model, MatchPose initial,
-        SearchOptions options, CancellationToken token)
+    public (MatchPose Pose, double Score) Optimize(ShapeGrayImage image, ShapeModel model, MatchPose initial,
+        ShapeSearchOptions options, CancellationToken token)
     {
         var best = OptimizeLocal(image, model, initial, options, token);
         if (best.Score >= 0.70 && model.Options.Polarity == ContrastPolarity.Preserve)
@@ -452,8 +452,8 @@ internal sealed class FineDetailModel
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private (MatchPose Pose, double Score) OptimizeLocal(GrayImage image, ShapeModel model, MatchPose initial,
-        SearchOptions options, CancellationToken token)
+    private (MatchPose Pose, double Score) OptimizeLocal(ShapeGrayImage image, ShapeModel model, MatchPose initial,
+        ShapeSearchOptions options, CancellationToken token)
     {
         var pose = initial;
         var best = ScoreCore(image, pose, model.Options.Polarity, allowElastic: false);

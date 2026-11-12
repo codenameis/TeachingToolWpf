@@ -16,7 +16,7 @@ public sealed class BoundedInspectionCropSchedulerTests
             (_, _) =>
             {
                 read = true;
-                return new GrayImage(new byte[1], 1, 1, 1);
+                return new ShapeGrayImage(new byte[1], 1, 1, 1);
             }, (_, _, _) => 0, (_, _) => { }, new(4, PreparedSearchImage.MaximumPixels, maximum), default));
         Assert.False(read);
     }
@@ -37,7 +37,7 @@ public sealed class BoundedInspectionCropSchedulerTests
                     readFailed.SetResult();
                     throw new IOException("Injected original read failure.");
                 }
-                return new GrayImage(new byte[1], 1, 1, 1);
+                return new ShapeGrayImage(new byte[1], 1, 1, 1);
             }, (_, _, token) =>
             {
                 try

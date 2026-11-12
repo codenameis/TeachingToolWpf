@@ -2,24 +2,25 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using VisionAlgorithm.OpenSrc.Preprocessing;
+using VisionCanvas.Commands;
 using VisionCanvas.Core.Editing;
 using VisionCanvas.Imaging.Filters;
 using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Filters.Wpf.ViewModels;
 
-public sealed record FilterOption(RoiFilterKind Kind, string Label)
-{
-    public override string ToString() => Label;
-}
-
 /// <summary>UI-owned preview session, with one worker, one replaceable pending request, and an ordered multi-step filter pipeline list.</summary>
-public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposable
+public sealed class FilterPreviewViewModel : ObservableObject, IDisposable
 {
     private const string RequestedCpuOnlyReason = "CpuOnly was requested.";
+    private const int PreviewDebounceMilliseconds = 100;
+    private const int MinimumSummaryRegionDimension = 5;
+    private const double BytesPerMebibyte = 1024d * 1024;
 
     private readonly IRoiFilterPreview _processor;
     private readonly EditorSession _editor;
+    private readonly FilterParameterDraft _draft = new();
+    private readonly LatestRequestPump<FilterRequest> _pump = new(TimeSpan.FromMilliseconds(PreviewDebounceMilliseconds));
     private DocumentState _document = DocumentState.Empty;
     private bool _live;
     private bool _active;
@@ -30,23 +31,11 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     private bool _isHelpManualOpen;
     private bool _suppressPipelineSync;
     private bool _editing;
-    private RoiFilterKind _selectedFilter;
-    private string _threshold = "128";
-    private string _edgeLow = "50";
-    private string _edgeHigh = "150";
-    private string _radius = "3";
-    private string _sigma = "1";
-    private RoiFilterExecution _execution;
     private string _status = "필터를 선택한 뒤 미리보기를 누르세요.";
     private string _pipelineSummaryText = "전처리 파이프라인: 0단계 (필터 없음 — 원본 직접 검사)";
     private string _roiHistogramSummaryText = "히스토그램(256-Bin): ROI 필터 미리보기 시 Otsu 임계값·평균·표준편차 자동 계산";
     private string _roiLineProfileSummaryText = "1D 중심선 프로파일: 수평/수직 평균 밝기 및 최대 에지 기울기(ΔI) 대기";
     private FilterPipelineStepItem? _selectedPipelineStep;
-    private FilterRequest? _pending;
-    private FilterRequest? _requested;
-    private CancellationTokenSource? _cancellation;
-    private long _revision;
-    private Task? _pump;
     private FilterPreviewResult? _result;
     private RoiTransformPreview? _transformPreview;
 
@@ -54,33 +43,9 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public event Action<ImmutableArray<FilterSettings>, bool>? ActivePipelineChanged;
 
-    public IReadOnlyList<FilterOption> Options { get; } =
-    [
-        new(RoiFilterKind.None, "없음 · 원본"), new(RoiFilterKind.Binarize, "Binarize · 이진화 (OpenCV)"),
-        new(RoiFilterKind.Edge, "Edge · Canny (OpenCV)"),
-        new(RoiFilterKind.Gaussian, "Gaussian · 평활화"),
-        new(RoiFilterKind.Erosion, "Erosion · 침식"), new(RoiFilterKind.Dilation, "Dilation · 팽창"),
-        new(RoiFilterKind.Opening, "Opening · 열기"), new(RoiFilterKind.Closing, "Closing · 닫기"),
-        new(RoiFilterKind.WhiteTopHat, "White Top-hat · 밝은 결함"), new(RoiFilterKind.BlackHat, "Black-hat · 어두운 결함"),
-        new(RoiFilterKind.NativeThreshold, "Threshold · 원본 명암 임계값"),
-        new(RoiFilterKind.GaussianBlackHatThreshold, "Gaussian → Black-hat → Threshold"),
-        new(RoiFilterKind.Clahe, "[전처리] CLAHE · 적응형 히스토그램 대비 향상"),
-        new(RoiFilterKind.GuidedFilter, "[전처리] Guided Filter · 엣지 보존 평활화"),
-        new(RoiFilterKind.Bilateral, "[전처리] Bilateral · 양방향 노이즈 제거"),
-        new(RoiFilterKind.Median, "[전처리] Median · 임펄스 점 노이즈 제거"),
-        new(RoiFilterKind.AdaptiveThreshold, "[전처리] Adaptive Sauvola · 적분영상 지역 이진화"),
-        new(RoiFilterKind.UnsharpMask, "[전처리] Unsharp Mask · 미세 엣지 선명화"),
-        new(RoiFilterKind.SobelGradient, "[전처리] Sobel Gradient · 방향 경계 강도"),
-        new(RoiFilterKind.WarpAffineShear, "[워핑] Affine & Shear · 회전/전단 보정"),
-        new(RoiFilterKind.WarpPerspectiveKeystone, "[워핑] Perspective Keystone · 원근 사다리꼴 보정"),
-        new(RoiFilterKind.WarpPolarUnwrap, "[워핑] Polar Ring Unwrap · 원형 링 직선 전개"),
-        new(RoiFilterKind.WarpLensUndistort, "[워핑] Lens Undistort · 방사/접선 렌즈 왜곡 보정"),
-        new(RoiFilterKind.FftNotch, "[주파수] 2D FFT Periodic Notch · 모아레/메쉬 격자 제거"),
-        new(RoiFilterKind.Homomorphic, "[조명분리] Homomorphic · 로그 조명·반사율 분리"),
-        new(RoiFilterKind.GaborTexture, "[텍스처] 2D Gabor Filter · 방향성 스크래치/크랙 강조")
-    ];
+    public IReadOnlyList<FilterOption> Options => FilterCatalog.Options;
 
-    public IReadOnlyList<RoiFilterExecution> ExecutionOptions { get; } = Enum.GetValues<RoiFilterExecution>();
+    public IReadOnlyList<RoiFilterExecution> ExecutionOptions => FilterCatalog.ExecutionOptions;
 
     public bool PreFilterBeforeInspection
     {
@@ -141,11 +106,12 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public RoiFilterKind SelectedFilter
     {
-        get => _selectedFilter;
+        get => _draft.SelectedFilter;
         set
         {
-            if (Set(ref _selectedFilter, value))
+            if (_draft.SetSelectedFilter(value))
             {
+                Notify(nameof(SelectedFilter));
                 NotifyFilterFields();
                 DraftChanged();
             }
@@ -154,11 +120,12 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public string Threshold
     {
-        get => _threshold;
+        get => _draft.Threshold;
         set
         {
-            if (Set(ref _threshold, value))
+            if (_draft.SetThreshold(value))
             {
+                Notify(nameof(Threshold));
                 DraftChanged();
             }
         }
@@ -166,11 +133,12 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public string EdgeLow
     {
-        get => _edgeLow;
+        get => _draft.EdgeLow;
         set
         {
-            if (Set(ref _edgeLow, value))
+            if (_draft.SetEdgeLow(value))
             {
+                Notify(nameof(EdgeLow));
                 DraftChanged();
             }
         }
@@ -178,43 +146,33 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public string EdgeHigh
     {
-        get => _edgeHigh;
+        get => _draft.EdgeHigh;
         set
         {
-            if (Set(ref _edgeHigh, value))
+            if (_draft.SetEdgeHigh(value))
             {
+                Notify(nameof(EdgeHigh));
                 DraftChanged();
             }
         }
     }
 
-    public bool IsBinarize => FilterSettings.UsesByteThresholdKind(SelectedFilter);
-
-    public bool IsEdge => SelectedFilter == RoiFilterKind.Edge;
-    public bool IsIndustrial => FilterSettings.IsIndustrialKind(SelectedFilter);
-    public bool UsesRadius => FilterSettings.UsesRadiusKind(SelectedFilter);
-    public bool UsesSigma => FilterSettings.UsesSigmaKind(SelectedFilter);
-    public bool UsesThreshold => IsBinarize || FilterSettings.UsesNativeThresholdKind(SelectedFilter);
-    public string ThresholdCaption => SelectedFilter switch
-    {
-        RoiFilterKind.Binarize => "이진화 임계값 · 0–255",
-        RoiFilterKind.WarpAffineShear => "어파인 회전 제어 · 0–255 (128 = 0°)",
-        RoiFilterKind.WarpPerspectiveKeystone => "키스톤 수평 원근 제어 · 0–255 (128 = 대칭)",
-        RoiFilterKind.WarpPolarUnwrap => "극좌표 링 내경 비율 · 0–255",
-        RoiFilterKind.WarpLensUndistort => "렌즈 방사 왜곡 계수 k1 · 0–255 (128 = 0)",
-        RoiFilterKind.FftNotch => "FFT 피크 감도 스케일 · 0–255 (128 = 4.5배)",
-        RoiFilterKind.Homomorphic => "저주파 조명 감쇠율 γL · 0–255 (90 = 0.35)",
-        RoiFilterKind.GaborTexture => "Gabor 방향 각도 θ · 0–255 (0°–180°)",
-        _ => "원본 명암 임계값 · Gray8 0–255 / Gray16 0–65535"
-    };
+    public bool IsBinarize => _draft.IsBinarize;
+    public bool IsEdge => _draft.IsEdge;
+    public bool IsIndustrial => _draft.IsIndustrial;
+    public bool UsesRadius => _draft.UsesRadius;
+    public bool UsesSigma => _draft.UsesSigma;
+    public bool UsesThreshold => _draft.UsesThreshold;
+    public string ThresholdCaption => _draft.ThresholdCaption;
 
     public string Radius
     {
-        get => _radius;
+        get => _draft.Radius;
         set
         {
-            if (Set(ref _radius, value))
+            if (_draft.SetRadius(value))
             {
+                Notify(nameof(Radius));
                 DraftChanged();
             }
         }
@@ -222,11 +180,12 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public string Sigma
     {
-        get => _sigma;
+        get => _draft.Sigma;
         set
         {
-            if (Set(ref _sigma, value))
+            if (_draft.SetSigma(value))
             {
+                Notify(nameof(Sigma));
                 DraftChanged();
             }
         }
@@ -234,28 +193,50 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public RoiFilterExecution Execution
     {
-        get => _execution;
+        get => _draft.Execution;
         set
         {
-            if (Set(ref _execution, value))
+            if (_draft.SetExecution(value))
             {
+                Notify(nameof(Execution));
                 DraftChanged();
             }
         }
     }
 
-    private void NotifyFilterFields()
+    public string ValidationMessage => _draft.ValidationMessage;
+
+    public double RadiusValue
     {
-        Notify(nameof(IsBinarize));
-        Notify(nameof(IsEdge));
-        Notify(nameof(IsIndustrial));
-        Notify(nameof(UsesRadius));
-        Notify(nameof(UsesSigma));
-        Notify(nameof(UsesThreshold));
-        Notify(nameof(ThresholdCaption));
-        RefreshSliderValues();
-        Notify(nameof(ThresholdMaximum));
+        get => _draft.RadiusValue;
+        set => Radius = Math.Round(value).ToString(CultureInfo.CurrentCulture);
     }
+
+    public double SigmaValue
+    {
+        get => _draft.SigmaValue;
+        set => Sigma = Math.Round(value, 2).ToString(CultureInfo.CurrentCulture);
+    }
+
+    public double ThresholdValue
+    {
+        get => _draft.ThresholdValue;
+        set => Threshold = Math.Round(value).ToString(CultureInfo.CurrentCulture);
+    }
+
+    public double EdgeLowValue
+    {
+        get => _draft.EdgeLowValue;
+        set => EdgeLow = Math.Round(value).ToString(CultureInfo.CurrentCulture);
+    }
+
+    public double EdgeHighValue
+    {
+        get => _draft.EdgeHighValue;
+        set => EdgeHigh = Math.Round(value).ToString(CultureInfo.CurrentCulture);
+    }
+
+    public double ThresholdMaximum => _draft.ThresholdMaximum;
 
     public bool HasMixedFilters => _document.SelectionFacts.HasMixedFilters;
 
@@ -295,35 +276,25 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
     public event Action? Changed;
 
     public RelayCommand Preview { get; }
-
     public RelayCommand Apply { get; }
-
     public RelayCommand Stop { get; }
-
     public RelayCommand ClearRegistration { get; }
-
+    public RelayCommand BeginParameterEdit { get; }
+    public RelayCommand EndParameterEdit { get; }
+    public RelayCommand CancelParameterEdit { get; }
     public RelayCommand AddStepToPipeline { get; }
-
     public RelayCommand RemoveSelectedStep { get; }
-
     public RelayCommand MoveSelectedStepUp { get; }
-
     public RelayCommand MoveSelectedStepDown { get; }
-
     public RelayCommand ToggleHelpManual { get; }
 
-    public Task WhenIdle => _pump ?? Task.CompletedTask;
-
-    public void RefreshLiveFrame()
-    {
-        if (IsActive && _live && !IsBusy)
-        {
-            Schedule(force: true, keepVisible: true);
-        }
-    }
+    public Task WhenIdle => _pump.WhenIdle;
 
     public FilterPreviewViewModel(IRoiFilterPreview processor, EditorSession editor)
     {
+        ArgumentNullException.ThrowIfNull(processor);
+        ArgumentNullException.ThrowIfNull(editor);
+
         _processor = processor;
         _editor = editor;
         Preview = new(() =>
@@ -332,32 +303,12 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
             Register();
         }, () => SelectedFilter != RoiFilterKind.None && _document.Selection.Count > 0 && !editor.IsPreviewing);
         Apply = new(Register, () => _document.Selection.Count > 0 && !editor.IsPreviewing);
-        BeginParameterEdit = new(StartParameterEdit, () => !_disposed && !_parameterEditing &&
+        BeginParameterEdit = new(StartParameterEdit, () => !_disposed && !_draft.IsEditing &&
             !editor.IsPreviewing && _document.Selection.Count > 0 && SelectedFilter != RoiFilterKind.None);
-        EndParameterEdit = new(CompleteParameterEdit, () => _parameterEditing);
-        CancelParameterEdit = new(CancelParameterChanges, () => _parameterEditing);
+        EndParameterEdit = new(CompleteParameterEdit, () => _draft.IsEditing);
+        CancelParameterEdit = new(CancelParameterChanges, () => _draft.IsEditing);
         Stop = new(StopPreview, () => IsActive);
-        ClearRegistration = new(() =>
-        {
-            _suppressPipelineSync = true;
-            try
-            {
-                PipelineSteps.Clear();
-                SelectedPipelineStep = null;
-                SelectedFilter = RoiFilterKind.None;
-            }
-            finally
-            {
-                _suppressPipelineSync = false;
-            }
-
-            editor.SetFilterPipeline([]);
-            editor.SetFilters(new(RoiFilterKind.None));
-            Update(editor.State, _live);
-            UpdatePipelineSummary();
-            RaiseActivePipelineChanged();
-            RefreshCommands();
-        },
+        ClearRegistration = new(ClearAllRegistrations,
             () => !editor.IsPreviewing && (!_document.SelectionFacts.RegisteredFilters.IsEmpty || PipelineSteps.Count > 0 || SelectedFilter != RoiFilterKind.None));
 
         AddStepToPipeline = new(AddCurrentFilterStep, () => SelectedFilter != RoiFilterKind.None && !editor.IsPreviewing);
@@ -365,6 +316,14 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         MoveSelectedStepUp = new(() => MoveCurrentFilterStep(-1), () => SelectedPipelineStep is not null && PipelineSteps.IndexOf(SelectedPipelineStep) > 0);
         MoveSelectedStepDown = new(() => MoveCurrentFilterStep(1), () => SelectedPipelineStep is not null && PipelineSteps.IndexOf(SelectedPipelineStep) >= 0 && PipelineSteps.IndexOf(SelectedPipelineStep) < PipelineSteps.Count - 1);
         ToggleHelpManual = new(() => IsHelpManualOpen = !IsHelpManualOpen);
+    }
+
+    public void RefreshLiveFrame()
+    {
+        if (IsActive && _live && !IsBusy)
+        {
+            Schedule(force: true, keepVisible: true);
+        }
     }
 
     public ImmutableArray<FilterSettings> BuildEffectivePipeline()
@@ -392,20 +351,21 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     public void LoadRecipePipeline(IEnumerable<FilterSettings> steps, bool preFilterBeforeInspection = true)
     {
+        ArgumentNullException.ThrowIfNull(steps);
         _suppressPipelineSync = true;
         try
         {
             PreFilterBeforeInspection = preFilterBeforeInspection;
             PipelineSteps.Clear();
             var idx = 1;
-            foreach (var s in steps)
+            foreach (var step in steps)
             {
-                if (s.Kind == RoiFilterKind.None)
+                if (step.Kind == RoiFilterKind.None)
                 {
                     continue;
                 }
 
-                PipelineSteps.Add(new FilterPipelineStepItem(idx++, s, OnPipelineStepItemToggled));
+                PipelineSteps.Add(new FilterPipelineStepItem(idx++, step, OnPipelineStepItemToggled));
             }
 
             SelectedPipelineStep = PipelineSteps.LastOrDefault();
@@ -420,6 +380,174 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         }
 
         CommitPipelineToSelection();
+    }
+
+    public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null, PixelKind? pixelKind = null)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (_draft.UpdateInputMaximum(pixelKind))
+        {
+            Notify(nameof(ThresholdMaximum));
+        }
+
+        var editingChanged = _editing != _editor.IsPreviewing;
+        _editing = _editor.IsPreviewing;
+        if (IsViewOnlyNavigation(state, isLive, preview))
+        {
+            _document = state;
+            if (editingChanged)
+            {
+                RefreshCommands();
+            }
+            return;
+        }
+
+        var selectionChanged = HasSelectionChanged(state);
+        var settingsChanged = !selectionChanged && HasSelectedFilterSettingsChanged(state);
+        var sourceChanged = _live != isLive;
+        _document = state;
+        _live = isLive;
+        _transformPreview = preview;
+        Notify(nameof(HasMixedFilters));
+        if (selectionChanged || settingsChanged)
+        {
+            _draft.ResetEdit();
+            var firstRoi = state.SelectionFacts.First;
+            LoadSettings(firstRoi?.Filter ?? new(RoiFilterKind.None));
+            _suppressPipelineSync = true;
+            try
+            {
+                PipelineSteps.Clear();
+                if (firstRoi is not null && !firstRoi.FilterPipeline.IsDefaultOrEmpty)
+                {
+                    var order = 1;
+                    foreach (var step in firstRoi.FilterPipeline)
+                    {
+                        PipelineSteps.Add(new FilterPipelineStepItem(order++, step, OnPipelineStepItemToggled));
+                    }
+                }
+
+                SelectedPipelineStep = PipelineSteps.LastOrDefault();
+            }
+            finally
+            {
+                _suppressPipelineSync = false;
+            }
+
+            UpdatePipelineSummary();
+            RaiseActivePipelineChanged();
+        }
+        var invalidate = selectionChanged || settingsChanged || sourceChanged;
+        var keepExistingVisible = !invalidate || (!selectionChanged && !sourceChanged && _result is not null && SelectedFilter != RoiFilterKind.None);
+        Schedule(invalidate: invalidate, keepVisible: keepExistingVisible);
+        RefreshCommands();
+    }
+
+    public void StopPreview() => IsPreviewEnabled = false;
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _draft.ResetEdit();
+        _pump.Dispose();
+        _result = null;
+    }
+
+    private void ClearAllRegistrations()
+    {
+        _suppressPipelineSync = true;
+        try
+        {
+            PipelineSteps.Clear();
+            SelectedPipelineStep = null;
+            SelectedFilter = RoiFilterKind.None;
+        }
+        finally
+        {
+            _suppressPipelineSync = false;
+        }
+
+        _editor.SetFilterPipeline([]);
+        _editor.SetFilters(new(RoiFilterKind.None));
+        Update(_editor.State, _live);
+        UpdatePipelineSummary();
+        RaiseActivePipelineChanged();
+        RefreshCommands();
+    }
+
+    private void NotifyFilterFields()
+    {
+        Notify(nameof(IsBinarize));
+        Notify(nameof(IsEdge));
+        Notify(nameof(IsIndustrial));
+        Notify(nameof(UsesRadius));
+        Notify(nameof(UsesSigma));
+        Notify(nameof(UsesThreshold));
+        Notify(nameof(ThresholdCaption));
+        _draft.RefreshSliderValues(Notify);
+        Notify(nameof(ThresholdMaximum));
+    }
+
+    private bool TryReadSettings(out FilterSettings settings)
+    {
+        var parsed = _draft.TryParseSettings(out var error);
+        if (_draft.SetValidationMessage(error))
+        {
+            Notify(nameof(ValidationMessage));
+        }
+
+        if (parsed is not null)
+        {
+            settings = parsed;
+            return true;
+        }
+
+        settings = new(RoiFilterKind.None);
+        Status = error;
+        return false;
+    }
+
+    private void LoadSettings(FilterSettings settings)
+    {
+        _draft.LoadSettings(settings, Notify);
+        NotifyFilterFields();
+    }
+
+    private void StartParameterEdit()
+    {
+        if (!TryReadSettings(out var settings))
+        {
+            return;
+        }
+
+        _draft.BeginEdit(settings, _document.Selection.Select(id => _document.Rois[id]).ToArray());
+        RefreshCommands();
+    }
+
+    private void CompleteParameterEdit()
+    {
+        var valid = TryReadSettings(out _);
+        _draft.ResetEdit();
+        if (valid)
+        {
+            Register();
+        }
+        else
+        {
+            Schedule(force: true, invalidate: true);
+        }
+        RefreshCommands();
+    }
+
+    private void CancelParameterChanges()
+    {
+        var original = _draft.ResetEdit();
+        if (original is not null)
+        {
+            LoadSettings(original);
+        }
+        Schedule(force: true, invalidate: true);
+        RefreshCommands();
     }
 
     private void AddCurrentFilterStep()
@@ -523,89 +651,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         PipelineSummaryText = "전처리 파이프라인: 0단계 (필터 없음 — 원본 직접 검사)";
     }
 
-    private void RaiseActivePipelineChanged()
-    {
-        ActivePipelineChanged?.Invoke(BuildEffectivePipeline(), PreFilterBeforeInspection);
-    }
-
-    public void Update(DocumentState state, bool isLive, RoiTransformPreview? preview = null, PixelKind? pixelKind = null)
-    {
-        UpdateInputMaximum(pixelKind);
-        var editingChanged = _editing != _editor.IsPreviewing;
-        _editing = _editor.IsPreviewing;
-        if (IsViewOnlyNavigation(state, isLive, preview))
-        {
-            _document = state;
-            if (editingChanged)
-            {
-                RefreshCommands();
-            }
-            return;
-        }
-
-        var selectionChanged = HasSelectionChanged(state);
-        var settingsChanged = !selectionChanged && HasSelectedFilterSettingsChanged(state);
-        var sourceChanged = _live != isLive;
-        _document = state;
-        _live = isLive;
-        _transformPreview = preview;
-        Notify(nameof(HasMixedFilters));
-        if (selectionChanged || settingsChanged)
-        {
-            ResetParameterEdit();
-            var firstRoi = state.SelectionFacts.First;
-            LoadSettings(firstRoi?.Filter ?? new(RoiFilterKind.None));
-            if (firstRoi is not null && !firstRoi.EffectiveFilterPipeline.IsEmpty)
-            {
-                _suppressPipelineSync = true;
-                try
-                {
-                    PipelineSteps.Clear();
-                    var order = 1;
-                    foreach (var step in firstRoi.EffectiveFilterPipeline)
-                    {
-                        PipelineSteps.Add(new FilterPipelineStepItem(order++, step, OnPipelineStepItemToggled));
-                    }
-
-                    SelectedPipelineStep = PipelineSteps.LastOrDefault();
-                }
-                finally
-                {
-                    _suppressPipelineSync = false;
-                }
-            }
-
-            UpdatePipelineSummary();
-            RaiseActivePipelineChanged();
-        }
-        var invalidate = selectionChanged || settingsChanged || sourceChanged;
-        var keepExistingVisible = !invalidate || (!selectionChanged && !sourceChanged && _result is not null && SelectedFilter != RoiFilterKind.None);
-        Schedule(invalidate: invalidate, keepVisible: keepExistingVisible);
-        RefreshCommands();
-    }
-
-    private void UpdateInputMaximum(PixelKind? pixelKind)
-    {
-        int maximum;
-        if (pixelKind is null)
-        {
-            maximum = _inputMaximum;
-        }
-        else if (pixelKind == PixelKind.Gray16)
-        {
-            maximum = 65535;
-        }
-        else
-        {
-            maximum = 255;
-        }
-
-        if (_inputMaximum != maximum)
-        {
-            _inputMaximum = maximum;
-            Notify(nameof(ThresholdMaximum));
-        }
-    }
+    private void RaiseActivePipelineChanged() => ActivePipelineChanged?.Invoke(BuildEffectivePipeline(), PreFilterBeforeInspection);
 
     private bool IsViewOnlyNavigation(DocumentState state, bool isLive, RoiTransformPreview? preview)
         => ReferenceEquals(_document.Rois, state.Rois) && ReferenceEquals(_document.Selection, state.Selection) &&
@@ -620,12 +666,12 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     private void DraftChanged()
     {
-        RefreshSliderValues();
-        if (_parameterEditing)
+        _draft.RefreshSliderValues(Notify);
+        if (_draft.IsEditing)
         {
             if (TryReadSettings(out var settings))
             {
-                _draftSettings = settings;
+                _draft.UpdateDraftSettings(settings);
                 Schedule(force: true, keepVisible: true);
             }
         }
@@ -700,11 +746,6 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         Changed?.Invoke();
     }
 
-    public void StopPreview()
-    {
-        IsPreviewEnabled = false;
-    }
-
     private void Schedule(bool force = false, bool keepVisible = false, bool invalidate = false)
     {
         if (_disposed)
@@ -712,7 +753,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
             return;
         }
 
-        IReadOnlyList<Roi> rois = _parameterRois ?? (IReadOnlyList<Roi>)_document.SelectionFacts.RegisteredFilters;
+        IReadOnlyList<Roi> rois = _draft.EditingRois ?? (IReadOnlyList<Roi>)_document.SelectionFacts.RegisteredFilters;
         IsActive = IsPreviewEnabled && _document.Image is not null && rois.Count > 0;
         if (!IsActive)
         {
@@ -728,10 +769,10 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
             var activePipeline = BuildEffectivePipeline();
             var next = new FilterRequest(_document.Image!, _live, rois, _transformPreview)
             {
-                OverrideSettings = _draftSettings,
+                OverrideSettings = _draft.DraftSettings,
                 OverridePipeline = activePipeline.IsEmpty ? null : activePipeline
             };
-            if (!force && IsSameFilterRequest(_requested, next))
+            if (!force && IsSameFilterRequest(_pump.LastRequested, next))
             {
                 return;
             }
@@ -756,88 +797,42 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
 
     private void QueueFilterRequest(FilterRequest next, bool keepVisible, bool invalidate)
     {
-        _pending = _requested = next;
-        if (invalidate)
-        {
-            _revision++;
-            _cancellation?.Cancel();
-        }
-
         if (!keepVisible)
         {
             ClearResult();
             Status = "선택 영역을 처리하고 있습니다…";
         }
 
-        if (_pump is null || _pump.IsCompleted)
-        {
-            _pump = RunAsync();
-        }
+        _pump.Enqueue(
+            next,
+            invalidateInFlight: invalidate,
+            executeAsync: async (request, capturedRevision, token) =>
+            {
+                var output = await _processor.ProcessAsync(request, token);
+                if (_disposed || !_pump.IsCurrentRevision(capturedRevision) || !IsActive)
+                {
+                    return;
+                }
+
+                _result = output;
+                UpdateHistogramFromResult(output);
+                var state = !_pump.HasPending ? "미리보기 켜짐" : "갱신 중 · 마지막 완료 결과 표시";
+                Status = $"{state} · {output.Regions.Count}개 ROI · 전체 {output.Milliseconds:F0} ms\n{DescribeExecution(output)}";
+                Changed?.Invoke();
+            },
+            onError: ex =>
+            {
+                ClearResult();
+                Status = $"미리보기 실패: {ex.Message}";
+            },
+            onBusyChanged: busy => IsBusy = busy);
     }
 
     private void ResetPendingSchedule(string status)
     {
-        _revision++;
-        _pending = _requested = null;
-        _cancellation?.Cancel();
+        _pump.CancelPending();
         ClearResult();
         Status = status;
-    }
-
-    private async Task RunAsync()
-    {
-        IsBusy = true;
-        try
-        {
-            while (_pending is not null && !_disposed)
-            {
-                var version = _revision;
-                using var current = new CancellationTokenSource();
-                _cancellation = current;
-                try
-                {
-                    await Task.Delay(100, current.Token);
-                    if (_pending is not { } request)
-                    {
-                        continue;
-                    }
-                    _pending = null;
-                    var output = await _processor.ProcessAsync(request, current.Token);
-                    if (_disposed || version != _revision || !IsActive)
-                    {
-                        continue;
-                    }
-
-                    _result = output;
-                    UpdateHistogramFromResult(output);
-                    var state = _pending is null ? "미리보기 켜짐" : "갱신 중 · 마지막 완료 결과 표시";
-                    Status = $"{state} · {output.Regions.Count}개 ROI · 전체 {output.Milliseconds:F0} ms\n{DescribeExecution(output)}";
-                    Changed?.Invoke();
-                }
-                catch (OperationCanceledException) when (current.IsCancellationRequested)
-                {
-                }
-                catch (Exception ex)
-                {
-                    if (version == _revision && !_disposed)
-                    {
-                        ClearResult();
-                        Status = $"미리보기 실패: {ex.Message}";
-                    }
-                }
-                finally
-                {
-                    if (ReferenceEquals(_cancellation, current))
-                    {
-                        _cancellation = null;
-                    }
-                }
-            }
-        }
-        finally
-        {
-            IsBusy = false;
-        }
     }
 
     private void UpdateHistogramFromResult(FilterPreviewResult output)
@@ -848,7 +843,7 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         }
 
         var first = output.Regions[0];
-        if (first.Width <= 4 || first.Height <= 4 || first.Gray8.Length < first.Width * first.Height)
+        if (first.Width < MinimumSummaryRegionDimension || first.Height < MinimumSummaryRegionDimension || first.Gray8.Length < first.Width * first.Height)
         {
             return;
         }
@@ -860,16 +855,6 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         RoiLineProfileSummaryText = string.Create(
             CultureInfo.InvariantCulture,
             $"1D 중심선 프로파일 | 수평 평균={summary.HorizontalCenterMean:F1} (최대 ΔI={summary.HorizontalPeakGradient:F0}) | 수직 평균={summary.VerticalCenterMean:F1} (최대 ΔI={summary.VerticalPeakGradient:F0})");
-    }
-
-    public void Dispose()
-    {
-        _disposed = true;
-        ResetParameterEdit();
-        _revision++;
-        _pending = _requested = null;
-        _cancellation?.Cancel();
-        _result = null;
     }
 
     private static string DescribeExecution(FilterPreviewResult output)
@@ -884,8 +869,8 @@ public sealed partial class FilterPreviewViewModel : ObservableObject, IDisposab
         var fallback = string.Join("\n", stages.Where(stage => stage.Device == "CPU" && stage.Reason != RequestedCpuOnlyReason)
             .Select(stage => $"{stage.Filter}: CPU 전환 · {stage.Reason}").Distinct());
         var legacy = reports.Length < output.Regions.Count ? " + OpenCV CPU" : "";
-        var memory = reports.Max(report => report.HostWorkingBytes + report.GpuWorkingBytes) / (1024d * 1024);
-        var transfer = reports.Sum(report => report.UploadBytes + report.DownloadBytes) / (1024d * 1024);
+        var memory = reports.Max(report => report.HostWorkingBytes + report.GpuWorkingBytes) / BytesPerMebibyte;
+        var transfer = reports.Sum(report => report.UploadBytes + report.DownloadBytes) / BytesPerMebibyte;
         return $"IndustrialVision · {devices}{legacy}\n엔진 최대 작업 메모리 {memory:F1} MiB · 전송 {transfer:F1} MiB" +
             (fallback.Length == 0 ? "" : "\n" + fallback);
     }

@@ -23,7 +23,7 @@ internal static class AccuracyDataset
             new(5888, 3968, 512, 512));
         File.WriteAllText(Path.Combine(folder, "cases.json"), JsonSerializer.Serialize(cases, Dataset.Json));
 
-        void Add(string name, int size, Match[] targets, bool degraded, SearchRegion? region = null)
+        void Add(string name, int size, Match[] targets, bool degraded, CpuSearchRegion? region = null)
         {
             var offsetX = region?.X ?? 0;
             var offsetY = region?.Y ?? 0;
@@ -60,7 +60,7 @@ internal static class AccuracyDataset
             using var destination = new Mat(image, new Rect(offsetX, offsetY, width, height));
             canvas.CopyTo(destination);
             Cv2.ImWrite(Path.Combine(folder, name + ".png"), image);
-            cases.Add(new(name, "template.png", name + ".png", new SearchOptions
+            cases.Add(new(name, "template.png", name + ".png", new CpuSearchOptions
             {
                 MinimumAngle = -30,
                 MaximumAngle = 30,
@@ -94,7 +94,7 @@ internal static class AccuracyDataset
         Cv2.ImWrite(Path.Combine(folder, "template.png"), template);
         Cv2.ImWrite(Path.Combine(folder, "kensa-parts.png"), local);
         Cv2.ImWrite(Path.Combine(folder, "kensa-other-components.png"), negative);
-        var options = new SearchOptions
+        var options = new CpuSearchOptions
         {
             MinimumAngle = -30,
             MaximumAngle = 30,

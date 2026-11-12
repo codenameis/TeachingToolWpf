@@ -1,4 +1,3 @@
-// File: src/TeachingToolWpf.Presentation/ViewModels/ShapeMatchingViewModel.PatMax.cs
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using TeachingToolWpf.Commands;
@@ -10,14 +9,6 @@ using VisionCanvas.Rendering;
 using VisionGeometry;
 
 namespace TeachingToolWpf.ViewModels;
-
-public sealed record PatMaxPreprocessingFilterOption(
-    PatMaxPreprocessingFilterKind Kind,
-    string Name,
-    string Description)
-{
-    public override string ToString() => Name;
-}
 
 internal sealed record PatMaxUiSettings
 {

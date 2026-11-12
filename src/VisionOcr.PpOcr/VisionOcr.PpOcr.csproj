@@ -11,5 +11,6 @@
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
     <ProjectReference Include="..\VisionAlgorithm\VisionAlgorithm.csproj" />
     <ProjectReference Include="..\VisionGeometry\VisionGeometry.csproj" />
+    <InternalsVisibleTo Include="TeachingToolWpf.Fluent2.Tests" />
   </ItemGroup>
 </Project>

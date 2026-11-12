@@ -3,8 +3,6 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.Imaging;
 
-public sealed record ReadyTile(long Generation, TileKey Key, PixelBuffer Pixels);
-
 /// <summary>One decoding owner, a coalesced request and at most 32 prepared tiles.</summary>
 public sealed class TileWorker : IDisposable
 {

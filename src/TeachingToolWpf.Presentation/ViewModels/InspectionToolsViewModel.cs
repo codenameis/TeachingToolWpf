@@ -13,14 +13,6 @@ using VisionGeometry;
 
 namespace TeachingToolWpf.ViewModels;
 
-public enum StructuredLogFilterKind
-{
-    All,
-    PassOnly,
-    FailOrWarnOnly,
-    SelectedRoiOnly
-}
-
 /// <summary>검사 도구 선택, ROI별 적용 알고리즘 동기화, 다중/전체 ROI 일괄 개별 실행 및 구조화 검사 로그를 관리한다.</summary>
 public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
 {
@@ -214,7 +206,7 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         }
 
         Suite.SelectedCategory = category;
-        if (InspectionSuiteViewModel.ResolveCategoryForAlgorithm(Suite.SelectedAlgorithm) != category)
+        if (Suite.Registry.ResolveCategory(Suite.SelectedAlgorithm) != category)
         {
             Suite.SelectedAlgorithm = fallbackAlgorithm;
         }
@@ -408,14 +400,16 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
         IReadOnlyList<Guid> targetIds,
         InspectionSuiteAlgorithmKind algorithm)
     {
-        string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, algorithm);
+        var registry = Suite?.Registry ?? InspectionAlgorithmRegistry.CreateDefault();
+        string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, algorithm, registry);
         string accent = RoiAlgorithmAssignment.GetAlgorithmAccent(InspectionToolKind.InspectionSuite, null, algorithm);
-        string paramSummary = Suite?.ParameterPreviewSummary ?? InspectionSuiteService.GetAlgorithmShortName(algorithm);
+        string paramSummary = Suite?.ParameterPreviewSummary ?? registry.GetShortName(algorithm);
         bool anyAdded = false;
         foreach (var id in targetIds)
         {
             if (state.Rois.TryGetValue(id, out var roi) && !state.IsGroupRoi(id))
             {
+                RoiSuiteExecutionMode mode = Suite?.GetRoiExecutionMode(roi) ?? LegacyRoiModeMigration.FromRoiName(roi.Name);
                 _roiAssignments[id] = new RoiAlgorithmAssignment(
                     RoiId: id,
                     RoiName: roi.Name,
@@ -427,7 +421,8 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
                     ParameterSummary: paramSummary,
                     VerdictBadge: "대기",
                     VerdictAccent: "#38BDF8",
-                    LastResultSummary: $"{badge} 검사 대상 ROI");
+                    LastResultSummary: $"{badge} 검사 대상 ROI",
+                    SuiteExecutionMode: mode);
                 anyAdded = true;
             }
         }
@@ -634,6 +629,9 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
                 continue;
             }
             string name = string.IsNullOrWhiteSpace(target.RoiName) ? $"ROI-{id.ToString()[..4]}" : target.RoiName!;
+            RoiSuiteExecutionMode mode = _selected == InspectionToolKind.InspectionSuite && Suite is not null && _state.Rois.TryGetValue(id, out var assignedRoi)
+                ? Suite.GetRoiExecutionMode(assignedRoi)
+                : RoiSuiteExecutionMode.Default;
             _roiAssignments[id] = new RoiAlgorithmAssignment(
                 RoiId: id,
                 RoiName: name,
@@ -645,7 +643,8 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
                 ParameterSummary: paramSummary,
                 VerdictBadge: "할당됨",
                 VerdictAccent: "#38BDF8",
-                LastResultSummary: $"{badge} 수동 할당 완료 · 검사 대기");
+                LastResultSummary: $"{badge} 수동 할당 완료 · 검사 대기",
+                SuiteExecutionMode: mode);
         }
 
         SynchronizeSelectedRoiInspectionState(_state, selectionChanged: false);
@@ -842,7 +841,8 @@ public sealed class InspectionToolsViewModel : ObservableObject, IDisposable
     private string GetActiveAlgorithmBadge() => RoiAlgorithmAssignment.FormatAlgorithmBadge(
         _selected,
         _selected == InspectionToolKind.Pattern ? Pattern.Method : null,
-        _selected == InspectionToolKind.InspectionSuite ? Suite?.SelectedAlgorithm : null);
+        _selected == InspectionToolKind.InspectionSuite ? Suite?.SelectedAlgorithm : null,
+        Suite?.Registry);
 
     private string GetActiveAlgorithmAccent() => RoiAlgorithmAssignment.GetAlgorithmAccent(
         _selected,

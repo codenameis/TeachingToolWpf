@@ -128,7 +128,7 @@ public sealed class ShapeCoarseSearchSchedulerTests
                 MaximumAngleDegrees = 0,
             });
 
-    private static SearchOptions Options(int parallelism)
+    private static ShapeSearchOptions Options(int parallelism)
         => new()
         {
             MaximumParallelism = parallelism,
@@ -137,7 +137,7 @@ public sealed class ShapeCoarseSearchSchedulerTests
 
     private static ShapeCoarseSearchScheduler.Request[] Requests(int count, int width, int height, int step)
         => Enumerable.Range(0, count).Select(index => new ShapeCoarseSearchScheduler.Request(index * step, 0, width, height,
-            new SearchRegion([new(0, 0), new(width, 0), new(width, height), new(0, height)]))).ToArray();
+            new ShapeSearchRegion([new(0, 0), new(width, 0), new(width, height), new(0, height)]))).ToArray();
 
     private static Task<MatchingImageReader> Open(MarkerLoader loader)
         => MatchingImageReader.OpenAsync(new("fixture", "fixture", loader.Width, loader.Height), false, loader, () => null, default);
@@ -193,7 +193,7 @@ public sealed class ShapeCoarseSearchSchedulerTests
         public int MaximumPixels;
         public ImagePreprocessingDiagnostics Diagnostics => new("probe", "probe", 0, 0, 0);
 
-        public GradientPlanes Prepare(GrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
+        public GradientPlanes Prepare(ShapeGrayImage image, float minimumGradient, CancellationToken cancellationToken = default)
         {
             var count = image.Width * image.Height;
             lock (_gate)

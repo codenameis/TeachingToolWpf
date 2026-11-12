@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
+using VisionOcr.PpOcr;
 
 namespace TeachingToolWpf.Imaging.Matching;
 
@@ -13,7 +13,7 @@ public sealed record OcrDiagnosticSnapshot(
     ImmutableArray<byte> BinarizedRgbaPixels,
     string RecognizedText,
     ImmutableArray<string> Lines,
-    ImmutableArray<RecognizedCharBox> Characters,
+    ImmutableArray<PpOcrCharacterBox> Characters,
     float MeanConfidence,
     float MinConfidence,
     float AcceptThreshold,

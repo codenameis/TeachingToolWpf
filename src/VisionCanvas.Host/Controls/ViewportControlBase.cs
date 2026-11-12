@@ -46,7 +46,7 @@ public abstract class ViewportControlBase : HwndHost, IViewportSurface, IFramePr
     protected ViewportControlBase()
     {
         Layers = new(VerifyLayerAccess, PublishLayers);
-        Layers.Create("Inspection", LayerSpace.Image);
+        Layers.Create(DrawingLayerNames.Inspection, LayerSpace.Image);
         Loaded += (_, _) =>
         {
             var owner = Window.GetWindow(this);
@@ -185,7 +185,7 @@ public abstract class ViewportControlBase : HwndHost, IViewportSurface, IFramePr
 
     private void PublishScene()
     {
-        var inspection = Layers["Inspection"].Snapshot;
+        var inspection = Layers[DrawingLayerNames.Inspection].Snapshot;
         if (!ReferenceEquals(inspection, _cachedInspectionSnapshot))
         {
             ResultOverlay? resolved = null;
@@ -225,7 +225,7 @@ public abstract class ViewportControlBase : HwndHost, IViewportSurface, IFramePr
         {
             if (!ReferenceEquals(value.Inspection, _submittedInspection))
             {
-                var inspectionLayer = Layers["Inspection"];
+                var inspectionLayer = Layers[DrawingLayerNames.Inspection];
                 inspectionLayer.ReplaceAll(value.Inspection is { } result ? [new ResultGraphic(result)] : []);
                 _submittedInspection = value.Inspection;
                 _cachedInspectionSnapshot = inspectionLayer.Snapshot;
@@ -392,7 +392,8 @@ public abstract class ViewportControlBase : HwndHost, IViewportSurface, IFramePr
         => IsEnabled && IsInputEnabled && (InputEnabled?.Invoke() ?? true) && (input?.IsEnabled ?? true);
 
     private static bool IsMouseOrKeyboardMessage(int message)
-        => (message >= 0x0200 && message <= 0x020E) || (message >= 0x0100 && message <= 0x0109);
+        => (message >= (int)NativeWindowMessage.MouseFirst && message <= (int)NativeWindowMessage.MouseLast)
+            || (message >= (int)NativeWindowMessage.KeyFirst && message <= (int)NativeWindowMessage.KeyLast);
 
     private static void ApplyToolCursor(EditorTool? tool)
     {

@@ -79,7 +79,7 @@ public readonly record struct RigidTransform2D : IEquatable<RigidTransform2D>
 
     public PointD InverseApply(PointD point)
     {
-        if (AngleDegrees % 360 == 0)
+        if (AngleDegrees % GeometryConstants.FullCircleDegrees == 0)
         {
             return point - Translation;
         }

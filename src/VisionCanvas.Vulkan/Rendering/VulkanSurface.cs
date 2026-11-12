@@ -1,4 +1,4 @@
-using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using Vortice.Vulkan;
 using static VisionCanvas.Vulkan.Rendering.VulkanDevice;
 

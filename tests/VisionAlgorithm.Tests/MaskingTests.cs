@@ -20,15 +20,15 @@ public sealed class MaskingTests
         {
             Array.Fill(excluded, (byte)255, y * 192, 96);
         }
-        var masked = new GrayImage(scene.Pixels, scene.Width, scene.Height, scene.Stride, excluded);
+        var masked = new ShapeGrayImage(scene.Pixels, scene.Width, scene.Height, scene.Stride, excluded);
         var prepared = PreparedSearchImage.Create(masked, model.Options.MinimumGradient, 1);
         Array.Clear(excluded);
         var batch = new CandidateBatch([new(new(48, 48, 0), 1, 0), new(new(144, 48, 0), 1, 0)], false, 1);
-        var options = new SearchOptions { Verify = false, Refine = false, MaximumVerifiedCandidates = 1 };
+        var options = new ShapeSearchOptions { Verify = false, Refine = false, MaximumVerifiedCandidates = 1 };
         var result = ShapeMatcher.CompleteCandidates(prepared, model, options, batch, 0, default);
         Assert.False(result.Diagnostics.VerificationBudgetExceeded);
         Assert.Equal(144, Assert.Single(result.Matches).Pose.X);
-        Assert.Throws<ArgumentException>(() => new GrayImage(scene.Pixels, scene.Width, scene.Height, scene.Stride, new byte[1]));
+        Assert.Throws<ArgumentException>(() => new ShapeGrayImage(scene.Pixels, scene.Width, scene.Height, scene.Stride, new byte[1]));
     }
 
     [Fact]

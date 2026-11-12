@@ -7,10 +7,12 @@ namespace VisionAlgorithm.OpenSrc.IndustrialOcrOcv;
 /// <summary>
 /// Versioned JSON persistence serializer for <see cref="IndustrialOcrFontModel"/>.
 /// Never assumes implicit file paths; callers provide an explicit <see cref="Stream"/>.
+/// Supports backward-compatible loading of legacy v1 files and current v2 files with <see cref="IndustrialOcrFontModel.DarkOnLight"/>.
 /// </summary>
 public static class IndustrialOcrFontModelSerializer
 {
-    public const int CurrentFormatVersion = 1;
+    public const int LegacyFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -42,6 +44,7 @@ public static class IndustrialOcrFontModelSerializer
             CurrentFormatVersion,
             IndustrialOcrGlyphTemplate.GridWidth,
             IndustrialOcrGlyphTemplate.GridHeight,
+            model.DarkOnLight,
             model.GlobalMean.ToArray(),
             dtoTemplates);
 
@@ -67,10 +70,10 @@ public static class IndustrialOcrFontModelSerializer
             throw new InvalidDataException("티칭 폰트 파일이 비어 있습니다.");
         }
 
-        if (envelope.FormatVersion != CurrentFormatVersion)
+        if (envelope.FormatVersion is not (LegacyFormatVersion or CurrentFormatVersion))
         {
             throw new InvalidDataException(
-                $"지원하지 않는 티칭 폰트 형식 버전입니다 (파일 버전: {envelope.FormatVersion}, 지원 버전: {CurrentFormatVersion}).");
+                $"지원하지 않는 티칭 폰트 형식 버전입니다 (파일 버전: {envelope.FormatVersion}, 지원 버전: {LegacyFormatVersion}..{CurrentFormatVersion}).");
         }
 
         if (envelope.GridWidth != IndustrialOcrGlyphTemplate.GridWidth ||
@@ -119,13 +122,15 @@ public static class IndustrialOcrFontModelSerializer
                 (float[])dto.QuadrantDensities.Clone());
         }
 
-        return new IndustrialOcrFontModel(templates, (float[])envelope.GlobalMean.Clone());
+        bool darkOnLight = envelope.DarkOnLight ?? true;
+        return new IndustrialOcrFontModel(templates, (float[])envelope.GlobalMean.Clone(), darkOnLight);
     }
 
     private sealed record FontModelEnvelopeDto(
         int FormatVersion,
         int GridWidth,
         int GridHeight,
+        bool? DarkOnLight,
         float[] GlobalMean,
         GlyphTemplateDto[] Templates);
 

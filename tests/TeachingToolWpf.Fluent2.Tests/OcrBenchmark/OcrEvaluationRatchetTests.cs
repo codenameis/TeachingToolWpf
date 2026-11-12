@@ -145,6 +145,15 @@ public sealed class OcrEvaluationRatchetTests(ITestOutputHelper output)
             splitFilter: null,
             parametersOverride: upperParams);
 
+        var highSpeedParams = new InspectionSuiteParameters(
+            PpOcrPreset: PpOcrSpeedPreset.HighSpeedProduction);
+        PpOcrEvaluationSummary cpuHighSpeedSummary = await OcrEvaluationRunner.EvaluatePpOcrEngineAsync(
+            dataset,
+            repoRootPath,
+            PpOcrExecutionDevice.Cpu,
+            splitFilter: null,
+            parametersOverride: highSpeedParams);
+
         var sb = new StringBuilder();
         sb.AppendLine("=== PP-OCRv4 ONNX TUNING-ONLY CALIBRATION SWEEP ===");
         sb.AppendLine(string.Create(
@@ -166,6 +175,13 @@ public sealed class OcrEvaluationRatchetTests(ITestOutputHelper output)
         AppendSubSplitSummary(sb, cpuSummary.Report, "tuning");
         AppendSubSplitSummary(sb, cpuSummary.Report, "holdout");
         AppendCategoryBreakdown(sb, "CPU", cpuSummary.Report);
+
+        sb.AppendLine();
+        sb.AppendLine("=== PP-OCRv4 ONNX CPU HIGHSPEED PRODUCTION PRESET EVALUATION (60 ROIS) ===");
+        AppendSummaryLine(sb, cpuHighSpeedSummary.Report);
+        AppendSubSplitSummary(sb, cpuHighSpeedSummary.Report, "tuning");
+        AppendSubSplitSummary(sb, cpuHighSpeedSummary.Report, "holdout");
+        AppendCategoryBreakdown(sb, "CPU-HIGHSPEED", cpuHighSpeedSummary.Report);
 
         sb.AppendLine();
         sb.AppendLine("=== PP-OCRv4 ONNX CUDA EVALUATION ===");

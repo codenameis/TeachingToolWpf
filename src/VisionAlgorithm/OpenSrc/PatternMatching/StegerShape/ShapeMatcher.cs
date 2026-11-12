@@ -6,8 +6,17 @@ namespace VisionAlgorithm.OpenSrc.PatternMatching;
 
 public sealed class ShapeMatcher
 {
+    private const double StrictPhaseRecoveryMaxOcclusionRatio = 0.2;
+    private const double PhaseImprovementEpsilon = 1e-9;
+    private const double DistinctLocalPhaseAngleThresholdRadians = 0.05;
+    private const double DistinctLocalPositionThresholdPixels = 0.25;
+    private const double ClutterShiftTriggerEnergyRatio = 0.08;
+    private const double ClutterShiftMinDetailConsistency = 0.75;
+    private const int ClutterShiftGridRadiusPixels = 2;
+    private const long EstimatedCandidateRecordBytes = 128L;
+
     /// <summary>분할 검색에서도 후보 유무와 무관하게 원본 모델의 검사 정책을 검증한다.</summary>
-    public static void ValidateSearchOptions(ShapeModel model, SearchOptions options)
+    public static void ValidateSearchOptions(ShapeModel model, ShapeSearchOptions options)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(options);
@@ -28,8 +37,8 @@ public sealed class ShapeMatcher
         _optimizedLocalSearch = optimizedLocalSearch;
     }
 
-    public MatchResult RefineCandidate(GrayImage image, ShapeModel model, MatchPose initial, double candidateScore,
-        SearchOptions options, CancellationToken cancellationToken = default)
+    public MatchResult RefineCandidate(ShapeGrayImage image, ShapeModel model, MatchPose initial, double candidateScore,
+        ShapeSearchOptions options, CancellationToken cancellationToken = default)
     {
         options.Validate();
         ValidateClutterPolicy(model, options);
@@ -58,7 +67,7 @@ public sealed class ShapeMatcher
                     Y = pose.Y / factor
                 };
                 var result = ContinuousVerifier.Optimize(prepared.Gradients[level], model, local, options, cancellationToken, level);
-                if (level == 0 && options.StrictContext && options.MaxOcclusionRatio <= 0.2 && !model.FeatureAsymmetryFlags.IsDefault &&
+                if (level == 0 && options.StrictContext && options.MaxOcclusionRatio <= StrictPhaseRecoveryMaxOcclusionRatio && !model.FeatureAsymmetryFlags.IsDefault &&
                     result.Score.Score < options.MinimumScore && model.Templates.Length > 1)
                 {
                     // 피라미드 상위 단계(Coarse)에서는 대칭 코어가 우세하여 다른 위상 각도가 넘어오거나
@@ -74,7 +83,7 @@ public sealed class ShapeMatcher
                         if (ContinuousVerifier.Allowed(altInitial, model, options))
                         {
                             var altOpt = ContinuousVerifier.Optimize(prepared.Gradients[0], model, altInitial, options, cancellationToken, 0);
-                            if (altOpt.Score.Score > result.Score.Score + 1e-9)
+                            if (altOpt.Score.Score > result.Score.Score + PhaseImprovementEpsilon)
                             {
                                 result = altOpt;
                             }
@@ -83,11 +92,13 @@ public sealed class ShapeMatcher
                             ? model.TrainingReferenceAngle
                             : model.TrainingReferenceAngle + Math.IEEERemainder((local.Angle + offset) - model.TrainingReferenceAngle, 2 * Math.PI);
                         var altLocal = local with { Angle = altLocalAngle };
-                        if ((Math.Abs(altLocal.Angle - altInitial.Angle) > 0.05 || Math.Abs(altLocal.X - altInitial.X) > 0.25 || Math.Abs(altLocal.Y - altInitial.Y) > 0.25) &&
+                        if ((Math.Abs(altLocal.Angle - altInitial.Angle) > DistinctLocalPhaseAngleThresholdRadians ||
+                             Math.Abs(altLocal.X - altInitial.X) > DistinctLocalPositionThresholdPixels ||
+                             Math.Abs(altLocal.Y - altInitial.Y) > DistinctLocalPositionThresholdPixels) &&
                             ContinuousVerifier.Allowed(altLocal, model, options))
                         {
                             var altOpt2 = ContinuousVerifier.Optimize(prepared.Gradients[0], model, altLocal, options, cancellationToken, 0);
-                            if (altOpt2.Score.Score > result.Score.Score + 1e-9)
+                            if (altOpt2.Score.Score > result.Score.Score + PhaseImprovementEpsilon)
                             {
                                 result = altOpt2;
                             }
@@ -106,7 +117,7 @@ public sealed class ShapeMatcher
         return CompleteCandidates(prepared, model, options, new([candidate], false, 0), timer.Elapsed.TotalMilliseconds, cancellationToken);
     }
 
-    public MatchResult Search(GrayImage image, ShapeModel model, SearchOptions options, CancellationToken cancellationToken = default)
+    public MatchResult Search(ShapeGrayImage image, ShapeModel model, ShapeSearchOptions options, CancellationToken cancellationToken = default)
     {
         options.Validate();
         ValidateClutterPolicy(model, options);
@@ -118,7 +129,7 @@ public sealed class ShapeMatcher
             model, options, cancellationToken);
     }
 
-    public MatchResult Search(PreparedSearchImage image, ShapeModel model, SearchOptions options,
+    public MatchResult Search(PreparedSearchImage image, ShapeModel model, ShapeSearchOptions options,
         CancellationToken cancellationToken = default)
     {
         options.Validate();
@@ -135,7 +146,7 @@ public sealed class ShapeMatcher
         return CompleteCandidates(image, model, options, batch, candidateTime, cancellationToken);
     }
 
-    internal static MatchResult CompleteCandidates(PreparedSearchImage image, ShapeModel model, SearchOptions options,
+    internal static MatchResult CompleteCandidates(PreparedSearchImage image, ShapeModel model, ShapeSearchOptions options,
         CandidateBatch batch, double candidateTime, CancellationToken cancellationToken)
     {
         var timer = Stopwatch.StartNew();
@@ -161,7 +172,7 @@ public sealed class ShapeMatcher
             if (options.Verify && candidate.Verification is null)
             {
                 (pose, score) = ContinuousVerifier.Optimize(image.Gradients[0], model, pose, options, cancellationToken);
-                if (options.StrictContext && options.MaxOcclusionRatio <= 0.2 && !model.FeatureAsymmetryFlags.IsDefault &&
+                if (options.StrictContext && options.MaxOcclusionRatio <= StrictPhaseRecoveryMaxOcclusionRatio && !model.FeatureAsymmetryFlags.IsDefault &&
                     score.Score < options.MinimumScore && model.Templates.Length > 1)
                 {
                     // 피라미드 상위 단계(Coarse)에서는 대칭 코어가 우세하여 90도/180도/270도 위상 각도가 넘어온 뒤
@@ -174,7 +185,7 @@ public sealed class ShapeMatcher
                         if (ContinuousVerifier.Allowed(altInitial, model, options))
                         {
                             var altOpt = ContinuousVerifier.Optimize(image.Gradients[0], model, altInitial, options, cancellationToken, 0);
-                            if (altOpt.Score.Score > score.Score + 1e-9)
+                            if (altOpt.Score.Score > score.Score + PhaseImprovementEpsilon)
                             {
                                 pose = altOpt.Pose;
                                 score = altOpt.Score;
@@ -218,7 +229,7 @@ public sealed class ShapeMatcher
                         var directional = ContinuousVerifier.Score(image.Gradients[0], model, refined.Pose, 0, allowElastic: true, options.MaxOcclusionRatio, options.StrictContext);
                         if (directional.Score >= options.MinimumScore && directional.Support >= options.MinimumSupport &&
                             directional.Score * (1 - (options.ClutterWeight * (1 - refined.Score))) >
-                            initialDirectional.Score * (1 - (options.ClutterWeight * (1 - initialDetail))) + 1e-9)
+                            initialDirectional.Score * (1 - (options.ClutterWeight * (1 - initialDetail))) + PhaseImprovementEpsilon)
                         {
                             bestPose = refined.Pose;
                             bestDirectional = directional;
@@ -278,13 +289,13 @@ public sealed class ShapeMatcher
                     Score = combinedScore
                 };
                 if (detail is { HasElasticPatches: true } && image.Original is { } orig &&
-                    clutter.EnergyRatio > 0.08 && (final.DetailConsistency ?? 0) >= 0.75)
+                    clutter.EnergyRatio > ClutterShiftTriggerEnergyRatio && (final.DetailConsistency ?? 0) >= ClutterShiftMinDetailConsistency)
                 {
                     var basePose = final.Pose;
                     // 가로/세로 방향에 종속되지 않도록 ±2px 대칭 격자(dx, dy in [-2..2])에서 클러터 최소 자세를 탐색한다.
-                    for (var dy = -2; dy <= 2; dy++)
+                    for (var dy = -ClutterShiftGridRadiusPixels; dy <= ClutterShiftGridRadiusPixels; dy++)
                     {
-                        for (var dx = -2; dx <= 2; dx++)
+                        for (var dx = -ClutterShiftGridRadiusPixels; dx <= ClutterShiftGridRadiusPixels; dx++)
                         {
                             if (dx == 0 && dy == 0)
                             {
@@ -306,7 +317,7 @@ public sealed class ShapeMatcher
                             var det = detail.Score(orig, shiftedPose, model.Options.Polarity);
                             var candScore = dir.Score * (1 - (options.ClutterWeight * clut.EnergyRatio)) *
                                 (1 - (options.ClutterWeight * (1 - det)));
-                            if (candScore > final.Score + 1e-9)
+                            if (candScore > final.Score + PhaseImprovementEpsilon)
                             {
                                 final = final with
                                 {
@@ -340,7 +351,7 @@ public sealed class ShapeMatcher
         var output = MatchSuppression.Apply(model, matches, options.MaximumOverlap, int.MaxValue);
         return new(output.Take(options.MaximumMatches).ToImmutableArray(), new(image.ElapsedMilliseconds, candidateTime, verificationTime, refinementTime,
             timer.Elapsed.TotalMilliseconds, batch.EvaluatedTemplates, batch.Candidates.Count, batch.BudgetExceeded,
-            eligible.Count > options.MaximumVerifiedCandidates, image.EstimatedBytes + (candidates.Length * 128L),
+            eligible.Count > options.MaximumVerifiedCandidates, image.EstimatedBytes + (candidates.Length * EstimatedCandidateRecordBytes),
             "180° 무부호 후보 → 선택한 극성의 연속 방향 점수 × (1 - 추가 윤곽 가중치 × 대비 에너지 비율); 반환 각도는 이미지 기준 절대각이며 범위는 학습 ROI 대비 편차; 검증 상한에서는 서로 다른 근접 자세 묶음을 먼저 방문하며 피라미드/국소 최대/후보 예산은 근사 탐색", output.Length > options.MaximumMatches)
         {
             CandidateGridMilliseconds = batch.GridMilliseconds,
@@ -349,7 +360,7 @@ public sealed class ShapeMatcher
         });
     }
 
-    private IImagePreprocessor? GetPreprocessor(SearchOptions options)
+    private IImagePreprocessor? GetPreprocessor(ShapeSearchOptions options)
     {
         if (options.ComputeMode == InspectionComputeMode.Cpu || _candidateScorer is not null)
         {
@@ -360,10 +371,10 @@ public sealed class ShapeMatcher
         return _preprocessor ?? throw new InvalidOperationException("GPU 실행에는 초기화된 전처리 또는 후보 점수 구현이 필요합니다.");
     }
 
-    private static bool RequiresEdges(SearchOptions options)
+    private static bool RequiresEdges(ShapeSearchOptions options)
         => options.Verify && (options.Refine || options.ClutterWeight > 0);
 
-    private static void ValidateClutterPolicy(ShapeModel model, SearchOptions options)
+    private static void ValidateClutterPolicy(ShapeModel model, ShapeSearchOptions options)
     {
         if (options.ClutterWeight > 0 && (!options.Verify || model.ContourModel is null))
         {

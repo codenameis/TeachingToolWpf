@@ -24,8 +24,8 @@ internal static class InspectionControlsBenchmark
             AngleStepDegrees = 10,
             BuildClutterModel = true
         }, cancellation.Token);
-        var standard = new SearchOptions { MaximumMatches = 1000, ClutterWeight = 1 };
-        (string Name, SearchOptions Options)[] cases =
+        var standard = new ShapeSearchOptions { MaximumMatches = 1000, ClutterWeight = 1 };
+        (string Name, ShapeSearchOptions Options)[] cases =
         [
             ("direction-only", standard with { ClutterWeight = 0 }),
             ("balanced-cpu", standard),

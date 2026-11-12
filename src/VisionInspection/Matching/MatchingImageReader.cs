@@ -12,6 +12,7 @@ internal sealed class MatchingImageReader : IDisposable
 {
     private readonly ITileSource? _source;
     private readonly VideoFrame? _frame;
+    private readonly IPreInspectionFilterPipeline? _preFilterPipeline;
     private readonly MatchingTileCache _tiles = new();
     private readonly MatchingReducedTileCache _reducedTiles = new();
     private bool _disposed;
@@ -26,24 +27,25 @@ internal sealed class MatchingImageReader : IDisposable
         get; set;
     }
 
-    private MatchingImageReader(ITileSource? source, VideoFrame? frame)
+    private MatchingImageReader(ITileSource? source, VideoFrame? frame, IPreInspectionFilterPipeline? preFilterPipeline)
     {
         _source = source;
         _frame = frame;
+        _preFilterPipeline = preFilterPipeline;
     }
 
     public static async Task<MatchingImageReader> OpenAsync(ImageReference image, bool live, IImageLoader loader,
-        Func<VideoFrame?> retainFrame, CancellationToken token)
+        Func<VideoFrame?> retainFrame, CancellationToken token, IPreInspectionFilterPipeline? preFilterPipeline = null)
     {
         if (live)
         {
             var frame = retainFrame() ?? throw new InvalidOperationException("검사할 원본 프레임이 없습니다.");
-            return new(null, frame);
+            return new(null, frame, preFilterPipeline);
         }
-        return new(await loader.LoadAsync(image, new Progress<string>(), token).ConfigureAwait(false), null);
+        return new(await loader.LoadAsync(image, new Progress<string>(), token).ConfigureAwait(false), null, preFilterPipeline);
     }
 
-    public GrayImage Read(int left, int top, int width, int height, CancellationToken token,
+    public ShapeGrayImage Read(int left, int top, int width, int height, CancellationToken token,
         int maximumPixels = VisionAlgorithm.OpenSrc.PatternMatching.PreparedSearchImage.MaximumPixels, byte[]? buffer = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -81,7 +83,7 @@ internal sealed class MatchingImageReader : IDisposable
                 }
             }
         }
-        PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(bytes.AsSpan(0, length), width, height);
+        _preFilterPipeline?.ApplyInPlaceIfConfigured(bytes.AsSpan(0, length), width, height);
         return new(bytes.AsMemory(0, length), width, height, width, ReadExclusion(left, top, width, height, token));
     }
 
@@ -108,7 +110,7 @@ internal sealed class MatchingImageReader : IDisposable
         return mask;
     }
 
-    public GrayImage ReadReduced(int left, int top, int width, int height, int factor, CancellationToken token)
+    public ShapeGrayImage ReadReduced(int left, int top, int width, int height, int factor, CancellationToken token)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         token.ThrowIfCancellationRequested();
@@ -147,7 +149,7 @@ internal sealed class MatchingImageReader : IDisposable
             }
             y = bottom;
         }
-        PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(output.AsSpan(0, output.Length), outputWidth, outputHeight);
+        _preFilterPipeline?.ApplyInPlaceIfConfigured(output.AsSpan(0, output.Length), outputWidth, outputHeight);
         return new(output, outputWidth, outputHeight, outputWidth);
     }
 
@@ -159,7 +161,7 @@ internal sealed class MatchingImageReader : IDisposable
         {
             return cached;
         }
-        GrayImage original;
+        ShapeGrayImage original;
         if (_frame is { } frame)
         {
             var left = key.X * 512;
@@ -278,15 +280,16 @@ internal sealed class MatchingPreviewCache
     private ImageReference? _image;
     private readonly MatchingTileCache _tiles = new();
 
-    public async Task<GrayImage> ReadAsync(ImageReference image, bool live, IImageLoader loader,
+    public async Task<ShapeGrayImage> ReadAsync(ImageReference image, bool live, IImageLoader loader,
         Func<VideoFrame?> retainFrame, int left, int top, int width, int height, RoiExclusion? exclusion,
-        CancellationToken token, int maximumPixels = PreparedSearchImage.MaximumPixels, bool preferDirectGray = false)
+        CancellationToken token, int maximumPixels = PreparedSearchImage.MaximumPixels, bool preferDirectGray = false,
+        IPreInspectionFilterPipeline? preFilterPipeline = null)
     {
-        if (!live && TryReadFromMemory(image, left, top, width, height, exclusion, token, maximumPixels, out var cached))
+        if (!live && TryReadFromMemory(image, left, top, width, height, exclusion, token, maximumPixels, preFilterPipeline, out var cached))
         {
             return cached;
         }
-        using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token).ConfigureAwait(false);
+        using var reader = await MatchingImageReader.OpenAsync(image, live, loader, retainFrame, token, preFilterPipeline).ConfigureAwait(false);
         reader.PreferDirectGray = preferDirectGray;
         reader.Exclusion = exclusion;
         var result = reader.Read(left, top, width, height, token, maximumPixels);
@@ -298,7 +301,7 @@ internal sealed class MatchingPreviewCache
     }
 
     private bool TryReadFromMemory(ImageReference image, int left, int top, int width, int height,
-        RoiExclusion? exclusion, CancellationToken token, int maximumPixels, out GrayImage result)
+        RoiExclusion? exclusion, CancellationToken token, int maximumPixels, IPreInspectionFilterPipeline? preFilterPipeline, out ShapeGrayImage result)
     {
         token.ThrowIfCancellationRequested();
         if ((long)width * height > maximumPixels || maximumPixels > CorrelationTemplate.MaximumSearchPixels)
@@ -370,7 +373,7 @@ internal sealed class MatchingPreviewCache
                 }
             }
         }
-        PreInspectionFilterPipeline.ApplyInPlaceIfConfigured(bytes.AsSpan(0, bytes.Length), width, height);
+        preFilterPipeline?.ApplyInPlaceIfConfigured(bytes.AsSpan(0, bytes.Length), width, height);
         result = new(bytes.AsMemory(0, bytes.Length), width, height, width, mask);
         return true;
     }

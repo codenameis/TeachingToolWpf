@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 
 namespace VisionCanvas.Tests;
 

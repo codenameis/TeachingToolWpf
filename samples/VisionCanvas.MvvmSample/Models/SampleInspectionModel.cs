@@ -5,13 +5,6 @@ using VisionImaging.Abstractions;
 
 namespace VisionCanvas.MvvmSample.Models;
 
-// record는 값을 담는 형식이다. 알고리즘은 여기서는 설정 데이터이며 실제 검사 결과가 아니다.
-// Canvas가 알고리즘 이름을 알 필요는 없다. ROI의 ID로 샘플 모델과 Canvas 문서를 연결한다.
-public sealed record AlgorithmSettings(string Name, string Parameters);
-
-public sealed record CameraModel(string Name, ImageReference Image, ImmutableArray<Roi> Rois,
-    ImmutableDictionary<Guid, AlgorithmSettings> Algorithms);
-
 public sealed record SampleInspectionModel(string Name, CameraModel FirstCamera, CameraModel SecondCamera)
 {
     public static SampleInspectionModel Create() => new("부품 검사 예제 모델 · 2 cameras",

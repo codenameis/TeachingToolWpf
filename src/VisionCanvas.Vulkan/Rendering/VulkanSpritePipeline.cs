@@ -1,12 +1,12 @@
 using System.Runtime.InteropServices;
-using VisionCanvas.Rendering;
+using VisionCanvas.Rendering.Abstractions;
 using VisionImaging.Abstractions;
 using Vortice.Vulkan;
 using static VisionCanvas.Vulkan.Rendering.VulkanDevice;
 
 namespace VisionCanvas.Vulkan.Rendering;
 
-internal sealed unsafe class VulkanSpritePipeline : ITexturePipeline, IDisposable
+internal sealed unsafe class VulkanSpritePipeline : TexturePipelineBase<VulkanTexture, VulkanSurface>, IDisposable
 {
     private readonly VulkanDevice _gpu;
     private readonly VulkanFrameResources[] _frames;
@@ -47,14 +47,15 @@ internal sealed unsafe class VulkanSpritePipeline : ITexturePipeline, IDisposabl
         return sampler;
     }
 
-    public IRenderTexture CreateTexture(int width, int height, PixelKind kind) => new VulkanTexture(_gpu, width, height, kind);
+    public override VulkanTexture CreateTypedTexture(int width, int height, PixelKind kind)
+        => new(_gpu, width, height, kind);
 
-    public IRenderTexture Upload(PixelBuffer pixels, IRenderSurface surface)
+    public override VulkanTexture UploadTyped(PixelBuffer pixels, VulkanSurface surface)
     {
         var texture = new VulkanTexture(_gpu, pixels.Width, pixels.Height, pixels.Kind);
         try
         {
-            Update(texture, pixels, surface);
+            UpdateTyped(texture, pixels, surface);
             texture.IsOpaque = TextureTransparency.PixelsAreOpaque(pixels);
             return texture;
         }
@@ -65,14 +66,13 @@ internal sealed unsafe class VulkanSpritePipeline : ITexturePipeline, IDisposabl
         }
     }
 
-    public void Update(IRenderTexture target, PixelBuffer pixels, IRenderSurface targetSurface)
+    public override void UpdateTyped(VulkanTexture texture, PixelBuffer pixels, VulkanSurface surface)
     {
-        var texture = (VulkanTexture)target;
-        var surface = (VulkanSurface)targetSurface;
         if (texture.Width != pixels.Width || texture.Height != pixels.Height || texture.Kind != pixels.Kind)
         {
             throw new ArgumentException("텍스처와 프레임 형식이 다릅니다.");
         }
+
         var upload = _frames[surface.FrameIndex].Uploads.Allocate((ulong)pixels.Length);
         pixels.Span.CopyTo(new Span<byte>((void*)upload.Pointer, pixels.Length));
         VulkanTexture.Barrier(_gpu, surface.Commands, texture.Image,
@@ -104,10 +104,12 @@ internal sealed unsafe class VulkanSpritePipeline : ITexturePipeline, IDisposabl
                 middle();
                 Bind();
             }
+
             var batch = mesh.Batches[index];
-            BindTexture(frame, surface, (VulkanTexture)batch.Texture, batch.PointSampling);
+            BindTexture(frame, surface, RequireTexture(batch.Texture), batch.PointSampling);
             _gpu.Api.vkCmdDraw(surface.Commands, (uint)batch.Count, 1, (uint)batch.Start, 0);
         }
+
         if (middleBatch == mesh.Batches.Count)
         {
             middle();

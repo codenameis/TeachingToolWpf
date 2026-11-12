@@ -19,47 +19,6 @@ using VisionOcr.PpOcr;
 
 namespace TeachingToolWpf.ViewModels;
 
-public enum InspectionSuiteCategory
-{
-    All = 0,
-    MetrologyAndGeometry = 1,
-    SurfaceBlobAnd3D = 2,
-    Ocr = 3,
-    AiAndAutoTeaching = 4,
-    PreprocessingAndFrequency = 5,
-    Barcode1D2D = 6,
-    CodeAndOcr = Ocr
-}
-
-public sealed record InspectionSuiteAlgorithmOption(
-    InspectionSuiteAlgorithmKind Kind,
-    string Name,
-    InspectionSuiteCategory Category = InspectionSuiteCategory.All,
-    string ShortPillLabel = "")
-{
-    public RelayCommand? SelectCommand { get; init; }
-}
-public sealed record MetrologyModeOption(MetrologyMeasurementMode Mode, string Name);
-public sealed record MetrologyPolarityOption(MetrologyPolarityMode Polarity, string Name);
-
-public sealed record SuiteRegisteredReferenceItem(
-    Guid RoiId,
-    string Name,
-    string RoleBadge,
-    string RoleAccent,
-    string GeometrySummary,
-    string ChildTargetSummary,
-    RelayCommand RemoveCommand);
-
-public sealed record OcrLiveRoiSummaryItem(
-    Guid RoiId,
-    string RoiName,
-    string DecodedText,
-    string ConfidenceBadge,
-    string VerdictBadge,
-    string VerdictAccent,
-    string CharacterCountBadge);
-
 /// <summary>
 /// 상용 정밀 검사 스위트 7종 통합 뷰모델.
 /// 선택된 ROI 또는 문서 전체 ROI에 대해 7종 알고리즘을 실행하고 결과를 캔버스 오버레이로 시각화하며,
@@ -80,7 +39,9 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private readonly ITaughtFontOcvService? _ocvService;
     private readonly Func<string?>? _selectOcvFontOpenPath;
     private readonly Func<string?>? _selectOcvFontSavePath;
+    private readonly Func<string, string, float, bool>? _confirmApplyPpOcrToOcv;
     private readonly List<InspectionSuiteRoiInput> _referenceRois = [];
+    private readonly Dictionary<Guid, RoiSuiteExecutionMode> _roiExecutionModes = [];
     private readonly object _previewPumpGate = new();
     private InspectionSuiteCategory _selectedCategory = InspectionSuiteCategory.MetrologyAndGeometry;
     private InspectionSuiteAlgorithmKind _selectedAlgorithm = InspectionSuiteAlgorithmKind.Metrology;
@@ -121,6 +82,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private bool _ocvAppendTeachMode = true;
     private string _selectedRoiOcvExpectedText = string.Empty;
     private string _selectedRoiOcvFormatMask = string.Empty;
+    private string _selectedRoiOcvFontId = RoiOcvSettings.DefaultFontId;
     private bool _syncingRoiOcvFields;
     private OcvRoiInspectionItem? _selectedOcvVerificationItem;
     private float _autoTeachMinGeometricScore = 0.45f;
@@ -137,6 +99,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     private int _watershedMinAreaPixels = 12;
     private float _dataMatrixMinIsoContrast = 0.20f;
     private int _dataMatrixMaxEccErrors = 8;
+    private float _qrCodeMinIsoContrast = 0.20f;
+    private int _qrCodeMaxEccErrors = 8;
     private float _fftNotchOrGaborSigma = 2.5f;
     private float _fftPeakThresholdRatio = 4.2f;
     private float _homomorphicGammaHigh = 1.85f;
@@ -192,7 +156,9 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
     public RelayCommand ToggleHelpManual => _toggleHelpManualCommand ??= new(() => IsHelpManualOpen = !IsHelpManualOpen);
 
-    public AlgorithmHelpManual ActiveHelpManual => AlgorithmHelpCatalog.ForInspectionSuite(_selectedAlgorithm);
+    public InspectionAlgorithmRegistry Registry => _service.Registry;
+
+    public AlgorithmHelpManual ActiveHelpManual => AlgorithmHelpCatalog.ForInspectionSuite(_selectedAlgorithm, _service.Registry);
 
     private sealed record LivePreviewRequest(
         ImageReference Image,
@@ -209,46 +175,22 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         IInspectionSuiteService service,
         ITaughtFontOcvService? ocvService = null,
         Func<string?>? selectOcvFontOpenPath = null,
-        Func<string?>? selectOcvFontSavePath = null)
+        Func<string?>? selectOcvFontSavePath = null,
+        Func<string, string, float, bool>? confirmApplyPpOcrToOcv = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         _service = service;
         _ocvService = ocvService;
         _selectOcvFontOpenPath = selectOcvFontOpenPath;
         _selectOcvFontSavePath = selectOcvFontSavePath;
+        _confirmApplyPpOcrToOcv = confirmApplyPpOcrToOcv;
 
-        InspectionSuiteAlgorithmOption CreateOption(
-            InspectionSuiteAlgorithmKind kind,
-            InspectionSuiteCategory category,
-            string shortPillLabel)
-            => new(kind, InspectionSuiteService.GetAlgorithmShortName(kind), category, shortPillLabel)
+        Algorithms = _service.Registry.All
+            .Select(alg => new InspectionSuiteAlgorithmOption(alg.Kind, alg.ShortName, alg.Category, alg.ShortPillLabel)
             {
-                SelectCommand = new RelayCommand(() => SelectedAlgorithm = kind, () => IsIdle)
-            };
-
-        var algorithmOptions = new List<InspectionSuiteAlgorithmOption>
-        {
-            CreateOption(InspectionSuiteAlgorithmKind.Metrology, InspectionSuiteCategory.MetrologyAndGeometry, "1D 캘리퍼·직선·원"),
-            CreateOption(InspectionSuiteAlgorithmKind.GoldenVariation, InspectionSuiteCategory.SurfaceBlobAnd3D, "골든 마스터 변이"),
-            CreateOption(InspectionSuiteAlgorithmKind.BlobRle, InspectionSuiteCategory.SurfaceBlobAnd3D, "RLE 블롭·모폴로지"),
-            CreateOption(InspectionSuiteAlgorithmKind.Curvilinear, InspectionSuiteCategory.SurfaceBlobAnd3D, "Steger 곡선 비드"),
-            CreateOption(InspectionSuiteAlgorithmKind.FewShot, InspectionSuiteCategory.AiAndAutoTeaching, "Few-Shot 분류"),
-            CreateOption(InspectionSuiteAlgorithmKind.PatchAnomaly, InspectionSuiteCategory.SurfaceBlobAnd3D, "PaDiM 패치 이상"),
-            CreateOption(InspectionSuiteAlgorithmKind.Calibration, InspectionSuiteCategory.MetrologyAndGeometry, "9-Point 캘리브레이션"),
-            CreateOption(InspectionSuiteAlgorithmKind.CornerAlignment, InspectionSuiteCategory.MetrologyAndGeometry, "2-Rake 가상 코너"),
-            CreateOption(InspectionSuiteAlgorithmKind.PpOcrOnnx, InspectionSuiteCategory.Ocr, "OCR / OCV (PP-OCRv4 · 티칭 OCV)"),
-            CreateOption(InspectionSuiteAlgorithmKind.AutoTeaching, InspectionSuiteCategory.AiAndAutoTeaching, "멀티파츠 자동 티칭"),
-            CreateOption(InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon, InspectionSuiteCategory.PreprocessingAndFrequency, "조명보정·확산·재구성"),
-            CreateOption(InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse, InspectionSuiteCategory.MetrologyAndGeometry, "복합캘리퍼·타원 피팅"),
-            CreateOption(InspectionSuiteAlgorithmKind.AdvancedBlobWatershed, InspectionSuiteCategory.SurfaceBlobAnd3D, "워터셰드 블롭 분리"),
-            CreateOption(InspectionSuiteAlgorithmKind.DataMatrix2DReader, InspectionSuiteCategory.Barcode1D2D, "2D DataMatrix"),
-            CreateOption(InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor, InspectionSuiteCategory.PreprocessingAndFrequency, "2D FFT·호모모픽·Gabor"),
-            CreateOption(InspectionSuiteAlgorithmKind.Barcode1DReader, InspectionSuiteCategory.Barcode1D2D, "1D 바코드 리더"),
-            CreateOption(InspectionSuiteAlgorithmKind.PhotometricStereo, InspectionSuiteCategory.SurfaceBlobAnd3D, "포토메트릭 3D 표면"),
-            CreateOption(InspectionSuiteAlgorithmKind.GeometricTolerancing, InspectionSuiteCategory.MetrologyAndGeometry, "다중형상 GD&T 공차")
-        };
-
-        Algorithms = algorithmOptions;
+                SelectCommand = new RelayCommand(() => SelectedAlgorithm = alg.Kind, () => IsIdle)
+            })
+            .ToList();
 
         SelectMetrologyCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.MetrologyAndGeometry), () => IsIdle);
         SelectSurface3DCategory = new RelayCommand(() => SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory.SurfaceBlobAnd3D), () => IsIdle);
@@ -344,15 +286,15 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         LoadOcrOcvSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.PpOcrOnnx), () => IsIdle);
         LoadAutoTeachingSample = new(() => RequestSampleLoad(InspectionSuiteAlgorithmKind.AutoTeaching), () => IsIdle);
         ApplyPpOcrTextToOcvExpectedText = new(CopyRecognizedPpOcrTextToOcvExpectedText,
-            () => IsIdle && HasSelectedLeafRoi() && TryGetSelectedOrPrimaryPpOcrText(out _));
+            () => IsIdle && CanEditSelectedRoiOcvSettings && TryGetSelectedVerifiedPpOcrText(out _, out _, out _));
         TeachSelectedRoiOcvFont = new(TeachSelectedRoiOcvFontAsync, error => PresentWarning(error.Message),
-            () => IsIdle && _canExecute && _ocvService is not null && _image is not null && HasSelectedLeafRoi() && !string.IsNullOrWhiteSpace(_selectedRoiOcvExpectedText));
+            () => IsIdle && _canExecute && _ocvService is not null && _image is not null && CanEditSelectedRoiOcvSettings && !string.IsNullOrWhiteSpace(_selectedRoiOcvExpectedText));
         VerifySelectedRoiOcv = new(() => VerifyRoisOcvAsync(selectedOnly: true), error => PresentWarning(error.Message),
             () => IsIdle && _canExecute && _ocvService is { HasGoldenFont: true } && _image is not null && (HasSelectedLeafRoi() || HasAnyLeafRoi()));
         VerifyAllRoisOcv = new(() => VerifyRoisOcvAsync(selectedOnly: false), error => PresentWarning(error.Message),
             () => IsIdle && _canExecute && _ocvService is { HasGoldenFont: true } && _image is not null && HasAnyLeafRoi());
         SaveOcvFontModel = new(SaveOcvFontModelFromDialog,
-            () => IsIdle && _ocvService is { HasGoldenFont: true } && _selectOcvFontSavePath is not null);
+            () => IsIdle && _ocvService is not null && _ocvService.HasGoldenFontForId(_selectedRoiOcvFontId) && _selectOcvFontSavePath is not null);
         LoadOcvFontModel = new(LoadOcvFontModelFromDialog,
             () => IsIdle && _ocvService is not null && _selectOcvFontOpenPath is not null);
         ClearOcvFontModel = new(ClearOcvFontModelState,
@@ -404,7 +346,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         InspectionSuiteCategory.MetrologyAndGeometry => "치수·기하계측 카테고리 (5종: 1D 캘리퍼·직선·원 / 복합캘리퍼·타원 / 2-Rake 코너 / 다중형상 GD&T / 9-Point 캘리브레이션)",
         InspectionSuiteCategory.SurfaceBlobAnd3D => "블롭·표면·3D 카테고리 (6종: RLE 블롭 / 워터셰드 분리 / Steger 곡선비드 / 골든 마스터 / PaDiM 패치 / 포토메트릭 3D)",
         InspectionSuiteCategory.Ocr => "OCR / OCV 카테고리 (1종 통합: PP-OCRv4 범용 판독 + 티칭 기반 OCV 인쇄 품질 검증)",
-        InspectionSuiteCategory.Barcode1D2D => "1D·2D 바코드 카테고리 (2종: 1D Code 128 멀티스캔 리더 / 2D DataMatrix ECC 200 리더)",
+        InspectionSuiteCategory.Barcode1D2D => "1D·2D 바코드 카테고리 (3종: 1D Code 128 멀티스캔 리더 / 2D DataMatrix ECC 200 리더 / 2D QR 코드 리더)",
         InspectionSuiteCategory.AiAndAutoTeaching => "AI·자동티칭 카테고리 (2종: 멀티파츠 자동 티칭 / Few-Shot 이상 분류)",
         InspectionSuiteCategory.PreprocessingAndFrequency => "조명·주파수 전처리 카테고리 (2종: 2D 다항식 조명·비등방성 확산·재구성 / 2D FFT 노치·호모모픽·Gabor)",
         _ => $"전체 검사 알고리즘 보기 ({Algorithms.Count}종 전체 목록)"
@@ -431,7 +373,9 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     public ObservableCollection<OcvRoiInspectionItem> OcvVerificationItems { get; } = [];
     public bool IsOcvServiceWired => _ocvService is not null;
     public bool HasGoldenOcvFont => _ocvService?.HasGoldenFont == true;
-    public string OcvFontStatusBadge => _ocvService?.RegisteredCharactersSummary ?? "골든 폰트 미등록 (정상 ROI 선택 후 '폰트 티칭' 실행)";
+    public bool CanEditSelectedRoiOcvSettings => GetSelectedLeafRois().Count == 1;
+    public string OcvFontStatusBadge => _ocvService?.GetRegisteredCharactersSummary(_selectedRoiOcvFontId)
+        ?? "골든 폰트 미등록 (단일 기준 ROI 선택 후 '폰트 티칭' 실행)";
     public string OcvLastVerdictBadge { get; private set; } = "READY";
     public string OcvLastVerdictAccent { get; private set; } = "#38BDF8";
     public bool HasOcvVerificationItems => OcvVerificationItems.Count > 0;
@@ -505,16 +449,14 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
     public bool IsAdvancedMetrologyEllipseSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse;
     public bool IsAdvancedBlobWatershedSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.AdvancedBlobWatershed;
     public bool IsDataMatrix2DSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.DataMatrix2DReader;
+    public bool IsQrCode2DSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.QrCode2DReader;
     public bool IsPreprocessingFftGaborSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor;
     public bool IsBarcode1DSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.Barcode1DReader;
     public bool IsPhotometricStereoSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.PhotometricStereo;
     public bool IsGeometricTolerancingSelected => _selectedAlgorithm == InspectionSuiteAlgorithmKind.GeometricTolerancing;
     public bool UsesMetrologyOrCornerParams => _selectedAlgorithm is InspectionSuiteAlgorithmKind.Metrology
         or InspectionSuiteAlgorithmKind.CornerAlignment;
-    public bool UsesReferenceRois => _selectedAlgorithm is InspectionSuiteAlgorithmKind.GoldenVariation
-        or InspectionSuiteAlgorithmKind.FewShot
-        or InspectionSuiteAlgorithmKind.PatchAnomaly
-        or InspectionSuiteAlgorithmKind.AutoTeaching;
+    public bool UsesReferenceRois => _service.Registry.GetRequired(_selectedAlgorithm).UsesReferenceRois;
     public bool HasRegisteredReferences => RegisteredReferenceItems.Count > 0;
     public string ReferenceCardTitle => _selectedAlgorithm == InspectionSuiteAlgorithmKind.AutoTeaching
         ? "3 · 멀티파츠 모델 풀 학습(티칭) & 등록 파츠 관리"
@@ -535,10 +477,10 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         get => _selectedAlgorithm;
         set
         {
-            var normalized = InspectionSuiteService.NormalizeAlgorithmKind(value);
+            var normalized = _service.Registry.NormalizeKind(value);
             if (Set(ref _selectedAlgorithm, normalized))
             {
-                var mappedCategory = ResolveCategoryForAlgorithm(normalized);
+                var mappedCategory = _service.Registry.ResolveCategory(normalized);
                 if (_selectedCategory != InspectionSuiteCategory.All && _selectedCategory != mappedCategory)
                 {
                     _selectedCategory = mappedCategory;
@@ -555,32 +497,6 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
-    public static InspectionSuiteCategory ResolveCategoryForAlgorithm(InspectionSuiteAlgorithmKind kind) => kind switch
-    {
-        InspectionSuiteAlgorithmKind.Metrology
-            or InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse
-            or InspectionSuiteAlgorithmKind.CornerAlignment
-            or InspectionSuiteAlgorithmKind.GeometricTolerancing
-            or InspectionSuiteAlgorithmKind.Calibration => InspectionSuiteCategory.MetrologyAndGeometry,
-        InspectionSuiteAlgorithmKind.BlobRle
-            or InspectionSuiteAlgorithmKind.AdvancedBlobWatershed
-            or InspectionSuiteAlgorithmKind.Curvilinear
-            or InspectionSuiteAlgorithmKind.GoldenVariation
-            or InspectionSuiteAlgorithmKind.PatchAnomaly
-            or InspectionSuiteAlgorithmKind.PhotometricStereo => InspectionSuiteCategory.SurfaceBlobAnd3D,
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
-            or InspectionSuiteAlgorithmKind.LightweightOcr
-            or InspectionSuiteAlgorithmKind.CpuDeepOcr
-            or InspectionSuiteAlgorithmKind.PpOcrOnnx => InspectionSuiteCategory.Ocr,
-        InspectionSuiteAlgorithmKind.Barcode1DReader
-            or InspectionSuiteAlgorithmKind.DataMatrix2DReader => InspectionSuiteCategory.Barcode1D2D,
-        InspectionSuiteAlgorithmKind.AutoTeaching
-            or InspectionSuiteAlgorithmKind.FewShot => InspectionSuiteCategory.AiAndAutoTeaching,
-        InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon
-            or InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor => InspectionSuiteCategory.PreprocessingAndFrequency,
-        _ => InspectionSuiteCategory.MetrologyAndGeometry
-    };
-
     public void SelectCategoryAndDefaultAlgorithm(InspectionSuiteCategory category)
     {
         SelectedCategory = category;
@@ -589,7 +505,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             return;
         }
 
-        if (ResolveCategoryForAlgorithm(_selectedAlgorithm) != category &&
+        if (_service.Registry.ResolveCategory(_selectedAlgorithm) != category &&
             Algorithms.FirstOrDefault(a => a.Category == category) is { } first)
         {
             SelectedAlgorithm = first.Kind;
@@ -681,102 +597,9 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
-    public string AlgorithmDescription => _selectedAlgorithm switch
-    {
-        InspectionSuiteAlgorithmKind.Metrology =>
-            "1D 가우시안 1차 미분 + 포물선 서브픽셀 에지 폭 계측, 다중 캘리퍼(Rake) RANSAC+IRLS 직선 피팅, 방사형 스포크 Taubin 원 피팅을 수행합니다.",
-        InspectionSuiteAlgorithmKind.GoldenVariation =>
-            "정상 ROI 샘플들의 Welford 평균(Mean)·표준편차(StdDev)와 Sobel 에지 기울기 허용치(k·σ + c·|∇μ|)를 결합해 실제 결함 픽셀만 검출합니다.",
-        InspectionSuiteAlgorithmKind.BlobRle =>
-            "스캔라인 런-렝스 인코딩(RLE) 압축 영역에서 구간 모폴로지(Opening)와 그린 정리(Green's Theorem) 2차 모멘트로 무게중심·주축 각도를 추출합니다.",
-        InspectionSuiteAlgorithmKind.Curvilinear =>
-            "Steger(1998) 2차 헤시안(Hessian) 고유값 분해로 서브픽셀 곡선 중심선을 추출하고, 경로 법선 캘리퍼로 실링 비드 단선·협소·과다를 판정합니다.",
-        InspectionSuiteAlgorithmKind.FewShot =>
-            "다중 구역 기울기 모멘트 + SimpleShot 정규화 + Ledoit-Wolf 수축 공분산 마할라노비스 거리로 소량 샘플 분류 및 미등록 이상치(OOD) 기각을 수행합니다.",
-        InspectionSuiteAlgorithmKind.PatchAnomaly =>
-            "PaDiM 방식으로 정상 ROI의 공간 패치(Grid)별 다변량 가우시안 분포를 학습하고 패치별 마할라노비스 거리 히트맵과 최대 이상치 좌표를 검출합니다.",
-        InspectionSuiteAlgorithmKind.Calibration =>
-            "Hartley 정규화 DLT + 9×9 야코비안 SVD 기반 9-Point 평면 호모그래피(픽셀 ↔ 물리 mm) 보정과 Brown-Conrady 렌즈 왜곡 역보정 정밀도를 검증합니다.",
-        InspectionSuiteAlgorithmKind.CornerAlignment =>
-            "모따기·라운딩·칩핑·버를 회피하는 2-Rake 다중 1D 서브픽셀 캘리퍼와 RANSAC + Tukey Biweight 직선 교차로 가상 코너 꼭짓점 및 4-코너 대각 정합을 수행합니다.",
-        InspectionSuiteAlgorithmKind.AutoTeaching =>
-            "단일 샘플 티칭만으로 화면 내 다중 회전 부품을 자동 인식(Coarse Edge Proposal + 64B Signature + PatMax + ICGN)하고 하위 검사 ROI 월드 좌표를 즉시 생성합니다.",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
-            or InspectionSuiteAlgorithmKind.LightweightOcr
-            or InspectionSuiteAlgorithmKind.CpuDeepOcr
-            or InspectionSuiteAlgorithmKind.PpOcrOnnx =>
-            "PP-OCRv4 ONNX(DBNet 검출 + SVTR-LCNet CTC 시퀀스 배치 인식) 범용 문자 판독과 동일 인쇄 골든 폰트 기반 고속 OCV(Optical Character Verification) 품질 검증을 통합 제공합니다.",
-        InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon =>
-            "HALCON estimate_background_illumination / anisotropic_diffusion / opening_by_reconstruction 급 전처리: 2D 6-기저 쌍이차 다항식 조명 평탄화, Perona-Malik 비등방성 확산, Vincent(1993) 하이브리드 형태학적 재구성을 수행합니다.",
-        InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse =>
-            "Cognex CogCaliperScoringFunction(First/Last/Expected Span 연속 가우시안 친화도) 복합 캘리퍼와 Fitzgibbon(1999) + Sampson Gauss-Newton 직교 거리 타원(Ellipse) 피팅을 수행합니다.",
-        InspectionSuiteAlgorithmKind.AdvancedBlobWatershed =>
-            "RLE 스캔라인 위상 해석(Euler 내부 홀 개수·홀 면적), Monotone Chain 볼록 껍질(Convex Hull·Solidity), Rotating Calipers 최소면적 회전 외접 사각형, 명암 통계(μ,σ,min,max) 및 Meijster O(N) 유클리드 거리변환(EDT) 접촉 블롭 워터셰드 분리를 수행합니다.",
-        InspectionSuiteAlgorithmKind.DataMatrix2DReader =>
-            "ISO/IEC 16022 ECC 200 2D DataMatrix 리더: L-Finder 및 교번 타이밍 트랙 정합, Utah 8-bit L자 모듈 배치 복원, GF(2^8)(원시 다항식 301) Reed-Solomon 신드롬 검증·오류 정정, ISO/IEC 15415 인쇄 품질 등급(A~F)을 산출합니다.",
-        InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor =>
-            "2D Radix-2 FFT 주기적 모아레/메쉬 스펙트럼 노치 감쇠, 호모모픽 ln(I+1) 조명·반사율 분리, 2D 직교 위상 Gabor 텍스처 강조를 수행합니다.",
-        InspectionSuiteAlgorithmKind.Barcode1DReader =>
-            "다중 스캔라인 서브픽셀 에지 영교차 기반 Code 128B 1D 바코드 디코딩, Modulo-103 체크섬 검증 및 ISO/IEC 15416 인쇄 품질 등급(SC/MOD/DEC Grade A~F)을 산출합니다.",
-        InspectionSuiteAlgorithmKind.PhotometricStereo =>
-            "Woodham 4방향 람베르시안 포토메트릭 스테레오 법선 벡터(nx,ny,nz) 및 순수 알베도(ρ) 분리, 3D 평균곡률(H)·가우시안곡률(K) 기반 미세 찍힘/스크래치 결함 검사를 수행합니다.",
-        InspectionSuiteAlgorithmKind.GeometricTolerancing =>
-            "다중 형상 서브픽셀 기하공차(GD&T): 수평/수직 데이텀 직선 직교도(⊥), 내/외경 이중 보어 동심도(◎ Δc), 보어-데이텀 수직거리를 정밀 계측합니다.",
-        _ => string.Empty
-    };
+    public string AlgorithmDescription => _service.Registry.GetRequired(_selectedAlgorithm).Description;
 
-    public string AlgorithmUsageGuide => _selectedAlgorithm switch
-    {
-        InspectionSuiteAlgorithmKind.Metrology => _metrologyMode switch
-        {
-            MetrologyMeasurementMode.EdgePairWidth =>
-                "① [1D 폭 계측] 캔버스에서 트레이스·슬롯 위에 ROI를 올리고, ROI 방향 화살표가 양쪽 에지를 수직으로 가로지르도록 회전하세요.\n② 하늘색 점선 박스(투영 적분 영역)와 화살표가 실시간 표시되며, 검출된 좌·우 에지(청록 점)와 서브픽셀 폭(초록 선)이 즉시 계산됩니다.",
-            MetrologyMeasurementMode.RakeLineFit =>
-                "① [다중 레이크 직선 피팅] 측정할 직선 경계선을 따라 ROI를 배치하고 화살표가 에지에 수직이 되도록 맞추세요.\n② 레이크 분할 수만큼 평행 스캔 보조선이 표시되며, 이상치(빨강 점)를 제외한 인라이어(청록 점)로 RANSAC+IRLS 최적 직선을 피팅합니다.",
-            MetrologyMeasurementMode.SpokeCircleFit =>
-                "① [방사형 스포크 원 피팅] 원형 패드·홀 중심에 정사각형 ROI를 배치하세요 (내·외측 하늘색 점선 링 사이에 원 경계가 들어오도록 크기 조절).\n② 중심에서 퍼져 나가는 스포크 보조선마다 서브픽셀 에지를 찾아 Taubin 대수적 원(반지름 R, 외경 Ø, 진원도 RMS)을 피팅합니다.",
-            _ =>
-                "① 상단 '현재 알고리즘 샘플 열기'를 누르거나 캔버스에서 측정할 위치에 ROI를 배치·회전하세요.\n② 계측 모드(자동 / 1D 폭 / 레이크 직선 / 스포크 원)와 시그마(σ)·최소 대비 슬라이더를 움직이면 캔버스에 스캔 가이드와 계측 결과가 실시간 프리뷰됩니다."
-        },
-        InspectionSuiteAlgorithmKind.GoldenVariation =>
-            "① 정상(Golden) ROI들을 선택해 '정상(Good) 기준 등록'을 누르세요 (샘플 열기 시 상단 4개 다이가 자동 등록됩니다).\n② 표준편차 배수(k)와 에지 지터 허용치(c) 슬라이더를 조절하면 하단 검사 다이의 스크래치·솔더브릿지 불량 픽셀(빨강 점)이 실시간 표시됩니다.",
-        InspectionSuiteAlgorithmKind.BlobRle =>
-            "① 이진화 최소 밝기(Threshold)와 모폴로지 오프닝 반경(R) 슬라이더를 조절해 배경 스펙클 노이즈를 제거하세요.\n② 검출된 각 블롭의 바운딩 박스, 그린 정리 서브픽셀 무게중심(청록 점), 주축 방향선이 실시간으로 표시됩니다.",
-        InspectionSuiteAlgorithmKind.Curvilinear =>
-            "① 실링 비드·곡선 경로를 따라 ROI를 배치하고 비드 기준 폭(px)과 최소 에지 대비를 설정하세요.\n② Steger 헤시안 중심선(청록 점)과 단선(Gap) 발생 위치(빨강 점)가 실시간 검출됩니다.",
-        InspectionSuiteAlgorithmKind.FewShot =>
-            "① 정상 ROI는 '정상 기준 등록', 불량 ROI는 '불량 기준 등록'으로 등록하세요 (샘플 열기 시 자동 등록).\n② 검사 실행 시 정상(Good), 등록 불량(Defect), 미등록 이상치(OOD)를 마할라노비스 거리로 즉시 판정합니다.",
-        InspectionSuiteAlgorithmKind.PatchAnomaly =>
-            "① 정상 ROI들을 '정상 기준 등록'으로 등록한 뒤 패치 크기(px)를 설정하세요.\n② 타깃 ROI 내 국소 볼 누락·이물 등 최대 이상치 피크 위치(빨강/청록 점)와 마할라노비스 이상 점수를 산출합니다.",
-        InspectionSuiteAlgorithmKind.Calibration =>
-            "① 교정 타깃 ROI를 선택하고 실제 격자 피치(mm)와 렌즈 방사 왜곡 계수(k1)를 조절하세요.\n② 9-Point 호모그래피 물리 좌표 변환 오차(mm)와 왜곡 역보정 왕복 오차(px)가 실시간 계산됩니다.",
-        InspectionSuiteAlgorithmKind.CornerAlignment =>
-            "① 기판이나 부품의 코너(모따기·라운딩 포함) 부근에 ROI 중심을 배치하세요 (샘플 열기 시 4개 모따기 코너 ROI 자동 배치).\n② 코너 꼭짓점 여유 구간을 건너뛰는 2-Rake 서브픽셀 에지 스캔으로 두 직선의 정밀 가상 교차점(청록 점)과 내각(°)을 즉시 산출합니다.",
-        InspectionSuiteAlgorithmKind.AutoTeaching =>
-            "① 캔버스에서 학습할 부품 ROI를 선택하고 '＋ 선택 ROI 파츠 학습 등록'을 누르면 모델 풀에 64B 회전불변 서명과 하위 검사 ROI 오프셋(핀A/핀B/바디)이 즉시 티칭·등록됩니다 (샘플 열기 시 3종 파츠 자동 등록).\n② '전체 ROI 실행'을 누르면 1단계 에지 블롭 후보 추출 → 2단계 64B 서명 필터링 → 3단계 국소 PatMax + ICGN 정밀 보정으로 각 부품의 포즈와 하위 검사 ROI 월드 좌표를 자동 생성합니다.",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv
-            or InspectionSuiteAlgorithmKind.LightweightOcr
-            or InspectionSuiteAlgorithmKind.CpuDeepOcr
-            or InspectionSuiteAlgorithmKind.PpOcrOnnx =>
-            "① [OCR 문자 판독] 인쇄·레이저 각인·도트매트릭스·영수증 문자열 위에 ROI를 배치하고 운전 프리셋(범용 자동 / 고속 양산)과 허용 문자 집합을 선택하세요.\n② [OCV 품질 검증] 'PP-OCR 판독값 → 기대 문자열 채우기' 또는 직접 기대 문자열을 입력한 뒤 '선택 ROI 폰트 티칭' → 'OCV 검증'으로 인쇄 결손·번짐·오인쇄를 초고속 검증합니다.",
-        InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon =>
-            "① 불균일 조명/비네팅, 표면 그레인 노이즈, 핀홀/스패터가 있는 영역에 ROI를 배치하세요.\n② 기준 밝기(Threshold)와 마커 반경(R), 확산 대비(κ)를 조절하면 다항식 조명 평탄화·비등방성 확산·Vincent 재구성 전후 배경 편차 감소량과 분리된 객체가 즉시 표시됩니다.",
-        InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse =>
-            "① 다중 간섭 에지가 있는 트레이스에는 이름에 '캘리퍼'를 포함하거나, 회전된 타원 홀/패드 위에 ROI를 배치하세요.\n② 복합 스코어링(First/Last 배제 + 목표 폭 친화도) 또는 방사형 스포크 Fitzgibbon + Sampson Gauss-Newton 타원(장축 A, 단축 B, 각도 θ)이 즉시 피팅됩니다.",
-        InspectionSuiteAlgorithmKind.AdvancedBlobWatershed =>
-            "① 내부 홀이 있는 브래킷이나 서로 맞닿은 솔더볼/입자 군집 위에 ROI를 배치하세요 (이름에 '워터셰드' 또는 '분리' 포함 시 EDT 워터셰드 자동 활성).\n② 볼록 껍질(Convex Hull), 최소면적 회전 박스(MinAreaRect), 홀 개수·명암 통계(μ,σ)와 분리된 개별 블롭이 시각화됩니다.",
-        InspectionSuiteAlgorithmKind.DataMatrix2DReader =>
-            "① 2D DataMatrix(ECC 200) 심볼이 포함되도록 ROI를 그리세요.\n② L-Finder 및 타이밍 보더 검출 → Utah 모듈 추출 → GF(256) Reed-Solomon 오류 정정 → ASCII 디코딩 문자열과 ISO/IEC 15415 품질 등급(A~F)을 즉시 판독합니다.",
-        InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor =>
-            "① 주기적 모아레 무늬, 불균일 조명(이름에 '호모모픽'), 또는 방향성 텍스처(이름에 'Gabor') 영역에 ROI를 배치하세요.\n② 주파수 노치 감쇠·조명 분리·Gabor 강조 전후 Otsu 임계값과 분리 객체가 즉시 표시됩니다.",
-        InspectionSuiteAlgorithmKind.Barcode1DReader =>
-            "① 1D 바코드(Code 128) 좌우 여백을 포함하도록 ROI를 그리세요.\n② 9개 다중 스캔라인 서브픽셀 에지 폭 정규화 → Modulo-103 체크섬 검증 → ISO/IEC 15416 인쇄 등급(A~F)을 즉시 출력합니다.",
-        InspectionSuiteAlgorithmKind.PhotometricStereo =>
-            "① 4방향 조명 패치(또는 단일 프레임 ROI)를 선택하세요.\n② 2D 얼룩(Albedo)을 완벽히 배제하고 3D 표면 법선 곡률(|H|, |K|)이 집중된 찍힘·스크래치 결함만 검출합니다.",
-        InspectionSuiteAlgorithmKind.GeometricTolerancing =>
-            "① 부품의 상단/좌측 데이텀 모서리와 중앙 동심 보어 홀을 감싸도록 ROI를 배치하세요.\n② 데이텀 직교각(°), 내/외경 동심도 편차(Δc px), 데이텀 수직거리 및 공차 합격 여부를 즉시 계측합니다.",
-        _ => string.Empty
-    };
+    public string AlgorithmUsageGuide => _service.Registry.GetRequired(_selectedAlgorithm).GetUsageGuide(BuildParameters());
 
     public float GaussianSigma
     {
@@ -886,7 +709,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
-    public string SelectedAlgorithmHeaderTitle => $"3 · {InspectionSuiteService.GetAlgorithmShortName(_selectedAlgorithm)} — 전용 티칭 파라미터";
+    public string SelectedAlgorithmHeaderTitle => $"3 · {_service.Registry.GetShortName(_selectedAlgorithm)} — 전용 티칭 파라미터";
 
     public float LensK1
     {
@@ -1104,6 +927,11 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         get => _selectedRoiOcvExpectedText;
         set
         {
+            if (!_syncingRoiOcvFields && !CanEditSelectedRoiOcvSettings)
+            {
+                return;
+            }
+
             string normalized = value ?? string.Empty;
             if (Set(ref _selectedRoiOcvExpectedText, normalized))
             {
@@ -1124,6 +952,11 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         get => _selectedRoiOcvFormatMask;
         set
         {
+            if (!_syncingRoiOcvFields && !CanEditSelectedRoiOcvSettings)
+            {
+                return;
+            }
+
             string normalized = value ?? string.Empty;
             if (Set(ref _selectedRoiOcvFormatMask, normalized))
             {
@@ -1131,6 +964,30 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 {
                     CommitSelectedRoiOcvSettings();
                 }
+            }
+        }
+    }
+
+    public string SelectedRoiOcvFontId
+    {
+        get => _selectedRoiOcvFontId;
+        set
+        {
+            if (!_syncingRoiOcvFields && !CanEditSelectedRoiOcvSettings)
+            {
+                return;
+            }
+
+            string normalized = RoiOcvSettings.NormalizeFontId(value);
+            if (Set(ref _selectedRoiOcvFontId, normalized))
+            {
+                if (!_syncingRoiOcvFields)
+                {
+                    CommitSelectedRoiOcvSettings();
+                }
+
+                Notify(nameof(OcvFontStatusBadge));
+                SaveOcvFontModel.Refresh();
             }
         }
     }
@@ -1317,6 +1174,32 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
+    public float QrCodeMinIsoContrast
+    {
+        get => _qrCodeMinIsoContrast;
+        set
+        {
+            float clamped = Math.Clamp(value, QrCodeOptions.UiMinIsoContrastBound, (float)QrCodeOptions.MaxIsoContrastBound);
+            if (Set(ref _qrCodeMinIsoContrast, clamped))
+            {
+                NotifyOptionValidationChanged();
+            }
+        }
+    }
+
+    public int QrCodeMaxEccErrors
+    {
+        get => _qrCodeMaxEccErrors;
+        set
+        {
+            int clamped = Math.Clamp(value, QrCodeOptions.MinEccErrorsBound, QrCodeOptions.UiMaxEccErrorsBound);
+            if (Set(ref _qrCodeMaxEccErrors, clamped))
+            {
+                NotifyOptionValidationChanged();
+            }
+        }
+    }
+
     public float FftNotchOrGaborSigma
     {
         get => _fftNotchOrGaborSigma;
@@ -1486,46 +1369,18 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
-    public string ParameterPreviewSummary => _selectedAlgorithm switch
+    public string ParameterPreviewSummary
     {
-        InspectionSuiteAlgorithmKind.Metrology =>
-            $"모드={_metrologyMode} · 극성={_polarityMode} · σ={_gaussianSigma:F2} · 대비≥{_minimumContrast:F1} · 레이크/스포크={_caliperRakeCount} · 투영폭={_caliperProjectionWidth:F0}px",
-        InspectionSuiteAlgorithmKind.GoldenVariation =>
-            $"표준편차 배수 k={_variationStdMultiplier:F1} · 에지 지터 허용 c={_variationEdgeMultiplier:F2} · 최소 결함면적={_goldenMinDefectAreaPixels}px",
-        InspectionSuiteAlgorithmKind.BlobRle =>
-            $"이진화 임계 밝기={_thresholdIntensity} GV · 모폴로지 반경 R={_morphologyRadius} px · 최소 블롭면적={_blobMinimumAreaPixels}px",
-        InspectionSuiteAlgorithmKind.Curvilinear =>
-            $"Steger σ={_gaussianSigma:F2} · 최소대비={_minimumContrast:F1} · 비드 기준폭={_nominalBeadWidth:F1} px",
-        InspectionSuiteAlgorithmKind.FewShot =>
-            $"OOD 기각 배수={_fewShotOodSigmaMultiplier:F1}σ · 클래스당 서브클러스터 K={_fewShotMaxSubClusters}개 · SimpleShot + Ledoit-Wolf",
-        InspectionSuiteAlgorithmKind.PatchAnomaly =>
-            $"PaDiM 패치 크기={_patchSize}×{_patchSize} px · 공분산 정규화 λ={_padimRegularizationLambda:F3}",
-        InspectionSuiteAlgorithmKind.Calibration =>
-            $"격자 피치={_gridPitchMm:F2} mm · 방사 왜곡 k1={_lensK1:F4}",
-        InspectionSuiteAlgorithmKind.CornerAlignment =>
-            $"σ={_gaussianSigma:F2} · 대비≥{_minimumContrast:F1} · 레이크={_caliperRakeCount}개 · 모따기 회피={_cornerApexIgnoreMargin:F0}px · 직각허용=±{_cornerOrthogonalityToleranceDeg:F1}° · RANSAC={_cornerRansacThresholdPixels:F2}px",
-        InspectionSuiteAlgorithmKind.AutoTeaching =>
-            $"기하 매칭 최소점수={_autoTeachMinGeometricScore:F2} · 64B 서명 코사인={_autoTeachMinAppearanceCosine:F2} · 마할라노비스 상한={_autoTeachMaxMahalanobis:F1}",
-        InspectionSuiteAlgorithmKind.IndustrialOcrOcv or InspectionSuiteAlgorithmKind.LightweightOcr or InspectionSuiteAlgorithmKind.CpuDeepOcr or InspectionSuiteAlgorithmKind.PpOcrOnnx =>
-            $"PP-OCRv4 ONNX ({(_ppOcrPreset == PpOcrSpeedPreset.HighSpeedProduction ? "고속 양산" : "범용 자동")}) · 언어={_ppOcrLanguageMode} · 극성={_ppOcrPolarity} · 파이프라인={_ppOcrPipeline} · 신뢰도≥{_ppOcrMinConfidence:F2} · 문자집합={OcrCharacterSetFilter.GetDisplayName(_ocrAllowedCharacters)} · OCV 대비={_ocvForegroundContrast:F1}GV",
-        InspectionSuiteAlgorithmKind.PreprocessingShadingAndRecon =>
-            $"다항식 목표 배경={_shadingTargetBaseGray} GV · 비등방성 확산 κ={_anisotropicDiffusionKappa:F1} · 재구성 마커 R={_reconstructionMarkerRadius} px",
-        InspectionSuiteAlgorithmKind.AdvancedMetrologyEllipse =>
-            $"복합 목표 폭={_compositeExpectedSpanPx:F1}px · 타원 스포크={_ellipseSpokeCount}개 · 허용 RMS={_ellipseMaxRmsErrorPx:F2}px · σ={_gaussianSigma:F2} · 대비≥{_minimumContrast:F1}",
-        InspectionSuiteAlgorithmKind.AdvancedBlobWatershed =>
-            $"워터셰드 임계={_watershedThresholdIntensity} GV · EDT 피크 간격={_watershedMinPeakDistancePx:F1}px · 최소 면적={_watershedMinAreaPixels}px",
-        InspectionSuiteAlgorithmKind.DataMatrix2DReader =>
-            $"ECC 200 최소 ISO 대비={_dataMatrixMinIsoContrast:F2} · Reed-Solomon 최대 정정 부호어={_dataMatrixMaxEccErrors}개 · GF(2^8) p=301",
-        InspectionSuiteAlgorithmKind.PreprocessingFftAndGabor =>
-            $"FFT 노치/Gabor 대역폭 σ={_fftNotchOrGaborSigma:F2} · 스펙트럼 피크 배수={_fftPeakThresholdRatio:F1}x · 호모모픽 γH={_homomorphicGammaHigh:F2}",
-        InspectionSuiteAlgorithmKind.Barcode1DReader =>
-            $"Code 128B 다중 스캔라인={_barcodeScanlineCount}줄 · 최소 심볼 대비(SC)={_barcodeMinSymbolContrast:F2} · Modulo-103 검증",
-        InspectionSuiteAlgorithmKind.PhotometricStereo =>
-            $"Woodham 조명 고도각={_photometricSlantAngleDeg:F0}° · 3D 곡률 임계(|H|)={_photometricCurvatureThreshold:F3} · 결함 화소 한계={_photometricMaxDefectPixels}px",
-        InspectionSuiteAlgorithmKind.GeometricTolerancing =>
-            $"GD&T 직교도 공차=±{_gdtAngleToleranceDeg:F1}° · 동심도 한계 Δc≤{_gdtConcentricityLimitPx:F2}px · 거리 공차=±{_gdtDistanceTolerancePx:F1}px · 에지 대비≥{_gdtGradientThreshold:F1}",
-        _ => string.Empty
-    };
+        get
+        {
+            var parameters = BuildParameters();
+            var algorithm = _service.Registry.GetRequired(_selectedAlgorithm);
+            string summary = algorithm.FormatParameterSummary(parameters);
+            return algorithm.Kind == InspectionSuiteAlgorithmKind.PpOcrOnnx
+                ? $"{summary} · OCV 대비={_ocvForegroundContrast:F1}GV"
+                : summary;
+        }
+    }
 
     public string OptionsError
     {
@@ -1535,22 +1390,20 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             {
                 return "숫자 형식이 올바르지 않은 입력 항목이 있습니다.";
             }
-            if (!float.IsFinite(_gaussianSigma) || _gaussianSigma < 0.4f || _gaussianSigma > 10.0f)
+
+            var parameters = BuildParameters();
+            string metrologyError = parameters.Metrology.ValidateForUi();
+            if (metrologyError.Length > 0)
             {
-                return "가우시안 시그마(σ)는 0.4 ~ 10.0 범위여야 합니다.";
+                return metrologyError;
             }
-            if (!float.IsFinite(_minimumContrast) || _minimumContrast < 1.0f || _minimumContrast > 250.0f)
+
+            string blobError = parameters.Blob.ValidateForUi();
+            if (blobError.Length > 0)
             {
-                return "최소 에지 대비(Contrast)는 1.0 ~ 250.0 범위여야 합니다.";
+                return blobError;
             }
-            if (_thresholdIntensity < 1 || _thresholdIntensity > 255)
-            {
-                return "RLE 이진화 임계값은 1 ~ 255 범위여야 합니다.";
-            }
-            if (_morphologyRadius < 0 || _morphologyRadius > 16)
-            {
-                return "모폴로지 반경은 0 ~ 16 범위여야 합니다.";
-            }
+
             return string.Empty;
         }
     }
@@ -1627,6 +1480,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             _cancellation?.Cancel();
             CancelLivePreview();
             _referenceRois.Clear();
+            _roiExecutionModes.Clear();
             RegisteredReferenceItems.Clear();
             OcvVerificationItems.Clear();
             SelectedOcvVerificationItem = null;
@@ -1852,7 +1706,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
         long epoch = ++_epoch;
         CancelLivePreview();
-        using var cts = BeginBusy($"{InspectionSuiteService.GetAlgorithmShortName(algorithm)} 실행 중… (ROI {targets.Length}개)");
+        using var cts = BeginBusy($"{_service.Registry.GetShortName(algorithm)} 실행 중… (ROI {targets.Length}개)");
         try
         {
             var output = await _service.ExecuteRoiInspectionAsync(image, _live, algorithm, targets, refs, parameters, cts.Token);
@@ -1861,7 +1715,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 return;
             }
 
-            ApplyExecutionOutput(output);
+            ApplyExecutionOutput(output, targets);
         }
         catch (OperationCanceledException)
         {
@@ -1906,20 +1760,18 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
     }
 
-    private void ApplyExecutionOutput(InspectionSuiteExecutionOutput output)
+    private void ApplyExecutionOutput(
+        InspectionSuiteExecutionOutput output,
+        InspectionSuiteRoiInput[]? executionTargets = null)
     {
         LastOutput = output;
         _overlay = BuildResultOverlayFromOutput(output, isLivePreview: false);
-        _livePreviewRois = BuildTargetSnapshotsFromOutput(output);
+        _livePreviewRois = executionTargets ?? BuildTargetSnapshotsFromOutput(output);
 
         Status = output.SummaryTitle;
         Results = output.DetailedReport;
         UpdateOcrDiagnosticViewState(output);
-        double perItemMs = output.Items.Length > 0 ? output.TotalMilliseconds / output.Items.Length : output.TotalMilliseconds;
-        foreach (var item in output.Items)
-        {
-            EmitSuiteExecutionResult(item, output.Algorithm, perItemMs);
-        }
+        EmitSuiteExecutionResults(output.Items, output.Algorithm, output.TotalMilliseconds);
         Notify(nameof(LastOutput));
         Notify(nameof(Status));
         Notify(nameof(Results));
@@ -1958,6 +1810,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 Color: markerColor,
                 Features: item.PrimaryPoints)
             {
+                SourceRoiId = item.RoiId,
                 InnerContours = guides,
                 InnerContourColor = GuideInnerColor,
                 InnerContourThickness = 1.25,
@@ -2009,9 +1862,21 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         // 1. 이미 실시간 프리뷰 결과가 존재하는 상태에서 ROI를 이동/회전/크기 조절할 때는
         //    빈 청록색 가이드 미리보기로 덮어써서 발생하는 스트로브(깜빡임)를 원천 차단하고,
         //    기존 마커·윤곽·특징점을 현재 ROI 포즈로 0ms 동기 변환해 60FPS 추적을 보장한다.
+        //    파라미터(예: MetrologyMode, CaliperRakeCount)가 변경되어 포즈 변화는 없지만 가이드 형상이 바뀐 경우에는
+        //    기존 마커의 InnerContours만 새 파라미터 기준으로 즉시 동기 갱신한다.
         if (_overlay is null && _livePreview is not null && TryProjectLivePreviewOntoTargets(_livePreview, _livePreviewRois, targets, parameters, out var projectedPreview))
         {
             _livePreview = projectedPreview;
+            _livePreviewRois = targets;
+            Notify(nameof(Overlay));
+            Locate.Refresh();
+            Changed?.Invoke();
+        }
+        else if (_overlay is null && _livePreview is not null && HasMatchingTargetIds(_livePreviewRois, targets) &&
+                 !_service.Registry.GetRequired(_selectedAlgorithm).SuppressesGuideOverlayWhenEvaluated &&
+                 TryRefreshLivePreviewGuides(_livePreview, targets, parameters, out var refreshedGuideOverlay))
+        {
+            _livePreview = refreshedGuideOverlay;
             _livePreviewRois = targets;
             Notify(nameof(Overlay));
             Locate.Refresh();
@@ -2022,7 +1887,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             var guideMarkers = ImmutableArray.CreateBuilder<MatchMarker>(targets.Length);
             foreach (var target in targets)
             {
-                var guides = InspectionSuiteService.BuildGeometricGuidesForRoi(target, _selectedAlgorithm, parameters);
+                var guides = _service.Registry.BuildGeometricGuides(target, _selectedAlgorithm, parameters);
                 guideMarkers.Add(new MatchMarker(
                     Bounds: target.Outline,
                     ReferencePoint: target.Center,
@@ -2031,6 +1896,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                     Color: GuideBoundsColor,
                     Features: [])
                 {
+                    SourceRoiId = target.RoiId,
                     InnerContours = guides,
                     InnerContourColor = GuideInnerColor,
                     InnerContourThickness = 1.35,
@@ -2044,7 +1910,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             }
 
             _livePreview = new ResultOverlay(
-                Summary: $"[가이드 미리보기] {InspectionSuiteService.GetAlgorithmShortName(_selectedAlgorithm)} · {ParameterPreviewSummary}",
+                Summary: $"[가이드 미리보기] {_service.Registry.GetShortName(_selectedAlgorithm)} · {ParameterPreviewSummary}",
                 Color: GuideBoundsColor,
                 SearchBoundary: [],
                 Matches: guideMarkers.MoveToImmutable(),
@@ -2069,24 +1935,75 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             return [];
         }
 
-        var snapshots = new InspectionSuiteRoiInput[output.Items.Length];
+        var snapshots = new List<InspectionSuiteRoiInput>(output.Items.Length);
+        var seenRoiIds = new HashSet<Guid>();
         for (int i = 0; i < output.Items.Length; i++)
         {
             var item = output.Items[i];
+            if (item.RoiId != Guid.Empty && !seenRoiIds.Add(item.RoiId))
+            {
+                continue;
+            }
+
             BoundsD bounds = item.Bounds.IsDefaultOrEmpty
                 ? new BoundsD(item.ReferencePoint.X - 4.0, item.ReferencePoint.Y - 4.0, item.ReferencePoint.X + 4.0, item.ReferencePoint.Y + 4.0)
                 : BoundsD.FromPoints(item.Bounds);
-            snapshots[i] = new InspectionSuiteRoiInput(
+            snapshots.Add(new InspectionSuiteRoiInput(
                 item.RoiId,
                 item.Name,
                 item.ReferencePoint,
                 Math.Max(8.0, bounds.Width),
                 Math.Max(8.0, bounds.Height),
                 item.AngleRadians,
-                item.Bounds);
+                item.Bounds));
         }
 
-        return snapshots;
+        return snapshots.ToArray();
+    }
+
+    private bool TryRefreshLivePreviewGuides(
+        ResultOverlay existingOverlay,
+        InspectionSuiteRoiInput[] targets,
+        InspectionSuiteParameters parameters,
+        out ResultOverlay refreshedOverlay)
+    {
+        refreshedOverlay = existingOverlay;
+        if (existingOverlay.Matches.IsDefaultOrEmpty)
+        {
+            return false;
+        }
+
+        bool isGuideOverlay = existingOverlay.Summary.StartsWith("[가이드 미리보기]", StringComparison.Ordinal);
+        var refreshedMarkers = ImmutableArray.CreateBuilder<MatchMarker>(existingOverlay.Matches.Length);
+        var guideAddedRoiIds = new HashSet<Guid>();
+
+        for (int m = 0; m < existingOverlay.Matches.Length; m++)
+        {
+            var marker = existingOverlay.Matches[m];
+            int targetIdx = FindOwningTargetIndex(marker, m, existingOverlay.Matches.Length, targets);
+            if (targetIdx < 0)
+            {
+                return false;
+            }
+
+            var target = targets[targetIdx];
+            bool attachGuides = isGuideOverlay || target.RoiId == Guid.Empty || guideAddedRoiIds.Add(target.RoiId);
+            var guides = attachGuides
+                ? _service.Registry.BuildGeometricGuides(target, _selectedAlgorithm, parameters)
+                : ImmutableArray<ImmutableArray<PointD>>.Empty;
+
+            refreshedMarkers.Add(marker with
+            {
+                InnerContours = guides
+            });
+        }
+
+        refreshedOverlay = existingOverlay with
+        {
+            Matches = refreshedMarkers.MoveToImmutable(),
+            PresentationId = Guid.NewGuid()
+        };
+        return true;
     }
 
     private bool TryProjectLivePreviewOntoTargets(
@@ -2097,7 +2014,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         out ResultOverlay projectedOverlay)
     {
         projectedOverlay = existingOverlay;
-        if (existingOverlay.Matches.Length != currentTargets.Length || previousTargets.Length != currentTargets.Length)
+        if (existingOverlay.Matches.IsDefaultOrEmpty || previousTargets.Length != currentTargets.Length)
         {
             return false;
         }
@@ -2122,36 +2039,64 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
 
         bool isGuideOverlay = existingOverlay.Summary.StartsWith("[가이드 미리보기]", StringComparison.Ordinal);
-        var updatedMarkers = ImmutableArray.CreateBuilder<MatchMarker>(currentTargets.Length);
+        bool suppressGuide = _service.Registry.GetRequired(_selectedAlgorithm).SuppressesGuideOverlayWhenEvaluated && !isGuideOverlay;
+        var updatedMarkers = ImmutableArray.CreateBuilder<MatchMarker>(existingOverlay.Matches.Length);
+        var guideAddedRoiIds = new HashSet<Guid>();
 
-        for (int i = 0; i < currentTargets.Length; i++)
+        for (int m = 0; m < existingOverlay.Matches.Length; m++)
         {
-            var prev = previousTargets[i];
-            var curr = currentTargets[i];
-            var marker = existingOverlay.Matches[i];
+            var marker = existingOverlay.Matches[m];
+            int targetIdx = FindOwningTargetIndex(marker, m, existingOverlay.Matches.Length, currentTargets);
+            if (targetIdx < 0)
+            {
+                return false;
+            }
+
+            var prev = previousTargets[targetIdx];
+            var curr = currentTargets[targetIdx];
 
             if (!HasMeaningfulPoseDelta(prev, curr))
             {
+                if (!isGuideOverlay && curr.RoiId != Guid.Empty)
+                {
+                    guideAddedRoiIds.Add(curr.RoiId);
+                }
+
                 updatedMarkers.Add(marker);
                 continue;
             }
 
-            var updatedGuides = _selectedAlgorithm == InspectionSuiteAlgorithmKind.PpOcrOnnx && !isGuideOverlay
-                ? ImmutableArray<ImmutableArray<PointD>>.Empty
-                : InspectionSuiteService.BuildGeometricGuidesForRoi(curr, _selectedAlgorithm, parameters);
+            bool attachGuides = !suppressGuide && (isGuideOverlay || curr.RoiId == Guid.Empty || guideAddedRoiIds.Add(curr.RoiId));
+            var updatedGuides = attachGuides
+                ? _service.Registry.BuildGeometricGuides(curr, _selectedAlgorithm, parameters)
+                : ImmutableArray<ImmutableArray<PointD>>.Empty;
 
-            updatedMarkers.Add(marker with
+            if (isGuideOverlay)
             {
-                Bounds = curr.Outline,
-                ReferencePoint = curr.Center,
-                AngleRadians = curr.AngleRadians,
-                InnerContours = updatedGuides,
-                AdditionalContours = TransformContoursRelativeToRoi(marker.AdditionalContours, prev, curr),
-                Features = TransformPointsRelativeToRoi(marker.Features, prev, curr),
-                KeyFeatures = TransformPointsRelativeToRoi(marker.KeyFeatures, prev, curr),
-                UnmatchedFeatures = TransformPointsRelativeToRoi(marker.UnmatchedFeatures, prev, curr),
-                DiagnosticGroups = TransformDiagnosticGroupsRelativeToRoi(marker.DiagnosticGroups, prev, curr)
-            });
+                updatedMarkers.Add(marker with
+                {
+                    Bounds = curr.Outline,
+                    ReferencePoint = curr.Center,
+                    AngleRadians = curr.AngleRadians,
+                    InnerContours = updatedGuides
+                });
+            }
+            else
+            {
+                double deltaAngle = curr.AngleRadians - prev.AngleRadians;
+                updatedMarkers.Add(marker with
+                {
+                    Bounds = TransformPointsRelativeToRoi(marker.Bounds, prev, curr),
+                    ReferencePoint = TransformPointRelativeToRoi(marker.ReferencePoint, prev, curr),
+                    AngleRadians = marker.AngleRadians + deltaAngle,
+                    InnerContours = updatedGuides,
+                    AdditionalContours = TransformContoursRelativeToRoi(marker.AdditionalContours, prev, curr),
+                    Features = TransformPointsRelativeToRoi(marker.Features, prev, curr),
+                    KeyFeatures = TransformPointsRelativeToRoi(marker.KeyFeatures, prev, curr),
+                    UnmatchedFeatures = TransformPointsRelativeToRoi(marker.UnmatchedFeatures, prev, curr),
+                    DiagnosticGroups = TransformDiagnosticGroupsRelativeToRoi(marker.DiagnosticGroups, prev, curr)
+                });
+            }
         }
 
         projectedOverlay = existingOverlay with
@@ -2160,6 +2105,51 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             PresentationId = Guid.NewGuid()
         };
         return true;
+    }
+
+    private static int FindOwningTargetIndex(
+        MatchMarker marker,
+        int markerIndex,
+        int totalMarkerCount,
+        InspectionSuiteRoiInput[] targets)
+    {
+        if (marker.SourceRoiId != Guid.Empty)
+        {
+            for (int i = 0; i < targets.Length; i++)
+            {
+                if (targets[i].RoiId == marker.SourceRoiId)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        return totalMarkerCount == targets.Length && (uint)markerIndex < (uint)targets.Length
+            ? markerIndex
+            : -1;
+    }
+
+    private static PointD TransformPointRelativeToRoi(
+        PointD point,
+        InspectionSuiteRoiInput previous,
+        InspectionSuiteRoiInput current)
+    {
+        double cosPrev = Math.Cos(previous.AngleRadians);
+        double sinPrev = Math.Sin(previous.AngleRadians);
+        double cosCurr = Math.Cos(current.AngleRadians);
+        double sinCurr = Math.Sin(current.AngleRadians);
+        double scaleX = previous.Width > 1.0 ? current.Width / previous.Width : 1.0;
+        double scaleY = previous.Height > 1.0 ? current.Height / previous.Height : 1.0;
+
+        double dx = point.X - previous.Center.X;
+        double dy = point.Y - previous.Center.Y;
+        double localX = ((dx * cosPrev) + (dy * sinPrev)) * scaleX;
+        double localY = ((-dx * sinPrev) + (dy * cosPrev)) * scaleY;
+        double worldX = current.Center.X + (localX * cosCurr) - (localY * sinCurr);
+        double worldY = current.Center.Y + (localX * sinCurr) + (localY * cosCurr);
+        return new PointD(worldX, worldY);
     }
 
     private static bool HasMatchingTargetIds(InspectionSuiteRoiInput[] previousTargets, InspectionSuiteRoiInput[] currentTargets)
@@ -2729,59 +2719,224 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             Tool: InspectionToolKind.InspectionSuite,
             PatternMethod: null,
             SuiteAlgorithm: _selectedAlgorithm,
-            AlgorithmBadge: RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, _selectedAlgorithm),
+            AlgorithmBadge: RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, _selectedAlgorithm, _service.Registry),
             AlgorithmAccent: RoiAlgorithmAssignment.GetAlgorithmAccent(InspectionToolKind.InspectionSuite, null, _selectedAlgorithm),
             ParameterSummary: ParameterPreviewSummary,
             VerdictBadge: isNormal ? "기준:정상" : "기준:불량",
             VerdictAccent: isNormal ? "#34D399" : "#FBBF24",
-            LastResultSummary: $"{InspectionSuiteService.GetAlgorithmShortName(_selectedAlgorithm)} 기준 샘플 ({(isNormal ? "정상" : "불량")})"));
+            LastResultSummary: $"{_service.Registry.GetShortName(_selectedAlgorithm)} 기준 샘플 ({(isNormal ? "정상" : "불량")})",
+            SuiteExecutionMode: input.ExecutionMode));
     }
 
-    private void EmitSuiteExecutionResult(
-        InspectionSuiteItemResult item,
+    private void EmitSuiteExecutionResults(
+        ImmutableArray<InspectionSuiteItemResult> items,
         InspectionSuiteAlgorithmKind algorithm,
-        double elapsedMilliseconds)
+        double totalMilliseconds)
     {
-        string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, algorithm);
-        string accent = RoiAlgorithmAssignment.GetAlgorithmAccent(InspectionToolKind.InspectionSuite, null, algorithm);
-        var verdict = item.IsPass ? InspectionVerdict.Pass : InspectionVerdict.Fail;
-        string verdictBadge = item.IsPass ? "PASS" : "NG";
-        string verdictAccent = item.IsPass ? "#34D399" : "#F87171";
-        string scoreSummary = item.BadgeLabel;
-        double angleDeg = item.AngleRadians * (180.0 / Math.PI);
-        string poseSummary = $"X={item.ReferencePoint.X:F1}, Y={item.ReferencePoint.Y:F1}, θ={angleDeg:F2}° · {item.DetailLine}";
-        BoundsD? bounds = item.Bounds.IsEmpty ? null : BoundsD.FromPoints(item.Bounds);
-
-        if (item.RoiId != Guid.Empty)
+        if (items.IsDefaultOrEmpty)
         {
-            RoiAssignmentRecorded?.Invoke(new RoiAlgorithmAssignment(
-                RoiId: item.RoiId,
+            return;
+        }
+
+        string badge = RoiAlgorithmAssignment.FormatAlgorithmBadge(InspectionToolKind.InspectionSuite, null, algorithm, _service.Registry);
+        string accent = RoiAlgorithmAssignment.GetAlgorithmAccent(InspectionToolKind.InspectionSuite, null, algorithm);
+        double perItemMs = totalMilliseconds / items.Length;
+
+        var roiOrder = new List<Guid>(items.Length);
+        var roiGroups = new Dictionary<Guid, List<InspectionSuiteItemResult>>(items.Length);
+
+        foreach (var item in items)
+        {
+            if (item.RoiId != Guid.Empty)
+            {
+                if (!roiGroups.TryGetValue(item.RoiId, out var list))
+                {
+                    list = [];
+                    roiGroups[item.RoiId] = list;
+                    roiOrder.Add(item.RoiId);
+                }
+
+                list.Add(item);
+            }
+
+            var verdict = item.IsPass ? InspectionVerdict.Pass : InspectionVerdict.Fail;
+            string verdictBadge = item.IsPass ? "PASS" : "NG";
+            string verdictAccent = item.IsPass ? "#34D399" : "#F87171";
+            double angleDeg = item.AngleRadians * (180.0 / Math.PI);
+            string poseSummary = $"X={item.ReferencePoint.X:F1}, Y={item.ReferencePoint.Y:F1}, θ={angleDeg:F2}° · {item.DetailLine}";
+            BoundsD? bounds = item.Bounds.IsEmpty ? null : BoundsD.FromPoints(item.Bounds);
+
+            StructuredLogRecorded?.Invoke(new StructuredInspectionLogEntry(
+                EntryId: Guid.NewGuid(),
+                Timestamp: DateTimeOffset.Now,
+                RoiId: item.RoiId == Guid.Empty ? null : item.RoiId,
                 RoiName: item.Name,
+                Tool: InspectionToolKind.InspectionSuite,
+                AlgorithmBadge: badge,
+                Verdict: verdict,
+                VerdictBadge: verdictBadge,
+                VerdictAccent: verdictAccent,
+                ScoreSummary: item.BadgeLabel,
+                PoseSummary: poseSummary,
+                ElapsedMilliseconds: perItemMs,
+                TargetBounds: bounds));
+        }
+
+        foreach (Guid roiId in roiOrder)
+        {
+            List<InspectionSuiteItemResult> group = roiGroups[roiId];
+            bool hasStateRoi = _state.Rois.TryGetValue(roiId, out var stateRoi);
+            RoiSuiteExecutionMode mode = hasStateRoi && stateRoi is not null
+                ? GetRoiExecutionMode(stateRoi)
+                : (_roiExecutionModes.TryGetValue(roiId, out var cachedMode) ? cachedMode : RoiSuiteExecutionMode.Default);
+
+            string roiName = hasStateRoi && stateRoi is not null
+                ? stateRoi.Name
+                : group[0].Name;
+
+            if (group.Count == 1)
+            {
+                var single = group[0];
+                string singleVerdictBadge = single.IsPass ? "PASS" : "NG";
+                string singleVerdictAccent = single.IsPass ? "#34D399" : "#F87171";
+                RoiAssignmentRecorded?.Invoke(new RoiAlgorithmAssignment(
+                    RoiId: roiId,
+                    RoiName: roiName,
+                    Tool: InspectionToolKind.InspectionSuite,
+                    PatternMethod: null,
+                    SuiteAlgorithm: algorithm,
+                    AlgorithmBadge: badge,
+                    AlgorithmAccent: accent,
+                    ParameterSummary: ParameterPreviewSummary,
+                    VerdictBadge: singleVerdictBadge,
+                    VerdictAccent: singleVerdictAccent,
+                    LastResultSummary: $"{singleVerdictBadge} · {single.BadgeLabel} · {single.DetailLine}",
+                    SuiteExecutionMode: mode));
+                continue;
+            }
+
+            int passCount = 0;
+            for (int i = 0; i < group.Count; i++)
+            {
+                if (group[i].IsPass)
+                {
+                    passCount++;
+                }
+            }
+
+            bool allPass = passCount == group.Count;
+            string aggVerdictBadge = $"{(allPass ? "PASS" : "NG")} ({passCount}/{group.Count})";
+            string aggVerdictAccent = allPass ? "#34D399" : "#F87171";
+            string joinedBadges = string.Join(
+                " / ",
+                group.Select((x, idx) => $"#{idx + 1}[{(x.IsPass ? "OK" : "NG")}] {x.BadgeLabel}"));
+
+            RoiAssignmentRecorded?.Invoke(new RoiAlgorithmAssignment(
+                RoiId: roiId,
+                RoiName: roiName,
                 Tool: InspectionToolKind.InspectionSuite,
                 PatternMethod: null,
                 SuiteAlgorithm: algorithm,
                 AlgorithmBadge: badge,
                 AlgorithmAccent: accent,
                 ParameterSummary: ParameterPreviewSummary,
-                VerdictBadge: verdictBadge,
-                VerdictAccent: verdictAccent,
-                LastResultSummary: $"{verdictBadge} · {item.BadgeLabel} · {item.DetailLine}"));
+                VerdictBadge: aggVerdictBadge,
+                VerdictAccent: aggVerdictAccent,
+                LastResultSummary: $"{aggVerdictBadge} · 총 {group.Count}개 검출 · {joinedBadges}",
+                SuiteExecutionMode: mode));
+        }
+    }
+
+    public InspectionSuiteParameters ExportParameters() => BuildParameters();
+
+    public void ImportParameters(InspectionSuiteParameters? parameters)
+    {
+        if (parameters is null)
+        {
+            return;
         }
 
-        StructuredLogRecorded?.Invoke(new StructuredInspectionLogEntry(
-            EntryId: Guid.NewGuid(),
-            Timestamp: DateTimeOffset.Now,
-            RoiId: item.RoiId == Guid.Empty ? null : item.RoiId,
-            RoiName: item.Name,
-            Tool: InspectionToolKind.InspectionSuite,
-            AlgorithmBadge: badge,
-            Verdict: verdict,
-            VerdictBadge: verdictBadge,
-            VerdictAccent: verdictAccent,
-            ScoreSummary: scoreSummary,
-            PoseSummary: poseSummary,
-            ElapsedMilliseconds: elapsedMilliseconds,
-            TargetBounds: bounds));
+        _gaussianSigma = parameters.GaussianSigma;
+        _minimumContrast = parameters.MinimumContrast;
+        _thresholdIntensity = parameters.ThresholdIntensity;
+        _morphologyRadius = parameters.MorphologyRadius;
+        _variationStdMultiplier = parameters.VariationStdMultiplier;
+        _variationEdgeMultiplier = parameters.VariationEdgeMultiplier;
+        _nominalBeadWidth = parameters.NominalBeadWidth;
+        _patchSize = parameters.PatchSize;
+        _gridPitchMm = parameters.GridPitchMm;
+        _lensK1 = parameters.LensK1;
+        _metrologyMode = parameters.MetrologyMode;
+        _polarityMode = parameters.PolarityMode;
+        _caliperRakeCount = parameters.CaliperRakeCount;
+        _caliperProjectionWidth = parameters.CaliperProjectionWidth;
+        _goldenMinDefectAreaPixels = parameters.GoldenMinDefectAreaPixels;
+        _blobMinimumAreaPixels = parameters.BlobMinimumAreaPixels;
+        _fewShotOodSigmaMultiplier = parameters.FewShotOodSigmaMultiplier;
+        _fewShotMaxSubClusters = parameters.FewShotMaxSubClusters;
+        _padimRegularizationLambda = parameters.PadimRegularizationLambda;
+        _cornerApexIgnoreMargin = parameters.CornerApexIgnoreMargin;
+        _cornerRansacThresholdPixels = parameters.CornerRansacThresholdPixels;
+        _cornerOrthogonalityToleranceDeg = parameters.CornerOrthogonalityToleranceDeg;
+        _autoTeachMinGeometricScore = parameters.AutoTeachMinGeometricScore;
+        _autoTeachMinAppearanceCosine = parameters.AutoTeachMinAppearanceCosine;
+        _autoTeachMaxMahalanobis = parameters.AutoTeachMaxMahalanobis;
+        _shadingTargetBaseGray = parameters.ShadingTargetBaseGray;
+        _anisotropicDiffusionKappa = parameters.AnisotropicDiffusionKappa;
+        _reconstructionMarkerRadius = parameters.ReconstructionMarkerRadius;
+        _compositeExpectedSpanPx = parameters.CompositeExpectedSpanPx;
+        _ellipseSpokeCount = parameters.EllipseSpokeCount;
+        _ellipseMaxRmsErrorPx = parameters.EllipseMaxRmsErrorPx;
+        _watershedThresholdIntensity = parameters.WatershedThresholdIntensity;
+        _watershedMinPeakDistancePx = parameters.WatershedMinPeakDistancePx;
+        _watershedMinAreaPixels = parameters.WatershedMinAreaPixels;
+        _dataMatrixMinIsoContrast = parameters.DataMatrixMinIsoContrast;
+        _dataMatrixMaxEccErrors = parameters.DataMatrixMaxEccErrors;
+        _qrCodeMinIsoContrast = parameters.QrCodeMinIsoContrast;
+        _qrCodeMaxEccErrors = parameters.QrCodeMaxEccErrors;
+        _fftNotchOrGaborSigma = parameters.FftNotchOrGaborSigma;
+        _fftPeakThresholdRatio = parameters.FftPeakThresholdRatio;
+        _homomorphicGammaHigh = parameters.HomomorphicGammaHigh;
+        _barcodeScanlineCount = parameters.BarcodeScanlineCount;
+        _barcodeMinSymbolContrast = parameters.BarcodeMinSymbolContrast;
+        _photometricSlantAngleDeg = parameters.PhotometricSlantAngleDeg;
+        _photometricCurvatureThreshold = parameters.PhotometricCurvatureThreshold;
+        _photometricMaxDefectPixels = parameters.PhotometricMaxDefectPixels;
+        _gdtAngleToleranceDeg = parameters.GdtAngleToleranceDeg;
+        _gdtConcentricityLimitPx = parameters.GdtConcentricityLimitPx;
+        _gdtDistanceTolerancePx = parameters.GdtDistanceTolerancePx;
+        _gdtGradientThreshold = parameters.GdtGradientThreshold;
+        _ocrAllowedCharacters = parameters.OcrAllowedCharacters;
+        _ppOcrMinConfidence = parameters.PpOcrMinConfidence;
+        _ppOcrLanguageMode = parameters.PpOcrLanguageMode;
+        _ppOcrPolarity = parameters.PpOcrPolarity;
+        _ppOcrPipeline = parameters.PpOcrPipeline;
+        _ppOcrPreset = parameters.PpOcrPreset;
+        Notify(string.Empty);
+        NotifyOptionValidationChanged();
+    }
+
+    public void SetRoiExecutionMode(Guid roiId, RoiSuiteExecutionMode mode)
+    {
+        if (roiId == Guid.Empty)
+        {
+            return;
+        }
+
+        _roiExecutionModes[roiId] = mode;
+    }
+
+    public RoiSuiteExecutionMode GetRoiExecutionMode(Roi roi)
+    {
+        ArgumentNullException.ThrowIfNull(roi);
+        if (_roiExecutionModes.TryGetValue(roi.Id, out var existing))
+        {
+            return existing;
+        }
+
+        var migrated = LegacyRoiModeMigration.FromRoiName(roi.Name);
+        _roiExecutionModes[roi.Id] = migrated;
+        return migrated;
     }
 
     private InspectionSuiteParameters BuildParameters() => new(
@@ -2838,35 +2993,51 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         PpOcrLanguageMode: _ppOcrLanguageMode,
         PpOcrPolarity: _ppOcrPolarity,
         PpOcrPipeline: _ppOcrPipeline,
-        PpOcrPreset: _ppOcrPreset);
+        PpOcrPreset: _ppOcrPreset,
+        QrCodeMinIsoContrast: _qrCodeMinIsoContrast,
+        QrCodeMaxEccErrors: _qrCodeMaxEccErrors);
 
-    private bool TryGetSelectedOrPrimaryPpOcrText(out string text)
+    private bool TryGetSelectedVerifiedPpOcrText(
+        out string text,
+        out string roiName,
+        out float meanConfidence)
     {
         text = string.Empty;
+        roiName = string.Empty;
+        meanConfidence = 0f;
+
         if (LastOutput is not { } output || output.Items.IsDefaultOrEmpty)
         {
             return false;
         }
 
-        var selectedIds = _state.Selection;
-        foreach (var item in output.Items)
+        var selectedLeaves = GetSelectedLeafRois();
+        if (selectedLeaves.Count != 1)
         {
-            if (selectedIds.Contains(item.RoiId)
-                && item.OcrDiagnostic is { } diag
-                && !string.IsNullOrWhiteSpace(diag.RecognizedText))
-            {
-                text = NormalizeRecognizedTextForOcv(diag.RecognizedText);
-                return text.Length > 0;
-            }
+            return false;
         }
 
+        Guid selectedRoiId = selectedLeaves[0].Id;
         foreach (var item in output.Items)
         {
-            if (item.OcrDiagnostic is { } diag && !string.IsNullOrWhiteSpace(diag.RecognizedText))
+            if (item.RoiId != selectedRoiId)
             {
-                text = NormalizeRecognizedTextForOcv(diag.RecognizedText);
-                return text.Length > 0;
+                continue;
             }
+
+            if (!item.IsPass
+                || item.OcrDiagnostic is not { } diag
+                || string.IsNullOrWhiteSpace(diag.RecognizedText)
+                || diag.MeanConfidence < _ppOcrMinConfidence
+                || diag.MinConfidence < InspectionSuiteParameters.DefaultPpOcrMinCharacterConfidence)
+            {
+                return false;
+            }
+
+            text = NormalizeRecognizedTextForOcv(diag.RecognizedText);
+            roiName = item.Name;
+            meanConfidence = diag.MeanConfidence;
+            return text.Length > 0;
         }
 
         return false;
@@ -2882,40 +3053,63 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
     private void CopyRecognizedPpOcrTextToOcvExpectedText()
     {
-        if (!TryGetSelectedOrPrimaryPpOcrText(out string recognized))
+        if (!TryGetSelectedVerifiedPpOcrText(out string recognized, out string roiName, out float meanConfidence))
         {
+            PresentWarning("단일 선택된 ROI에 대해 합격(신뢰도 기준 충족)된 PP-OCR 판독 결과가 있을 때만 기대 문자열로 채울 수 있습니다.");
+            return;
+        }
+
+        if (_confirmApplyPpOcrToOcv is not null &&
+            !_confirmApplyPpOcrToOcv.Invoke(roiName, recognized, meanConfidence))
+        {
+            Status = "PP-OCR 판독값 기대 문자열 반영을 취소했습니다.";
+            Notify(nameof(Status));
             return;
         }
 
         SelectedRoiOcvExpectedText = recognized;
-        Status = $"PP-OCRv4 판독 문자열 '{recognized}'을(를) 선택 ROI의 OCV 기대 문자열로 채웠습니다.";
+        Status = $"PP-OCRv4 판독 문자열 '{recognized}' (신뢰도 {meanConfidence:P1})을(를) 선택 ROI의 OCV 기대 문자열로 채웠습니다.";
         Notify(nameof(Status));
     }
 
     private void SyncSelectedRoiOcvSettingsFromState()
     {
         var selectedLeaves = GetSelectedLeafRois();
-        string expected = selectedLeaves.Count > 0 ? selectedLeaves[0].Ocv.ExpectedText : string.Empty;
-        string mask = selectedLeaves.Count > 0 ? selectedLeaves[0].Ocv.FormatMask : string.Empty;
+        string expected = selectedLeaves.Count == 1 ? selectedLeaves[0].Ocv.ExpectedText : string.Empty;
+        string mask = selectedLeaves.Count == 1 ? selectedLeaves[0].Ocv.FormatMask : string.Empty;
+        string fontId = selectedLeaves.Count == 1
+            ? RoiOcvSettings.NormalizeFontId(selectedLeaves[0].Ocv.FontId)
+            : RoiOcvSettings.DefaultFontId;
         _syncingRoiOcvFields = true;
         try
         {
             Set(ref _selectedRoiOcvExpectedText, expected, nameof(SelectedRoiOcvExpectedText));
             Set(ref _selectedRoiOcvFormatMask, mask, nameof(SelectedRoiOcvFormatMask));
+            Set(ref _selectedRoiOcvFontId, fontId, nameof(SelectedRoiOcvFontId));
         }
         finally
         {
             _syncingRoiOcvFields = false;
         }
+
+        Notify(nameof(CanEditSelectedRoiOcvSettings));
+        Notify(nameof(OcvFontStatusBadge));
+        ApplyPpOcrTextToOcvExpectedText.Refresh();
+        TeachSelectedRoiOcvFont.Refresh();
+        SaveOcvFontModel.Refresh();
     }
 
     private void CommitSelectedRoiOcvSettings()
     {
-        var ids = GetSelectedLeafRois().Select(static roi => roi.Id).ToArray();
-        if (ids.Length > 0)
+        var selectedLeaves = GetSelectedLeafRois();
+        if (selectedLeaves.Count != 1)
         {
-            RoiOcvSettingsChangeRequested?.Invoke(ids, new RoiOcvSettings(_selectedRoiOcvExpectedText, _selectedRoiOcvFormatMask));
+            return;
         }
+
+        RoiOcvSettingsChangeRequested?.Invoke(
+            [selectedLeaves[0].Id],
+            new RoiOcvSettings(_selectedRoiOcvExpectedText, _selectedRoiOcvFormatMask, _selectedRoiOcvFontId));
     }
 
     private async Task TeachSelectedRoiOcvFontAsync()
@@ -2926,19 +3120,21 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
 
         var selectedRois = GetSelectedLeafRois();
-        if (selectedRois.Count == 0)
+        if (selectedRois.Count != 1)
         {
-            PresentWarning("골든 폰트를 티칭할 기준 리프 ROI를 먼저 선택해 주세요.");
+            PresentWarning("골든 폰트를 티칭할 단일 기준 리프 ROI 1개만 선택해 주세요.");
             return;
         }
 
+        Roi targetRoi = selectedRois[0];
         string expectedText = _selectedRoiOcvExpectedText;
         if (string.IsNullOrWhiteSpace(expectedText))
         {
-            expectedText = selectedRois[0].Ocv.ExpectedText;
+            expectedText = targetRoi.Ocv.ExpectedText;
         }
 
-        var targetInput = ToRoiInput(selectedRois[0], classLabel: 0);
+        string fontId = RoiOcvSettings.NormalizeFontId(_selectedRoiOcvFontId);
+        var targetInput = ToRoiInput(targetRoi, classLabel: 0);
         long epoch = ++_epoch;
         CancelLivePreview();
         using var cts = BeginBusy($"골든 폰트 티칭 중… ({targetInput.Name})");
@@ -2952,7 +3148,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 _selectedOcvPolarity,
                 _ocvForegroundContrast,
                 _ocvAppendTeachMode,
-                cts.Token);
+                cts.Token,
+                fontId);
 
             if (epoch != _epoch || _disposed)
             {
@@ -3012,16 +3209,18 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         }
 
         var requests = new List<OcvRoiVerifyRequest>(targetRois.Count);
+        bool singleSelectedEdit = selectedOnly && targetRois.Count == 1;
         for (int i = 0; i < targetRois.Count; i++)
         {
             Roi roi = targetRois[i];
             InspectionSuiteRoiInput input = ToRoiInput(roi, classLabel: 0);
             string expected = !string.IsNullOrWhiteSpace(roi.Ocv.ExpectedText)
                 ? roi.Ocv.ExpectedText
-                : (selectedOnly ? _selectedRoiOcvExpectedText : string.Empty);
+                : (singleSelectedEdit ? _selectedRoiOcvExpectedText : string.Empty);
             string mask = !string.IsNullOrWhiteSpace(roi.Ocv.FormatMask)
                 ? roi.Ocv.FormatMask
-                : (selectedOnly ? _selectedRoiOcvFormatMask : string.Empty);
+                : (singleSelectedEdit ? _selectedRoiOcvFormatMask : string.Empty);
+            string fontId = RoiOcvSettings.NormalizeFontId(roi.Ocv.FontId);
             requests.Add(new OcvRoiVerifyRequest(
                 input.RoiId,
                 input.Name,
@@ -3031,7 +3230,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 input.AngleRadians,
                 input.Outline,
                 expected,
-                mask));
+                mask,
+                fontId));
         }
 
         long epoch = ++_epoch;
@@ -3167,6 +3367,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 Color: markerColor,
                 Features: item.OkCharCenters)
             {
+                SourceRoiId = item.RoiId,
                 AdditionalContours = item.CharContours,
                 DiagnosticGroups = diagGroups.ToImmutable(),
                 KeyFeatures = item.OkCharCenters,
@@ -3208,7 +3409,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 RoiName: item.RoiName,
                 Tool: InspectionToolKind.InspectionSuite,
                 PatternMethod: null,
-                SuiteAlgorithm: InspectionSuiteAlgorithmKind.PpOcrOnnx,
+                SuiteAlgorithm: null,
                 AlgorithmBadge: badge,
                 AlgorithmAccent: accent,
                 ParameterSummary: $"기대='{item.ExpectedText}' · 형식='{item.FormatMask}'",
@@ -3233,9 +3434,32 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             TargetBounds: bounds));
     }
 
+    public Dictionary<string, string> ExportOcvFontModelsForRecipe()
+    {
+        if (_ocvService is null)
+        {
+            return [];
+        }
+
+        var exported = _ocvService.ExportAllFontModelsJson();
+        return new Dictionary<string, string>(exported, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public void ImportOcvFontModelsFromRecipe(IReadOnlyDictionary<string, string>? fontModelsById)
+    {
+        if (_ocvService is null)
+        {
+            return;
+        }
+
+        _ocvService.ImportAllFontModelsJson(fontModelsById);
+        NotifyOcvStateChanged();
+    }
+
     private void SaveOcvFontModelFromDialog()
     {
-        if (_ocvService is null || !_ocvService.HasGoldenFont || _selectOcvFontSavePath is null)
+        string fontId = RoiOcvSettings.NormalizeFontId(_selectedRoiOcvFontId);
+        if (_ocvService is null || !_ocvService.HasGoldenFontForId(fontId) || _selectOcvFontSavePath is null)
         {
             return;
         }
@@ -3249,8 +3473,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         try
         {
             using var stream = File.Create(savePath);
-            _ocvService.SaveFontModel(stream);
-            Status = $"골든 폰트 저장 완료: {Path.GetFileName(savePath)} ({_ocvService.RegisteredCharactersSummary})";
+            _ocvService.SaveFontModel(stream, fontId);
+            Status = $"골든 폰트 저장 완료: {Path.GetFileName(savePath)} ({_ocvService.GetRegisteredCharactersSummary(fontId)})";
             Notify(nameof(Status));
         }
         catch (Exception ex)
@@ -3272,13 +3496,14 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             return;
         }
 
+        string fontId = RoiOcvSettings.NormalizeFontId(_selectedRoiOcvFontId);
         try
         {
             using var stream = File.OpenRead(openPath);
-            _ocvService.LoadFontModel(stream);
+            _ocvService.LoadFontModel(stream, fontId);
             OcvLastVerdictBadge = "FONT LOADED";
             OcvLastVerdictAccent = TaughtFontOcvService.AccentOk;
-            Status = $"골든 폰트 불러오기 완료: {Path.GetFileName(openPath)} ({_ocvService.RegisteredCharactersSummary})";
+            Status = $"골든 폰트 불러오기 완료: {Path.GetFileName(openPath)} ({_ocvService.GetRegisteredCharactersSummary(fontId)})";
             NotifyOcvStateChanged();
             Notify(nameof(Status));
         }
@@ -3372,22 +3597,10 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
 
         if (_state.Selection.Count > 0)
         {
-            var selectedPreview = new List<Roi>(Math.Min(6, _state.Selection.Count));
-            foreach (var id in _state.Selection)
-            {
-                if (_state.Rois.TryGetValue(id, out var roi) && !roi.IsGroup)
-                {
-                    selectedPreview.Add(roi);
-                    if (selectedPreview.Count >= 6)
-                    {
-                        break;
-                    }
-                }
-            }
-
+            var selectedPreview = GetSelectedLeafRois();
             if (selectedPreview.Count > 0)
             {
-                return selectedPreview;
+                return selectedPreview.Count <= 6 ? selectedPreview : selectedPreview.GetRange(0, 6);
             }
         }
 
@@ -3419,16 +3632,38 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
                 list.Add(roi);
             }
         }
+
+        list.Sort(CompareLeafRoisReadingOrder);
         return list;
     }
 
     private List<Roi> GetAllLeafRois()
     {
-        return _state.Rois.Values
-            .Where(roi => !roi.IsGroup)
-            .OrderBy(roi => Math.Round(roi.Geometry.Center.Y / 80.0))
-            .ThenBy(roi => roi.Geometry.Center.X)
+        var list = _state.Rois.Values
+            .Where(static roi => !roi.IsGroup)
             .ToList();
+        list.Sort(CompareLeafRoisReadingOrder);
+        return list;
+    }
+
+    private static int CompareLeafRoisReadingOrder(Roi a, Roi b)
+    {
+        const double ReadingRowBandHeightPx = 80.0;
+        double bandA = Math.Round(a.Geometry.Center.Y / ReadingRowBandHeightPx);
+        double bandB = Math.Round(b.Geometry.Center.Y / ReadingRowBandHeightPx);
+        int bandCmp = bandA.CompareTo(bandB);
+        if (bandCmp != 0)
+        {
+            return bandCmp;
+        }
+
+        int xCmp = a.Geometry.Center.X.CompareTo(b.Geometry.Center.X);
+        if (xCmp != 0)
+        {
+            return xCmp;
+        }
+
+        return a.Id.CompareTo(b.Id);
     }
 
     private InspectionSuiteRoiInput ToRoiInput(Roi roi, int classLabel)
@@ -3447,7 +3682,8 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
             height,
             angleRad,
             outline,
-            classLabel);
+            classLabel,
+            ExplicitExecutionMode: GetRoiExecutionMode(roi));
     }
 
     private CancellationTokenSource BeginBusy(string status)
@@ -3508,6 +3744,7 @@ public sealed class InspectionSuiteViewModel : ObservableObject, IVisionAlgorith
         Notify(nameof(IsAdvancedMetrologyEllipseSelected));
         Notify(nameof(IsAdvancedBlobWatershedSelected));
         Notify(nameof(IsDataMatrix2DSelected));
+        Notify(nameof(IsQrCode2DSelected));
         Notify(nameof(IsPreprocessingFftGaborSelected));
         Notify(nameof(IsBarcode1DSelected));
         Notify(nameof(IsPhotometricStereoSelected));

@@ -103,7 +103,7 @@ public sealed class CudaPrimitiveDetectionTests
         var pixels = new byte[stride * height];
         new Random(203).NextBytes(pixels);
         var original = pixels.ToArray();
-        var image = new GrayImage(pixels, width, height, stride);
+        var image = new ShapeGrayImage(pixels, width, height, stride);
         using var gpu = new CudaPrimitivePreprocessor();
         var actual = gpu.Median3x3(image, default);
         Span<byte> neighborhood = stackalloc byte[9];
@@ -158,7 +158,7 @@ public sealed class CudaPrimitiveDetectionTests
                 }
             }
         }
-        var image = new GrayImage(pixels, Width, Height, Width, mask);
+        var image = new ShapeGrayImage(pixels, Width, Height, Width, mask);
         using var gpu = new CudaPrimitivePreprocessor();
         foreach (var polarity in Enum.GetValues<ForegroundPolarity>())
         {
@@ -201,7 +201,7 @@ public sealed class CudaPrimitiveDetectionTests
     public void CancellationDisposalAndWindowBudgetDoNotReturnPartialSuccess()
     {
         var gpu = new CudaPrimitivePreprocessor();
-        var image = new GrayImage(new byte[64], 8, 8, 8);
+        var image = new ShapeGrayImage(new byte[64], 8, 8, 8);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         Assert.Throws<OperationCanceledException>(() => gpu.Median3x3(image, cancellation.Token));

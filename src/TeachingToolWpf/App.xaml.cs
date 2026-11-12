@@ -6,6 +6,7 @@ using TeachingToolWpf.Diagnostics;
 using TeachingToolWpf.Services;
 using TeachingToolWpf.ViewModels;
 using TeachingToolWpf.Views;
+using VisionAlgorithm.Verification;
 using VisionCanvas.Imaging.Filters;
 using VisionCanvas.Rendering;
 using VisionCompute.ILGPU;
@@ -60,25 +61,28 @@ public partial class App : Application
         IndustrialVision.Filters.Gpu.CudaBackend? filterGpu = null;
         var filterPreview = new RoiFilterPreview(loader, window.Viewport.RetainFrame,
             () => filterGpu ??= new IndustrialVision.Filters.Gpu.CudaBackend());
+        var preFilterPipeline = new Imaging.Matching.PreInspectionFilterPipeline();
         var pattern = new ShapeMatchingViewModel(
             new Imaging.Matching.ShapeMatchingService(loader, window.Viewport.RetainFrame, inspectionCompute.Rent, inspectionCompute.PrepareAsync,
-                Imaging.Matching.ShapeSearchPipeline.Paper),
-            new Imaging.Matching.TemplateMatchingService(loader, window.Viewport.RetainFrame),
-            new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent),
-            new Imaging.Matching.PatMaxMatchingService(loader, window.Viewport.RetainFrame));
+                Imaging.Matching.ShapeSearchPipeline.Paper, preFilterPipeline),
+            new Imaging.Matching.TemplateMatchingService(loader, window.Viewport.RetainFrame, preFilterPipeline),
+            new Imaging.Matching.CpuTemplateMatchingService(loader, window.Viewport.RetainFrame, templateCompute.Rent, preFilterPipeline),
+            new Imaging.Matching.PatMaxMatchingService(loader, window.Viewport.RetainFrame, preFilterPipeline));
         var shapes = new PrimitiveShapeDetectionViewModel(new Imaging.Matching.PrimitiveShapeDetectionService(loader,
-            window.Viewport.RetainFrame, () => new CudaPrimitivePreprocessor()));
-        var fewShot = new EdgeFewShotViewModel(new Imaging.Matching.EdgeFewShotService(loader, window.Viewport.RetainFrame));
+            window.Viewport.RetainFrame, () => new CudaPrimitivePreprocessor(), preFilterPipeline));
+        var fewShot = new EdgeFewShotViewModel(new Imaging.Matching.EdgeFewShotService(loader, window.Viewport.RetainFrame, preFilterPipeline));
         var ppOcrService = new PpOcrInferenceService(PpOcrModelOptions.FromDirectory(ResolvePpOcrModelDirectory()));
-        var ocvService = new Imaging.Matching.TaughtFontOcvService(loader, window.Viewport.RetainFrame);
+        var ocvService = new Imaging.Matching.TaughtFontOcvService(loader, window.Viewport.RetainFrame, preFilterPipeline);
         var suite = new InspectionSuiteViewModel(
-            new Imaging.Matching.InspectionSuiteService(loader, window.Viewport.RetainFrame, ppOcrService),
+            new Imaging.Matching.InspectionSuiteService(loader, window.Viewport.RetainFrame, ppOcrService, preFilterPipeline, new Master8kSuiteVerificationRunner()),
             ocvService,
             selectOcvFontOpenPath: () => SelectOcvFontOpenPath(window),
-            selectOcvFontSavePath: () => SelectOcvFontSavePath(window));
+            selectOcvFontSavePath: () => SelectOcvFontSavePath(window),
+            confirmApplyPpOcrToOcv: (roiName, text, conf) => ConfirmApplyPpOcrToOcv(window, roiName, text, conf));
         var inspections = new InspectionToolsViewModel(pattern, shapes, fewShot, suite);
         var model = new MainWindowViewModel(window.Viewport, new(), loader, live, filterPreview, inspections,
-            selectImage: () => ImageFilePicker.Select(window));
+            selectImage: () => ImageFilePicker.Select(window),
+            preFilterPipeline: preFilterPipeline);
         window.Bind(model);
 
         var filtersDrained = false;
@@ -158,6 +162,14 @@ public partial class App : Application
         };
         return dialog.ShowDialog(owner) == true ? dialog.FileName : null;
     }
+
+    private static bool ConfirmApplyPpOcrToOcv(Window owner, string roiName, string recognizedText, float meanConfidence)
+        => MessageBox.Show(
+            owner,
+            $"선택 ROI '{roiName}'의 PP-OCR 판독 결과 '{recognizedText}' (평균 신뢰도 {meanConfidence:P1})를 OCV 기대 문자열(기준값)로 적용하시겠습니까?\n\n※ 오인식된 문자열로 골든 폰트를 티칭하면 실제 불량이 정상 통과될 수 있으므로 인쇄 내용과 일치하는지 반드시 확인해 주세요.",
+            "OCV 기대 문자열 적용 확인",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question) == MessageBoxResult.Yes;
 
     private static string GetImageCachePath(string[] args)
     {

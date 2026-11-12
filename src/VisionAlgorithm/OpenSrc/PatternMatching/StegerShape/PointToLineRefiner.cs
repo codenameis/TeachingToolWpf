@@ -6,7 +6,7 @@ namespace VisionAlgorithm.OpenSrc.PatternMatching;
 
 public static class PointToLineRefiner
 {
-    private readonly record struct Correspondence(ModelFeature Feature, EdgePoint Edge);
+    private readonly record struct Correspondence(ModelFeature Feature, ShapeEdgePoint Edge);
     internal readonly record struct PoseJacobian(double X, double Y, double Angle, double LogScale)
     {
         public double this[int index] => index switch { 0 => X, 1 => Y, 2 => Angle, 3 => LogScale, _ => throw new ArgumentOutOfRangeException(nameof(index)) };
@@ -14,7 +14,7 @@ public static class PointToLineRefiner
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static ShapeMatch Refine(PreparedSearchImage image, ShapeModel model, ShapeMatch match,
-        SearchOptions options, CancellationToken cancellationToken = default)
+        ShapeSearchOptions options, CancellationToken cancellationToken = default)
     {
         var initial = match.Pose;
         var pose = initial;
@@ -186,7 +186,7 @@ public static class PointToLineRefiner
     }
 }
 
-    internal static (double Residual, PoseJacobian Jacobian) ResidualAndJacobian(ModelFeature feature, EdgePoint edge, MatchPose pose)
+    internal static (double Residual, PoseJacobian Jacobian) ResidualAndJacobian(ModelFeature feature, ShapeEdgePoint edge, MatchPose pose)
     {
         var cos = Math.Cos(pose.Angle);
         var sin = Math.Sin(pose.Angle);
@@ -282,7 +282,7 @@ public static class PointToLineRefiner
             var nx = (cos * feature.NormalX) - (sin * feature.NormalY);
             var ny = (sin * feature.NormalX) + (cos * feature.NormalY);
             var bestDistance = 9d;
-            EdgePoint? best = null;
+            ShapeEdgePoint? best = null;
             for (var iy = Math.Max(0, (int)y - 3); iy <= Math.Min(image.Height - 1, (int)y + 3); iy++)
             {
                 for (var ix = Math.Max(0, (int)x - 3); ix <= Math.Min(image.Width - 1, (int)x + 3); ix++)

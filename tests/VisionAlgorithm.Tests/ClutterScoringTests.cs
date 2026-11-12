@@ -10,7 +10,7 @@ public sealed class ClutterScoringTests
     [InlineData(.49)]
     [InlineData(8.01)]
     public void ClutterToleranceRejectsInvalidValues(double tolerance)
-        => Assert.Throws<ArgumentOutOfRangeException>(() => new SearchOptions { ClutterTolerancePixels = tolerance }.Validate());
+        => Assert.Throws<ArgumentOutOfRangeException>(() => new ShapeSearchOptions { ClutterTolerancePixels = tolerance }.Validate());
 
     [Fact]
     public void AddedDiagonalLowersFinalScoreWhilePreservingDirectionalEvidence()
@@ -216,7 +216,7 @@ public sealed class ClutterScoringTests
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
     public void InvalidClutterWeightIsRejected(double weight)
-        => Assert.Throws<ArgumentOutOfRangeException>(() => (new SearchOptions { ClutterWeight = weight }).Validate());
+        => Assert.Throws<ArgumentOutOfRangeException>(() => (new ShapeSearchOptions { ClutterWeight = weight }).Validate());
 
     [Fact]
     public void ClutterScoringRequiresVerificationAndOriginalContourModel()
@@ -248,7 +248,7 @@ public sealed class ClutterScoringTests
             AngleStepDegrees = 45
         };
 
-    private static SearchOptions Options(double weight)
+    private static ShapeSearchOptions Options(double weight)
         => new()
         {
             ClutterWeight = weight,
@@ -257,10 +257,10 @@ public sealed class ClutterScoringTests
             MinimumSupport = .1
         };
 
-    private static ShapeMatch Refine(GrayImage image, ShapeModel model, double weight, double angle = 0)
+    private static ShapeMatch Refine(ShapeGrayImage image, ShapeModel model, double weight, double angle = 0)
         => Assert.Single(new ShapeMatcher().RefineCandidate(image, model, new(64, 64, angle), 1, Options(weight)).Matches);
 
-    private static GrayImage CreatePin(double angle, bool extra = false, bool missing = false)
+    private static ShapeGrayImage CreatePin(double angle, bool extra = false, bool missing = false)
     {
         const int Size = 128;
         var pixels = new byte[Size * Size];
